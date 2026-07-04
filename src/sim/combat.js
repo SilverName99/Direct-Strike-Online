@@ -1,0 +1,172 @@
+import { CONFIG } from '../config.js';
+import { UNITS, DAMAGE_MATRIX } from '../units.js';
+import { spawnProjectile } from './entity.js';
+
+export function updateCombat(game, dt) {
+  for (const u of game.entities) {
+    const stats = UNITS[u.type];
+    u.cooldown = Math.max(0, u.cooldown - dt);
+    if (stats.heal) {
+      updateHealer(game, u, stats);
+    } else {
+      updateFighter(game, u, stats);
+    }
+  }
+}
+
+function updateFighter(game, u, stats) {
+  let target = game.byId.get(u.targetId) || null;
+  if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
+    target = null;
+    u.targetId = null;
+  }
+  if (!target) {
+    target = acquireTarget(game, u, stats);
+    u.targetId = target ? target.id : null;
+  }
+
+  if (target && effDist(u, target) <= stats.range) {
+    u.state = 'attack';
+    if (u.cooldown <= 0) {
+      u.cooldown = stats.period;
+      if (stats.projectile) {
+        spawnProjectile(game, u, stats, target);
+        game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
+      } else {
+        applyDamage(game, target, stats.damage, stats.dmgType);
+      }
+    }
+  } else {
+    u.state = 'march';
+  }
+}
+
+function updateHealer(game, u, stats) {
+  // Heal the most-wounded ally in range; otherwise follow the army
+  // (march only while a friendly unit is ahead of us).
+  let best = null;
+  let bestRatio = 1;
+  for (const e of game.entities) {
+    if (e.team !== u.team || e === u || e.hp >= e.maxHp) continue;
+    if (effDist(u, e) > stats.range + CONFIG.AGGRO_BONUS) continue;
+    const ratio = e.hp / e.maxHp;
+    if (ratio < bestRatio) {
+      bestRatio = ratio;
+      best = e;
+    }
+  }
+
+  if (best && effDist(u, best) <= stats.range) {
+    u.state = 'attack';
+    u.targetId = best.id;
+    if (u.cooldown <= 0) {
+      u.cooldown = stats.period;
+      best.hp = Math.min(best.maxHp, best.hp + stats.damage);
+      game.events.push({ type: 'heal', x: best.x, y: best.y });
+    }
+    return;
+  }
+
+  u.targetId = best ? best.id : null;
+  const dir = u.team === 0 ? 1 : -1;
+  const someoneAhead = game.entities.some(
+    (e) => e.team === u.team && e !== u && (e.x - u.x) * dir > 0
+  );
+  u.state = best || someoneAhead ? 'march' : 'attack'; // 'attack' with no cooldown use = hold position
+}
+
+function acquireTarget(game, u, stats) {
+  const aggro = stats.range + CONFIG.AGGRO_BONUS;
+  let best = null;
+  let bestD = Infinity;
+  for (const e of game.entities) {
+    if (e.team === u.team) continue;
+    if (!canHit(stats, e)) continue;
+    const d = effDist(u, e);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  const enemyBase = game.bases[1 - u.team];
+  const baseD = effDist(u, enemyBase);
+  if (baseD < bestD) {
+    bestD = baseD;
+    best = enemyBase;
+  }
+  return bestD <= aggro ? best : null;
+}
+
+function isValidTarget(u, stats, target, maxDist) {
+  return target.hp > 0 && canHit(stats, target) && effDist(u, target) <= maxDist;
+}
+
+function canHit(stats, target) {
+  return !target.isAir || !!stats.targetsAir;
+}
+
+// Distance minus the target's radius, so melee can strike large bodies/bases.
+function effDist(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy) - (b.radius || 0);
+}
+
+export function applyDamage(game, target, damage, dmgType) {
+  const mult = DAMAGE_MATRIX[dmgType][target.armor];
+  target.hp -= damage * mult;
+  game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
+  if (target.hp <= 0 && !target.isBase) {
+    game.events.push({ type: 'death', x: target.x, y: target.y, team: target.team, radius: target.radius });
+  }
+}
+
+export function updateProjectiles(game, dt) {
+  const alive = [];
+  for (const p of game.projectiles) {
+    p.prevX = p.x;
+    p.prevY = p.y;
+    const target = game.byId.get(p.targetId);
+    if (target && target.hp > 0) {
+      p.tx = target.x;
+      p.ty = target.y;
+    }
+    const dx = p.tx - p.x;
+    const dy = p.ty - p.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const speed = p.speed || CONFIG.PROJECTILE_SPEED;
+    const step = speed * dt;
+
+    if (d <= Math.max(step, CONFIG.PROJECTILE_HIT_DIST)) {
+      impact(game, p, target);
+      continue;
+    }
+    p.x += (dx / d) * step;
+    p.y += (dy / d) * step;
+    alive.push(p);
+  }
+  game.projectiles = alive;
+}
+
+function impact(game, p, target) {
+  if (p.splash > 0) {
+    game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash });
+    for (const e of game.entities) {
+      if (e.team === p.team || e.isAir) continue; // splash is ground-only
+      const dx = e.x - p.tx;
+      const dy = e.y - p.ty;
+      if (dx * dx + dy * dy <= p.splash * p.splash) {
+        applyDamage(game, e, p.damage, p.dmgType);
+      }
+    }
+    // splash also chips the base if the impact lands on it
+    const base = game.bases[1 - p.team];
+    const bdx = base.x - p.tx;
+    const bdy = base.y - p.ty;
+    if (Math.sqrt(bdx * bdx + bdy * bdy) <= p.splash + base.radius) {
+      applyDamage(game, base, p.damage, p.dmgType);
+    }
+  } else if (target && target.hp > 0) {
+    applyDamage(game, target, p.damage, p.dmgType);
+  }
+}
