@@ -3,20 +3,34 @@ import { Game } from './sim/game.js';
 import { AIController } from './sim/ai.js';
 import { Renderer } from './render/renderer.js';
 import { Effects } from './render/effects.js';
+import { Camera } from './ui/camera.js';
+import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
+const camera = new Camera(canvas);
+renderer.camera = camera;
+const minimap = new Minimap(document.getElementById('minimap'), camera);
 const effects = new Effects();
-const uiState = { selected: null, drag: null, mouseX: null, mouseY: null };
+const uiState = {
+  selected: null,
+  drag: null,
+  mouseX: null,
+  mouseY: null,
+  screenX: null,
+  screenY: null,
+};
 const hud = new Hud(uiState);
 
 let game = null;
 let ai = null;
 let state = 'menu'; // 'menu' | 'playing' | 'over'
 
-new Input(canvas, renderer, uiState, () => (state === 'playing' ? game : null));
+const input = new Input(canvas, renderer, camera, uiState, () =>
+  state === 'playing' ? game : null
+);
 
 function newGame(difficulty) {
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
@@ -26,6 +40,7 @@ function newGame(difficulty) {
   effects.reset();
   uiState.selected = null;
   uiState.drag = null;
+  camera.reset(CONFIG.BASE_X[0], CONFIG.FIELD_H / 2);
   state = 'playing';
   hud.hideOverlay();
 }
@@ -36,6 +51,7 @@ for (const btn of document.querySelectorAll('.btn.diff')) {
 
 window.addEventListener('resize', () => renderer.resize());
 renderer.resize();
+camera.reset(CONFIG.BASE_X[0], CONFIG.FIELD_H / 2);
 
 let last = performance.now();
 let accumulator = 0;
@@ -43,6 +59,18 @@ let accumulator = 0;
 function frame(now) {
   const delta = Math.min((now - last) / 1000, 0.25);
   last = now;
+
+  // Camera pans every frame (menu included — harmless).
+  camera.update(delta, input.cameraControl());
+
+  // The world point under the cursor shifts when the camera moves even if
+  // the mouse doesn't — re-derive sim coords and keep any drag pinned.
+  if (uiState.screenX != null) {
+    const w = camera.screenToWorld(uiState.screenX, uiState.screenY);
+    uiState.mouseX = w.x;
+    uiState.mouseY = w.y;
+    if (state === 'playing' && uiState.drag) input.dragTo(w.x, w.y);
+  }
 
   if (state === 'playing' && game) {
     accumulator += delta;
@@ -68,6 +96,7 @@ function frame(now) {
     const alpha = state === 'playing' ? accumulator / CONFIG.FIXED_DT : 1;
     renderer.draw(game, alpha, uiState, effects);
   }
+  minimap.draw(game);
   requestAnimationFrame(frame);
 }
 

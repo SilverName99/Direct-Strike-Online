@@ -4,18 +4,29 @@ export const CONFIG = {
   // Simulation
   FIXED_DT: 1 / 30,
 
-  // Battlefield (simulation units)
-  FIELD_W: 1600,
-  FIELD_H: 900,
+  // Battlefield (simulation units) — larger than the screen; an RTS
+  // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
+  FIELD_W: 3200,
+  FIELD_H: 1440,
 
   // Classic Direct Strike layout, mirrored per team:
   // [build zone][base]   [turret]   mid   [turret]   [base][build zone]
   BUILD_ZONE: [
-    { x0: 30, x1: 340, y0: 40, y1: 860 },    // team 0 (left)
-    { x0: 1260, x1: 1570, y0: 40, y1: 860 }, // team 1 (right)
+    { x0: 60, x1: 680, y0: 64, y1: 1376 },    // team 0 (left)
+    { x0: 2520, x1: 3140, y0: 64, y1: 1376 }, // team 1 (right)
   ],
-  BASE_X: [380, 1220],
-  TURRET_X: [590, 1010],
+  BASE_X: [760, 2440],
+  TURRET_X: [1180, 2020],
+
+  // RTS camera (render-side only; the sim never sees it)
+  CAMERA: {
+    EDGE_PX: 28,       // pointer within this many px of the canvas edge scrolls
+    EDGE_SPEED: 1100,  // world units per second
+    KEY_SPEED: 1100,   // arrows / WASD
+    ZOOM_MAX: 2.5,     // max zoom = fit-the-map zoom × this
+    ZOOM_STEP: 1.15,   // wheel notch multiplier
+    START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
+  },
 
   // Bases
   BASE_HP: 3000,

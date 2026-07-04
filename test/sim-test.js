@@ -124,7 +124,8 @@ console.log('turrets');
 {
   // A lone enemy grunt walking into turret range dies to it.
   const game = new Game(9);
-  const g = spawnUnit(game, 1, 'grunt', CONFIG.TURRET_X[0] + 120, 450);
+  const midY = CONFIG.FIELD_H / 2;
+  const g = spawnUnit(game, 1, 'grunt', CONFIG.TURRET_X[0] + 120, midY);
   for (let i = 0; i < 300 && g.hp > 0; i++) {
     game.update(DT);
     game.drainEvents();
@@ -133,7 +134,7 @@ console.log('turrets');
 
   // A destroyed turret is gone permanently (no respawn on later waves).
   game.turrets[0].hp = 5;
-  spawnUnit(game, 1, 'bruiser', CONFIG.TURRET_X[0] + 60, 450);
+  spawnUnit(game, 1, 'bruiser', CONFIG.TURRET_X[0] + 60, midY);
   for (let i = 0; i < 150; i++) {
     game.update(DT);
     game.drainEvents();
@@ -154,8 +155,9 @@ console.log('counter matchups (equal cost)');
 function battle(teamA, teamB, maxSeconds = 120) {
   const game = new Game(123);
   game.turrets = [null, null]; // isolate unit-vs-unit combat from turrets
-  place(game, 0, teamA, 560, -1);
-  place(game, 1, teamB, 1040, 1);
+  // symmetric around midfield, same 480-unit gap as the original matchups
+  place(game, 0, teamA, CONFIG.FIELD_W / 2 - 240, -1);
+  place(game, 1, teamB, CONFIG.FIELD_W / 2 + 240, 1);
   game.waveTimer = DT / 2; // fire the wave on the first tick
   const maxTicks = Math.ceil(maxSeconds / DT);
   for (let i = 0; i < maxTicks; i++) {
@@ -174,11 +176,12 @@ function battle(teamA, teamB, maxSeconds = 120) {
 }
 
 function place(game, team, types, frontX, dir) {
+  const y0 = CONFIG.FIELD_H / 2 - 90;
   types.forEach((type, i) => {
     game.templates[team].push({
       type,
       x: frontX + dir * Math.floor(i / 5) * 45,
-      y: 360 + (i % 5) * 45,
+      y: y0 + (i % 5) * 45,
     });
   });
 }

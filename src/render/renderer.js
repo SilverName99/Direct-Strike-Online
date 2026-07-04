@@ -86,41 +86,45 @@ export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.scale = 1;
+    this.camera = null; // wired in main.js
+    this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
   }
 
   resize() {
+    // Fill the whole wrapper — the camera crops the world, so no aspect lock.
     const wrap = this.canvas.parentElement;
-    const maxW = wrap.clientWidth;
-    const maxH = wrap.clientHeight;
-    const aspect = CONFIG.FIELD_W / CONFIG.FIELD_H;
-    let w = maxW;
-    let h = w / aspect;
-    if (h > maxH) {
-      h = maxH;
-      w = h * aspect;
-    }
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.style.width = `${w}px`;
-    this.canvas.style.height = `${h}px`;
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
-    this.scale = this.canvas.width / CONFIG.FIELD_W;
+    this.canvas.style.width = `${wrap.clientWidth}px`;
+    this.canvas.style.height = `${wrap.clientHeight}px`;
+    this.canvas.width = Math.round(wrap.clientWidth * dpr);
+    this.canvas.height = Math.round(wrap.clientHeight * dpr);
+    if (this.camera) this.camera.clamp();
   }
 
-  // Convert a mouse event to sim coordinates.
+  // Convert a mouse event to sim (world) coordinates through the camera.
   toSim(evt) {
     const rect = this.canvas.getBoundingClientRect();
-    const x = ((evt.clientX - rect.left) / rect.width) * CONFIG.FIELD_W;
-    const y = ((evt.clientY - rect.top) / rect.height) * CONFIG.FIELD_H;
-    return { x, y };
+    return this.camera.screenToWorld(evt.clientX - rect.left, evt.clientY - rect.top);
+  }
+
+  // Is a world point (with margin) inside the visible viewport?
+  visible(x, y, margin = 60) {
+    const v = this.view;
+    return x >= v.x0 - margin && x <= v.x1 + margin && y >= v.y0 - margin && y <= v.y1 + margin;
   }
 
   draw(game, alpha, uiState, effects) {
     const { ctx } = this;
-    const s = this.scale;
+    const cam = this.camera;
+    const z = cam.zoom;
+    this.view = {
+      x0: cam.x,
+      y0: cam.y,
+      x1: cam.x + cam.viewW(),
+      y1: cam.y + cam.viewH(),
+    };
     ctx.save();
-    ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.setTransform(z, 0, 0, z, -cam.x * z, -cam.y * z);
 
     this.drawField(ctx);
     this.drawTemplates(ctx, game, uiState);
@@ -250,6 +254,7 @@ export class Renderer {
       ctx.lineWidth = 1.5;
       const rot = team === 0 ? 0 : Math.PI;
       game.templates[team].forEach((tpl, i) => {
+        if (!this.visible(tpl.x, tpl.y)) return;
         const stats = UNITS[tpl.type];
         const hot = team === 0 && i === hoverIdx && !uiState.selected;
         ctx.globalAlpha = hot ? 0.9 : 0.35;
@@ -276,6 +281,7 @@ export class Renderer {
       const stats = UNITS[u.type];
       const x = u.prevX + (u.x - u.prevX) * alpha;
       const y = u.prevY + (u.y - u.prevY) * alpha;
+      if (!this.visible(x, y)) continue;
       const color = TEAM_COLORS[u.team];
 
       if (u.isAir) {
@@ -319,6 +325,7 @@ export class Renderer {
     for (const p of game.projectiles) {
       const x = p.prevX + (p.x - p.prevX) * alpha;
       const y = p.prevY + (p.y - p.prevY) * alpha;
+      if (!this.visible(x, y)) continue;
       ctx.fillStyle = p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team];
       ctx.beginPath();
       ctx.arc(x, y, p.splash > 0 ? 5 : 3, 0, Math.PI * 2);

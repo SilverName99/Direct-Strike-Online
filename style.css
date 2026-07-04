@@ -76,6 +76,17 @@ html, body {
 }
 #game { display: block; cursor: crosshair; }
 
+#minimap {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(10, 14, 20, 0.92);
+  cursor: pointer;
+  z-index: 5;
+}
+
 /* ---------- Shop ---------- */
 #shop {
   display: flex;

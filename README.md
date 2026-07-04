@@ -21,6 +21,13 @@ Harta urmează layout-ul clasic Direct Strike:
 - Fiecare parte are un **turn defensiv** puternic (lovește sol + aer) la jumătatea drumului. Odată
   distrus, e pierdut definitiv — o gaură permanentă în apărare.
 - Primești **venit pasiv** (+10/s). Upgrade-ul de venit (tasta `0`) îl crește permanent cu +4/s.
+
+### Camera (harta e mai mare decât ecranul)
+
+- **Mouse la marginea ecranului** sau **săgeți / WASD** — derulezi harta, ca în WC3/SC2.
+- **Rotița mouse-ului** — zoom in/out centrat pe cursor.
+- **Space** — salt instant la baza ta.
+- **Minimap** (colțul stânga-jos) — vezi toată harta; click sau drag pe el ca să sari oriunde.
 - **Contre:** piercing topește armored (Lancer vs Bruiser) · explosive topește swarm-urile light
   (Siege Crab vs Grunts) · unitățile melee și artileria nu pot lovi aerul (Wasp) · anti-aerul
   dedicat e Archon, iar Slinger e răspunsul ieftin.
