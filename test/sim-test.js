@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController } from '../src/sim/ai.js';
+import { spawnUnit } from '../src/sim/entity.js';
+import { UNITS } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 
 const DT = CONFIG.FIXED_DT;
@@ -93,12 +95,65 @@ console.log('AI vs AI terminates');
   }
 }
 
+// -------------------------------------------------- structures & commands
+console.log('structures & commands');
+{
+  const game = new Game(5);
+  const buy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 100, y: 450 });
+  check('buy inside build zone ok', buy.ok);
+
+  const badBuy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 700, y: 450 });
+  check('buy outside build zone rejected', !badBuy.ok);
+
+  const before = game.money[0];
+  const sell = game.issueCommand({ type: 'sellUnit', team: 0, index: 0 });
+  const refund = Math.round(UNITS.grunt.cost * CONFIG.SELL_REFUND);
+  check(
+    'sellUnit removes template and refunds 75%',
+    sell.ok && game.templates[0].length === 0 && game.money[0] === before + refund
+  );
+
+  game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 100, y: 450 });
+  const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 200, y: 300 });
+  check('moveUnit repositions inside zone', mv.ok && game.templates[0][0].x === 200);
+  const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 800, y: 450 });
+  check('moveUnit rejects positions outside zone', !badMv.ok && game.templates[0][0].x === 200);
+}
+
+console.log('turrets');
+{
+  // A lone enemy grunt walking into turret range dies to it.
+  const game = new Game(9);
+  const g = spawnUnit(game, 1, 'grunt', CONFIG.TURRET_X[0] + 120, 450);
+  for (let i = 0; i < 300 && g.hp > 0; i++) {
+    game.update(DT);
+    game.drainEvents();
+  }
+  check('turret kills a passing enemy grunt', g.hp <= 0);
+
+  // A destroyed turret is gone permanently (no respawn on later waves).
+  game.turrets[0].hp = 5;
+  spawnUnit(game, 1, 'bruiser', CONFIG.TURRET_X[0] + 60, 450);
+  for (let i = 0; i < 150; i++) {
+    game.update(DT);
+    game.drainEvents();
+  }
+  check('destroyed turret is removed', game.turrets[0] === null);
+  game.waveTimer = DT / 2; // force a wave through
+  for (let i = 0; i < 60; i++) {
+    game.update(DT);
+    game.drainEvents();
+  }
+  check('turret stays destroyed after waves', game.turrets[0] === null);
+}
+
 // ------------------------------------------------------ counter matchups
 console.log('counter matchups (equal cost)');
 
 // Spawns one wave of each army and fights to the death (or timeout).
 function battle(teamA, teamB, maxSeconds = 120) {
   const game = new Game(123);
+  game.turrets = [null, null]; // isolate unit-vs-unit combat from turrets
   place(game, 0, teamA, 560, -1);
   place(game, 1, teamB, 1040, 1);
   game.waveTimer = DT / 2; // fire the wave on the first tick

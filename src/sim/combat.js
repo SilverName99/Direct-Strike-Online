@@ -12,6 +12,41 @@ export function updateCombat(game, dt) {
       updateFighter(game, u, stats);
     }
   }
+
+  // Turrets: stationary defenders that shoot the nearest enemy in range.
+  for (const turret of game.turrets) {
+    if (turret && turret.hp > 0) updateTurret(game, turret, dt);
+  }
+}
+
+function updateTurret(game, turret, dt) {
+  const stats = CONFIG.TURRET;
+  turret.cooldown = Math.max(0, turret.cooldown - dt);
+
+  let target = game.byId.get(turret.targetId) || null;
+  if (target && !(target.hp > 0 && effDist(turret, target) <= stats.range)) {
+    target = null;
+    turret.targetId = null;
+  }
+  if (!target) {
+    let bestD = Infinity;
+    for (const e of game.entities) {
+      if (e.team === turret.team) continue;
+      const d = effDist(turret, e);
+      if (d < bestD) {
+        bestD = d;
+        target = e;
+      }
+    }
+    if (!target || bestD > stats.range) return;
+    turret.targetId = target.id;
+  }
+
+  if (turret.cooldown <= 0) {
+    turret.cooldown = stats.period;
+    spawnProjectile(game, turret, stats, target);
+    game.events.push({ type: 'shot', x: turret.x, y: turret.y, tx: target.x, ty: target.y, team: turret.team });
+  }
 }
 
 function updateFighter(game, u, stats) {
@@ -88,11 +123,12 @@ function acquireTarget(game, u, stats) {
       best = e;
     }
   }
-  const enemyBase = game.bases[1 - u.team];
-  const baseD = effDist(u, enemyBase);
-  if (baseD < bestD) {
-    bestD = baseD;
-    best = enemyBase;
+  for (const s of game.enemyStructures(u.team)) {
+    const d = effDist(u, s);
+    if (d < bestD) {
+      bestD = d;
+      best = s;
+    }
   }
   return bestD <= aggro ? best : null;
 }
@@ -159,12 +195,13 @@ function impact(game, p, target) {
         applyDamage(game, e, p.damage, p.dmgType);
       }
     }
-    // splash also chips the base if the impact lands on it
-    const base = game.bases[1 - p.team];
-    const bdx = base.x - p.tx;
-    const bdy = base.y - p.ty;
-    if (Math.sqrt(bdx * bdx + bdy * bdy) <= p.splash + base.radius) {
-      applyDamage(game, base, p.damage, p.dmgType);
+    // splash also chips enemy structures caught in the blast
+    for (const s of game.enemyStructures(p.team)) {
+      const sdx = s.x - p.tx;
+      const sdy = s.y - p.ty;
+      if (Math.sqrt(sdx * sdx + sdy * sdy) <= p.splash + s.radius) {
+        applyDamage(game, s, p.damage, p.dmgType);
+      }
     }
   } else if (target && target.hp > 0) {
     applyDamage(game, target, p.damage, p.dmgType);

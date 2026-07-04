@@ -7,11 +7,12 @@ import { mulberry32 } from './rng.js';
 
 const CATEGORY_TARGETS = { front: 0.35, ranged: 0.3, special: 0.2, support: 0.15 };
 
-// Placement bands: offset from the front edge of the AI's zone toward its base.
+// Placement bands: fraction of build-zone depth, measured from the edge
+// facing the enemy (0 = frontmost, 1 = backmost).
 const ROLE_BANDS = {
-  front: [20, 160],
-  mid: [180, 370],
-  back: [400, 560],
+  front: [0.02, 0.3],
+  mid: [0.35, 0.65],
+  back: [0.7, 0.95],
 };
 
 const UNIT_ROLE = {
@@ -116,13 +117,13 @@ export class AIController {
   }
 
   pickPlacement(game, unitId) {
+    const zone = CONFIG.BUILD_ZONE[this.team];
     const band = ROLE_BANDS[UNIT_ROLE[unitId]];
-    const offset = band[0] + this.rng() * (band[1] - band[0]);
-    // Front edge of our zone; offsets go backward toward our base.
+    const frac = band[0] + this.rng() * (band[1] - band[0]);
+    const depth = zone.x1 - zone.x0;
+    // The edge facing the enemy: x1 for the left team, x0 for the right.
     const x =
-      this.team === 1
-        ? CONFIG.ZONE_RIGHT_MIN + offset
-        : CONFIG.ZONE_LEFT_MAX - offset;
+      this.team === 1 ? zone.x0 + frac * depth : zone.x1 - frac * depth;
 
     // Bias y toward the enemy army's center of mass.
     const enemy = game.templates[1 - this.team];
@@ -132,8 +133,8 @@ export class AIController {
     }
     const y = clamp(
       avgY + (this.rng() * 2 - 1) * 220,
-      CONFIG.PLACE_MARGIN + 16,
-      CONFIG.FIELD_H - CONFIG.PLACE_MARGIN - 16
+      zone.y0 + 16,
+      zone.y1 - 16
     );
     return { x, y };
   }

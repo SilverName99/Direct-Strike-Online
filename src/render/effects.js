@@ -24,6 +24,10 @@ export class Effects {
         case 'explosion':
           this.burst(e.x, e.y, 14, '#ffb347', 180, 0.4, 3.5);
           break;
+        case 'structureDestroyed':
+          this.burst(e.x, e.y, 26, '#ffb347', 240, 0.7, 4.5);
+          this.burst(e.x, e.y, 12, TEAM_COLORS[e.team], 160, 0.9, 3);
+          break;
         case 'heal':
           this.burst(e.x, e.y, 2, '#58d68d', 40, 0.5, 2, -40);
           break;

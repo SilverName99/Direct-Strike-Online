@@ -9,10 +9,17 @@ ca să câștigi.
 
 ## Cum joci
 
-- **Cumpără unități** din bara de jos (click pe card sau tastele `1`–`9`), apoi **click în zona ta**
-  (jumătatea albastră) ca să le plasezi. `Shift`+click plasează mai multe; `Esc` / click-dreapta anulează.
-- La fiecare **20 de secunde** pornește un val: toate unitățile plasate spawnează și atacă singure.
-  Plasările sunt permanente — armata ta crește de la val la val.
+Harta urmează layout-ul clasic Direct Strike:
+`[build zone][bază] — [turn] — mijloc — [turn] — [bază][build zone]`
+
+- **Cumpără unități** din bara de jos (click pe card sau tastele `1`–`9`), apoi **click în build
+  zone-ul tău** (dreptunghiul din spatele bazei). `Shift`+click plasează mai multe; `Esc` anulează.
+- **Trage cu mouse-ul** o unitate plasată ca s-o repoziționezi; **click-dreapta** pe ea o vinde
+  (primești 75% din cost înapoi). Formația contează — valul pornește exact în aranjamentul tău.
+- La fiecare **20 de secunde** pornește un val: toată armata din build zone spawnează și mărșăluiește
+  singură spre inamic, trecând pe lângă baza și turnul tău.
+- Fiecare parte are un **turn defensiv** puternic (lovește sol + aer) la jumătatea drumului. Odată
+  distrus, e pierdut definitiv — o gaură permanentă în apărare.
 - Primești **venit pasiv** (+10/s). Upgrade-ul de venit (tasta `0`) îl crește permanent cu +4/s.
 - **Contre:** piercing topește armored (Lancer vs Bruiser) · explosive topește swarm-urile light
   (Siege Crab vs Grunts) · unitățile melee și artileria nu pot lovi aerul (Wasp) · anti-aerul

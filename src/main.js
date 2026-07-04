@@ -9,7 +9,7 @@ import { Input } from './ui/input.js';
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
 const effects = new Effects();
-const uiState = { selected: null, mouseX: null, mouseY: null };
+const uiState = { selected: null, drag: null, mouseX: null, mouseY: null };
 const hud = new Hud(uiState);
 
 let game = null;
@@ -25,6 +25,7 @@ function newGame(difficulty) {
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
   effects.reset();
   uiState.selected = null;
+  uiState.drag = null;
   state = 'playing';
   hud.hideOverlay();
 }

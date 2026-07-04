@@ -68,6 +68,20 @@ function polygon(ctx, sides, r, rot, sx, sy) {
   ctx.closePath();
 }
 
+// Index of `team`'s template under the cursor (topmost first), or -1.
+export function hitTestTemplate(game, team, x, y) {
+  if (x == null || y == null) return -1;
+  const tpls = game.templates[team];
+  for (let i = tpls.length - 1; i >= 0; i--) {
+    const tpl = tpls[i];
+    const r = UNITS[tpl.type].radius + 6;
+    const dx = tpl.x - x;
+    const dy = tpl.y - y;
+    if (dx * dx + dy * dy <= r * r) return i;
+  }
+  return -1;
+}
+
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -109,8 +123,9 @@ export class Renderer {
     ctx.setTransform(s, 0, 0, s, 0, 0);
 
     this.drawField(ctx);
-    this.drawTemplates(ctx, game);
+    this.drawTemplates(ctx, game, uiState);
     this.drawBases(ctx, game);
+    this.drawTurrets(ctx, game);
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
@@ -123,33 +138,75 @@ export class Renderer {
     ctx.fillStyle = '#0e141d';
     ctx.fillRect(0, 0, CONFIG.FIELD_W, CONFIG.FIELD_H);
 
-    // deployment zones
-    ctx.fillStyle = 'rgba(77, 166, 255, 0.05)';
-    ctx.fillRect(0, 0, CONFIG.ZONE_LEFT_MAX, CONFIG.FIELD_H);
-    ctx.fillStyle = 'rgba(255, 85, 102, 0.05)';
-    ctx.fillRect(CONFIG.ZONE_RIGHT_MIN, 0, CONFIG.FIELD_W - CONFIG.ZONE_RIGHT_MIN, CONFIG.FIELD_H);
+    // battle lane gets a faint distinct tone
+    const laneX0 = CONFIG.BASE_X[0];
+    const laneX1 = CONFIG.BASE_X[1];
+    ctx.fillStyle = 'rgba(124, 139, 161, 0.04)';
+    ctx.fillRect(laneX0, 0, laneX1 - laneX0, CONFIG.FIELD_H);
 
-    // zone borders
-    ctx.strokeStyle = 'rgba(77, 166, 255, 0.25)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([12, 10]);
-    ctx.beginPath();
-    ctx.moveTo(CONFIG.ZONE_LEFT_MAX, 0);
-    ctx.lineTo(CONFIG.ZONE_LEFT_MAX, CONFIG.FIELD_H);
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255, 85, 102, 0.25)';
-    ctx.beginPath();
-    ctx.moveTo(CONFIG.ZONE_RIGHT_MIN, 0);
-    ctx.lineTo(CONFIG.ZONE_RIGHT_MIN, CONFIG.FIELD_H);
-    ctx.stroke();
+    // build zones: tinted boxes with dashed borders and a label
+    const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
+    for (const team of [0, 1]) {
+      const z = CONFIG.BUILD_ZONE[team];
+      ctx.fillStyle = `${tints[team]} 0.07)`;
+      ctx.fillRect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0);
+      ctx.strokeStyle = `${tints[team]} 0.35)`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 8]);
+      ctx.strokeRect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0);
+      ctx.setLineDash([]);
+      ctx.fillStyle = `${tints[team]} 0.45)`;
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(team === 0 ? 'BUILD ZONE' : 'ENEMY BUILD', (z.x0 + z.x1) / 2, z.y0 + 28);
+    }
 
     // midline
     ctx.strokeStyle = 'rgba(124, 139, 161, 0.15)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([12, 10]);
     ctx.beginPath();
     ctx.moveTo(CONFIG.FIELD_W / 2, 0);
     ctx.lineTo(CONFIG.FIELD_W / 2, CONFIG.FIELD_H);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  drawTurrets(ctx, game) {
+    for (const turret of game.turrets) {
+      if (!turret || turret.hp <= 0) continue;
+      const color = TEAM_COLORS[turret.team];
+      const r = turret.radius;
+      ctx.save();
+      ctx.translate(turret.x, turret.y);
+      // faint range ring
+      ctx.globalAlpha = 0.06;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, CONFIG.TURRET.range, 0, Math.PI * 2);
+      ctx.stroke();
+      // fort body: square footing + gun circle
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = TEAM_COLORS_DARK[turret.team];
+      ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(-r, -r, r * 2, r * 2);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // HP bar
+      const w = r * 3;
+      const ratio = Math.max(0, turret.hp / turret.maxHp);
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(turret.x - w / 2, turret.y - r - 14, w, 5);
+      ctx.fillStyle = color;
+      ctx.fillRect(turret.x - w / 2, turret.y - r - 14, w * ratio, 5);
+    }
   }
 
   drawBases(ctx, game) {
@@ -181,22 +238,35 @@ export class Renderer {
     }
   }
 
-  drawTemplates(ctx, game) {
+  drawTemplates(ctx, game, uiState) {
+    // Which of the player's templates is hovered (for drag/sell affordance)?
+    const hoverIdx = uiState.drag
+      ? uiState.drag.index
+      : hitTestTemplate(game, 0, uiState.mouseX, uiState.mouseY);
+
     ctx.save();
     for (const team of [0, 1]) {
       ctx.strokeStyle = TEAM_COLORS[team];
-      ctx.globalAlpha = 0.35;
       ctx.lineWidth = 1.5;
       const rot = team === 0 ? 0 : Math.PI;
-      for (const tpl of game.templates[team]) {
+      game.templates[team].forEach((tpl, i) => {
         const stats = UNITS[tpl.type];
+        const hot = team === 0 && i === hoverIdx && !uiState.selected;
+        ctx.globalAlpha = hot ? 0.9 : 0.35;
         ctx.save();
         ctx.translate(tpl.x, tpl.y);
+        if (hot) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = TEAM_COLORS[team];
+        }
         ctx.rotate(rot);
         drawShape(ctx, stats.shape, stats.radius);
         ctx.stroke();
         ctx.restore();
-      }
+      });
     }
     ctx.restore();
   }

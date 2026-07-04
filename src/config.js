@@ -7,15 +7,31 @@ export const CONFIG = {
   // Battlefield (simulation units)
   FIELD_W: 1600,
   FIELD_H: 900,
-  ZONE_LEFT_MAX: 640,   // left team may place in x ∈ [MARGIN, 640]
-  ZONE_RIGHT_MIN: 960,  // right team may place in x ∈ [960, FIELD_W - MARGIN]
-  PLACE_MARGIN: 24,     // keep placements off the very edge
+
+  // Classic Direct Strike layout, mirrored per team:
+  // [build zone][base]   [turret]   mid   [turret]   [base][build zone]
+  BUILD_ZONE: [
+    { x0: 30, x1: 340, y0: 40, y1: 860 },    // team 0 (left)
+    { x0: 1260, x1: 1570, y0: 40, y1: 860 }, // team 1 (right)
+  ],
+  BASE_X: [380, 1220],
+  TURRET_X: [590, 1010],
 
   // Bases
   BASE_HP: 3000,
-  BASE_RADIUS: 55,
-  BASE_X_LEFT: 60,
-  BASE_X_RIGHT: 1540,
+  BASE_RADIUS: 46,
+
+  // Turrets: strong, hit ground + air, permanently destroyed.
+  TURRET: {
+    hp: 700,
+    radius: 24,
+    range: 260,
+    damage: 30,
+    period: 0.8,
+    dmgType: 'normal',
+    projectileSpeed: 500,
+    targetsAir: true,
+  },
 
   // Economy
   START_MONEY: 250,
@@ -25,6 +41,7 @@ export const CONFIG = {
   INCOME_UPGRADE_COST_STEP: 100,
   INCOME_UPGRADE_BONUS: 8, // extra money per tick per level (= +4/s)
   INCOME_UPGRADE_MAX: 10,
+  SELL_REFUND: 0.75,       // fraction of cost returned when selling a placed unit
 
   // Waves
   WAVE_INTERVAL: 20,

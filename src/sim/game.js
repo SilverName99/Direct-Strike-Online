@@ -6,7 +6,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { mulberry32 } from './rng.js';
-import { makeBase } from './entity.js';
+import { makeStructure } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
 import { updateMovement } from './movement.js';
 import { spawnWave } from './waves.js';
@@ -35,9 +35,23 @@ export class Game {
 
     const midY = CONFIG.FIELD_H / 2;
     this.bases = [
-      makeBase(this, 0, CONFIG.BASE_X_LEFT, midY, CONFIG.BASE_HP, CONFIG.BASE_RADIUS),
-      makeBase(this, 1, CONFIG.BASE_X_RIGHT, midY, CONFIG.BASE_HP, CONFIG.BASE_RADIUS),
+      makeStructure(this, 0, 'base', CONFIG.BASE_X[0], midY, CONFIG.BASE_HP, CONFIG.BASE_RADIUS),
+      makeStructure(this, 1, 'base', CONFIG.BASE_X[1], midY, CONFIG.BASE_HP, CONFIG.BASE_RADIUS),
     ];
+    this.turrets = [
+      makeStructure(this, 0, 'turret', CONFIG.TURRET_X[0], midY, CONFIG.TURRET.hp, CONFIG.TURRET.radius),
+      makeStructure(this, 1, 'turret', CONFIG.TURRET_X[1], midY, CONFIG.TURRET.hp, CONFIG.TURRET.radius),
+    ];
+  }
+
+  // Live enemy structures a unit of `team` can attack (turret first is
+  // irrelevant — targeting picks by distance).
+  enemyStructures(team) {
+    const out = [];
+    const et = 1 - team;
+    if (this.turrets[et] && this.turrets[et].hp > 0) out.push(this.turrets[et]);
+    if (this.bases[et].hp > 0) out.push(this.bases[et]);
+    return out;
   }
 
   incomePerTick(team) {
@@ -59,10 +73,8 @@ export class Game {
   }
 
   isValidPlacement(team, x, y) {
-    const m = CONFIG.PLACE_MARGIN;
-    if (y < m || y > CONFIG.FIELD_H - m) return false;
-    if (team === 0) return x >= m && x <= CONFIG.ZONE_LEFT_MAX;
-    return x >= CONFIG.ZONE_RIGHT_MIN && x <= CONFIG.FIELD_W - m;
+    const z = CONFIG.BUILD_ZONE[team];
+    return x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1;
   }
 
   issueCommand(cmd) {
@@ -79,6 +91,24 @@ export class Game {
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
       this.templates[cmd.team].push({ type: cmd.unitId, x: cmd.x, y: cmd.y });
+      return { ok: true };
+    }
+
+    if (cmd.type === 'moveUnit') {
+      const tpl = this.templates[cmd.team][cmd.index];
+      if (!tpl) return { ok: false, reason: 'unknown-template' };
+      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y))
+        return { ok: false, reason: 'zone' };
+      tpl.x = cmd.x;
+      tpl.y = cmd.y;
+      return { ok: true };
+    }
+
+    if (cmd.type === 'sellUnit') {
+      const tpl = this.templates[cmd.team][cmd.index];
+      if (!tpl) return { ok: false, reason: 'unknown-template' };
+      this.templates[cmd.team].splice(cmd.index, 1);
+      this.money[cmd.team] += Math.round(UNITS[tpl.type].cost * CONFIG.SELL_REFUND);
       return { ok: true };
     }
 
@@ -124,6 +154,16 @@ export class Game {
     updateMovement(this, dt);
     updateProjectiles(this, dt);
     this.removeDead();
+
+    // Destroyed turrets are gone for good — a permanent hole in the defense.
+    for (const t of [0, 1]) {
+      const turret = this.turrets[t];
+      if (turret && turret.hp <= 0) {
+        this.events.push({ type: 'structureDestroyed', x: turret.x, y: turret.y, team: t });
+        this.byId.delete(turret.id);
+        this.turrets[t] = null;
+      }
+    }
 
     for (const t of [0, 1]) {
       if (this.bases[t].hp <= 0) {

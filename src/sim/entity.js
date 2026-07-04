@@ -19,19 +19,24 @@ export function spawnUnit(game, team, type, x, y) {
   return e;
 }
 
-export function makeBase(game, team, x, y, hp, radius) {
-  const b = {
+// Generic structure factory: bases (passive win objective) and turrets
+// (stationary defenders with combat stats).
+export function makeStructure(game, team, kind, x, y, hp, radius) {
+  const s = {
     id: game.nextId++,
-    team,
+    team, kind,
     x, y, prevX: x, prevY: y,
     hp, maxHp: hp,
     radius,
+    cooldown: 0,
+    targetId: null,
     armor: 'structure',
     isAir: false,
-    isBase: true,
+    isStructure: true,
+    isBase: kind === 'base',
   };
-  game.byId.set(b.id, b);
-  return b;
+  game.byId.set(s.id, s);
+  return s;
 }
 
 export function spawnProjectile(game, source, stats, target) {

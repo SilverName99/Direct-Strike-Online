@@ -24,10 +24,10 @@ export function updateMovement(game, dt) {
     const dir = Math.sign(enemyBase.x - u.x) || 1;
     u.x += stats.speed * dt * dir;
 
-    // Once inside the enemy half, home vertically toward their base.
+    // Once past midfield, home vertically toward the enemy base.
+    const mid = CONFIG.FIELD_W / 2;
     const inEnemyHalf =
-      (u.team === 0 && u.x > CONFIG.ZONE_RIGHT_MIN) ||
-      (u.team === 1 && u.x < CONFIG.ZONE_LEFT_MAX);
+      (u.team === 0 && u.x > mid) || (u.team === 1 && u.x < mid);
     if (inEnemyHalf) {
       const dy = enemyBase.y - u.y;
       const step = Math.min(Math.abs(dy), stats.speed * 0.6 * dt);
