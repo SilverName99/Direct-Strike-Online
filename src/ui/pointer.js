@@ -126,17 +126,25 @@ export class PointerManager {
   }
 
   async enter() {
-    try {
-      if (!document.fullscreenElement) {
+    if (!document.fullscreenElement) {
+      try {
         await document.documentElement.requestFullscreen();
+      } catch (err) {
+        // fullscreen refused — keep playing windowed, but say so
+        console.warn('Fullscreen refused:', err);
+        toast('Fullscreen blocked by the browser — press F to retry');
+        return;
       }
-    } catch { /* fullscreen refused — keep playing windowed */ }
+    }
     try {
       await document.body.requestPointerLock({ unadjustedMovement: true });
     } catch {
       try {
         document.body.requestPointerLock();
-      } catch { /* lock refused — fullscreen without capture still works */ }
+      } catch (err) {
+        console.warn('Pointer lock refused:', err);
+        toast('Mouse capture unavailable — fullscreen only');
+      }
     }
   }
 
@@ -153,4 +161,18 @@ export class PointerManager {
 
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+let toastEl = null;
+let toastTimer = 0;
+function toast(msg) {
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.id = 'toast';
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = msg;
+  toastEl.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 4000);
 }
