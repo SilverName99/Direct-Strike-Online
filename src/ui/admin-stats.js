@@ -210,7 +210,7 @@ function refreshUnitNames() {
     const u = statsUnit(RACE, ent);
     if (!u) continue;
     const b = g.closest('.ent')?.querySelector('.title b');
-    if (b) b.textContent = u.name && u.name !== ent ? `${u.name} (${ent})` : ent;
+    if (b) b.textContent = u.name || ent;
   }
 }
 

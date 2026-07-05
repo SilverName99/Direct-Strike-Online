@@ -258,11 +258,6 @@ export class Renderer {
       ctx.save();
       ctx.translate(s.x, s.y);
 
-      // colored footprint cells beneath buildable structures (grid squares)
-      if (s.kind === 'wall' || s.kind === 'tower' || s.kind === 'generator') {
-        drawFootprintCells(ctx, hw, hh, color, 0.16);
-      }
-
       // range ring first, so it sits under sprite or vector art
       if (s.kind === 'turret' || s.kind === 'tower') {
         const stats = s.kind === 'turret' ? CONFIG.TURRET : CONFIG.BUILDINGS.tower;
