@@ -44,31 +44,47 @@ export function updateMovement(game, dt) {
 }
 
 // Ground units cannot walk through structures (walls earn their keep);
-// fliers pass over everything. Structures are axis-aligned boxes (hw x hh
-// half-extents); a unit is pushed out along its axis of least penetration.
+// fliers pass over everything.
+//
+// The main base and the mid-field turret sit in the marching lane, so they
+// use CIRCULAR collision: a unit that bumps them is ejected radially, and
+// the curve lets the column slide around instead of jamming flat against a
+// face. Buildable footprints (wall/tower/generator) live in the build zone
+// and are meant to block, so they use box collision on their cw x ch cells.
 function collideStructures(game) {
   for (const u of game.entities) {
     if (u.isAir) continue;
     for (const s of game.structures) {
       if (s.hp <= 0) continue;
-      // Minkowski-expanded box: unit radius inflates the structure's extents.
-      const ex = (s.hw || s.radius) + u.radius;
-      const ey = (s.hh || s.radius) + u.radius;
-      const dx = u.x - s.x;
-      const dy = u.y - s.y;
-      const px = ex - Math.abs(dx); // x-overlap (positive => inside)
-      const py = ey - Math.abs(dy); // y-overlap
-      if (px <= 0 || py <= 0) continue;
-      // Eject along the smaller overlap.
-      if (px < py) {
-        const sign = dx < 0 ? -1 : 1;
-        u.x = s.x + sign * ex;
-      } else {
-        const sign = dy < 0 ? -1 : 1;
-        u.y = s.y + sign * ey;
-      }
+      if (s.kind === 'main' || s.kind === 'turret') collideCircle(u, s);
+      else collideBox(u, s);
     }
   }
+}
+
+function collideCircle(u, s) {
+  const minD = u.radius + s.radius;
+  let dx = u.x - s.x;
+  let dy = u.y - s.y;
+  const d2 = dx * dx + dy * dy;
+  if (d2 >= minD * minD) return;
+  let d = Math.sqrt(d2);
+  if (d < 0.001) { dx = u.team === 0 ? -1 : 1; dy = 0; d = 1; }
+  u.x = s.x + (dx / d) * minD;
+  u.y = s.y + (dy / d) * minD;
+}
+
+function collideBox(u, s) {
+  // Minkowski-expanded box: the unit radius inflates the structure's extents.
+  const ex = (s.hw || s.radius) + u.radius;
+  const ey = (s.hh || s.radius) + u.radius;
+  const dx = u.x - s.x;
+  const dy = u.y - s.y;
+  const px = ex - Math.abs(dx); // x-overlap (positive => inside)
+  const py = ey - Math.abs(dy); // y-overlap
+  if (px <= 0 || py <= 0) return;
+  if (px < py) u.x = s.x + (dx < 0 ? -1 : 1) * ex; // eject along smaller overlap
+  else u.y = s.y + (dy < 0 ? -1 : 1) * ey;
 }
 
 function separate(game) {
