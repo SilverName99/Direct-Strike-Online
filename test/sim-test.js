@@ -163,6 +163,10 @@ console.log('buildings');
   const wall = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: 720 });
   check('wall builds ok', wall.ok);
 
+  // flush-adjacent walls (edges touching, one grid cell apart) are allowed
+  const wallB = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: 720 + CONFIG.GRID });
+  check('flush-adjacent wall builds ok', wallB.ok);
+
   const money = game.money[0];
   const wallId = game.structures.find((s) => s.kind === 'wall').id;
   const sold = game.issueCommand({ type: 'sellBuilding', team: 0, id: wallId });

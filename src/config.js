@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v7.2';
+export const VERSION = 'v7.3';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -75,7 +75,7 @@ export const CONFIG = {
     generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 8, idleSpeed: 2, name: 'Generator' }, // +8/tick = +4/s each
   },
   SELL_BUILDING_REFUND: 0.6,
-  BUILD_GAP: 6, // min clearance between structure edges
+  BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)
 
   // Economy
   START_MONEY: 300,

@@ -170,10 +170,13 @@ export class Input {
     });
   }
 
-  // Snap to the appropriate zone's grid when the grid is on.
+  // Snap to the appropriate zone's grid when the grid is on. Buildings snap
+  // by their cw×ch footprint so multi-cell structures tile flush.
   placePoint(p, selected) {
     if (!this.uiState.gridOn) return p;
-    return snapToZone(zoneFor(selected), p.x, p.y);
+    const game = this.getGame();
+    const bs = game && CONFIG.BUILDINGS[selected] ? game.bstat(0, selected) : null;
+    return snapToZone(zoneFor(selected), p.x, p.y, bs ? bs.cw : 1, bs ? bs.ch : 1);
   }
 
   // While dragging, keep the template pinned under the cursor (snapped,

@@ -73,23 +73,42 @@ function idleSpeedOf(race, kind) {
   return (b && b.idleSpeed) || 2;
 }
 
+// Draw a building's idle frame sized to its footprint. Footprint buildings
+// (wall/tower/generator, given hw/hh from their cw×ch cells) contain-fit the
+// box so the art never spills outside the chenar; the per-building size
+// setting scales within that (100% = fill the box). Main/turret keep their
+// round radius-based scale. Size is applied HERE — callers must not also
+// scale by size.
+function drawBuildingScaled(ctx, race, kind, entry, hw, hh, team) {
+  const size = sizeOf(race, kind);
+  let scale;
+  if (kind === 'main' || kind === 'turret') {
+    const maxH = maxFrameHeight(race, kind);
+    const base = hw * 3 * size; // hw == radius for these
+    scale = maxH > 0 ? base / maxH : base / entry.img.height;
+  } else {
+    scale = Math.min((2 * hw * size) / entry.img.width, (2 * hh * size) / entry.img.height);
+  }
+  drawSpriteScaled(ctx, entry, scale, team);
+}
+
 // Building sprite (idle, 2-frame pulse at the per-building speed). False ->
 // caller draws vector.
-export function drawStructureSprite(ctx, kind, team, radius, clock, idSeed = 0) {
+export function drawStructureSprite(ctx, kind, team, hw, hh, clock, idSeed = 0) {
   const race = raceOf(team);
   const frame = (Math.floor(clock * idleSpeedOf(race, kind)) + idSeed) % 2;
   const entry = getSprite(race, kind, 'idle', frame);
   if (!entry) return false;
-  drawEntitySprite(ctx, race, kind, entry, radius * 3 * sizeOf(race, kind), team);
+  drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
   return true;
 }
 
 // A single fixed idle frame (default frame 0 = "idle 1") for the build ghost
 // on the cursor. False -> caller draws vector only.
-export function drawBuildingSprite(ctx, kind, team, radius, frame = 0) {
+export function drawBuildingSprite(ctx, kind, team, hw, hh, frame = 0) {
   const race = raceOf(team);
   const entry = getSprite(race, kind, 'idle', frame);
   if (!entry) return false;
-  drawEntitySprite(ctx, race, kind, entry, radius * 3 * sizeOf(race, kind), team);
+  drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
   return true;
 }

@@ -3,14 +3,20 @@
 
 import { CONFIG } from '../config.js';
 
-// Snap a point to the center of its grid cell, anchored to the zone origin.
-export function snapToZone(zone, x, y) {
+// Snap a point so a cw×ch footprint lands on whole grid cells, anchored to
+// the zone origin. Parity-aware: odd footprints center on a cell, even ones
+// on a grid line — so buildings always tile flush against each other and the
+// colored footprint cells line up with the grid. Units (cw=ch=1) snap to
+// cell centers exactly as before.
+export function snapToZone(zone, x, y, cw = 1, ch = 1) {
   const g = CONFIG.GRID;
-  const cx = zone.x0 + (Math.floor((x - zone.x0) / g) + 0.5) * g;
-  const cy = zone.y0 + (Math.floor((y - zone.y0) / g) + 0.5) * g;
+  const kx = Math.round((x - zone.x0) / g - cw / 2);
+  const ky = Math.round((y - zone.y0) / g - ch / 2);
+  const cx = zone.x0 + (kx + cw / 2) * g;
+  const cy = zone.y0 + (ky + ch / 2) * g;
   return {
-    x: clamp(cx, zone.x0 + g / 2, zone.x1 - g / 2),
-    y: clamp(cy, zone.y0 + g / 2, zone.y1 - g / 2),
+    x: clamp(cx, zone.x0 + cw * g / 2, zone.x1 - cw * g / 2),
+    y: clamp(cy, zone.y0 + ch * g / 2, zone.y1 - ch * g / 2),
   };
 }
 

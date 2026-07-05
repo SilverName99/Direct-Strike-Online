@@ -270,22 +270,19 @@ export class Renderer {
         ctx.globalAlpha = 1;
       }
 
-      // art (sprite + vector) is scaled by the per-building size multiplier;
-      // the footprint (radius) already reflects the grid-cell setting
-      const size = sizeOf(raceOf(s.team), s.kind);
-      ctx.save();
-      ctx.scale(size, size);
-
-      // uploaded building art (all kinds except walls); mirror for team 1
+      // uploaded building art (all kinds except walls); mirror for team 1.
+      // The sprite helper sizes itself (footprint buildings contain-fit their
+      // cw×ch box; main/turret use their radius) and applies the size setting.
       let spriteDrawn = false;
       if (s.kind !== 'wall') {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
         if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
-        spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, r, this.now, s.id);
+        spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, hw, hh, this.now, s.id);
         ctx.restore();
       }
 
+      const size = sizeOf(raceOf(s.team), s.kind);
       if (spriteDrawn && s.kind === 'main') {
         // tier pips still shown over sprite art
         const tier = game.tier[s.team];
@@ -298,6 +295,9 @@ export class Renderer {
       }
 
       if (!spriteDrawn && s.kind === 'main') {
+        // round main/turret vector art scales with the size setting
+        ctx.save();
+        ctx.scale(size, size);
         if (s.hp <= 0) ctx.globalAlpha = 0.35; // ruined main on the end screen
         ctx.fillStyle = dark;
         drawShape(ctx, 'hexagon', r);
@@ -309,7 +309,8 @@ export class Renderer {
         ctx.fillStyle = color;
         drawShape(ctx, 'hexagon', r * 0.45);
         ctx.fill();
-        // tier pips
+        ctx.restore();
+        // tier pips (world scale)
         const tier = game.tier[s.team];
         ctx.fillStyle = '#ffd35c';
         for (let i = 0; i < tier; i++) {
@@ -317,7 +318,21 @@ export class Renderer {
           ctx.arc(-14 + i * 14, -r - 14, 4, 0, Math.PI * 2);
           ctx.fill();
         }
-      } else if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower')) {
+      } else if (!spriteDrawn && s.kind === 'turret') {
+        ctx.save();
+        ctx.scale(size, size);
+        ctx.fillStyle = dark;
+        ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.min(hw, hh) * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else if (!spriteDrawn && s.kind === 'tower') {
+        // footprint buildings: vector = the fixed cw×ch box (no size scale)
         ctx.fillStyle = dark;
         ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
         ctx.strokeStyle = color;
@@ -348,7 +363,6 @@ export class Renderer {
         ctx.fill();
         ctx.globalAlpha = 1;
       }
-      ctx.restore(); // size scale
       ctx.restore();
 
       // HP bar (main always; others when damaged)
@@ -487,16 +501,19 @@ export class Renderer {
     if (!sel || sel === 'upgrade') return;
     if (uiState.mouseX == null) return;
 
-    // grid snap for display, same as the click will use
+    const isBuilding = !!CONFIG.BUILDINGS[sel];
+
+    // grid snap for display, same as the click will use (buildings snap by
+    // their cw×ch footprint)
     let px = uiState.mouseX;
     let py = uiState.mouseY;
     if (uiState.gridOn) {
-      const p = snapToZone(zoneFor(sel), px, py);
+      const bs = isBuilding ? game.bstat(0, sel) : null;
+      const p = snapToZone(zoneFor(sel), px, py, bs ? bs.cw : 1, bs ? bs.ch : 1);
       px = p.x;
       py = p.y;
     }
 
-    const isBuilding = !!CONFIG.BUILDINGS[sel];
     const valid = isBuilding
       ? game.isValidBuildPlacement(0, sel, px, py)
       : game.isValidPlacement(0, px, py);
@@ -518,7 +535,7 @@ export class Renderer {
       ctx.strokeRect(-ext.hw, -ext.hh, ext.hw * 2, ext.hh * 2);
       // idle 1 sprite on the cursor (falls back to nothing if not uploaded)
       ctx.globalAlpha = valid ? 0.85 : 0.55;
-      drawBuildingSprite(ctx, sel, 0, ext.radius, 0);
+      drawBuildingSprite(ctx, sel, 0, ext.hw, ext.hh, 0);
       if (b.range) {
         ctx.globalAlpha = 0.15;
         ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
