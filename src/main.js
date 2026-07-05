@@ -71,6 +71,9 @@ let playerRace = 'humans';
 for (const btn of document.querySelectorAll('.btn.race')) {
   btn.addEventListener('click', () => {
     playerRace = btn.dataset.race;
+    // update the render race NOW so the shop icons redraw for this race
+    const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
+    setTeamRaces([playerRace, aiRace]);
     document.querySelectorAll('.btn.race').forEach((b) =>
       b.classList.toggle('selected', b === btn)
     );
@@ -84,6 +87,7 @@ function newGame(difficulty) {
   // race is a render-side art choice: the AI plays the other one
   const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
   setTeamRaces([playerRace, aiRace]);
+  hud.refreshIcons(); // shop icons reflect the chosen race at match start
   game = new Game(seed, { incomeMult: [1, diff.incomeMult] });
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
   effects.reset();
