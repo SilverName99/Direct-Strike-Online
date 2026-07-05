@@ -49,6 +49,15 @@ export class PointerManager {
       }
     });
 
+    // Recovery: fullscreen but not captured (lock refused at start, or Esc
+    // released only the lock) — the first real click on the map re-captures,
+    // like native web games.
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.isTrusted && document.fullscreenElement && !document.pointerLockElement) {
+        this.requestLock();
+      }
+    });
+
     const opts = { capture: true, passive: false };
     document.addEventListener('mousemove', (e) => {
       if (!this.locked || !e.isTrusted) return;
@@ -125,27 +134,40 @@ export class PointerManager {
     if (this.hoverCard) this.hoverCard.classList.add('hover');
   }
 
-  async enter() {
+  // Both requests must fire synchronously in the SAME user gesture:
+  // browsers consume the transient activation on requestFullscreen, so a
+  // pointer-lock request issued after awaiting it gets rejected.
+  enter() {
     if (!document.fullscreenElement) {
-      try {
-        await document.documentElement.requestFullscreen();
-      } catch (err) {
-        // fullscreen refused — keep playing windowed, but say so
+      document.documentElement.requestFullscreen().catch((err) => {
         console.warn('Fullscreen refused:', err);
         toast('Fullscreen blocked by the browser — press F to retry');
-        return;
-      }
+      });
     }
+    this.requestLock();
+  }
+
+  requestLock() {
+    if (document.pointerLockElement) return;
+    let p;
     try {
-      await document.body.requestPointerLock({ unadjustedMovement: true });
+      p = document.body.requestPointerLock({ unadjustedMovement: true });
     } catch {
+      p = Promise.reject();
+    }
+    Promise.resolve(p).catch(() => {
+      // retry without the option (not supported everywhere)
+      let q;
       try {
-        document.body.requestPointerLock();
-      } catch (err) {
+        q = document.body.requestPointerLock();
+      } catch {
+        q = Promise.reject();
+      }
+      Promise.resolve(q).catch((err) => {
         console.warn('Pointer lock refused:', err);
         toast('Mouse capture unavailable — fullscreen only');
-      }
-    }
+      });
+    });
   }
 
   exit() {

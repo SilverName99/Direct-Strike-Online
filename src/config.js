@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v4.2';
+export const VERSION = 'v4.3';
 
 export const CONFIG = {
   // Simulation

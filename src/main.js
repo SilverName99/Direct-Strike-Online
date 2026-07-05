@@ -22,6 +22,8 @@ const uiState = {
   mouseY: null,
   screenX: null,
   screenY: null,
+  winX: null,
+  winY: null,
 };
 const hud = new Hud(uiState);
 

@@ -38,6 +38,25 @@ export class Input {
       uiState.mouseY = null;
     });
 
+    // Window-level pointer position drives edge scrolling: real events reach
+    // it while unlocked; under pointer lock only PointerManager's synthetic
+    // clones bubble this far, carrying the virtual cursor position.
+    window.addEventListener('mousemove', (e) => {
+      uiState.winX = e.clientX;
+      uiState.winY = e.clientY;
+    });
+    // ...but stop edge-scrolling when the cursor leaves the page entirely
+    // (windowed mode) or the window loses focus, or the stale edge position
+    // would pan the map forever.
+    document.addEventListener('mouseleave', () => {
+      uiState.winX = null;
+      uiState.winY = null;
+    });
+    window.addEventListener('blur', () => {
+      uiState.winX = null;
+      uiState.winY = null;
+    });
+
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -135,16 +154,18 @@ export class Input {
     const keyX = (k.has('ArrowRight') || k.has('d') ? 1 : 0) - (k.has('ArrowLeft') || k.has('a') ? 1 : 0);
     const keyY = (k.has('ArrowDown') || k.has('s') ? 1 : 0) - (k.has('ArrowUp') || k.has('w') ? 1 : 0);
 
+    // Edge zones are measured against the whole window (= the whole screen
+    // in fullscreen), so pushing the cursor over the HUD still scrolls —
+    // classic RTS behavior.
     let edgeX = 0;
     let edgeY = 0;
-    const { screenX, screenY } = this.uiState;
-    if (screenX != null) {
-      const rect = this.canvas.getBoundingClientRect();
+    const { winX, winY } = this.uiState;
+    if (winX != null) {
       const m = CONFIG.CAMERA.EDGE_PX;
-      if (screenX <= m) edgeX = -1;
-      else if (screenX >= rect.width - m) edgeX = 1;
-      if (screenY <= m) edgeY = -1;
-      else if (screenY >= rect.height - m) edgeY = 1;
+      if (winX <= m) edgeX = -1;
+      else if (winX >= window.innerWidth - m) edgeX = 1;
+      if (winY <= m) edgeY = -1;
+      else if (winY >= window.innerHeight - m) edgeY = 1;
     }
     return { edgeX, edgeY, keyX, keyY };
   }
