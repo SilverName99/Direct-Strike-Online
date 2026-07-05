@@ -76,6 +76,18 @@ html, body {
 }
 #game { display: block; cursor: crosshair; }
 
+.tier-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffd35c;
+  border: 1px solid #5a4a1e;
+  border-radius: 5px;
+  padding: 2px 7px;
+  margin-left: 8px;
+}
+
+#grid-btn,
 #fs-btn {
   font-size: 18px;
   line-height: 1;
@@ -86,7 +98,9 @@ html, body {
   border-radius: 6px;
   cursor: pointer;
 }
+#grid-btn:hover,
 #fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
+#grid-btn.off { opacity: 0.4; }
 
 /* transient status message (e.g. fullscreen refused) */
 #toast {
@@ -160,6 +174,30 @@ html, body {
 .card.disabled:hover { transform: none; }
 
 .card canvas { width: 40px; height: 40px; }
+
+/* tier-locked unit cards */
+.card .c-lock {
+  display: none;
+  position: absolute;
+  top: 3px; right: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd35c;
+  border: 1px solid #5a4a1e;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: #241f10;
+}
+.card.locked { opacity: 0.35; cursor: not-allowed; filter: grayscale(0.7); }
+.card.locked:hover { transform: none; }
+.card.locked .c-lock { display: block; }
+
+.shop-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--border);
+}
 .card .c-name { font-size: 11px; font-weight: 600; white-space: nowrap; }
 .card .c-cost { font-size: 11px; color: var(--gold); font-weight: 700; }
 .card .c-hotkey {

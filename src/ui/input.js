@@ -1,16 +1,18 @@
 import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
 import { hitTestTemplate } from '../render/renderer.js';
+import { snapToZone, zoneFor } from './grid.js';
 
-// Mouse + keyboard input. Owns uiState.selected / drag / mouse position;
-// translates gestures into game commands for team 0 (the human player).
-//   - shop card selected + click in build zone  -> buy (Shift = repeat)
-//   - drag a placed unit                        -> moveUnit (clamped to zone)
-//   - right-click a placed unit                 -> sellUnit (75% refund)
-// Camera controls:
-//   - pointer at canvas edge / arrows / WASD    -> pan
-//   - mouse wheel                               -> zoom at cursor
-//   - Space                                     -> jump to own base
+const BUILDING_IDS = ['wall', 'tower', 'generator'];
+
+// Mouse + keyboard input. Owns uiState.selected / drag / grid / mouse
+// position; translates gestures into game commands for team 0.
+//   - shop card selected + click                -> buy unit / build (Shift = repeat)
+//   - drag a placed unit template               -> moveUnit (snapped, clamped)
+//   - right-click a template                    -> sellUnit (75% refund)
+//   - right-click an own building               -> sellBuilding (60% refund)
+//   - G                                          -> toggle placement grid
+// Camera: edge scroll / arrows / WASD / wheel zoom / Space (jump to base).
 export class Input {
   constructor(canvas, renderer, camera, uiState, getGame) {
     this.canvas = canvas;
@@ -69,16 +71,23 @@ export class Input {
       if (e.button !== 0) return;
       const game = this.getGame();
       if (!game || game.winner !== null) return;
-      const { x, y } = renderer.toSim(e);
+      const sel = this.uiState.selected;
+      const p = this.placePoint(this.renderer.toSim(e), sel);
 
-      if (this.uiState.selected && this.uiState.selected !== 'income') {
-        const res = game.issueCommand({ type: 'buy', team: 0, unitId: this.uiState.selected, x, y });
+      if (sel && BUILDING_IDS.includes(sel)) {
+        const res = game.issueCommand({ type: 'build', team: 0, kind: sel, x: p.x, y: p.y });
+        if (res.ok && !e.shiftKey) this.uiState.selected = null;
+        return;
+      }
+      if (sel && sel !== 'upgrade') {
+        const res = game.issueCommand({ type: 'buy', team: 0, unitId: sel, x: p.x, y: p.y });
         if (res.ok && !e.shiftKey) this.uiState.selected = null;
         return;
       }
 
-      // no shop selection: grab a placed unit to drag it around
-      const idx = hitTestTemplate(game, 0, x, y);
+      // no shop selection: grab a placed unit template to drag it around
+      const raw = this.renderer.toSim(e);
+      const idx = hitTestTemplate(game, 0, raw.x, raw.y);
       if (idx !== -1) this.uiState.drag = { index: idx };
     });
 
@@ -96,7 +105,17 @@ export class Input {
       if (!game || game.winner !== null) return;
       const { x, y } = renderer.toSim(e);
       const idx = hitTestTemplate(game, 0, x, y);
-      if (idx !== -1) game.issueCommand({ type: 'sellUnit', team: 0, index: idx });
+      if (idx !== -1) {
+        game.issueCommand({ type: 'sellUnit', team: 0, index: idx });
+        return;
+      }
+      // sell an own building under the cursor
+      const s = game.structures.find(
+        (st) =>
+          st.team === 0 && st.hp > 0 &&
+          (st.x - x) ** 2 + (st.y - y) ** 2 <= (st.radius + 4) ** 2
+      );
+      if (s) game.issueCommand({ type: 'sellBuilding', team: 0, id: s.id });
     });
 
     const PAN_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'];
@@ -109,7 +128,7 @@ export class Input {
       if (e.key === ' ') {
         e.preventDefault();
         if (document.activeElement) document.activeElement.blur();
-        this.camera.centerOn(CONFIG.BASE_X[0], CONFIG.FIELD_H / 2);
+        this.camera.centerOn(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
         return;
       }
       if (e.key === 'Escape') {
@@ -117,12 +136,24 @@ export class Input {
         this.uiState.drag = null;
         return;
       }
-      // hotkeys 1-9 = units, 0 = income
+      if (e.key === 'g' || e.key === 'G') {
+        this.uiState.gridOn = !this.uiState.gridOn;
+        const btn = document.getElementById('grid-btn');
+        if (btn) btn.classList.toggle('off', !this.uiState.gridOn);
+        return;
+      }
+      // hotkeys: 1-9 units, Z/X/C buildings, 0 base upgrade
       if (e.key >= '1' && e.key <= '9') {
         const id = UNIT_IDS[Number(e.key) - 1];
         if (id) this.select(id);
       } else if (e.key === '0') {
-        this.select('income');
+        this.select('upgrade');
+      } else if (e.key === 'z' || e.key === 'Z') {
+        this.select('wall');
+      } else if (e.key === 'x' || e.key === 'X') {
+        this.select('tower');
+      } else if (e.key === 'c' || e.key === 'C') {
+        this.select('generator');
       }
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.key));
@@ -130,22 +161,25 @@ export class Input {
 
     document.getElementById('shop').addEventListener('click', (e) => {
       const card = e.target.closest('.card');
-      if (card) this.select(card.dataset.unit);
+      if (card && !card.classList.contains('locked')) this.select(card.dataset.unit);
     });
   }
 
-  // While dragging, keep the template pinned under the cursor (clamped to zone).
+  // Snap to the appropriate zone's grid when the grid is on.
+  placePoint(p, selected) {
+    if (!this.uiState.gridOn) return p;
+    return snapToZone(zoneFor(selected), p.x, p.y);
+  }
+
+  // While dragging, keep the template pinned under the cursor (snapped,
+  // clamped to the army zone).
   dragTo(x, y) {
     const game = this.getGame();
     if (!game || !this.uiState.drag) return;
-    const z = CONFIG.BUILD_ZONE[0];
-    game.issueCommand({
-      type: 'moveUnit',
-      team: 0,
-      index: this.uiState.drag.index,
-      x: clamp(x, z.x0, z.x1),
-      y: clamp(y, z.y0, z.y1),
-    });
+    const z = CONFIG.ARMY_ZONE[0];
+    let p = { x: clamp(x, z.x0, z.x1), y: clamp(y, z.y0, z.y1) };
+    if (this.uiState.gridOn) p = snapToZone(z, p.x, p.y);
+    game.issueCommand({ type: 'moveUnit', team: 0, index: this.uiState.drag.index, x: p.x, y: p.y });
   }
 
   // Camera pan intent for this frame: -1 | 0 | 1 per axis.
@@ -174,11 +208,12 @@ export class Input {
     const game = this.getGame();
     if (!game || game.winner !== null) return;
 
-    if (id === 'income') {
-      game.issueCommand({ type: 'upgradeIncome', team: 0 });
+    if (id === 'upgrade') {
+      game.issueCommand({ type: 'upgradeBase', team: 0 });
       return;
     }
-    if (!UNITS[id]) return;
+    if (!UNITS[id] && !BUILDING_IDS.includes(id)) return;
+    if (UNITS[id] && UNITS[id].tier > game.tier[0]) return; // locked
     this.uiState.selected = this.uiState.selected === id ? null : id;
   }
 }

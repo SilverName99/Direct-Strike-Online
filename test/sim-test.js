@@ -12,6 +12,7 @@ import { UNITS } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 
 const DT = CONFIG.FIXED_DT;
+const MID_Y = CONFIG.FIELD_H / 2;
 let failures = 0;
 
 function check(name, cond, detail = '') {
@@ -20,6 +21,16 @@ function check(name, cond, detail = '') {
   } else {
     failures++;
     console.error(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`);
+  }
+}
+
+function run(game, seconds, extra = null) {
+  const ticks = Math.ceil(seconds / DT);
+  for (let i = 0; i < ticks; i++) {
+    if (extra) extra();
+    game.update(DT);
+    game.drainEvents();
+    if (game.winner !== null) break;
   }
 }
 
@@ -55,7 +66,8 @@ console.log('determinism');
     return JSON.stringify({
       money: game.money,
       wave: game.waveCount,
-      bases: game.bases.map((b) => Math.round(b.hp * 1000)),
+      tier: game.tier,
+      structures: game.structures.map((s) => [s.kind, s.team, Math.round(s.hp * 1000)]),
       ents: game.entities.map((e) => [
         e.type, e.team,
         Math.round(e.x * 1000), Math.round(e.y * 1000),
@@ -76,7 +88,7 @@ console.log('AI vs AI terminates');
   const game = new Game(7);
   const ai0 = new AIController(0, 'normal', 71);
   const ai1 = new AIController(1, 'normal', 72);
-  const maxTicks = Math.ceil((15 * 60) / DT);
+  const maxTicks = Math.ceil((20 * 60) / DT);
   let ticks = 0;
   while (game.winner === null && ticks < maxTicks) {
     ai0.update(game, DT);
@@ -86,7 +98,7 @@ console.log('AI vs AI terminates');
     ticks++;
   }
   check(
-    'a base falls within 15 sim-minutes',
+    'a main base falls within 20 sim-minutes',
     game.winner !== null,
     `still running after ${Math.round((ticks * DT) / 60)}min`
   );
@@ -95,67 +107,135 @@ console.log('AI vs AI terminates');
   }
 }
 
-// -------------------------------------------------- structures & commands
-console.log('structures & commands');
+// -------------------------------------------------- units: zones & tiers
+console.log('unit commands (army zone, tiers)');
 {
   const game = new Game(5);
-  const buy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 100, y: 450 });
-  check('buy inside build zone ok', buy.ok);
+  game.money[0] = 2000;
 
-  const badBuy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 700, y: 450 });
-  check('buy outside build zone rejected', !badBuy.ok);
+  const buy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 500, y: 700 });
+  check('buy inside army zone ok', buy.ok);
+  const badZone = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 200, y: 700 });
+  check('buy in construction zone rejected', !badZone.ok);
+  const tooClose = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 502, y: 702 });
+  check('buy on top of another template rejected', !tooClose.ok);
+
+  const locked = game.issueCommand({ type: 'buy', team: 0, unitId: 'bruiser', x: 560, y: 700 });
+  check('tier-2 unit locked at tier 1', !locked.ok && locked.reason === 'tier-locked');
+  const up = game.issueCommand({ type: 'upgradeBase', team: 0 });
+  check('base upgrade to tier 2 ok', up.ok && game.tier[0] === 2);
+  const nowOk = game.issueCommand({ type: 'buy', team: 0, unitId: 'bruiser', x: 560, y: 700 });
+  check('tier-2 unit unlocked after upgrade', nowOk.ok);
+  const t3 = game.issueCommand({ type: 'buy', team: 0, unitId: 'archon', x: 620, y: 700 });
+  check('tier-3 unit still locked at tier 2', !t3.ok);
 
   const before = game.money[0];
   const sell = game.issueCommand({ type: 'sellUnit', team: 0, index: 0 });
   const refund = Math.round(UNITS.grunt.cost * CONFIG.SELL_REFUND);
-  check(
-    'sellUnit removes template and refunds 75%',
-    sell.ok && game.templates[0].length === 0 && game.money[0] === before + refund
-  );
+  check('sellUnit refunds 75%', sell.ok && game.money[0] === before + refund);
 
-  game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 100, y: 450 });
-  const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 200, y: 300 });
-  check('moveUnit repositions inside zone', mv.ok && game.templates[0][0].x === 200);
-  const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 800, y: 450 });
-  check('moveUnit rejects positions outside zone', !badMv.ok && game.templates[0][0].x === 200);
+  const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 600, y: 500 });
+  check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 600);
+  const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 300, y: 500 });
+  check('moveUnit outside army zone rejected', !badMv.ok);
 }
 
-console.log('turrets');
+// ----------------------------------------------------------- buildings
+console.log('buildings');
 {
-  // A lone enemy grunt walking into turret range dies to it.
-  const game = new Game(9);
-  const midY = CONFIG.FIELD_H / 2;
-  const g = spawnUnit(game, 1, 'grunt', CONFIG.TURRET_X[0] + 120, midY);
-  for (let i = 0; i < 300 && g.hp > 0; i++) {
-    game.update(DT);
-    game.drainEvents();
-  }
-  check('turret kills a passing enemy grunt', g.hp <= 0);
+  const game = new Game(6);
+  game.money[0] = 5000;
 
-  // A destroyed turret is gone permanently (no respawn on later waves).
-  game.turrets[0].hp = 5;
-  spawnUnit(game, 1, 'bruiser', CONFIG.TURRET_X[0] + 60, midY);
-  for (let i = 0; i < 150; i++) {
-    game.update(DT);
-    game.drainEvents();
+  const base = game.incomePerTick(0);
+  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 400 });
+  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 500 });
+  check('generators build in construction zone', g1.ok && g2.ok);
+  check(
+    'each generator adds income',
+    game.incomePerTick(0) === base + 2 * CONFIG.BUILDINGS.generator.income
+  );
+
+  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 165, y: 405 });
+  check('overlapping build rejected', !overlap.ok);
+  const badZone = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 500, y: 700 });
+  check('building in army zone rejected', !badZone.ok);
+
+  const wall = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: 720 });
+  check('wall builds ok', wall.ok);
+
+  const money = game.money[0];
+  const wallId = game.structures.find((s) => s.kind === 'wall').id;
+  const sold = game.issueCommand({ type: 'sellBuilding', team: 0, id: wallId });
+  const refund = Math.round(CONFIG.BUILDINGS.wall.cost * CONFIG.SELL_BUILDING_REFUND);
+  check('sellBuilding refunds 60%', sold.ok && game.money[0] === money + refund);
+
+  const mainId = game.mainOf(0).id;
+  const noSellMain = game.issueCommand({ type: 'sellBuilding', team: 0, id: mainId });
+  check('main base not sellable', !noSellMain.ok);
+}
+
+// -------------------------------------------------- walls block, towers shoot
+console.log('defense structures');
+{
+  // A wall in the enemy's path: the grunt must stop and hit it, not pass.
+  const game = new Game(9);
+  game.money[0] = 1000;
+  game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: MID_Y });
+  const wall = game.structures.find((s) => s.kind === 'wall');
+  const g = spawnUnit(game, 1, 'grunt', 600, MID_Y);
+  run(game, 8);
+  check('grunt does not pass the wall', g.x > 350, `grunt.x=${Math.round(g.x)}`);
+  check('grunt attacks the wall', wall.hp < wall.maxHp);
+
+  // A tower kills a lone passer-by.
+  const game2 = new Game(10);
+  game2.money[0] = 1000;
+  game2.issueCommand({ type: 'build', team: 0, kind: 'tower', x: 400, y: 400 });
+  const passer = spawnUnit(game2, 1, 'grunt', 540, 400);
+  run(game2, 12);
+  check('tower kills a passing enemy grunt', passer.hp <= 0);
+
+  // The starting turret still works and dies permanently.
+  const game3 = new Game(11);
+  const turret = game3.structures.find((s) => s.kind === 'turret' && s.team === 0);
+  const v = spawnUnit(game3, 1, 'grunt', CONFIG.TURRET_X[0] + 120, MID_Y);
+  run(game3, 10);
+  check('starting turret kills a passing grunt', v.hp <= 0);
+  turret.hp = 5;
+  spawnUnit(game3, 1, 'bruiser', CONFIG.TURRET_X[0] + 60, MID_Y);
+  run(game3, 6);
+  check(
+    'destroyed turret is removed permanently',
+    !game3.structures.some((s) => s.kind === 'turret' && s.team === 0)
+  );
+}
+
+// ------------------------------------------------------------- win path
+console.log('win condition');
+{
+  const game = new Game(12);
+  stripDefenses(game);
+  for (let i = 0; i < 8; i++) {
+    spawnUnit(game, 0, 'bruiser', 2900, MID_Y - 80 + i * 24);
   }
-  check('destroyed turret is removed', game.turrets[0] === null);
-  game.waveTimer = DT / 2; // force a wave through
-  for (let i = 0; i < 60; i++) {
-    game.update(DT);
-    game.drainEvents();
-  }
-  check('turret stays destroyed after waves', game.turrets[0] === null);
+  run(game, 120);
+  check('destroying the enemy main base wins', game.winner === 0, `winner=${game.winner}`);
 }
 
 // ------------------------------------------------------ counter matchups
 console.log('counter matchups (equal cost)');
 
-// Spawns one wave of each army and fights to the death (or timeout).
+// Keep only the main bases (tucked in the far corners) so unit-vs-unit
+// combat is isolated from turrets/towers.
+function stripDefenses(game) {
+  for (const s of [...game.structures]) {
+    if (s.kind !== 'main') game.removeStructure(s, false);
+  }
+}
+
 function battle(teamA, teamB, maxSeconds = 120) {
   const game = new Game(123);
-  game.turrets = [null, null]; // isolate unit-vs-unit combat from turrets
-  // symmetric around midfield, same 480-unit gap as the original matchups
+  stripDefenses(game);
   place(game, 0, teamA, CONFIG.FIELD_W / 2 - 240, -1);
   place(game, 1, teamB, CONFIG.FIELD_W / 2 + 240, 1);
   game.waveTimer = DT / 2; // fire the wave on the first tick
@@ -176,7 +256,7 @@ function battle(teamA, teamB, maxSeconds = 120) {
 }
 
 function place(game, team, types, frontX, dir) {
-  const y0 = CONFIG.FIELD_H / 2 - 90;
+  const y0 = MID_Y - 90;
   types.forEach((type, i) => {
     game.templates[team].push({
       type,
@@ -184,11 +264,6 @@ function place(game, team, types, frontX, dir) {
       y: y0 + (i % 5) * 45,
     });
   });
-}
-
-function cost(types) {
-  // avoids importing UNITS twice — battle assertions use equal-cost armies
-  return types.length;
 }
 
 {

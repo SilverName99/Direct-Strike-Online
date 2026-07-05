@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v5.1';
+export const VERSION = 'v6.0';
 
 export const CONFIG = {
   // Simulation
@@ -13,30 +13,32 @@ export const CONFIG = {
   FIELD_W: 3200,
   FIELD_H: 1440,
 
-  // Classic Direct Strike layout, mirrored per team:
-  // [build zone][base]   [turret]   mid   [turret]   [base][build zone]
-  BUILD_ZONE: [
-    { x0: 60, x1: 680, y0: 64, y1: 1376 },    // team 0 (left)
-    { x0: 2520, x1: 3140, y0: 64, y1: 1376 }, // team 1 (right)
+  // Each side's quadrant is a real base, split in two grid-aligned parts:
+  //   [construction zone: main base + buildings][army zone: unit formation]
+  // then the open field, the starting turret, and midfield.
+  GRID: 40, // placement cell size (UI snapping; zones are multiples of it)
+  CONSTRUCTION_ZONE: [
+    { x0: 60, x1: 420, y0: 80, y1: 1360 },    // team 0 (left)
+    { x0: 2780, x1: 3140, y0: 80, y1: 1360 }, // team 1 (right)
   ],
-  BASE_X: [760, 2440],
-  TURRET_X: [1180, 2020],
+  ARMY_ZONE: [
+    { x0: 440, x1: 680, y0: 80, y1: 1360 },
+    { x0: 2520, x1: 2760, y0: 80, y1: 1360 },
+  ],
 
-  // RTS camera (render-side only; the sim never sees it)
-  CAMERA: {
-    EDGE_PX: 28,       // pointer within this many px of the canvas edge scrolls
-    EDGE_SPEED: 1100,  // world units per second
-    KEY_SPEED: 1100,   // arrows / WASD
-    ZOOM_MAX: 4,       // max zoom = fit-the-map zoom × this (close enough to enjoy the characters)
-    ZOOM_STEP: 1.15,   // wheel notch multiplier
-    START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
+  // Main base: the win objective, back-center of the construction zone.
+  // HP by tier; upgrading unlocks unit tiers and heals +1000.
+  MAIN: {
+    x: [140, 3060],
+    y: 720,
+    radius: 50,
+    hp: [4000, 5000, 6000],
   },
+  TIER_COSTS: { 2: 400, 3: 900 },
+  TIER_MAX: 3,
 
-  // Bases
-  BASE_HP: 3000,
-  BASE_RADIUS: 46,
-
-  // Turrets: strong, hit ground + air, permanently destroyed.
+  // Starting defensive turret (pre-placed, not buildable, dies for good)
+  TURRET_X: [1180, 2020],
   TURRET: {
     hp: 700,
     radius: 24,
@@ -48,25 +50,45 @@ export const CONFIG = {
     targetsAir: true,
   },
 
+  // Buildable structures (construction zone only, fixed once built)
+  BUILDINGS: {
+    wall: { cost: 40, hp: 450, radius: 16, cap: 24 },
+    tower: {
+      cost: 200, hp: 350, radius: 18, cap: 6,
+      range: 200, damage: 18, period: 0.9, dmgType: 'normal',
+      projectileSpeed: 480, targetsAir: true,
+    },
+    generator: { cost: 150, hp: 200, radius: 17, cap: 8, income: 8 }, // +8/tick = +4/s each
+  },
+  SELL_BUILDING_REFUND: 0.6,
+  BUILD_GAP: 6, // min clearance between structure edges
+
   // Economy
-  START_MONEY: 250,
-  INCOME_TICK: 2,          // seconds between income payments
-  INCOME_BASE: 20,         // money per tick (= +10/s)
-  INCOME_UPGRADE_BASE_COST: 150,
-  INCOME_UPGRADE_COST_STEP: 100,
-  INCOME_UPGRADE_BONUS: 8, // extra money per tick per level (= +4/s)
-  INCOME_UPGRADE_MAX: 10,
-  SELL_REFUND: 0.75,       // fraction of cost returned when selling a placed unit
+  START_MONEY: 300,
+  INCOME_TICK: 2,   // seconds between income payments
+  INCOME_BASE: 20,  // money per tick (= +10/s); generators add on top
+  SELL_REFUND: 0.75, // units (templates) refund
 
   // Waves
   WAVE_INTERVAL: 20,
   MAX_TEMPLATES: 40, // per team
   SPAWN_JITTER: 4,
+  TEMPLATE_MIN_DIST: 16, // no two templates on the same spot
 
   // Combat
   AGGRO_BONUS: 120,       // aggro range = attack range + this
   PROJECTILE_SPEED: 420,
   PROJECTILE_HIT_DIST: 12,
+
+  // RTS camera (render-side only; the sim never sees it)
+  CAMERA: {
+    EDGE_PX: 28,       // pointer within this many px of the canvas edge scrolls
+    EDGE_SPEED: 1100,  // world units per second
+    KEY_SPEED: 1100,   // arrows / WASD
+    ZOOM_MAX: 4,       // max zoom = fit-the-map zoom × this (close enough to enjoy the characters)
+    ZOOM_STEP: 1.15,   // wheel notch multiplier
+    START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
+  },
 
   // AI difficulty knobs
   DIFFICULTY: {

@@ -11,14 +11,14 @@ export const DAMAGE_MATRIX = {
 export const UNITS = {
   grunt: {
     name: 'Grunt', shape: 'circle', radius: 10,
-    cost: 50, hp: 90, armor: 'light',
+    tier: 1, cost: 50, hp: 90, armor: 'light',
     damage: 10, period: 0.8, dmgType: 'normal', range: 25, speed: 90,
     role: 'Cheap swarm melee',
     tip: 'Dirt-cheap frontline meat. Dies to splash.',
   },
   slinger: {
     name: 'Slinger', shape: 'triangle', radius: 9,
-    cost: 75, hp: 60, armor: 'light',
+    tier: 1, cost: 75, hp: 60, armor: 'light',
     damage: 9, period: 0.9, dmgType: 'normal', range: 180, speed: 70,
     projectile: true, targetsAir: true,
     role: 'Ranged infantry',
@@ -26,14 +26,14 @@ export const UNITS = {
   },
   bruiser: {
     name: 'Bruiser', shape: 'square', radius: 16,
-    cost: 200, hp: 400, armor: 'armored',
+    tier: 2, cost: 200, hp: 400, armor: 'armored',
     damage: 20, period: 1.2, dmgType: 'normal', range: 30, speed: 55,
     role: 'Armored tank',
     tip: 'Huge HP wall. Melts to piercing (Lancer).',
   },
   lancer: {
     name: 'Lancer', shape: 'diamond', radius: 10,
-    cost: 175, hp: 110, armor: 'light',
+    tier: 2, cost: 175, hp: 110, armor: 'light',
     damage: 45, period: 1.5, dmgType: 'piercing', range: 200, speed: 65,
     projectile: true,
     role: 'Anti-armor',
@@ -41,7 +41,7 @@ export const UNITS = {
   },
   crab: {
     name: 'Siege Crab', shape: 'pentagon', radius: 15,
-    cost: 300, hp: 250, armor: 'armored',
+    tier: 3, cost: 300, hp: 250, armor: 'armored',
     damage: 40, period: 2.5, dmgType: 'explosive', range: 320, speed: 40,
     projectile: true, projectileSpeed: 300, splash: 60,
     role: 'Splash artillery',
@@ -49,7 +49,7 @@ export const UNITS = {
   },
   mender: {
     name: 'Mender', shape: 'cross', radius: 10,
-    cost: 150, hp: 80, armor: 'light',
+    tier: 2, cost: 150, hp: 80, armor: 'light',
     damage: 15, period: 1.0, range: 140, speed: 60,
     heal: true,
     role: 'Support healer',
@@ -57,14 +57,14 @@ export const UNITS = {
   },
   dasher: {
     name: 'Dasher', shape: 'chevron', radius: 9,
-    cost: 100, hp: 70, armor: 'light',
+    tier: 1, cost: 100, hp: 70, armor: 'light',
     damage: 14, period: 0.7, dmgType: 'normal', range: 25, speed: 150,
     role: 'Fast flanker',
     tip: 'Very fast — dives the enemy backline (artillery, healers).',
   },
   wasp: {
     name: 'Wasp', shape: 'ring', radius: 10,
-    cost: 150, hp: 100, armor: 'armored',
+    tier: 2, cost: 150, hp: 100, armor: 'armored',
     damage: 12, period: 0.8, dmgType: 'normal', range: 150, speed: 110,
     projectile: true, isAir: true, targetsAir: true,
     role: 'Air unit',
@@ -72,7 +72,7 @@ export const UNITS = {
   },
   archon: {
     name: 'Archon', shape: 'hexagon', radius: 13,
-    cost: 250, hp: 150, armor: 'light',
+    tier: 3, cost: 250, hp: 150, armor: 'light',
     damage: 24, period: 1.0, dmgType: 'piercing', range: 220, speed: 60,
     projectile: true, targetsAir: true,
     role: 'Anti-air / anti-armor',

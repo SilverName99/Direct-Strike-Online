@@ -20,7 +20,7 @@ export class Game {
 
     this.money = [CONFIG.START_MONEY, CONFIG.START_MONEY];
     this.spent = [0, 0];
-    this.incomeLevel = [0, 0];
+    this.tier = [1, 1];
     this.incomeMult = options.incomeMult || [1, 1];
     this.incomeTimer = 0;
 
@@ -30,34 +30,36 @@ export class Game {
     this.templates = [[], []]; // per team: {type, x, y}
     this.entities = [];
     this.projectiles = [];
+    this.structures = [];
     this.byId = new Map();
     this.events = []; // drained by the render layer
 
-    const midY = CONFIG.FIELD_H / 2;
-    this.bases = [
-      makeStructure(this, 0, 'base', CONFIG.BASE_X[0], midY, CONFIG.BASE_HP, CONFIG.BASE_RADIUS),
-      makeStructure(this, 1, 'base', CONFIG.BASE_X[1], midY, CONFIG.BASE_HP, CONFIG.BASE_RADIUS),
-    ];
-    this.turrets = [
-      makeStructure(this, 0, 'turret', CONFIG.TURRET_X[0], midY, CONFIG.TURRET.hp, CONFIG.TURRET.radius),
-      makeStructure(this, 1, 'turret', CONFIG.TURRET_X[1], midY, CONFIG.TURRET.hp, CONFIG.TURRET.radius),
-    ];
+    for (const t of [0, 1]) {
+      makeStructure(this, t, 'main', CONFIG.MAIN.x[t], CONFIG.MAIN.y);
+      makeStructure(this, t, 'turret', CONFIG.TURRET_X[t], CONFIG.FIELD_H / 2);
+    }
   }
 
-  // Live enemy structures a unit of `team` can attack (turret first is
-  // irrelevant — targeting picks by distance).
+  mainOf(team) {
+    return this.structures.find((s) => s.team === team && s.kind === 'main') || null;
+  }
+
   enemyStructures(team) {
-    const out = [];
-    const et = 1 - team;
-    if (this.turrets[et] && this.turrets[et].hp > 0) out.push(this.turrets[et]);
-    if (this.bases[et].hp > 0) out.push(this.bases[et]);
-    return out;
+    return this.structures.filter((s) => s.team !== team && s.hp > 0);
+  }
+
+  countKind(team, kind) {
+    let n = 0;
+    for (const s of this.structures) {
+      if (s.team === team && s.kind === kind && s.hp > 0) n++;
+    }
+    return n;
   }
 
   incomePerTick(team) {
+    const gens = this.countKind(team, 'generator');
     return Math.round(
-      (CONFIG.INCOME_BASE + this.incomeLevel[team] * CONFIG.INCOME_UPGRADE_BONUS) *
-        this.incomeMult[team]
+      (CONFIG.INCOME_BASE + gens * CONFIG.BUILDINGS.generator.income) * this.incomeMult[team]
     );
   }
 
@@ -65,16 +67,34 @@ export class Game {
     return this.incomePerTick(team) / CONFIG.INCOME_TICK;
   }
 
-  incomeUpgradeCost(team) {
-    return (
-      CONFIG.INCOME_UPGRADE_BASE_COST +
-      CONFIG.INCOME_UPGRADE_COST_STEP * this.incomeLevel[team]
+  tierUpCost(team) {
+    return CONFIG.TIER_COSTS[this.tier[team] + 1] ?? null;
+  }
+
+  inZone(zone, x, y) {
+    return x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1;
+  }
+
+  // Unit templates go in the army strip, spaced apart.
+  isValidPlacement(team, x, y, ignoreIndex = -1) {
+    if (!this.inZone(CONFIG.ARMY_ZONE[team], x, y)) return false;
+    const min = CONFIG.TEMPLATE_MIN_DIST;
+    return !this.templates[team].some(
+      (tpl, i) => i !== ignoreIndex && (tpl.x - x) ** 2 + (tpl.y - y) ** 2 < min * min
     );
   }
 
-  isValidPlacement(team, x, y) {
-    const z = CONFIG.BUILD_ZONE[team];
-    return x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1;
+  // Buildings go in the construction zone, without overlapping structures.
+  isValidBuildPlacement(team, kind, x, y) {
+    const stats = CONFIG.BUILDINGS[kind];
+    if (!stats) return false;
+    if (!this.inZone(CONFIG.CONSTRUCTION_ZONE[team], x, y)) return false;
+    for (const s of this.structures) {
+      if (s.hp <= 0) continue;
+      const min = s.radius + stats.radius + CONFIG.BUILD_GAP;
+      if ((s.x - x) ** 2 + (s.y - y) ** 2 < min * min) return false;
+    }
+    return true;
   }
 
   issueCommand(cmd) {
@@ -83,6 +103,7 @@ export class Game {
     if (cmd.type === 'buy') {
       const stats = UNITS[cmd.unitId];
       if (!stats) return { ok: false, reason: 'unknown-unit' };
+      if (stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.templates[cmd.team].length >= CONFIG.MAX_TEMPLATES)
         return { ok: false, reason: 'template-cap' };
@@ -97,7 +118,7 @@ export class Game {
     if (cmd.type === 'moveUnit') {
       const tpl = this.templates[cmd.team][cmd.index];
       if (!tpl) return { ok: false, reason: 'unknown-template' };
-      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y))
+      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y, cmd.index))
         return { ok: false, reason: 'zone' };
       tpl.x = cmd.x;
       tpl.y = cmd.y;
@@ -112,14 +133,46 @@ export class Game {
       return { ok: true };
     }
 
-    if (cmd.type === 'upgradeIncome') {
-      if (this.incomeLevel[cmd.team] >= CONFIG.INCOME_UPGRADE_MAX)
-        return { ok: false, reason: 'max-level' };
-      const cost = this.incomeUpgradeCost(cmd.team);
+    if (cmd.type === 'build') {
+      const stats = CONFIG.BUILDINGS[cmd.kind];
+      if (!stats) return { ok: false, reason: 'unknown-building' };
+      if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
+      if (this.countKind(cmd.team, cmd.kind) >= stats.cap)
+        return { ok: false, reason: 'cap' };
+      if (!this.isValidBuildPlacement(cmd.team, cmd.kind, cmd.x, cmd.y))
+        return { ok: false, reason: 'zone' };
+      this.money[cmd.team] -= stats.cost;
+      this.spent[cmd.team] += stats.cost;
+      makeStructure(this, cmd.team, cmd.kind, cmd.x, cmd.y);
+      return { ok: true };
+    }
+
+    if (cmd.type === 'sellBuilding') {
+      const s = this.byId.get(cmd.id);
+      if (!s || !s.isStructure || s.team !== cmd.team || s.hp <= 0)
+        return { ok: false, reason: 'unknown-building' };
+      if (s.kind === 'main' || s.kind === 'turret')
+        return { ok: false, reason: 'not-sellable' };
+      this.money[cmd.team] += Math.round(
+        CONFIG.BUILDINGS[s.kind].cost * CONFIG.SELL_BUILDING_REFUND
+      );
+      this.removeStructure(s, false);
+      return { ok: true };
+    }
+
+    if (cmd.type === 'upgradeBase') {
+      if (this.tier[cmd.team] >= CONFIG.TIER_MAX) return { ok: false, reason: 'max-tier' };
+      const cost = this.tierUpCost(cmd.team);
       if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };
       this.money[cmd.team] -= cost;
       this.spent[cmd.team] += cost;
-      this.incomeLevel[cmd.team]++;
+      this.tier[cmd.team]++;
+      const main = this.mainOf(cmd.team);
+      if (main) {
+        main.maxHp = CONFIG.MAIN.hp[this.tier[cmd.team] - 1];
+        main.hp = Math.min(main.maxHp, main.hp + 1000);
+      }
+      this.events.push({ type: 'tierUp', team: cmd.team, tier: this.tier[cmd.team] });
       return { ok: true };
     }
 
@@ -155,23 +208,25 @@ export class Game {
     updateProjectiles(this, dt);
     this.removeDead();
 
-    // Destroyed turrets are gone for good — a permanent hole in the defense.
-    for (const t of [0, 1]) {
-      const turret = this.turrets[t];
-      if (turret && turret.hp <= 0) {
-        this.events.push({ type: 'structureDestroyed', x: turret.x, y: turret.y, team: t });
-        this.byId.delete(turret.id);
-        this.turrets[t] = null;
-      }
+    // Destroyed structures are gone for good; losing the main base loses
+    // the game.
+    for (const s of [...this.structures]) {
+      if (s.hp <= 0) this.removeStructure(s, true);
     }
+  }
 
-    for (const t of [0, 1]) {
-      if (this.bases[t].hp <= 0) {
-        this.bases[t].hp = 0;
-        this.winner = 1 - t;
+  removeStructure(s, destroyed) {
+    if (destroyed) {
+      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind });
+      if (s.kind === 'main' && this.winner === null) {
+        s.hp = 0;
+        this.winner = 1 - s.team;
         this.events.push({ type: 'gameover', winner: this.winner });
+        return; // keep the ruined main for the end-screen render
       }
     }
+    this.byId.delete(s.id);
+    this.structures = this.structures.filter((x) => x !== s);
   }
 
   removeDead() {

@@ -1,3 +1,4 @@
+import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 
 export function spawnUnit(game, team, type, x, y) {
@@ -19,22 +20,31 @@ export function spawnUnit(game, team, type, x, y) {
   return e;
 }
 
-// Generic structure factory: bases (passive win objective) and turrets
-// (stationary defenders with combat stats).
-export function makeStructure(game, team, kind, x, y, hp, radius) {
+// Stats for each structure kind (main base HP depends on tier).
+export function structureStats(kind) {
+  if (kind === 'main') return { hp: CONFIG.MAIN.hp[0], radius: CONFIG.MAIN.radius };
+  if (kind === 'turret') return CONFIG.TURRET;
+  return CONFIG.BUILDINGS[kind];
+}
+
+// Generic structure factory: the main base (win objective), the starting
+// turret, and player-built walls / towers / generators.
+export function makeStructure(game, team, kind, x, y) {
+  const stats = structureStats(kind);
   const s = {
     id: game.nextId++,
     team, kind,
     x, y, prevX: x, prevY: y,
-    hp, maxHp: hp,
-    radius,
+    hp: stats.hp, maxHp: stats.hp,
+    radius: stats.radius,
     cooldown: 0,
     targetId: null,
     armor: 'structure',
     isAir: false,
     isStructure: true,
-    isBase: kind === 'base',
+    isBase: kind === 'main',
   };
+  game.structures.push(s);
   game.byId.set(s.id, s);
   return s;
 }

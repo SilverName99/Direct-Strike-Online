@@ -20,26 +20,51 @@ export function updateMovement(game, dt) {
       continue;
     }
 
-    const enemyBase = game.bases[1 - u.team];
-    const dir = Math.sign(enemyBase.x - u.x) || 1;
+    const enemyMain = game.mainOf(1 - u.team);
+    const dir = enemyMain ? Math.sign(enemyMain.x - u.x) || 1 : u.team === 0 ? 1 : -1;
     u.x += stats.speed * dt * dir;
 
-    // Once past midfield, home vertically toward the enemy base.
+    // Once past midfield, home vertically toward the enemy main base.
     const mid = CONFIG.FIELD_W / 2;
     const inEnemyHalf =
       (u.team === 0 && u.x > mid) || (u.team === 1 && u.x < mid);
-    if (inEnemyHalf) {
-      const dy = enemyBase.y - u.y;
+    if (inEnemyHalf && enemyMain) {
+      const dy = enemyMain.y - u.y;
       const step = Math.min(Math.abs(dy), stats.speed * 0.6 * dt);
       u.y += Math.sign(dy) * step;
     }
   }
 
   separate(game);
+  collideStructures(game);
 
   for (const u of game.entities) {
     u.x = clamp(u.x, 12, CONFIG.FIELD_W - 12);
     u.y = clamp(u.y, 12, CONFIG.FIELD_H - 12);
+  }
+}
+
+// Ground units cannot walk through structures (walls earn their keep);
+// fliers pass over everything.
+function collideStructures(game) {
+  for (const u of game.entities) {
+    if (u.isAir) continue;
+    for (const s of game.structures) {
+      if (s.hp <= 0) continue;
+      const minD = u.radius + s.radius;
+      let dx = u.x - s.x;
+      let dy = u.y - s.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= minD * minD) continue;
+      let d = Math.sqrt(d2);
+      if (d < 0.001) {
+        dx = u.team === 0 ? -1 : 1;
+        dy = 0;
+        d = 1;
+      }
+      u.x = s.x + (dx / d) * minD;
+      u.y = s.y + (dy / d) * minD;
+    }
   }
 }
 

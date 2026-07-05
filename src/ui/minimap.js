@@ -51,27 +51,22 @@ export class Minimap {
     ctx.fillStyle = 'rgba(10, 14, 20, 0.92)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // build zones
+    // base quadrants (construction + army zones)
     const tints = ['rgba(77, 166, 255, 0.18)', 'rgba(255, 85, 102, 0.18)'];
     for (const team of [0, 1]) {
-      const z = CONFIG.BUILD_ZONE[team];
-      ctx.fillStyle = tints[team];
-      ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
+      for (const z of [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]]) {
+        ctx.fillStyle = tints[team];
+        ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
+      }
     }
 
     if (game) {
       // structures
-      for (const b of game.bases) {
-        if (b.hp <= 0) continue;
-        ctx.fillStyle = TEAM_COLORS[b.team];
-        const r = b.radius * s * 1.6;
-        ctx.fillRect(b.x * s - r / 2, b.y * s - r / 2, r, r);
-      }
-      for (const t of game.turrets) {
-        if (!t || t.hp <= 0) continue;
-        ctx.fillStyle = TEAM_COLORS[t.team];
-        const r = Math.max(3, t.radius * s * 1.6);
-        ctx.fillRect(t.x * s - r / 2, t.y * s - r / 2, r, r);
+      for (const st of game.structures) {
+        if (st.hp <= 0) continue;
+        ctx.fillStyle = TEAM_COLORS[st.team];
+        const r = Math.max(2.5, st.radius * s * 1.6);
+        ctx.fillRect(st.x * s - r / 2, st.y * s - r / 2, r, r);
       }
       // live units as dots
       for (const u of game.entities) {

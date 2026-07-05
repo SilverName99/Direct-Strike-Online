@@ -13,14 +13,16 @@ export function updateCombat(game, dt) {
     }
   }
 
-  // Turrets: stationary defenders that shoot the nearest enemy in range.
-  for (const turret of game.turrets) {
-    if (turret && turret.hp > 0) updateTurret(game, turret, dt);
+  // Armed structures (starting turret + built towers) shoot the nearest
+  // enemy unit in range.
+  for (const s of game.structures) {
+    if (s.hp <= 0) continue;
+    if (s.kind === 'turret') updateTurret(game, s, CONFIG.TURRET, dt);
+    else if (s.kind === 'tower') updateTurret(game, s, CONFIG.BUILDINGS.tower, dt);
   }
 }
 
-function updateTurret(game, turret, dt) {
-  const stats = CONFIG.TURRET;
+function updateTurret(game, turret, stats, dt) {
   turret.cooldown = Math.max(0, turret.cooldown - dt);
 
   let target = game.byId.get(turret.targetId) || null;

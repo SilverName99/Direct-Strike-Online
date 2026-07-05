@@ -1,6 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter } from './characters.js';
+import { snapToZone, zoneFor } from '../ui/grid.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -129,9 +130,9 @@ export class Renderer {
     ctx.setTransform(z, 0, 0, z, -cam.x * z, -cam.y * z);
 
     this.drawField(ctx);
+    this.drawGrid(ctx, uiState);
     this.drawTemplates(ctx, game, uiState);
-    this.drawBases(ctx, game);
-    this.drawTurrets(ctx, game);
+    this.drawStructures(ctx, game);
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
@@ -145,27 +146,26 @@ export class Renderer {
     ctx.fillStyle = '#0e141d';
     ctx.fillRect(0, 0, CONFIG.FIELD_W, CONFIG.FIELD_H);
 
-    // battle lane gets a faint distinct tone
-    const laneX0 = CONFIG.BASE_X[0];
-    const laneX1 = CONFIG.BASE_X[1];
-    ctx.fillStyle = 'rgba(124, 139, 161, 0.04)';
-    ctx.fillRect(laneX0, 0, laneX1 - laneX0, CONFIG.FIELD_H);
-
-    // build zones: tinted boxes with dashed borders and a label
+    // per-team base quadrant: construction zone (back) + army zone (front)
     const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
     for (const team of [0, 1]) {
-      const z = CONFIG.BUILD_ZONE[team];
-      ctx.fillStyle = `${tints[team]} 0.07)`;
-      ctx.fillRect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0);
+      const cz = CONFIG.CONSTRUCTION_ZONE[team];
+      const az = CONFIG.ARMY_ZONE[team];
+      ctx.fillStyle = `${tints[team]} 0.09)`;
+      ctx.fillRect(cz.x0, cz.y0, cz.x1 - cz.x0, cz.y1 - cz.y0);
+      ctx.fillStyle = `${tints[team]} 0.05)`;
+      ctx.fillRect(az.x0, az.y0, az.x1 - az.x0, az.y1 - az.y0);
       ctx.strokeStyle = `${tints[team]} 0.35)`;
       ctx.lineWidth = 2;
       ctx.setLineDash([10, 8]);
-      ctx.strokeRect(z.x0, z.y0, z.x1 - z.x0, z.y1 - z.y0);
+      ctx.strokeRect(cz.x0, cz.y0, cz.x1 - cz.x0, cz.y1 - cz.y0);
+      ctx.strokeRect(az.x0, az.y0, az.x1 - az.x0, az.y1 - az.y0);
       ctx.setLineDash([]);
       ctx.fillStyle = `${tints[team]} 0.45)`;
-      ctx.font = 'bold 20px sans-serif';
+      ctx.font = 'bold 17px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(team === 0 ? 'BUILD ZONE' : 'ENEMY BUILD', (z.x0 + z.x1) / 2, z.y0 + 28);
+      ctx.fillText('CONSTRUCTION', (cz.x0 + cz.x1) / 2, cz.y0 + 24);
+      ctx.fillText('ARMY', (az.x0 + az.x1) / 2, az.y0 + 24);
     }
 
     // midline
@@ -179,69 +179,116 @@ export class Renderer {
     ctx.setLineDash([]);
   }
 
-  drawTurrets(ctx, game) {
-    for (const turret of game.turrets) {
-      if (!turret || turret.hp <= 0) continue;
-      const color = TEAM_COLORS[turret.team];
-      const r = turret.radius;
-      ctx.save();
-      ctx.translate(turret.x, turret.y);
-      // faint range ring
-      ctx.globalAlpha = 0.06;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, CONFIG.TURRET.range, 0, Math.PI * 2);
-      ctx.stroke();
-      // fort body: square footing + gun circle
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = TEAM_COLORS_DARK[turret.team];
-      ctx.fillRect(-r, -r, r * 2, r * 2);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(-r, -r, r * 2, r * 2);
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // HP bar
-      const w = r * 3;
-      const ratio = Math.max(0, turret.hp / turret.maxHp);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(turret.x - w / 2, turret.y - r - 14, w, 5);
-      ctx.fillStyle = color;
-      ctx.fillRect(turret.x - w / 2, turret.y - r - 14, w * ratio, 5);
+  // Placement grid over the relevant zone while placing or dragging.
+  drawGrid(ctx, uiState) {
+    if (!uiState.gridOn) return;
+    let zone = null;
+    if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected);
+    else if (uiState.drag) zone = CONFIG.ARMY_ZONE[0];
+    if (!zone) return;
+    const g = CONFIG.GRID;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(219, 228, 240, 0.10)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = zone.x0; x <= zone.x1 + 0.5; x += g) {
+      ctx.moveTo(x, zone.y0);
+      ctx.lineTo(x, zone.y1);
     }
+    for (let y = zone.y0; y <= zone.y1 + 0.5; y += g) {
+      ctx.moveTo(zone.x0, y);
+      ctx.lineTo(zone.x1, y);
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 
-  drawBases(ctx, game) {
-    for (const base of game.bases) {
-      const color = TEAM_COLORS[base.team];
+  drawStructures(ctx, game) {
+    for (const s of game.structures) {
+      if (!this.visible(s.x, s.y, s.radius + 320)) continue;
+      const color = TEAM_COLORS[s.team];
+      const dark = TEAM_COLORS_DARK[s.team];
+      const r = s.radius;
       ctx.save();
-      ctx.translate(base.x, base.y);
-      ctx.globalAlpha = 0.25;
-      ctx.fillStyle = color;
-      drawShape(ctx, 'hexagon', base.radius + 10);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = TEAM_COLORS_DARK[base.team];
-      drawShape(ctx, 'hexagon', base.radius);
-      ctx.fill();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 3;
-      drawShape(ctx, 'hexagon', base.radius);
-      ctx.stroke();
+      ctx.translate(s.x, s.y);
+
+      if (s.kind === 'main') {
+        if (s.hp <= 0) ctx.globalAlpha = 0.35; // ruined main on the end screen
+        ctx.fillStyle = dark;
+        drawShape(ctx, 'hexagon', r);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3.5;
+        drawShape(ctx, 'hexagon', r);
+        ctx.stroke();
+        ctx.fillStyle = color;
+        drawShape(ctx, 'hexagon', r * 0.45);
+        ctx.fill();
+        // tier pips
+        const tier = game.tier[s.team];
+        ctx.fillStyle = '#ffd35c';
+        for (let i = 0; i < tier; i++) {
+          ctx.beginPath();
+          ctx.arc(-14 + i * 14, -r - 14, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (s.kind === 'turret' || s.kind === 'tower') {
+        const stats = s.kind === 'turret' ? CONFIG.TURRET : CONFIG.BUILDINGS.tower;
+        ctx.globalAlpha = 0.06;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, stats.range, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = dark;
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(-r, -r, r * 2, r * 2);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (s.kind === 'wall') {
+        ctx.fillStyle = dark;
+        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-r, -r, r * 2, r * 2);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-r * 0.5, -r * 0.5, r, r);
+        ctx.globalAlpha = 1;
+      } else if (s.kind === 'generator') {
+        ctx.fillStyle = dark;
+        drawShape(ctx, 'diamond', r * 1.1);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        drawShape(ctx, 'diamond', r * 1.1);
+        ctx.stroke();
+        // pulsing energy core
+        const pulse = 0.6 + 0.4 * Math.sin(this.now * 4 + s.id);
+        ctx.fillStyle = '#ffd35c';
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
       ctx.restore();
 
-      // HP bar above base
-      const w = 110;
-      const ratio = Math.max(0, base.hp / base.maxHp);
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(base.x - w / 2, base.y - base.radius - 26, w, 8);
-      ctx.fillStyle = color;
-      ctx.fillRect(base.x - w / 2, base.y - base.radius - 26, w * ratio, 8);
+      // HP bar (main always; others when damaged)
+      if (s.kind === 'main' || s.hp < s.maxHp) {
+        const w = s.kind === 'main' ? 110 : r * 3;
+        const ratio = Math.max(0, s.hp / s.maxHp);
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(s.x - w / 2, s.y - r - (s.kind === 'main' ? 26 : 14), w, s.kind === 'main' ? 8 : 5);
+        ctx.fillStyle = color;
+        ctx.fillRect(s.x - w / 2, s.y - r - (s.kind === 'main' ? 26 : 14), w * ratio, s.kind === 'main' ? 8 : 5);
+      }
     }
   }
 
@@ -361,18 +408,51 @@ export class Renderer {
   }
 
   drawGhost(ctx, game, uiState) {
-    if (!uiState.selected || uiState.selected === 'income') return;
+    const sel = uiState.selected;
+    if (!sel || sel === 'upgrade') return;
     if (uiState.mouseX == null) return;
-    const stats = UNITS[uiState.selected];
-    const valid = game.isValidPlacement(0, uiState.mouseX, uiState.mouseY);
+
+    // grid snap for display, same as the click will use
+    let px = uiState.mouseX;
+    let py = uiState.mouseY;
+    if (uiState.gridOn) {
+      const p = snapToZone(zoneFor(sel), px, py);
+      px = p.x;
+      py = p.y;
+    }
+
+    const isBuilding = !!CONFIG.BUILDINGS[sel];
+    const valid = isBuilding
+      ? game.isValidBuildPlacement(0, sel, px, py)
+      : game.isValidPlacement(0, px, py);
+
     ctx.save();
-    ctx.translate(uiState.mouseX, uiState.mouseY);
+    ctx.translate(px, py);
     ctx.globalAlpha = 0.6;
     ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
     ctx.fillStyle = valid ? 'rgba(88, 214, 141, 0.2)' : 'rgba(255, 85, 102, 0.2)';
     ctx.lineWidth = 2;
-    if (hasCharacter(uiState.selected)) {
-      drawCharacter(ctx, uiState.selected, 'idle', 0, 0);
+
+    if (isBuilding) {
+      const b = CONFIG.BUILDINGS[sel];
+      ctx.beginPath();
+      if (sel === 'generator') drawShape(ctx, 'diamond', b.radius * 1.1);
+      else ctx.rect(-b.radius, -b.radius, b.radius * 2, b.radius * 2);
+      ctx.fill();
+      ctx.stroke();
+      if (b.range) {
+        ctx.globalAlpha = 0.15;
+        ctx.beginPath();
+        ctx.arc(0, 0, b.range, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
+
+    const stats = UNITS[sel];
+    if (hasCharacter(sel)) {
+      drawCharacter(ctx, sel, 'idle', 0, 0);
       ctx.beginPath();
       ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
       ctx.stroke();

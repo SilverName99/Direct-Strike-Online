@@ -9,18 +9,22 @@ ca să câștigi.
 
 ## Cum joci
 
-Harta urmează layout-ul clasic Direct Strike:
-`[build zone][bază] — [turn] — mijloc — [turn] — [bază][build zone]`
+Fiecare jucător are o adevărată bază:
+`[CONSTRUCȚII: Baza principală + clădiri][ARMATĂ: formația] — turn inițial — mijloc — ...oglindit`
 
-- **Cumpără unități** din bara de jos (click pe card sau tastele `1`–`9`), apoi **click în build
-  zone-ul tău** (dreptunghiul din spatele bazei). `Shift`+click plasează mai multe; `Esc` anulează.
-- **Trage cu mouse-ul** o unitate plasată ca s-o repoziționezi; **click-dreapta** pe ea o vinde
-  (primești 75% din cost înapoi). Formația contează — valul pornește exact în aranjamentul tău.
-- La fiecare **20 de secunde** pornește un val: toată armata din build zone spawnează și mărșăluiește
-  singură spre inamic, trecând pe lângă baza și turnul tău.
-- Fiecare parte are un **turn defensiv** puternic (lovește sol + aer) la jumătatea drumului. Odată
-  distrus, e pierdut definitiv — o gaură permanentă în apărare.
-- Primești **venit pasiv** (+10/s). Upgrade-ul de venit (tasta `0`) îl crește permanent cu +4/s.
+- **Construiește-ți baza** în zona de construcții: **Ziduri** (`Z`, blochează unitățile de sol),
+  **Turnuri** (`X`, trag în sol și aer), **Generatoare** (`C`, +4/s venit fiecare — economia ta e
+  fizică și atacabilă!). Clădirile sunt fixe; click-dreapta le vinde la 60%.
+- **Baza principală** (spatele zonei) e obiectivul: cine o pierde, pierde meciul. **Upgrade-ul ei**
+  (tasta `0`) deblochează tier-ele de unități: T1 Grunt/Slinger/Dasher → T2 Bruiser/Lancer/Mender/Wasp
+  → T3 Siege Crab/Archon (+1000 HP bazei la fiecare tier).
+- **Armata:** cumpără unități (`1`–`9`) și așază-le în fâșia de armată. `Shift`+click plasează mai
+  multe; drag le repoziționezi; click-dreapta le vinde la 75%. La fiecare **20s**, formația spawnează
+  și mărșăluiește singură spre Baza principală inamică.
+- **Plasarea sare pe grid** (comutare cu `G` sau butonul ▦). Unitățile zburătoare trec peste ziduri —
+  raiduri aeriene pe economie sunt reale; apără-te cu Slinger/Archon/turnuri.
+- Fiecare parte pornește cu un **turn defensiv** la jumătatea drumului — distrus definitiv odată căzut.
+- Venit pasiv de bază **+10/s**; restul vine din generatoare.
 
 ### Camera (harta e mai mare decât ecranul)
 

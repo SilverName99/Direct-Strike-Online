@@ -19,6 +19,7 @@ const effects = new Effects();
 const uiState = {
   selected: null,
   drag: null,
+  gridOn: true,
   mouseX: null,
   mouseY: null,
   screenX: null,
@@ -47,6 +48,10 @@ document.getElementById('fs-btn').addEventListener('click', () => {
   console.log('fullscreen toggle requested');
   pointer.toggle();
 });
+document.getElementById('grid-btn').addEventListener('click', () => {
+  uiState.gridOn = !uiState.gridOn;
+  document.getElementById('grid-btn').classList.toggle('off', !uiState.gridOn);
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
 });
@@ -59,7 +64,7 @@ function newGame(difficulty) {
   effects.reset();
   uiState.selected = null;
   uiState.drag = null;
-  camera.reset(CONFIG.BASE_X[0], CONFIG.FIELD_H / 2);
+  camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
   state = 'playing';
   hud.hideOverlay();
 }
@@ -73,7 +78,7 @@ for (const btn of document.querySelectorAll('.btn.diff')) {
 
 window.addEventListener('resize', () => renderer.resize());
 renderer.resize();
-camera.reset(CONFIG.BASE_X[0], CONFIG.FIELD_H / 2);
+camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
 
 let last = performance.now();
 let accumulator = 0;
