@@ -131,8 +131,9 @@ function fieldsFor(ent, kind) {
       apply: (v) => { b.ch = clamp(Math.round(v), 1, 20); },
     });
   }
-  // idle 1↔2 flip speed (only entities with an uploaded idle animation)
-  if (ent === 'main' || ent === 'turret' || ent === 'tower' || ent === 'generator') {
+  // idle 1↔2 flip speed (entities with an uploaded idle animation; the main
+  // base uses per-tier images instead, so no idle speed there)
+  if (ent === 'turret' || ent === 'tower' || ent === 'generator') {
     out.push({
       label: 'Viteză idle (flip/s)', type: 'num', value: b.idleSpeed ?? 2,
       apply: (v) => { b.idleSpeed = clamp(v, 0.2, 10); },

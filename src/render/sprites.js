@@ -127,6 +127,13 @@ export function getSprite(race, ent, anim, frame) {
   return rec[frame] || rec[frame ^ 1] || null;
 }
 
+// Exact frame lookup (no twin fallback) — used for the base's per-tier images
+// so tier 3 never accidentally borrows tier 2's art.
+export function getFrame(race, ent, anim, frame) {
+  const rec = anims.get(`${race}/${ent}/${anim}`);
+  return (rec && rec[frame]) || null;
+}
+
 export function getAnySprite(race, ent) {
   for (const a of ['idle', 'walk', 'attack', 'die']) {
     const s = getSprite(race, ent, a, 0);

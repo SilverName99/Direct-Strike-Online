@@ -6,7 +6,7 @@ import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
-  getSprite, getAnySprite, hasSpriteAnim, getThumb, getProjectile,
+  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
@@ -121,6 +121,23 @@ export function drawBuildingSprite(ctx, kind, team, hw, hh, frame = 0) {
   if (!entry) return false;
   drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
   return true;
+}
+
+// True when the main base has at least one uploaded per-tier image.
+export function hasMainTier(team) {
+  const race = raceOf(team);
+  return !!(getFrame(race, 'main', 'tier', 0) || getFrame(race, 'main', 'tier', 1) || getFrame(race, 'main', 'tier', 2));
+}
+
+// Draw the main base image for its current tier (1..3). Falls back to a lower
+// tier's image if the current one isn't uploaded. False -> caller draws vector.
+export function drawMainTierSprite(ctx, team, tier, hw, hh) {
+  const race = raceOf(team);
+  for (let t = Math.min(3, Math.max(1, tier)); t >= 1; t--) {
+    const entry = getFrame(race, 'main', 'tier', t - 1);
+    if (entry) { drawBuildingScaled(ctx, race, 'main', entry, hw, hh, team); return true; }
+  }
+  return false;
 }
 
 // True when an armed building (turret/tower) has an uploaded attack animation.

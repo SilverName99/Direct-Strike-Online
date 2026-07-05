@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, hasStructureAttack, drawStructureAttack, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -289,7 +289,11 @@ export class Renderer {
             spriteDrawn = drawStructureAttack(ctx, s.kind, s.team, hw, hh, frame);
           }
         }
-        if (!spriteDrawn) spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, hw, hh, this.now, s.id);
+        if (!spriteDrawn) {
+          spriteDrawn = s.kind === 'main'
+            ? drawMainTierSprite(ctx, s.team, game.tier[s.team], hw, hh) // per-upgrade image
+            : drawStructureSprite(ctx, s.kind, s.team, hw, hh, this.now, s.id);
+        }
         ctx.restore();
       }
 
