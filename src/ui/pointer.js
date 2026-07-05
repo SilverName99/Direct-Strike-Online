@@ -155,6 +155,8 @@ export class PointerManager {
   // browsers consume the transient activation on requestFullscreen, so a
   // pointer-lock request issued after awaiting it gets rejected.
   enter() {
+    // Escape-key lock is armed by the fullscreenchange handler once fullscreen
+    // is actually active (calling it here too would abort that one).
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch((err) => {
         console.warn('Fullscreen refused:', err);
@@ -203,11 +205,23 @@ function clamp(v, lo, hi) {
 }
 
 // Keyboard Lock API (Chromium-only, needs fullscreen + secure context). When
-// it works, the browser stops treating a short Esc as "exit fullscreen"; where
-// it's unavailable (Firefox/Safari) Esc still exits fullscreen — a browser
-// limitation JS cannot override.
+// it works, the browser stops treating a SHORT Esc as "exit fullscreen" (it
+// reaches the page instead); a LONG Esc still exits — an anti-trap rule no
+// site can override. On Firefox/Safari the API is absent, so Esc always exits
+// fullscreen. We log the outcome once so it's diagnosable from the console.
+let escNoteShown = false;
 function lockEscapeKey() {
-  try { navigator.keyboard?.lock?.(['Escape']); } catch { /* unsupported */ }
+  const kb = navigator.keyboard;
+  if (!kb || !kb.lock) {
+    if (!escNoteShown) {
+      escNoteShown = true;
+      console.info('[DS] Keyboard Lock not supported here — Esc will exit fullscreen (browser limitation; Chrome/Edge over HTTPS can suppress a short Esc).');
+    }
+    return;
+  }
+  Promise.resolve(kb.lock(['Escape']))
+    .then(() => { if (!escNoteShown) { escNoteShown = true; console.info('[DS] Esc key locked — a short Esc stays in fullscreen; hold Esc (or F / ⛶) to leave.'); } })
+    .catch((err) => console.warn('[DS] Keyboard lock refused:', err));
 }
 function unlockEscapeKey() {
   try { navigator.keyboard?.unlock?.(); } catch { /* unsupported */ }
