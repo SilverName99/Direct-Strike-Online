@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
+import { hasCharacter, drawCharacter } from './characters.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -270,11 +270,11 @@ export class Renderer {
           ctx.stroke();
           ctx.strokeStyle = TEAM_COLORS[team];
         }
-        if (PUPPETS[tpl.type]) {
-          // ghost puppet breathing in the build zone
+        if (hasCharacter(tpl.type)) {
+          // ghost character breathing in the build zone
           ctx.globalAlpha = hot ? 0.95 : 0.5;
           if (team === 1) ctx.scale(-1, 1);
-          drawPuppet(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, PALETTES[team]);
+          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, team);
         } else {
           ctx.globalAlpha = hot ? 0.9 : 0.35;
           ctx.rotate(rot);
@@ -308,8 +308,8 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(x, y);
-      if (PUPPETS[u.type]) {
-        // puppet path: side-view character, mirrored to face the enemy
+      if (hasCharacter(u.type)) {
+        // character path: side-view sprite/puppet, mirrored to face the enemy
         if (u.team === 1) ctx.scale(-1, 1);
         let anim;
         let frame;
@@ -321,7 +321,7 @@ export class Renderer {
           anim = 'walk';
           frame = (Math.floor(this.now * 5) + u.id) % 2;
         }
-        drawPuppet(ctx, u.type, anim, frame, PALETTES[u.team]);
+        drawCharacter(ctx, u.type, anim, frame, u.team);
       } else {
         ctx.rotate(u.team === 0 ? 0 : Math.PI);
         if (stats.shape === 'ring') {
@@ -371,8 +371,8 @@ export class Renderer {
     ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
     ctx.fillStyle = valid ? 'rgba(88, 214, 141, 0.2)' : 'rgba(255, 85, 102, 0.2)';
     ctx.lineWidth = 2;
-    if (PUPPETS[uiState.selected]) {
-      drawPuppet(ctx, uiState.selected, 'idle', 0, PALETTES[0]);
+    if (hasCharacter(uiState.selected)) {
+      drawCharacter(ctx, uiState.selected, 'idle', 0, 0);
       ctx.beginPath();
       ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
       ctx.stroke();

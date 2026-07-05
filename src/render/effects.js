@@ -2,7 +2,7 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
+import { hasDeathAnim, drawCharacter } from './characters.js';
 
 const CORPSE_LIFE = 1.2;
 
@@ -24,8 +24,8 @@ export class Effects {
           this.burst(e.x, e.y, e.big ? 4 : 1, '#ffffff', 60, 0.18, 2);
           break;
         case 'death':
-          if (PUPPETS[e.unitType]) {
-            // puppet units play their 2-frame die animation, then fade
+          if (hasDeathAnim(e.unitType)) {
+            // character units play their 2-frame die animation, then fade
             this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0 });
             this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);
           } else {
@@ -85,7 +85,7 @@ export class Effects {
       ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
-      drawPuppet(ctx, c.type, 'die', frame, PALETTES[c.team]);
+      drawCharacter(ctx, c.type, 'die', frame, c.team);
       ctx.restore();
     }
     ctx.globalAlpha = 1;

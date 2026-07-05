@@ -8,6 +8,7 @@ import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
 import { PointerManager } from './ui/pointer.js';
+import { loadSprites } from './render/sprites.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -38,6 +39,9 @@ const pointer = new PointerManager(canvas);
 
 console.log(`Direct Strike Online ${VERSION}`);
 document.getElementById('version').textContent = VERSION;
+
+// user-uploaded unit sprites (via /admin) override the built-in art
+loadSprites('assets/units/', () => hud.refreshIcons());
 
 document.getElementById('fs-btn').addEventListener('click', () => {
   console.log('fullscreen toggle requested');

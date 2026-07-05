@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
 import { drawShape, TEAM_COLORS } from '../render/renderer.js';
-import { PUPPETS, PALETTES, drawPuppet } from '../render/puppets.js';
+import { hasCharacter, drawCharacter } from '../render/characters.js';
 
 export class Hud {
   constructor(uiState) {
@@ -75,12 +75,21 @@ export class Hud {
     this.cards.set('income', card);
   }
 
+  // Re-render all card icons (called when uploaded sprites finish loading).
+  refreshIcons() {
+    for (const [id, card] of this.cards) {
+      if (id === 'income') continue;
+      this.drawIcon(card.querySelector('canvas'), UNITS[id], id);
+    }
+  }
+
   drawIcon(canvas, u, id) {
     const ctx = canvas.getContext('2d');
-    if (PUPPETS[id]) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (hasCharacter(id)) {
       ctx.save();
       ctx.translate(20, 21);
-      drawPuppet(ctx, id, 'idle', 0, PALETTES[0], 1.35);
+      drawCharacter(ctx, id, 'idle', 0, 0, Math.min(1.35, 34 / (u.radius * 2.8 + 4)));
       ctx.restore();
       return;
     }

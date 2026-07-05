@@ -15,18 +15,25 @@
   </style>
 </head>
 <body>
-  <h1>Puppet Preview</h1>
-  <p>Toate animațiile × frame-urile, ambele echipe, + celulă animată live. Editează <code>src/render/puppets.js</code> și dă refresh.</p>
+  <h1>Character Preview</h1>
+  <p>Toate animațiile × frame-urile, ambele echipe, + celulă animată live. Sprite-urile încărcate din
+  <code>/admin</code> au prioritate; unde lipsesc se văd păpușile vectoriale (<code>src/render/puppets.js</code>).</p>
   <div class="grid" id="grid"></div>
 
   <script type="module">
-    import { PUPPETS, PALETTES, drawPuppet } from '../src/render/puppets.js';
+    import { UNIT_IDS } from '../src/units.js';
+    import { hasCharacter, drawCharacter } from '../src/render/characters.js';
+    import { loadSprites } from '../src/render/sprites.js';
+
+    loadSprites('../assets/units/', () => {}); // async; cells re-render below
 
     const grid = document.getElementById('grid');
     const SCALE = 4;
     const SIZE = 140;
+    const ANIMS = ['idle', 'walk', 'attack', 'die'];
+    const painters = [];
 
-    function makeCell(label) {
+    function makeCell(label, paint) {
       const cell = document.createElement('div');
       cell.className = 'cell';
       const canvas = document.createElement('canvas');
@@ -38,36 +45,47 @@
       div.textContent = label;
       cell.appendChild(div);
       grid.appendChild(cell);
-      return canvas.getContext('2d');
+      painters.push({ ctx: canvas.getContext('2d'), paint });
     }
 
-    for (const type of Object.keys(PUPPETS)) {
-      // static: every anim × frame × team
-      for (const anim of Object.keys(PUPPETS[type].anims)) {
-        for (let frame = 0; frame < 2; frame++) {
-          for (const team of [0, 1]) {
-            const ctx = makeCell(`${type} · ${anim} ${frame + 1} · ${team === 0 ? 'blue' : 'red'}`);
-            ctx.translate(SIZE / 2, SIZE / 2 + 6);
-            if (team === 1) ctx.scale(-1, 1);
-            drawPuppet(ctx, type, anim, frame, PALETTES[team], SCALE);
+    function build() {
+      grid.innerHTML = '';
+      painters.length = 0;
+      for (const type of UNIT_IDS) {
+        if (!hasCharacter(type)) continue;
+        for (const anim of ANIMS) {
+          for (let frame = 0; frame < 2; frame++) {
+            for (const team of [0, 1]) {
+              makeCell(`${type} · ${anim} ${frame + 1} · ${team === 0 ? 'blue' : 'red'}`, (ctx) => {
+                ctx.translate(SIZE / 2, SIZE / 2 + 6);
+                if (team === 1) ctx.scale(-1, 1);
+                drawCharacter(ctx, type, anim, frame, team, SCALE);
+              });
+            }
           }
         }
-      }
-      // live animated cell per anim (blue)
-      for (const anim of Object.keys(PUPPETS[type].anims)) {
-        const ctx = makeCell(`${type} · ${anim} · LIVE`);
-        const speed = anim === 'walk' ? 5 : anim === 'attack' ? 3 : 2;
-        setInterval(() => {
-          ctx.save();
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.clearRect(0, 0, SIZE, SIZE);
-          ctx.translate(SIZE / 2, SIZE / 2 + 6);
-          const frame = Math.floor(performance.now() / 1000 * speed) % 2;
-          drawPuppet(ctx, type, anim, frame, PALETTES[0], SCALE);
-          ctx.restore();
-        }, 60);
+        for (const anim of ANIMS) {
+          const speed = anim === 'walk' ? 5 : anim === 'attack' ? 3 : 2;
+          makeCell(`${type} · ${anim} · LIVE`, (ctx) => {
+            ctx.translate(SIZE / 2, SIZE / 2 + 6);
+            const frame = Math.floor(performance.now() / 1000 * speed) % 2;
+            drawCharacter(ctx, type, anim, frame, 0, SCALE);
+          });
+        }
       }
     }
+
+    build();
+    setTimeout(build, 1200); // rebuild once sprites have had time to load
+    setInterval(() => {
+      for (const p of painters) {
+        p.ctx.save();
+        p.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        p.ctx.clearRect(0, 0, SIZE, SIZE);
+        p.paint(p.ctx);
+        p.ctx.restore();
+      }
+    }, 120);
   </script>
 </body>
 </html>
