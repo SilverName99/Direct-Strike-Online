@@ -215,9 +215,20 @@ export class Hud {
     ctx.restore();
   }
 
-  update(game) {
+  update(game, dt = 0) {
     const gens = game.countKind(0, 'generator');
-    this.el.money.textContent = Math.floor(game.money[0]);
+    // Smoothly count the gold up so it climbs continuously at the income rate
+    // (matching the "+X/s" label) instead of jumping in big chunks each tick.
+    // Spends snap down immediately; any gap is closed within ~2s.
+    const real = game.money[0];
+    if (this.displayMoney == null || real <= this.displayMoney) {
+      this.displayMoney = real;
+    } else {
+      const rate = Math.max(game.incomePerSecond(0), 10);
+      const gap = real - this.displayMoney;
+      this.displayMoney = Math.min(real, this.displayMoney + Math.max(rate, gap / 2) * dt);
+    }
+    this.el.money.textContent = Math.floor(this.displayMoney);
     this.el.income.textContent = `+${game.incomePerSecond(0)}/s · ${gens} gen`;
     this.el.tier.textContent = `TIER ${'I'.repeat(game.tier[0])}`;
     this.el.waveNum.textContent = game.waveCount + 1;

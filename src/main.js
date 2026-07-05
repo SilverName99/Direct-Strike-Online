@@ -137,7 +137,7 @@ function frame(now) {
     }
     effects.spawnFromEvents(game.drainEvents());
     effects.update(delta);
-    hud.update(game);
+    hud.update(game, delta);
 
     if (game.winner !== null) {
       state = 'over';
