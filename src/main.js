@@ -7,6 +7,7 @@ import { Camera } from './ui/camera.js';
 import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
+import { PointerManager } from './ui/pointer.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -31,6 +32,12 @@ let state = 'menu'; // 'menu' | 'playing' | 'over'
 const input = new Input(canvas, renderer, camera, uiState, () =>
   state === 'playing' ? game : null
 );
+const pointer = new PointerManager(canvas);
+
+document.getElementById('fs-btn').addEventListener('click', () => pointer.toggle());
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'f' || e.key === 'F') pointer.toggle();
+});
 
 function newGame(difficulty) {
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
@@ -46,7 +53,10 @@ function newGame(difficulty) {
 }
 
 for (const btn of document.querySelectorAll('.btn.diff')) {
-  btn.addEventListener('click', () => newGame(btn.dataset.diff));
+  btn.addEventListener('click', () => {
+    pointer.enter(); // fullscreen + mouse capture, from the same user gesture
+    newGame(btn.dataset.diff);
+  });
 }
 
 window.addEventListener('resize', () => renderer.resize());

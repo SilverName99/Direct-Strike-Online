@@ -28,6 +28,9 @@ Harta urmează layout-ul clasic Direct Strike:
 - **Rotița mouse-ului** — zoom in/out centrat pe cursor.
 - **Space** — salt instant la baza ta.
 - **Minimap** (colțul stânga-jos) — vezi toată harta; click sau drag pe el ca să sari oriunde.
+- **Fullscreen + captură mouse:** meciul intră automat în fullscreen și capturează mouse-ul
+  (cursorul nu poate aluneca pe al doilea monitor — edge-scroll ca într-un RTS nativ).
+  **Esc** eliberează mouse-ul și iese din fullscreen; **F** sau butonul ⛶ te bagă înapoi.
 - **Contre:** piercing topește armored (Lancer vs Bruiser) · explosive topește swarm-urile light
   (Siege Crab vs Grunts) · unitățile melee și artileria nu pot lovi aerul (Wasp) · anti-aerul
   dedicat e Archon, iar Slinger e răspunsul ieftin.

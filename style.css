@@ -76,6 +76,29 @@ html, body {
 }
 #game { display: block; cursor: crosshair; }
 
+#fs-btn {
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+#fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
+
+/* virtual cursor shown while the pointer is locked */
+#vcursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: none;
+  pointer-events: none;
+  z-index: 1000;
+}
+#vcursor.visible { display: block; }
+
 #minimap {
   position: absolute;
   left: 12px;
@@ -124,6 +147,10 @@ html, body {
   position: absolute; top: 3px; left: 6px;
   font-size: 9px; color: var(--dim);
 }
+
+/* .hover mirrors :hover for the virtual cursor under pointer lock */
+.card.hover { transform: translateY(-2px); border-color: #3d4c66; }
+.card.hover .c-tip { display: block; }
 
 /* tooltip */
 .card .c-tip {
