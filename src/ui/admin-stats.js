@@ -101,7 +101,7 @@ function fieldsFor(ent, kind) {
   }
 
   // buildings / turret / main are shared by both races: global size,
-  // footprint (buildable), then stats
+  // footprint (width x height in cells, buildable only), then stats
   out.push({
     label: 'Size (%)', type: 'num', value: Math.round((CONFIG.SIZES[ent] || 1) * 100),
     apply: (v) => { CONFIG.SIZES[ent] = clamp(v / 100, 0.2, 4); },
@@ -109,10 +109,26 @@ function fieldsFor(ent, kind) {
   if (FOOTPRINT_BUILDINGS.includes(ent)) {
     const b = CONFIG.BUILDINGS[ent];
     out.push({
-      label: 'Footprint (cells)', type: 'num',
-      value: Math.max(1, Math.round((b.radius * 2) / CONFIG.GRID)),
-      apply: (v) => { b.radius = clamp(Math.round(v), 1, 10) * CONFIG.GRID / 2; },
+      label: 'Lățime (celule)', type: 'num', value: b.cw || 1,
+      apply: (v) => { b.cw = clamp(Math.round(v), 1, 20); },
     });
+    out.push({
+      label: 'Înălțime (celule)', type: 'num', value: b.ch || 1,
+      apply: (v) => { b.ch = clamp(Math.round(v), 1, 20); },
+    });
+  }
+  // idle 1↔2 flip speed (only entities with an uploaded idle animation)
+  if (ent === 'main' || ent === 'turret' || ent === 'tower' || ent === 'generator') {
+    const speedApply = (v) => {
+      const val = clamp(v, 0.2, 10);
+      if (ent === 'main') CONFIG.MAIN.idleSpeed = val;
+      else if (ent === 'turret') CONFIG.TURRET.idleSpeed = val;
+      else CONFIG.BUILDINGS[ent].idleSpeed = val;
+    };
+    const cur = ent === 'main' ? CONFIG.MAIN.idleSpeed
+      : ent === 'turret' ? CONFIG.TURRET.idleSpeed
+      : CONFIG.BUILDINGS[ent].idleSpeed;
+    out.push({ label: 'Viteză idle (flip/s)', type: 'num', value: cur ?? 2, apply: speedApply });
   }
 
   if (ent === 'turret') {
@@ -166,7 +182,7 @@ modal.querySelector('[data-a="save"]').onclick = async () => {
   writeInputs();
   setStatus('Se salvează…');
   const res = await saveBalance('save-balance.php');
-  if (res === 'ok') setStatus('Salvat ✓ (activ la pornirea jocului)', 'ok');
+  if (res === 'ok') { setStatus('Salvat ✓ (activ la pornirea jocului)', 'ok'); refreshUnitNames(); }
   else if (res === 'auth') setStatus('Sesiune expirată — reloghează-te', 'bad');
   else setStatus('Salvare eșuată', 'bad');
 };
@@ -177,18 +193,31 @@ modal.querySelector('[data-a="reset"]').onclick = () => {
   if (kind === 'unit') {
     resetRaceUnit(RACE, ent); // name + size + stats, for this race only
   } else {
-    if (ent === 'turret') Object.assign(CONFIG.TURRET, d.turret);
-    else if (ent === 'main') CONFIG.MAIN.hp = [...d.mainHp];
-    else if (d.buildings[ent]) Object.assign(CONFIG.BUILDINGS[ent], d.buildings[ent]); // includes radius
+    if (ent === 'turret') Object.assign(CONFIG.TURRET, d.turret); // includes idleSpeed
+    else if (ent === 'main') { CONFIG.MAIN.hp = [...d.mainHp]; CONFIG.MAIN.idleSpeed = d.mainIdleSpeed; }
+    else if (d.buildings[ent]) Object.assign(CONFIG.BUILDINGS[ent], d.buildings[ent]); // includes cw/ch/idleSpeed
     CONFIG.SIZES[ent] = d.buildingSizes[ent]; // reset global building size
   }
   open(ent, kind); // re-render with defaults
   setStatus('Reset la valorile din cod — apasă Salvează ca să publici.');
 };
 
+// Show each unit row's custom (renamed) name for THIS race, keeping the id
+// as a subtitle so the row is still identifiable.
+function refreshUnitNames() {
+  for (const g of document.querySelectorAll('.stat-gear[data-kind="unit"]')) {
+    const ent = g.dataset.ent;
+    const u = statsUnit(RACE, ent);
+    if (!u) continue;
+    const b = g.closest('.ent')?.querySelector('.title b');
+    if (b) b.textContent = u.name && u.name !== ent ? `${u.name} (${ent})` : ent;
+  }
+}
+
 // Wire the gears once the saved balance is applied, so saving preserves it.
 loadBalance('../assets/').then(() => {
   for (const g of document.querySelectorAll('.stat-gear')) {
     g.addEventListener('click', () => open(g.dataset.ent, g.dataset.kind));
   }
+  refreshUnitNames();
 });

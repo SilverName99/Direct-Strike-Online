@@ -159,9 +159,11 @@ export class Hud {
       ctx.arc(0, 0, 7, 0, Math.PI * 2);
       ctx.fill();
     } else if (id === 'generator') {
-      ctx.fillStyle = c;
-      drawShape(ctx, 'diamond', 12);
-      ctx.fill();
+      ctx.fillStyle = '#2d3a4f';
+      ctx.fillRect(-12, -12, 24, 24);
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-12, -12, 24, 24);
       ctx.fillStyle = '#ffd35c';
       ctx.beginPath();
       ctx.arc(0, 0, 4, 0, Math.PI * 2);

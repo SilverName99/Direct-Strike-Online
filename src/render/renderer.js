@@ -1,8 +1,9 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
+import { structureExtents } from '../sim/entity.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -58,6 +59,25 @@ export function drawShape(ctx, shape, r) {
     default:
       ctx.arc(0, 0, r, 0, Math.PI * 2);
   }
+}
+
+// Colored grid squares under a building's footprint, centered at (0,0) in a
+// pre-transformed context. Draws a filled hw x hh rectangle split into
+// CONFIG.GRID cells — the "patratele de dedesubt" the player places on.
+export function drawFootprintCells(ctx, hw, hh, color, alpha = 0.28) {
+  const g = CONFIG.GRID;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+  ctx.globalAlpha = Math.min(1, alpha + 0.4);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let gx = -hw; gx <= hw + 0.01; gx += g) { ctx.moveTo(gx, -hh); ctx.lineTo(gx, hh); }
+  for (let gy = -hh; gy <= hh + 0.01; gy += g) { ctx.moveTo(-hw, gy); ctx.lineTo(hw, gy); }
+  ctx.stroke();
+  ctx.restore();
 }
 
 function polygon(ctx, sides, r, rot, sx, sy) {
@@ -233,8 +253,15 @@ export class Renderer {
       const color = TEAM_COLORS[s.team];
       const dark = TEAM_COLORS_DARK[s.team];
       const r = s.radius;
+      const hw = s.hw || r;
+      const hh = s.hh || r;
       ctx.save();
       ctx.translate(s.x, s.y);
+
+      // colored footprint cells beneath buildable structures (grid squares)
+      if (s.kind === 'wall' || s.kind === 'tower' || s.kind === 'generator') {
+        drawFootprintCells(ctx, hw, hh, color, 0.16);
+      }
 
       // range ring first, so it sits under sprite or vector art
       if (s.kind === 'turret' || s.kind === 'tower') {
@@ -297,39 +324,32 @@ export class Renderer {
         }
       } else if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower')) {
         ctx.fillStyle = dark;
-        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
         ctx.strokeStyle = color;
         ctx.lineWidth = 2.5;
-        ctx.strokeRect(-r, -r, r * 2, r * 2);
+        ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+        ctx.arc(0, 0, Math.min(hw, hh) * 0.55, 0, Math.PI * 2);
         ctx.fill();
       } else if (s.kind === 'wall') {
         ctx.fillStyle = dark;
-        ctx.fillRect(-r, -r, r * 2, r * 2);
+        ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
-        ctx.strokeRect(-r, -r, r * 2, r * 2);
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.45;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(-r * 0.5, -r * 0.5, r, r);
-        ctx.globalAlpha = 1;
+        ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
       } else if (!spriteDrawn && s.kind === 'generator') {
         ctx.fillStyle = dark;
-        drawShape(ctx, 'diamond', r * 1.1);
-        ctx.fill();
+        ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
         ctx.strokeStyle = color;
         ctx.lineWidth = 2.5;
-        drawShape(ctx, 'diamond', r * 1.1);
-        ctx.stroke();
+        ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
         // pulsing energy core
         const pulse = 0.6 + 0.4 * Math.sin(this.now * 4 + s.id);
         ctx.fillStyle = '#ffd35c';
         ctx.globalAlpha = pulse;
         ctx.beginPath();
-        ctx.arc(0, 0, 5, 0, Math.PI * 2);
+        ctx.arc(0, 0, Math.min(hw, hh) * 0.35, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
       }
@@ -495,13 +515,18 @@ export class Renderer {
 
     if (isBuilding) {
       const b = CONFIG.BUILDINGS[sel];
-      ctx.beginPath();
-      if (sel === 'generator') drawShape(ctx, 'diamond', b.radius * 1.1);
-      else ctx.rect(-b.radius, -b.radius, b.radius * 2, b.radius * 2);
-      ctx.fill();
-      ctx.stroke();
+      const ext = structureExtents(sel);
+      // colored footprint cells (the "patratele de dedesubt")
+      drawFootprintCells(ctx, ext.hw, ext.hh, valid ? '#58d68d' : '#ff5566', 0.22);
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
+      ctx.strokeRect(-ext.hw, -ext.hh, ext.hw * 2, ext.hh * 2);
+      // idle 1 sprite on the cursor (falls back to nothing if not uploaded)
+      ctx.globalAlpha = valid ? 0.85 : 0.55;
+      drawBuildingSprite(ctx, sel, 0, ext.radius, 0);
       if (b.range) {
         ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
         ctx.beginPath();
         ctx.arc(0, 0, b.range, 0, Math.PI * 2);
         ctx.stroke();

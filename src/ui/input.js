@@ -110,11 +110,12 @@ export class Input {
         game.issueCommand({ type: 'sellUnit', team: 0, index: idx });
         return;
       }
-      // sell an own building under the cursor
+      // sell an own building under the cursor (box hit test for footprints)
       const s = game.structures.find(
         (st) =>
           st.team === 0 && st.hp > 0 &&
-          (st.x - x) ** 2 + (st.y - y) ** 2 <= (st.radius + 4) ** 2
+          Math.abs(st.x - x) <= (st.hw || st.radius) + 4 &&
+          Math.abs(st.y - y) <= (st.hh || st.radius) + 4
       );
       if (s) game.issueCommand({ type: 'sellBuilding', team: 0, id: s.id });
     });

@@ -6,7 +6,7 @@
 import { CONFIG, RACES } from '../config.js';
 import { statsUnit } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
-import { makeStructure } from './entity.js';
+import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
 import { updateMovement } from './movement.js';
 import { spawnWave } from './waves.js';
@@ -93,14 +93,22 @@ export class Game {
   }
 
   // Buildings go in the construction zone, without overlapping structures.
+  // Footprint is a cw x ch cell rectangle; the whole box must fit the zone
+  // and stay clear of existing structures (both treated as boxes).
   isValidBuildPlacement(team, kind, x, y) {
     const stats = CONFIG.BUILDINGS[kind];
     if (!stats) return false;
-    if (!this.inZone(CONFIG.CONSTRUCTION_ZONE[team], x, y)) return false;
+    const ext = structureExtents(kind);
+    const zone = CONFIG.CONSTRUCTION_ZONE[team];
+    if (x - ext.hw < zone.x0 || x + ext.hw > zone.x1) return false;
+    if (y - ext.hh < zone.y0 || y + ext.hh > zone.y1) return false;
+    const gap = CONFIG.BUILD_GAP;
     for (const s of this.structures) {
       if (s.hp <= 0) continue;
-      const min = s.radius + stats.radius + CONFIG.BUILD_GAP;
-      if ((s.x - x) ** 2 + (s.y - y) ** 2 < min * min) return false;
+      const sw = s.hw || s.radius;
+      const sh = s.hh || s.radius;
+      if (Math.abs(s.x - x) < ext.hw + sw + gap &&
+          Math.abs(s.y - y) < ext.hh + sh + gap) return false;
     }
     return true;
   }

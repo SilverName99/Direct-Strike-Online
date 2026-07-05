@@ -97,10 +97,11 @@ function raceUnitsSnapshot(race) {
 function snapshot() {
   const buildings = {};
   for (const [kind, fields] of Object.entries(BUILDING_FIELDS)) {
-    buildings[kind] = { radius: CONFIG.BUILDINGS[kind].radius };
-    for (const [f] of fields) buildings[kind][f] = CONFIG.BUILDINGS[kind][f];
+    const src = CONFIG.BUILDINGS[kind];
+    buildings[kind] = { cw: src.cw, ch: src.ch, idleSpeed: src.idleSpeed };
+    for (const [f] of fields) buildings[kind][f] = src[f];
   }
-  const turret = {};
+  const turret = { idleSpeed: CONFIG.TURRET.idleSpeed };
   for (const [f] of TURRET_FIELDS) turret[f] = CONFIG.TURRET[f];
   const general = {};
   for (const [f] of GENERAL_FIELDS) general[f] = CONFIG[f];
@@ -114,6 +115,7 @@ function snapshot() {
     buildings,
     turret,
     mainHp: [...CONFIG.MAIN.hp],
+    mainIdleSpeed: CONFIG.MAIN.idleSpeed,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
     buildingSizes,
     races,
@@ -132,14 +134,23 @@ export function applyBalance(data) {
     const b = CONFIG.BUILDINGS[kind];
     if (!b || !BUILDING_FIELDS[kind] || typeof vals !== 'object') continue;
     for (const [f] of BUILDING_FIELDS[kind]) if (num(vals[f]) !== undefined) b[f] = vals[f];
-    if (num(vals.radius) !== undefined) b.radius = clamp(vals.radius, CONFIG.GRID / 2, CONFIG.GRID * 5);
+    if (num(vals.cw) !== undefined) b.cw = clamp(Math.round(vals.cw), 1, 20);
+    if (num(vals.ch) !== undefined) b.ch = clamp(Math.round(vals.ch), 1, 20);
+    // legacy: a single radius footprint -> derive square cell count
+    if (b.cw === undefined && num(vals.radius) !== undefined) {
+      const cells = clamp(Math.round(vals.radius * 2 / CONFIG.GRID), 1, 20);
+      b.cw = cells; b.ch = cells;
+    }
+    if (num(vals.idleSpeed) !== undefined) b.idleSpeed = clamp(vals.idleSpeed, 0.2, 10);
   }
   if (data.turret && typeof data.turret === 'object') {
     for (const [f] of TURRET_FIELDS) if (num(data.turret[f]) !== undefined) CONFIG.TURRET[f] = data.turret[f];
+    if (num(data.turret.idleSpeed) !== undefined) CONFIG.TURRET.idleSpeed = clamp(data.turret.idleSpeed, 0.2, 10);
   }
   if (Array.isArray(data.mainHp)) {
     for (let i = 0; i < 3; i++) if (num(data.mainHp[i]) !== undefined) CONFIG.MAIN.hp[i] = data.mainHp[i];
   }
+  if (num(data.mainIdleSpeed) !== undefined) CONFIG.MAIN.idleSpeed = clamp(data.mainIdleSpeed, 0.2, 10);
   if (data.tierCosts && typeof data.tierCosts === 'object') {
     for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
   }
