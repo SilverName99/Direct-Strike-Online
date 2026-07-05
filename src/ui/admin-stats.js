@@ -5,10 +5,11 @@
 // separate Balance page. Loads the shared JS data modules so values stay
 // a single source of truth.
 
-import { CONFIG, RACES } from '../config.js';
+import { RACES } from '../config.js';
 import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
-  FOOTPRINT_BUILDINGS, statsUnit, resetRaceUnit, loadBalance, saveBalance, defaults,
+  FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
+  resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance,
 } from './balance.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -100,14 +101,15 @@ function fieldsFor(ent, kind) {
     return out;
   }
 
-  // buildings / turret / main are shared by both races: global size,
-  // footprint (width x height in cells, buildable only), then stats
+  // buildings are ALSO per-race now: name + size + footprint (buildable) +
+  // idle speed + stats — all for THIS race only.
+  const b = statsBuilding(RACE, ent);
+  out.push({ label: 'Name', type: 'text', value: b.name, apply: (v) => { b.name = v; } });
   out.push({
-    label: 'Size (%)', type: 'num', value: Math.round((CONFIG.SIZES[ent] || 1) * 100),
-    apply: (v) => { CONFIG.SIZES[ent] = clamp(v / 100, 0.2, 4); },
+    label: 'Size (%)', type: 'num', value: Math.round((b.size || 1) * 100),
+    apply: (v) => { b.size = clamp(v / 100, 0.2, 4); },
   });
   if (FOOTPRINT_BUILDINGS.includes(ent)) {
-    const b = CONFIG.BUILDINGS[ent];
     out.push({
       label: 'Lățime (celule)', type: 'num', value: b.cw || 1,
       apply: (v) => { b.cw = clamp(Math.round(v), 1, 20); },
@@ -119,28 +121,21 @@ function fieldsFor(ent, kind) {
   }
   // idle 1↔2 flip speed (only entities with an uploaded idle animation)
   if (ent === 'main' || ent === 'turret' || ent === 'tower' || ent === 'generator') {
-    const speedApply = (v) => {
-      const val = clamp(v, 0.2, 10);
-      if (ent === 'main') CONFIG.MAIN.idleSpeed = val;
-      else if (ent === 'turret') CONFIG.TURRET.idleSpeed = val;
-      else CONFIG.BUILDINGS[ent].idleSpeed = val;
-    };
-    const cur = ent === 'main' ? CONFIG.MAIN.idleSpeed
-      : ent === 'turret' ? CONFIG.TURRET.idleSpeed
-      : CONFIG.BUILDINGS[ent].idleSpeed;
-    out.push({ label: 'Viteză idle (flip/s)', type: 'num', value: cur ?? 2, apply: speedApply });
+    out.push({
+      label: 'Viteză idle (flip/s)', type: 'num', value: b.idleSpeed ?? 2,
+      apply: (v) => { b.idleSpeed = clamp(v, 0.2, 10); },
+    });
   }
 
   if (ent === 'turret') {
     for (const [f, label] of TURRET_FIELDS) {
-      out.push({ f, label, value: CONFIG.TURRET[f], type: 'num', apply: (v) => { CONFIG.TURRET[f] = v; } });
+      out.push({ f, label, value: b[f], type: 'num', apply: (v) => { b[f] = v; } });
     }
   } else if (ent === 'main') {
     ['Tier 1 HP', 'Tier 2 HP', 'Tier 3 HP'].forEach((label, i) => {
-      out.push({ f: `hp${i}`, label, value: CONFIG.MAIN.hp[i], type: 'num', apply: (v) => { CONFIG.MAIN.hp[i] = v; } });
+      out.push({ f: `hp${i}`, label, value: b.hp[i], type: 'num', apply: (v) => { b.hp[i] = v; } });
     });
   } else if (BUILDING_FIELDS[ent]) {
-    const b = CONFIG.BUILDINGS[ent];
     for (const [f, label] of BUILDING_FIELDS[ent]) {
       out.push({ f, label, value: b[f], type: 'num', apply: (v) => { b[f] = v; } });
     }
@@ -150,7 +145,7 @@ function fieldsFor(ent, kind) {
 
 function open(ent, kind) {
   current = { ent, kind, fields: fieldsFor(ent, kind) };
-  titleEl.textContent = kind === 'unit' ? `${ent} — ${RACE}` : `${ent} — stats (comun)`;
+  titleEl.textContent = `${ent} — ${RACE}`;
   statusEl.textContent = '';
   statusEl.className = 'sm-status';
   bodyEl.innerHTML = current.fields.map((fd, i) => {
@@ -182,35 +177,28 @@ modal.querySelector('[data-a="save"]').onclick = async () => {
   writeInputs();
   setStatus('Se salvează…');
   const res = await saveBalance('save-balance.php');
-  if (res === 'ok') { setStatus('Salvat ✓ (activ la pornirea jocului)', 'ok'); refreshUnitNames(); }
+  if (res === 'ok') { setStatus('Salvat ✓ (activ la pornirea jocului)', 'ok'); refreshNames(); }
   else if (res === 'auth') setStatus('Sesiune expirată — reloghează-te', 'bad');
   else setStatus('Salvare eșuată', 'bad');
 };
 
 modal.querySelector('[data-a="reset"]').onclick = () => {
-  const d = defaults();
   const { ent, kind } = current;
-  if (kind === 'unit') {
-    resetRaceUnit(RACE, ent); // name + size + stats, for this race only
-  } else {
-    if (ent === 'turret') Object.assign(CONFIG.TURRET, d.turret); // includes idleSpeed
-    else if (ent === 'main') { CONFIG.MAIN.hp = [...d.mainHp]; CONFIG.MAIN.idleSpeed = d.mainIdleSpeed; }
-    else if (d.buildings[ent]) Object.assign(CONFIG.BUILDINGS[ent], d.buildings[ent]); // includes cw/ch/idleSpeed
-    CONFIG.SIZES[ent] = d.buildingSizes[ent]; // reset global building size
-  }
+  if (kind === 'unit') resetRaceUnit(RACE, ent); // name + size + stats, this race
+  else resetRaceBuilding(RACE, ent);             // name + size + footprint + stats, this race
   open(ent, kind); // re-render with defaults
   setStatus('Reset la valorile din cod — apasă Salvează ca să publici.');
 };
 
-// Show each unit row's custom (renamed) name for THIS race, keeping the id
-// as a subtitle so the row is still identifiable.
-function refreshUnitNames() {
-  for (const g of document.querySelectorAll('.stat-gear[data-kind="unit"]')) {
+// Show each row's custom (renamed) name for THIS race (units and buildings).
+function refreshNames() {
+  for (const g of document.querySelectorAll('.stat-gear')) {
     const ent = g.dataset.ent;
-    const u = statsUnit(RACE, ent);
-    if (!u) continue;
+    const name = g.dataset.kind === 'unit'
+      ? (statsUnit(RACE, ent) || {}).name
+      : buildingNameOf(RACE, ent);
     const b = g.closest('.ent')?.querySelector('.title b');
-    if (b) b.textContent = u.name || ent;
+    if (b && name) b.textContent = name;
   }
 }
 
@@ -219,5 +207,5 @@ loadBalance('../assets/').then(() => {
   for (const g of document.querySelectorAll('.stat-gear')) {
     g.addEventListener('click', () => open(g.dataset.ent, g.dataset.kind));
   }
-  refreshUnitNames();
+  refreshNames();
 });

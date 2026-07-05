@@ -17,8 +17,8 @@ export function updateCombat(game, dt) {
   // enemy unit in range.
   for (const s of game.structures) {
     if (s.hp <= 0) continue;
-    if (s.kind === 'turret') updateTurret(game, s, CONFIG.TURRET, dt);
-    else if (s.kind === 'tower') updateTurret(game, s, CONFIG.BUILDINGS.tower, dt);
+    if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
+    else if (s.kind === 'tower') updateTurret(game, s, game.bstat(s.team, 'tower'), dt);
   }
 }
 

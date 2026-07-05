@@ -260,7 +260,7 @@ export class Renderer {
 
       // range ring first, so it sits under sprite or vector art
       if (s.kind === 'turret' || s.kind === 'tower') {
-        const stats = s.kind === 'turret' ? CONFIG.TURRET : CONFIG.BUILDINGS.tower;
+        const stats = game.bstat(s.team, s.kind);
         ctx.globalAlpha = 0.06;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
@@ -509,8 +509,8 @@ export class Renderer {
     ctx.lineWidth = 2;
 
     if (isBuilding) {
-      const b = CONFIG.BUILDINGS[sel];
-      const ext = structureExtents(sel);
+      const b = game.bstat(0, sel);
+      const ext = structureExtents(sel, b);
       // colored footprint cells (the "patratele de dedesubt")
       drawFootprintCells(ctx, ext.hw, ext.hh, valid ? '#58d68d' : '#ff5566', 0.22);
       ctx.globalAlpha = 0.9;

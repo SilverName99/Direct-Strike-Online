@@ -19,29 +19,31 @@ export function spawnUnit(game, team, type, x, y) {
   return e;
 }
 
-// Half-extents (hw, hh) of each structure kind, plus a bounding radius.
-// Buildings occupy a rectangle of cw x ch grid cells; main/turret stay
-// square (their `radius` is the half-extent).
-export function structureExtents(kind) {
-  if (kind === 'main') return { hw: CONFIG.MAIN.radius, hh: CONFIG.MAIN.radius, radius: CONFIG.MAIN.radius };
-  if (kind === 'turret') return { hw: CONFIG.TURRET.radius, hh: CONFIG.TURRET.radius, radius: CONFIG.TURRET.radius };
-  const b = CONFIG.BUILDINGS[kind];
-  const hw = (b.cw || 1) * CONFIG.GRID / 2;
-  const hh = (b.ch || 1) * CONFIG.GRID / 2;
+// Half-extents (hw, hh) of a structure, plus a bounding radius, from that
+// kind's resolved (per-race) stats. Buildings occupy a rectangle of cw x ch
+// grid cells; main/turret stay square (their `radius` is the half-extent).
+export function structureExtents(kind, bs) {
+  if (kind === 'main' || kind === 'turret') {
+    const r = (bs && bs.radius) || CONFIG[kind === 'main' ? 'MAIN' : 'TURRET'].radius;
+    return { hw: r, hh: r, radius: r };
+  }
+  const hw = ((bs && bs.cw) || 1) * CONFIG.GRID / 2;
+  const hh = ((bs && bs.ch) || 1) * CONFIG.GRID / 2;
   return { hw, hh, radius: Math.max(hw, hh) };
 }
 
-function structureHp(kind) {
-  if (kind === 'main') return CONFIG.MAIN.hp[0];
-  if (kind === 'turret') return CONFIG.TURRET.hp;
-  return CONFIG.BUILDINGS[kind].hp;
+function structureHp(kind, bs) {
+  if (kind === 'main') return bs.hp[0];
+  return bs.hp;
 }
 
 // Generic structure factory: the main base (win objective), the starting
-// turret, and player-built walls / towers / generators.
+// turret, and player-built walls / towers / generators. Stats resolve per
+// the building team's race.
 export function makeStructure(game, team, kind, x, y) {
-  const hp = structureHp(kind);
-  const ext = structureExtents(kind);
+  const bs = game.bstat(team, kind);
+  const hp = structureHp(kind, bs);
+  const ext = structureExtents(kind, bs);
   const s = {
     id: game.nextId++,
     team, kind,

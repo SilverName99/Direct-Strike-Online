@@ -2,10 +2,9 @@
 // priority, then the built-in vector puppets; returns false when neither
 // exists so the caller can draw the plain geometric marker instead.
 
-import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
-import { unitSizeOf, buildingSizeOf } from '../ui/balance.js';
+import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
   getSprite, getAnySprite, hasSpriteAnim, getThumb,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
@@ -13,9 +12,9 @@ import {
 
 export { setTeamRaces } from './sprites.js';
 
-// Visual size multiplier: per-race for units, global for buildings.
+// Visual size multiplier: per-race for both units and buildings.
 export function sizeOf(race, ent) {
-  return UNITS[ent] ? unitSizeOf(race, ent) : buildingSizeOf(ent);
+  return UNITS[ent] ? unitSizeOf(race, ent) : buildingSizeOf(race, ent);
 }
 
 function unitH(type, scale) {
@@ -68,11 +67,9 @@ export function drawThumb(ctx, ent, team = 0, targetH = 34) {
   return true;
 }
 
-// Per-building idle frame flip rate (Hz); higher = faster idle 1↔2.
-function idleSpeedOf(kind) {
-  if (kind === 'main') return CONFIG.MAIN.idleSpeed || 2;
-  if (kind === 'turret') return CONFIG.TURRET.idleSpeed || 2;
-  const b = CONFIG.BUILDINGS[kind];
+// Per-building idle frame flip rate (Hz), per race; higher = faster idle 1↔2.
+function idleSpeedOf(race, kind) {
+  const b = statsBuilding(race, kind);
   return (b && b.idleSpeed) || 2;
 }
 
@@ -80,7 +77,7 @@ function idleSpeedOf(kind) {
 // caller draws vector.
 export function drawStructureSprite(ctx, kind, team, radius, clock, idSeed = 0) {
   const race = raceOf(team);
-  const frame = (Math.floor(clock * idleSpeedOf(kind)) + idSeed) % 2;
+  const frame = (Math.floor(clock * idleSpeedOf(race, kind)) + idSeed) % 2;
   const entry = getSprite(race, kind, 'idle', frame);
   if (!entry) return false;
   drawEntitySprite(ctx, race, kind, entry, radius * 3 * sizeOf(race, kind), team);

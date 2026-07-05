@@ -58,17 +58,31 @@ const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const num = (v) => (typeof v === 'number' && isFinite(v) ? v : undefined);
 const cleanName = (v) => String(v).replace(/[<>]/g, '').trim().slice(0, 20);
 
-// ---------------- per-race resolved unit tables ----------------
-// Full clone of the base units (so the sim can read every field) plus a
-// `size` visual multiplier, one table per race.
+export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall'];
+
+// ------------ per-race resolved unit + building tables ------------
+// Full clone of the base entities (so the sim can read every field) plus a
+// `size` visual multiplier and `name`, one table per race. Units AND
+// buildings are per-race: tuning the Humans tower does not touch the Orcs
+// tower.
 const resolvedUnits = {};
+const resolvedBuildings = {};
 function baseUnits() {
   const t = {};
   for (const [id, u] of Object.entries(UNITS)) t[id] = { ...u, size: 1 };
   return t;
 }
+function baseBuildings() {
+  return {
+    main: { hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name, size: 1 },
+    turret: { ...CONFIG.TURRET, size: 1 },
+    wall: { ...CONFIG.BUILDINGS.wall, size: 1 },
+    tower: { ...CONFIG.BUILDINGS.tower, size: 1 },
+    generator: { ...CONFIG.BUILDINGS.generator, size: 1 },
+  };
+}
 function rebuildResolved() {
-  for (const r of RACES) resolvedUnits[r] = baseUnits();
+  for (const r of RACES) { resolvedUnits[r] = baseUnits(); resolvedBuildings[r] = baseBuildings(); }
 }
 rebuildResolved();
 
@@ -79,11 +93,22 @@ export function unitSizeOf(race, id) {
   const u = statsUnit(race, id);
   return (u && u.size) || 1;
 }
-export function buildingSizeOf(kind) {
-  return (CONFIG.SIZES && CONFIG.SIZES[kind]) || 1;
+export function statsBuilding(race, kind) {
+  return (resolvedBuildings[race] || resolvedBuildings[RACES[0]])[kind];
+}
+export function buildingSizeOf(race, kind) {
+  const b = statsBuilding(race, kind);
+  return (b && b.size) || 1;
+}
+export function buildingNameOf(race, kind) {
+  const b = statsBuilding(race, kind);
+  return (b && b.name) || kind;
 }
 
 // ---------------------------- snapshot ----------------------------
+// Scalar building stat fields that may exist on a resolved building.
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed'];
+
 function raceUnitsSnapshot(race) {
   const out = {};
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
@@ -94,30 +119,28 @@ function raceUnitsSnapshot(race) {
   return out;
 }
 
-function snapshot() {
-  const buildings = {};
-  for (const [kind, fields] of Object.entries(BUILDING_FIELDS)) {
-    const src = CONFIG.BUILDINGS[kind];
-    buildings[kind] = { cw: src.cw, ch: src.ch, idleSpeed: src.idleSpeed };
-    for (const [f] of fields) buildings[kind][f] = src[f];
+function raceBuildingsSnapshot(race) {
+  const out = {};
+  for (const kind of BUILDING_ENTS) {
+    const b = resolvedBuildings[race][kind];
+    const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed };
+    if (kind === 'main') o.hp = [...b.hp];
+    else for (const f of BUILDING_SCALARS) if (b[f] !== undefined) o[f] = b[f];
+    if (b.cw !== undefined) { o.cw = b.cw; o.ch = b.ch; }
+    out[kind] = o;
   }
-  const turret = { idleSpeed: CONFIG.TURRET.idleSpeed };
-  for (const [f] of TURRET_FIELDS) turret[f] = CONFIG.TURRET[f];
+  return out;
+}
+
+function snapshot() {
   const general = {};
   for (const [f] of GENERAL_FIELDS) general[f] = CONFIG[f];
-  const buildingSizes = {};
-  for (const k of BUILDING_SIZE_ENTS) buildingSizes[k] = CONFIG.SIZES[k] ?? 1;
   const races = {};
-  for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r) };
+  for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r), buildings: raceBuildingsSnapshot(r) };
   return {
     general,
     tint: CONFIG.TEAM_TINT,
-    buildings,
-    turret,
-    mainHp: [...CONFIG.MAIN.hp],
-    mainIdleSpeed: CONFIG.MAIN.idleSpeed,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
-    buildingSizes,
     races,
   };
 }
@@ -129,48 +152,26 @@ export function applyBalance(data) {
   if (!data || typeof data !== 'object') return;
   rebuildResolved(); // reset to base, then layer overrides on top
 
-  // ---- global: buildings ----
-  for (const [kind, vals] of Object.entries(data.buildings || {})) {
-    const b = CONFIG.BUILDINGS[kind];
-    if (!b || !BUILDING_FIELDS[kind] || typeof vals !== 'object') continue;
-    for (const [f] of BUILDING_FIELDS[kind]) if (num(vals[f]) !== undefined) b[f] = vals[f];
-    if (num(vals.cw) !== undefined) b.cw = clamp(Math.round(vals.cw), 1, 20);
-    if (num(vals.ch) !== undefined) b.ch = clamp(Math.round(vals.ch), 1, 20);
-    // legacy: a single radius footprint -> derive square cell count
-    if (b.cw === undefined && num(vals.radius) !== undefined) {
-      const cells = clamp(Math.round(vals.radius * 2 / CONFIG.GRID), 1, 20);
-      b.cw = cells; b.ch = cells;
-    }
-    if (num(vals.idleSpeed) !== undefined) b.idleSpeed = clamp(vals.idleSpeed, 0.2, 10);
-  }
-  if (data.turret && typeof data.turret === 'object') {
-    for (const [f] of TURRET_FIELDS) if (num(data.turret[f]) !== undefined) CONFIG.TURRET[f] = data.turret[f];
-    if (num(data.turret.idleSpeed) !== undefined) CONFIG.TURRET.idleSpeed = clamp(data.turret.idleSpeed, 0.2, 10);
-  }
-  if (Array.isArray(data.mainHp)) {
-    for (let i = 0; i < 3; i++) if (num(data.mainHp[i]) !== undefined) CONFIG.MAIN.hp[i] = data.mainHp[i];
-  }
-  if (num(data.mainIdleSpeed) !== undefined) CONFIG.MAIN.idleSpeed = clamp(data.mainIdleSpeed, 0.2, 10);
-  if (data.tierCosts && typeof data.tierCosts === 'object') {
-    for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
-  }
+  // ---- global rules (truly shared: economy, waves, tint, tier costs) ----
   for (const [f] of GENERAL_FIELDS) {
     if (data.general && num(data.general[f]) !== undefined) CONFIG[f] = data.general[f];
   }
-  if (data.buildingSizes && typeof data.buildingSizes === 'object') {
-    for (const k of BUILDING_SIZE_ENTS) {
-      if (num(data.buildingSizes[k]) !== undefined) CONFIG.SIZES[k] = clamp(data.buildingSizes[k], 0.2, 4);
-    }
+  if (data.tierCosts && typeof data.tierCosts === 'object') {
+    for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
   }
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
 
-  // ---- per-race: units ----
+  // ---- legacy global building layer (pre per-race format) -> every race ----
+  applyLegacyGlobalBuildings(data);
+
+  // ---- per-race: units + buildings (authoritative, overrides legacy) ----
   for (const r of RACES) {
     const rd = data.races && data.races[r];
-    if (!rd || !rd.units) continue;
-    applyRaceUnits(r, rd.units);
+    if (!rd) continue;
+    if (rd.units) applyRaceUnits(r, rd.units);
+    if (rd.buildings) applyRaceBuildings(r, rd.buildings);
   }
-  // legacy flat format (pre per-race) -> apply the same units to every race
+  // legacy flat units (pre per-race) -> apply the same units to every race
   if (data.units && !data.races) for (const r of RACES) applyRaceUnits(r, data.units);
 }
 
@@ -185,12 +186,58 @@ function applyRaceUnits(race, unitsData) {
   }
 }
 
+// Apply one race's building overrides onto its resolved building table.
+function applyRaceBuildings(race, buildingsData) {
+  for (const [kind, vals] of Object.entries(buildingsData)) {
+    const b = resolvedBuildings[race][kind];
+    if (b) applyBuilding(b, kind, vals);
+  }
+}
+
+function applyBuilding(b, kind, vals) {
+  if (!b || typeof vals !== 'object') return;
+  if (typeof vals.name === 'string' && cleanName(vals.name)) b.name = cleanName(vals.name);
+  if (num(vals.size) !== undefined) b.size = clamp(vals.size, 0.2, 4);
+  if (num(vals.idleSpeed) !== undefined) b.idleSpeed = clamp(vals.idleSpeed, 0.2, 10);
+  if (kind === 'main') {
+    if (Array.isArray(vals.hp)) for (let i = 0; i < 3; i++) if (num(vals.hp[i]) !== undefined) b.hp[i] = vals.hp[i];
+    return;
+  }
+  for (const f of BUILDING_SCALARS) if (b[f] !== undefined && num(vals[f]) !== undefined) b[f] = vals[f];
+  if (b.cw !== undefined) {
+    if (num(vals.cw) !== undefined) b.cw = clamp(Math.round(vals.cw), 1, 20);
+    if (num(vals.ch) !== undefined) b.ch = clamp(Math.round(vals.ch), 1, 20);
+    // legacy single-radius footprint -> square cell count
+    if (vals.cw === undefined && num(vals.radius) !== undefined) {
+      const cells = clamp(Math.round(vals.radius * 2 / CONFIG.GRID), 1, 20);
+      b.cw = cells; b.ch = cells;
+    }
+  }
+}
+
+// Old global format (data.buildings/turret/mainHp/mainIdleSpeed/buildingSizes/
+// buildingNames) applied identically to every race, as a base layer.
+function applyLegacyGlobalBuildings(data) {
+  for (const r of RACES) {
+    if (data.buildings) for (const [kind, vals] of Object.entries(data.buildings)) applyBuilding(resolvedBuildings[r][kind], kind, vals);
+    if (data.turret) applyBuilding(resolvedBuildings[r].turret, 'turret', data.turret);
+    if (Array.isArray(data.mainHp)) applyBuilding(resolvedBuildings[r].main, 'main', { hp: data.mainHp });
+    if (num(data.mainIdleSpeed) !== undefined) resolvedBuildings[r].main.idleSpeed = clamp(data.mainIdleSpeed, 0.2, 10);
+    if (data.buildingSizes) for (const k of BUILDING_ENTS) if (num(data.buildingSizes[k]) !== undefined) resolvedBuildings[r][k].size = clamp(data.buildingSizes[k], 0.2, 4);
+    if (data.buildingNames) for (const k of BUILDING_ENTS) if (typeof data.buildingNames[k] === 'string' && cleanName(data.buildingNames[k])) resolvedBuildings[r][k].name = cleanName(data.buildingNames[k]);
+  }
+}
+
 export function currentBalance() {
   return snapshot();
 }
 
 export function resetRaceUnit(race, id) {
   resolvedUnits[race][id] = { ...UNITS[id], size: 1 };
+}
+
+export function resetRaceBuilding(race, kind) {
+  resolvedBuildings[race][kind] = baseBuildings()[kind];
 }
 
 export function resetAll() {

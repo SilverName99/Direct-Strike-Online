@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v6.9';
+export const VERSION = 'v7.0';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -42,6 +42,7 @@ export const CONFIG = {
     radius: 50,
     hp: [4000, 5000, 6000],
     idleSpeed: 2, // idle frame flips per second (higher = faster idle 1↔2)
+    name: 'Base',
   },
   TIER_COSTS: { 2: 400, 3: 900 },
   TIER_MAX: 3,
@@ -58,19 +59,20 @@ export const CONFIG = {
     projectileSpeed: 500,
     targetsAir: true,
     idleSpeed: 2, // idle frame flips per second
+    name: 'Turret',
   },
 
   // Buildable structures (construction zone only, fixed once built).
   // Footprint is a rectangle of cw x ch grid cells; idleSpeed sets how fast
   // the uploaded idle 1↔2 frames alternate (flips per second).
   BUILDINGS: {
-    wall: { cost: 40, hp: 450, cw: 1, ch: 1, cap: 24, idleSpeed: 2 },
+    wall: { cost: 40, hp: 450, cw: 1, ch: 1, cap: 24, idleSpeed: 2, name: 'Wall' },
     tower: {
-      cost: 200, hp: 350, cw: 1, ch: 1, cap: 6, idleSpeed: 2,
+      cost: 200, hp: 350, cw: 1, ch: 1, cap: 6, idleSpeed: 2, name: 'Tower',
       range: 200, damage: 18, period: 0.9, dmgType: 'normal',
       projectileSpeed: 480, targetsAir: true,
     },
-    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 8, idleSpeed: 2 }, // +8/tick = +4/s each
+    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 8, idleSpeed: 2, name: 'Generator' }, // +8/tick = +4/s each
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 6, // min clearance between structure edges

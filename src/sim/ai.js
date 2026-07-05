@@ -53,7 +53,7 @@ export class AIController {
     const gens = game.countKind(t, 'generator');
     const wantGens = game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : 5;
     if (gens < wantGens) {
-      if (money >= CONFIG.BUILDINGS.generator.cost) this.tryBuild(game, 'generator');
+      if (money >= game.bstat(t, 'generator').cost) this.tryBuild(game, 'generator');
       return; // save for economy
     }
 
@@ -81,7 +81,7 @@ export class AIController {
         (s) => s.team === t && s.kind === 'generator' && s.hp > 0 && s.hp < s.maxHp
       );
     if (threatened && game.countKind(t, 'tower') < 3) {
-      if (money >= CONFIG.BUILDINGS.tower.cost) {
+      if (money >= game.bstat(t, 'tower').cost) {
         if (this.tryBuild(game, 'tower')) return;
       } else {
         return; // save for the tower
@@ -91,7 +91,7 @@ export class AIController {
       this.wallsPlanned = true;
       this.wallQueue = this.wallArc(game);
     }
-    if (this.wallQueue.length > 0 && money >= CONFIG.BUILDINGS.wall.cost + 100) {
+    if (this.wallQueue.length > 0 && money >= game.bstat(t, 'wall').cost + 100) {
       const p = this.wallQueue.shift(); // spot may be taken — drop it either way
       if (game.issueCommand({ type: 'build', team: t, kind: 'wall', x: p.x, y: p.y }).ok) return;
     }

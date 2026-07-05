@@ -2,7 +2,7 @@ import { CONFIG } from '../config.js';
 import { UNIT_IDS } from '../units.js';
 import { drawShape, TEAM_COLORS } from '../render/renderer.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
-import { statsUnit } from './balance.js';
+import { statsUnit, statsBuilding, buildingNameOf } from './balance.js';
 import { raceOf } from '../render/sprites.js';
 
 const BUILDING_CARDS = [
@@ -49,8 +49,9 @@ export class Hud {
     shop.innerHTML = '';
 
     // --- buildings group -------------------------------------------------
+    const race = raceOf(0);
     for (const b of BUILDING_CARDS) {
-      const stats = CONFIG.BUILDINGS[b.id];
+      const stats = statsBuilding(race, b.id);
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.unit = b.id;
@@ -63,7 +64,7 @@ export class Hud {
       card.innerHTML = `
         <span class="c-hotkey">${b.hotkey}</span>
         <canvas width="40" height="40"></canvas>
-        <span class="c-name">${b.name}</span>
+        <span class="c-name">${buildingNameOf(race, b.id)}</span>
         <span class="c-cost">◆ ${stats.cost}</span>
         <div class="c-tip">
           <div class="t-role">${b.role}</div>
@@ -104,7 +105,6 @@ export class Hud {
     shop.appendChild(sep);
 
     // --- units group (shows the player race's resolved stats) -------------
-    const race = raceOf(0);
     let hotkey = 1;
     for (const id of UNIT_IDS) {
       const u = statsUnit(race, id);
@@ -245,8 +245,9 @@ export class Hud {
             ? 'Tier 2 unlocks: Bruiser, Lancer, Mender, Wasp'
             : 'Tier 3 unlocks: Siege Crab, Archon';
       } else if (CONFIG.BUILDINGS[id]) {
-        cost = CONFIG.BUILDINGS[id].cost;
-        if (game.countKind(0, id) >= CONFIG.BUILDINGS[id].cap) locked = true;
+        const bs = game.bstat(0, id);
+        cost = bs.cost;
+        if (game.countKind(0, id) >= bs.cap) locked = true;
       } else {
         const us = game.ustat(0, id);
         cost = us.cost;

@@ -4,7 +4,7 @@
 // is what makes lockstep multiplayer possible later.
 
 import { CONFIG, RACES } from '../config.js';
-import { statsUnit } from '../ui/balance.js';
+import { statsUnit, statsBuilding } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
@@ -48,6 +48,11 @@ export class Game {
     return statsUnit(this.races[team], type);
   }
 
+  // Resolved building stats for a team, per its race.
+  bstat(team, kind) {
+    return statsBuilding(this.races[team], kind);
+  }
+
   mainOf(team) {
     return this.structures.find((s) => s.team === team && s.kind === 'main') || null;
   }
@@ -67,7 +72,7 @@ export class Game {
   incomePerTick(team) {
     const gens = this.countKind(team, 'generator');
     return Math.round(
-      (CONFIG.INCOME_BASE + gens * CONFIG.BUILDINGS.generator.income) * this.incomeMult[team]
+      (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team]
     );
   }
 
@@ -96,9 +101,8 @@ export class Game {
   // Footprint is a cw x ch cell rectangle; the whole box must fit the zone
   // and stay clear of existing structures (both treated as boxes).
   isValidBuildPlacement(team, kind, x, y) {
-    const stats = CONFIG.BUILDINGS[kind];
-    if (!stats) return false;
-    const ext = structureExtents(kind);
+    if (!CONFIG.BUILDINGS[kind]) return false;
+    const ext = structureExtents(kind, this.bstat(team, kind));
     const zone = CONFIG.CONSTRUCTION_ZONE[team];
     if (x - ext.hw < zone.x0 || x + ext.hw > zone.x1) return false;
     if (y - ext.hh < zone.y0 || y + ext.hh > zone.y1) return false;
@@ -150,8 +154,8 @@ export class Game {
     }
 
     if (cmd.type === 'build') {
-      const stats = CONFIG.BUILDINGS[cmd.kind];
-      if (!stats) return { ok: false, reason: 'unknown-building' };
+      if (!CONFIG.BUILDINGS[cmd.kind]) return { ok: false, reason: 'unknown-building' };
+      const stats = this.bstat(cmd.team, cmd.kind);
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.countKind(cmd.team, cmd.kind) >= stats.cap)
         return { ok: false, reason: 'cap' };
@@ -170,7 +174,7 @@ export class Game {
       if (s.kind === 'main' || s.kind === 'turret')
         return { ok: false, reason: 'not-sellable' };
       this.money[cmd.team] += Math.round(
-        CONFIG.BUILDINGS[s.kind].cost * CONFIG.SELL_BUILDING_REFUND
+        this.bstat(s.team, s.kind).cost * CONFIG.SELL_BUILDING_REFUND
       );
       this.removeStructure(s, false);
       return { ok: true };
@@ -185,7 +189,7 @@ export class Game {
       this.tier[cmd.team]++;
       const main = this.mainOf(cmd.team);
       if (main) {
-        main.maxHp = CONFIG.MAIN.hp[this.tier[cmd.team] - 1];
+        main.maxHp = this.bstat(cmd.team, 'main').hp[this.tier[cmd.team] - 1];
         main.hp = Math.min(main.maxHp, main.hp + 1000);
       }
       this.events.push({ type: 'tierUp', team: cmd.team, tier: this.tier[cmd.team] });

@@ -65,12 +65,11 @@ că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 
 - **⚙ stats pe fiecare unitate/clădire** (în pagina de sprites): pentru **unități** — nume, dimensiune
-  (Size %), cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Statisticile
-  unităților sunt **per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi).
-  Pentru **clădiri** — dimensiune, footprint (**lățime × înălțime** în celule de grid), viteza animației
-  idle (cât de repede alternează idle 1↔2), cost, HP, cap, rază/damage/venit (clădirile sunt comune
-  ambelor rase). La plasare, footprint-ul apare colorat pe pătrățelele din grid, cu imaginea de idle 1
-  a clădirii pe cursor.
+  (Size %), cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Pentru **clădiri**
+  — nume, dimensiune, footprint (**lățime × înălțime** în celule de grid), viteza animației idle (cât de
+  repede alternează idle 1↔2), cost, HP, cap, rază/damage/venit. **Atât unitățile cât și clădirile sunt
+  per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi). La plasare, footprint-ul
+  apare colorat pe pătrățelele din grid, cu imaginea de idle 1 a clădirii pe cursor.
 - **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
   de tier) și **colorarea echipelor**: „ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
   colorare".
