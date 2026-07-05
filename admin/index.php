@@ -298,13 +298,15 @@ if ($authed && $action === 'delete') {
   </div>
 
   <?php
-  function renderEnt(string $race, string $ent, string $assetsDir, string $assetsUrl, string $csrf): void {
+  function renderEnt(string $race, string $ent, string $assetsDir, string $assetsUrl, string $csrf, string $kind): void {
     $slots = slotsFor($ent);
     $done = 0;
     foreach ($slots as $slot => $label) if (is_file("$assetsDir/$race/$ent/$slot.png")) $done++;
     ?>
     <div class="ent" id="<?= $ent ?>">
-      <div class="title"><b><?= $ent ?></b><span><?= $done ?> / <?= count($slots) ?> imagini</span></div>
+      <div class="title"><b><?= $ent ?></b><span><?= $done ?> / <?= count($slots) ?> imagini</span>
+        <button type="button" class="stat-gear" data-ent="<?= $ent ?>" data-kind="<?= $kind ?>" title="Editează statistici">⚙ stats</button>
+      </div>
       <div class="slots">
         <?php foreach ($slots as $slot => $label):
           $file = "$assetsDir/$race/$ent/$slot.png";
@@ -344,17 +346,27 @@ if ($authed && $action === 'delete') {
   <?php } ?>
 
   <h2>Unități — <?= $race ?></h2>
-  <?php foreach (UNIT_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf); ?>
+  <?php foreach (UNIT_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
 
   <h2>Clădiri — <?= $race ?> <span style="text-transform:none">(zidurile rămân desenate de joc)</span></h2>
-  <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf); ?>
+  <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'building'); ?>
+
+  <div class="ent" id="wall">
+    <div class="title"><b>wall</b><span>fără imagini</span>
+      <button type="button" class="stat-gear" data-ent="wall" data-kind="building" title="Editează statistici">⚙ stats</button>
+    </div>
+    <div class="slots"><span style="color:#7c8ba1;font-size:12px;padding-top:20px">Zidul e desenat de joc — doar statistici.</span></div>
+  </div>
 
   <div class="hint">
+    • <b>⚙ stats</b> pe fiecare unitate/clădire editează caracteristicile ei (cost, HP, damage…).
+    Regulile generale (bani, venit, interval wave, costuri tier) sunt la <a href="balance.php">⚙ Balance</a>.<br>
     • Jocul folosește automat imaginile; unde lipsesc, rămâne arta vectorială integrată.<br>
     • <b>Die</b> are un singur frame. Clădirile au doar Idle (2 frame-uri, alternate lent) + Thumb.<br>
     • Verifică rezultatul în <a href="../dev/puppet-preview.html?race=<?= $race ?>" target="_blank">pagina de preview</a> sau direct în joc (refresh).<br>
     • Fișierele stau în <code>assets/units/<?= $race ?>/…</code> pe server și nu sunt atinse de <code>git pull</code>.
   </div>
+  <script type="module" src="../src/ui/admin-stats.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 </body>
 </html>

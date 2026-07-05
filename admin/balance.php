@@ -61,8 +61,9 @@ $authed = !empty($_SESSION['auth']);
 <?php if (!$authed): ?>
   <p class="sub">Trebuie să fii logat ca admin. <a href="./">Mergi la /admin și loghează-te</a>, apoi revino aici.</p>
 <?php else: ?>
-  <div class="sub">Modifică valorile și apasă <b>Salvează</b>. Se scrie în <code>assets/balance.json</code>
-    și devine balansul oficial (jocul îl încarcă la pornire). ·
+  <div class="sub">Reguli generale (bani, venit, interval wave, costuri tier). Statisticile fiecărei
+    unități/clădiri se editează cu <b>⚙ stats</b> în pagina de sprites. Apasă <b>Salvează</b> — se scrie
+    în <code>assets/balance.json</code> și devine balansul oficial. ·
     <a href="./">← Sprites</a> · <a href="../" target="_blank">Deschide jocul ↗</a></div>
   <div id="bal-app">Se încarcă…</div>
   <div class="bar">
