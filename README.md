@@ -62,17 +62,21 @@ că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 
 ## Editor de balans (în admin)
 
-Balansul se editează din panoul de admin: `https://site-ul-tau/admin/` → tab-ul **⚙ Balance**
-(sau direct `/admin/balance.php`). Acolo modifici toate valorile într-un singur formular:
+Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 
-- **Unități:** cost, tier, HP, damage/heal, perioadă de atac, rază, viteză, splash, armură, tip damage.
-- **Clădiri:** Wall/Tower/Generator (cost, HP, cap, plus rază/damage/venit unde e cazul).
-- **General:** bani la start, venit de bază, secunde între valuri, maxim unități, refund-uri,
-  costuri de tier, HP-ul Bazei principale pe tier, statisticile turnului inițial.
+- **⚙ stats pe fiecare unitate/clădire** (în pagina de sprites): pentru **unități** — nume, dimensiune
+  (Size %), cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Statisticile
+  unităților sunt **per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi).
+  Pentru **clădiri** — dimensiune, footprint (câte celule de grid ocupă), cost, HP, cap, rază/damage/venit
+  (clădirile sunt comune ambelor rase).
+- **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
+  de tier) și **colorarea echipelor**: „ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
+  colorare".
+- **Background per rasă:** în fiecare tab de rasă poți încărca o imagine de fundal care apare pe toată
+  jumătatea acelei rase în joc.
 
-Apeși **Salvează** → se scrie în `assets/balance.json` (gitignored, supraviețuiește la `git pull`)
-și devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revine la valorile din cod.
-Un link „Deschide jocul ↗" e chiar acolo, ca să testezi rapid după fiecare salvare.
+Apeși **Salvează** → se scrie în `assets/balance.json` (gitignored, supraviețuiește la `git pull`) și
+devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revine la valorile din cod.
 
 ## Rase
 

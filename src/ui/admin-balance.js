@@ -4,7 +4,13 @@
 // page. Saves to the server; the game applies assets/balance.json at boot.
 
 import { CONFIG } from '../config.js';
-import { GENERAL_FIELDS, loadBalance, saveBalance, resetAll } from './balance.js';
+import { GENERAL_FIELDS, TINT_MODES, loadBalance, saveBalance, resetAll } from './balance.js';
+
+const TINT_LABELS = {
+  team: 'Ale mele albastre / inamic roșu',
+  enemy: 'Doar inamicul roșu (culoarea pozei pentru mine)',
+  none: 'Fără colorare (culorile pozei)',
+};
 
 const app = document.getElementById('bal-app');
 const status = document.getElementById('status');
@@ -23,7 +29,14 @@ function render() {
   html += numField('tier', '2', '', 'Tier 2 cost', CONFIG.TIER_COSTS[2]);
   html += numField('tier', '3', '', 'Tier 3 cost', CONFIG.TIER_COSTS[3]);
   html += '</div></div>';
-  html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (inclusiv HP-ul bazei și turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
+  // team-coloring mode for uploaded sprites
+  const opts = TINT_MODES
+    .map((m) => `<option value="${m}" ${m === CONFIG.TEAM_TINT ? 'selected' : ''}>${TINT_LABELS[m]}</option>`)
+    .join('');
+  html += `<div class="group"><h3>Colorarea echipelor (sprite-uri)</h3>
+    <label class="fld" style="width:100%"><span>Mod</span>
+      <select data-scope="tint" style="width:auto;flex:1;max-width:340px">${opts}</select></label></div>`;
+  html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (nume, dimensiune, footprint, HP-ul bazei, turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
   app.innerHTML = html;
 }
 
@@ -32,6 +45,7 @@ function render() {
 function collect() {
   for (const el of app.querySelectorAll('[data-scope]')) {
     const { scope, id, field } = el.dataset;
+    if (scope === 'tint') { CONFIG.TEAM_TINT = el.value; continue; }
     const raw = Number(el.value);
     if (!isFinite(raw)) continue;
     if (scope === 'general') CONFIG[field] = raw;

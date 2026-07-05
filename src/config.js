@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v6.7';
+export const VERSION = 'v6.8';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -21,6 +21,10 @@ export const CONFIG = {
   //   [construction zone: main base + buildings][army zone: unit formation]
   // then the open field, the starting turret, and midfield.
   GRID: 40, // placement cell size (UI snapping; zones are multiples of it)
+
+  // Cosmetic overrides set from the admin balance editor:
+  SIZES: {},            // entity id -> visual scale multiplier (default 1)
+  TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   CONSTRUCTION_ZONE: [
     { x0: 60, x1: 420, y0: 80, y1: 1360 },    // team 0 (left)
     { x0: 2780, x1: 3140, y0: 80, y1: 1360 }, // team 1 (right)

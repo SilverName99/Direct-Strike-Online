@@ -1,7 +1,9 @@
 import { CONFIG } from '../config.js';
-import { UNITS, UNIT_IDS } from '../units.js';
+import { UNIT_IDS } from '../units.js';
 import { drawShape, TEAM_COLORS } from '../render/renderer.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
+import { statsUnit } from './balance.js';
+import { raceOf } from '../render/sprites.js';
 
 const BUILDING_CARDS = [
   {
@@ -101,10 +103,11 @@ export class Hud {
     sep.className = 'shop-sep';
     shop.appendChild(sep);
 
-    // --- units group ------------------------------------------------------
+    // --- units group (shows the player race's resolved stats) -------------
+    const race = raceOf(0);
     let hotkey = 1;
     for (const id of UNIT_IDS) {
-      const u = UNITS[id];
+      const u = statsUnit(race, id);
       const card = document.createElement('div');
       card.className = 'card';
       card.dataset.unit = id;
@@ -169,8 +172,9 @@ export class Hud {
 
   // Re-render all card icons (called when sprites load or the race changes).
   refreshIcons() {
+    const race = raceOf(0);
     for (const [id, card] of this.cards) {
-      if (UNITS[id]) this.drawIcon(card.querySelector('canvas'), UNITS[id], id);
+      if (UNIT_IDS.includes(id)) this.drawIcon(card.querySelector('canvas'), statsUnit(race, id), id);
       else if (CONFIG.BUILDINGS[id]) this.drawBuildingIcon(card.querySelector('canvas'), id);
     }
   }
@@ -242,8 +246,9 @@ export class Hud {
         cost = CONFIG.BUILDINGS[id].cost;
         if (game.countKind(0, id) >= CONFIG.BUILDINGS[id].cap) locked = true;
       } else {
-        cost = UNITS[id].cost;
-        locked = UNITS[id].tier > game.tier[0];
+        const us = game.ustat(0, id);
+        cost = us.cost;
+        locked = us.tier > game.tier[0];
       }
       card.classList.toggle('locked', locked);
       card.classList.toggle('disabled', !locked && game.money[0] < cost);

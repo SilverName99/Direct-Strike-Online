@@ -1,8 +1,7 @@
 import { CONFIG } from '../config.js';
-import { UNITS } from '../units.js';
 
 export function spawnUnit(game, team, type, x, y) {
-  const s = UNITS[type];
+  const s = game.ustat(team, type);
   const e = {
     id: game.nextId++,
     team, type,

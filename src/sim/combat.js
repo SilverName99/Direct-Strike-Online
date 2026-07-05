@@ -1,10 +1,10 @@
 import { CONFIG } from '../config.js';
-import { UNITS, DAMAGE_MATRIX } from '../units.js';
+import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile } from './entity.js';
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
-    const stats = UNITS[u.type];
+    const stats = game.ustat(u.team, u.type);
     u.cooldown = Math.max(0, u.cooldown - dt);
     if (stats.heal) {
       updateHealer(game, u, stats);

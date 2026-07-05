@@ -5,12 +5,19 @@
 // separate Balance page. Loads the shared JS data modules so values stay
 // a single source of truth.
 
-import { CONFIG } from '../config.js';
-import { UNITS } from '../units.js';
+import { CONFIG, RACES } from '../config.js';
 import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
-  loadBalance, saveBalance, defaults,
+  FOOTPRINT_BUILDINGS, statsUnit, resetRaceUnit, loadBalance, saveBalance, defaults,
 } from './balance.js';
+
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+// Unit stats are per-race; the tab's ?race= says which race we're editing.
+const RACE = (() => {
+  const r = new URLSearchParams(location.search).get('race');
+  return RACES.includes(r) ? r : RACES[0];
+})();
 
 // ---- styles + modal DOM (injected so the page needs no extra markup) ----
 const style = document.createElement('style');
@@ -72,18 +79,43 @@ let current = null; // { ent, kind, fields }
 
 function close() { modal.classList.remove('on'); }
 
-// Field descriptors: {label, value, type:'num'|'sel', opts?, apply(v)}
+// Field descriptors: {label, value, type:'num'|'sel'|'text', opts?, apply(v)}
 function fieldsFor(ent, kind) {
   const out = [];
+
   if (kind === 'unit') {
-    const u = UNITS[ent];
+    // per-race unit: name + visual size + stats (all for THIS race only)
+    const u = statsUnit(RACE, ent);
+    out.push({ label: 'Name', type: 'text', value: u.name, apply: (v) => { u.name = v; } });
+    out.push({
+      label: 'Size (%)', type: 'num', value: Math.round((u.size || 1) * 100),
+      apply: (v) => { u.size = clamp(v / 100, 0.2, 4); },
+    });
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });
     }
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) {
       if (u[f] !== undefined) out.push({ f, label: f, value: u[f], type: 'sel', opts, apply: (v) => { u[f] = v; } });
     }
-  } else if (ent === 'turret') {
+    return out;
+  }
+
+  // buildings / turret / main are shared by both races: global size,
+  // footprint (buildable), then stats
+  out.push({
+    label: 'Size (%)', type: 'num', value: Math.round((CONFIG.SIZES[ent] || 1) * 100),
+    apply: (v) => { CONFIG.SIZES[ent] = clamp(v / 100, 0.2, 4); },
+  });
+  if (FOOTPRINT_BUILDINGS.includes(ent)) {
+    const b = CONFIG.BUILDINGS[ent];
+    out.push({
+      label: 'Footprint (cells)', type: 'num',
+      value: Math.max(1, Math.round((b.radius * 2) / CONFIG.GRID)),
+      apply: (v) => { b.radius = clamp(Math.round(v), 1, 10) * CONFIG.GRID / 2; },
+    });
+  }
+
+  if (ent === 'turret') {
     for (const [f, label] of TURRET_FIELDS) {
       out.push({ f, label, value: CONFIG.TURRET[f], type: 'num', apply: (v) => { CONFIG.TURRET[f] = v; } });
     }
@@ -102,13 +134,17 @@ function fieldsFor(ent, kind) {
 
 function open(ent, kind) {
   current = { ent, kind, fields: fieldsFor(ent, kind) };
-  titleEl.textContent = `${ent} — stats`;
+  titleEl.textContent = kind === 'unit' ? `${ent} — ${RACE}` : `${ent} — stats (comun)`;
   statusEl.textContent = '';
   statusEl.className = 'sm-status';
   bodyEl.innerHTML = current.fields.map((fd, i) => {
     if (fd.type === 'sel') {
       const o = fd.opts.map((x) => `<option ${x === fd.value ? 'selected' : ''}>${x}</option>`).join('');
       return `<label class="sm-row"><span>${fd.label}</span><select data-i="${i}">${o}</select></label>`;
+    }
+    if (fd.type === 'text') {
+      return `<label class="sm-row"><span>${fd.label}</span>
+        <input type="text" maxlength="20" data-i="${i}" value="${String(fd.value).replace(/"/g, '&quot;')}"></label>`;
     }
     return `<label class="sm-row"><span>${fd.label}</span>
       <input type="number" step="any" data-i="${i}" value="${fd.value}"></label>`;
@@ -119,7 +155,7 @@ function open(ent, kind) {
 function writeInputs() {
   for (const el of bodyEl.querySelectorAll('[data-i]')) {
     const fd = current.fields[Number(el.dataset.i)];
-    if (el.tagName === 'SELECT') fd.apply(el.value);
+    if (el.tagName === 'SELECT' || fd.type === 'text') fd.apply(el.value);
     else { const n = Number(el.value); if (isFinite(n)) fd.apply(n); }
   }
 }
@@ -138,10 +174,14 @@ modal.querySelector('[data-a="save"]').onclick = async () => {
 modal.querySelector('[data-a="reset"]').onclick = () => {
   const d = defaults();
   const { ent, kind } = current;
-  if (kind === 'unit') Object.assign(UNITS[ent], d.units[ent]);
-  else if (ent === 'turret') Object.assign(CONFIG.TURRET, d.turret);
-  else if (ent === 'main') CONFIG.MAIN.hp = [...d.mainHp];
-  else if (d.buildings[ent]) Object.assign(CONFIG.BUILDINGS[ent], d.buildings[ent]);
+  if (kind === 'unit') {
+    resetRaceUnit(RACE, ent); // name + size + stats, for this race only
+  } else {
+    if (ent === 'turret') Object.assign(CONFIG.TURRET, d.turret);
+    else if (ent === 'main') CONFIG.MAIN.hp = [...d.mainHp];
+    else if (d.buildings[ent]) Object.assign(CONFIG.BUILDINGS[ent], d.buildings[ent]); // includes radius
+    CONFIG.SIZES[ent] = d.buildingSizes[ent]; // reset global building size
+  }
   open(ent, kind); // re-render with defaults
   setStatus('Reset la valorile din cod — apasă Salvează ca să publici.');
 };

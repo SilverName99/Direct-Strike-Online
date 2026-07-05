@@ -6,7 +6,7 @@
 // units via the counter/composition brain, filtered by unlocked tier.
 
 import { CONFIG } from '../config.js';
-import { UNITS, UNIT_CATEGORIES } from '../units.js';
+import { UNIT_CATEGORIES } from '../units.js';
 import { mulberry32 } from './rng.js';
 
 const CATEGORY_TARGETS = { front: 0.35, ranged: 0.3, special: 0.2, support: 0.15 };
@@ -99,10 +99,10 @@ export class AIController {
     // 4. Units: counter pass then composition, within the unlocked tier.
     let want = null;
     if (this.rng() < this.diff.counterChance) want = this.pickCounter(game);
-    if (!want || UNITS[want].tier > game.tier[t]) want = this.pickComposition(game);
+    if (!want || game.ustat(t, want).tier > game.tier[t]) want = this.pickComposition(game);
     if (!want) return;
 
-    const stats = UNITS[want];
+    const stats = game.ustat(t, want);
     if (money < stats.cost) return; // save
     const { x, y } = this.pickPlacement(game, want);
     if (game.issueCommand({ type: 'buy', team: t, unitId: want, x, y }).ok) {
@@ -153,17 +153,18 @@ export class AIController {
     const enemy = game.templates[1 - this.team];
     if (enemy.length === 0) return null;
 
+    const et = 1 - this.team;
     let total = 0;
     const cost = {};
     for (const tpl of enemy) {
-      const c = UNITS[tpl.type].cost;
+      const c = game.ustat(et, tpl.type).cost;
       total += c;
       cost[tpl.type] = (cost[tpl.type] || 0) + c;
     }
     const share = (ids) => ids.reduce((s, id) => s + (cost[id] || 0), 0) / total;
 
     if (share(['wasp']) > 0.15)
-      return game.money[this.team] >= UNITS.archon.cost ? 'archon' : 'slinger';
+      return game.money[this.team] >= game.ustat(this.team, 'archon').cost ? 'archon' : 'slinger';
     if (share(['bruiser', 'crab']) > 0.3) return 'lancer';
     if (share(['grunt', 'dasher']) > 0.4) return 'crab';
     if ((cost.crab || cost.mender || cost.lancer) && this.rng() < 0.5) return 'dasher';
@@ -176,7 +177,7 @@ export class AIController {
     let total = 0;
     const catCost = { front: 0, ranged: 0, special: 0, support: 0 };
     for (const tpl of own) {
-      const c = UNITS[tpl.type].cost;
+      const c = game.ustat(this.team, tpl.type).cost;
       total += c;
       for (const [cat, ids] of Object.entries(UNIT_CATEGORIES)) {
         if (ids.includes(tpl.type)) catCost[cat] += c;
@@ -186,7 +187,7 @@ export class AIController {
     let bestCat = null;
     let bestDeficit = -Infinity;
     for (const [cat, target] of Object.entries(CATEGORY_TARGETS)) {
-      const pool = UNIT_CATEGORIES[cat].filter((id) => UNITS[id].tier <= tier);
+      const pool = UNIT_CATEGORIES[cat].filter((id) => game.ustat(this.team, id).tier <= tier);
       if (pool.length === 0) continue;
       const share = total > 0 ? catCost[cat] / total : 0;
       const deficit = target - share;
@@ -196,7 +197,7 @@ export class AIController {
       }
     }
     if (!bestCat) return 'grunt';
-    const pool = UNIT_CATEGORIES[bestCat].filter((id) => UNITS[id].tier <= tier);
+    const pool = UNIT_CATEGORIES[bestCat].filter((id) => game.ustat(this.team, id).tier <= tier);
     return pool[Math.floor(this.rng() * pool.length)];
   }
 

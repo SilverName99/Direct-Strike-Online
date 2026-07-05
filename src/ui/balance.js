@@ -1,13 +1,18 @@
-// Balance data + apply/save helpers. The admin balance editor
-// (admin/balance.php + admin-balance.js) mutates UNITS/CONFIG in place and
-// calls saveBalance(), which publishes the current values to
-// assets/balance.json through the admin-authenticated endpoint. The game
-// calls loadBalance() at boot to apply that file.
+// Balance data + apply/save helpers.
+//
+// UNIT stats are PER-RACE: each race has its own resolved unit table (stats,
+// name, visual size), so tuning the Humans grunt does not touch the Orcs
+// grunt. Buildings, the starting turret, main-base HP, tier costs, the
+// general rules and the team-tint mode are GLOBAL (shared by both races).
+//
+// The admin editors mutate these in place and call saveBalance(), which
+// publishes to assets/balance.json; the game applies it at boot via
+// loadBalance(). The sim reads per-team stats through Game.ustat().
 
-import { CONFIG } from '../config.js';
+import { CONFIG, RACES } from '../config.js';
 import { UNITS } from '../units.js';
 
-// Editable fields (whitelists — nothing else is applied from the server).
+// -------- editable field whitelists (nothing else is applied) --------
 export const UNIT_NUM_FIELDS = [
   ['cost', 'Cost'],
   ['tier', 'Tier (1-3)'],
@@ -45,85 +50,136 @@ export const GENERAL_FIELDS = [
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],
 ];
+export const TINT_MODES = ['team', 'enemy', 'none'];
+export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator'];
+export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall'];
 
-// ------------------------------------------------------------ defaults
-const DEFAULTS = snapshot();
+const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+const num = (v) => (typeof v === 'number' && isFinite(v) ? v : undefined);
+const cleanName = (v) => String(v).replace(/[<>]/g, '').trim().slice(0, 20);
+
+// ---------------- per-race resolved unit tables ----------------
+// Full clone of the base units (so the sim can read every field) plus a
+// `size` visual multiplier, one table per race.
+const resolvedUnits = {};
+function baseUnits() {
+  const t = {};
+  for (const [id, u] of Object.entries(UNITS)) t[id] = { ...u, size: 1 };
+  return t;
+}
+function rebuildResolved() {
+  for (const r of RACES) resolvedUnits[r] = baseUnits();
+}
+rebuildResolved();
+
+export function statsUnit(race, id) {
+  return (resolvedUnits[race] || resolvedUnits[RACES[0]])[id];
+}
+export function unitSizeOf(race, id) {
+  const u = statsUnit(race, id);
+  return (u && u.size) || 1;
+}
+export function buildingSizeOf(kind) {
+  return (CONFIG.SIZES && CONFIG.SIZES[kind]) || 1;
+}
+
+// ---------------------------- snapshot ----------------------------
+function raceUnitsSnapshot(race) {
+  const out = {};
+  for (const [id, u] of Object.entries(resolvedUnits[race])) {
+    out[id] = { name: u.name, size: u.size };
+    for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
+    for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
+  }
+  return out;
+}
 
 function snapshot() {
-  const units = {};
-  for (const [id, u] of Object.entries(UNITS)) {
-    units[id] = {};
-    for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) units[id][f] = u[f];
-    for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) units[id][f] = u[f];
-  }
   const buildings = {};
   for (const [kind, fields] of Object.entries(BUILDING_FIELDS)) {
-    buildings[kind] = {};
+    buildings[kind] = { radius: CONFIG.BUILDINGS[kind].radius };
     for (const [f] of fields) buildings[kind][f] = CONFIG.BUILDINGS[kind][f];
   }
   const turret = {};
   for (const [f] of TURRET_FIELDS) turret[f] = CONFIG.TURRET[f];
   const general = {};
   for (const [f] of GENERAL_FIELDS) general[f] = CONFIG[f];
+  const buildingSizes = {};
+  for (const k of BUILDING_SIZE_ENTS) buildingSizes[k] = CONFIG.SIZES[k] ?? 1;
+  const races = {};
+  for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r) };
   return {
-    units,
+    general,
+    tint: CONFIG.TEAM_TINT,
     buildings,
     turret,
     mainHp: [...CONFIG.MAIN.hp],
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
-    general,
+    buildingSizes,
+    races,
   };
 }
 
-// -------------------------------------------------------------- apply
+const DEFAULTS = snapshot();
+
+// ----------------------------- apply -----------------------------
 export function applyBalance(data) {
   if (!data || typeof data !== 'object') return;
-  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : undefined);
+  rebuildResolved(); // reset to base, then layer overrides on top
 
-  for (const [id, vals] of Object.entries(data.units || {})) {
-    const u = UNITS[id];
-    if (!u || typeof vals !== 'object') continue;
-    for (const [f] of UNIT_NUM_FIELDS) {
-      if (u[f] !== undefined && num(vals[f]) !== undefined) u[f] = vals[f];
-    }
-    for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) {
-      if (u[f] !== undefined && opts.includes(vals[f])) u[f] = vals[f];
-    }
-  }
+  // ---- global: buildings ----
   for (const [kind, vals] of Object.entries(data.buildings || {})) {
     const b = CONFIG.BUILDINGS[kind];
     if (!b || !BUILDING_FIELDS[kind] || typeof vals !== 'object') continue;
-    for (const [f] of BUILDING_FIELDS[kind]) {
-      if (num(vals[f]) !== undefined) b[f] = vals[f];
-    }
+    for (const [f] of BUILDING_FIELDS[kind]) if (num(vals[f]) !== undefined) b[f] = vals[f];
+    if (num(vals.radius) !== undefined) b.radius = clamp(vals.radius, CONFIG.GRID / 2, CONFIG.GRID * 5);
   }
   if (data.turret && typeof data.turret === 'object') {
-    for (const [f] of TURRET_FIELDS) {
-      if (num(data.turret[f]) !== undefined) CONFIG.TURRET[f] = data.turret[f];
-    }
+    for (const [f] of TURRET_FIELDS) if (num(data.turret[f]) !== undefined) CONFIG.TURRET[f] = data.turret[f];
   }
   if (Array.isArray(data.mainHp)) {
-    for (let i = 0; i < 3; i++) {
-      if (num(data.mainHp[i]) !== undefined) CONFIG.MAIN.hp[i] = data.mainHp[i];
-    }
+    for (let i = 0; i < 3; i++) if (num(data.mainHp[i]) !== undefined) CONFIG.MAIN.hp[i] = data.mainHp[i];
   }
   if (data.tierCosts && typeof data.tierCosts === 'object') {
-    for (const t of [2, 3]) {
-      if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
-    }
+    for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
   }
   for (const [f] of GENERAL_FIELDS) {
     if (data.general && num(data.general[f]) !== undefined) CONFIG[f] = data.general[f];
   }
+  if (data.buildingSizes && typeof data.buildingSizes === 'object') {
+    for (const k of BUILDING_SIZE_ENTS) {
+      if (num(data.buildingSizes[k]) !== undefined) CONFIG.SIZES[k] = clamp(data.buildingSizes[k], 0.2, 4);
+    }
+  }
+  if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
+
+  // ---- per-race: units ----
+  for (const r of RACES) {
+    const rd = data.races && data.races[r];
+    if (!rd || !rd.units) continue;
+    applyRaceUnits(r, rd.units);
+  }
+  // legacy flat format (pre per-race) -> apply the same units to every race
+  if (data.units && !data.races) for (const r of RACES) applyRaceUnits(r, data.units);
 }
 
-// Current effective values (what "Save" publishes).
+function applyRaceUnits(race, unitsData) {
+  for (const [id, vals] of Object.entries(unitsData)) {
+    const u = resolvedUnits[race][id];
+    if (!u || typeof vals !== 'object') continue;
+    for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined && num(vals[f]) !== undefined) u[f] = vals[f];
+    for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) if (u[f] !== undefined && opts.includes(vals[f])) u[f] = vals[f];
+    if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
+    if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
+  }
+}
+
 export function currentBalance() {
   return snapshot();
 }
 
-export function resetUnit(id) {
-  if (DEFAULTS.units[id]) applyBalance({ units: { [id]: DEFAULTS.units[id] } });
+export function resetRaceUnit(race, id) {
+  resolvedUnits[race][id] = { ...UNITS[id], size: 1 };
 }
 
 export function resetAll() {
@@ -147,7 +203,7 @@ export async function loadBalance(base = 'assets/') {
 }
 
 // Requires an active admin session. `endpoint` is relative to the caller's
-// page (the admin balance editor passes 'save-balance.php').
+// page (the admin editors pass 'save-balance.php').
 export async function saveBalance(endpoint = 'admin/save-balance.php') {
   const r = await fetch(endpoint, {
     method: 'POST',

@@ -3,8 +3,8 @@
 // update(FIXED_DT) and mutates only via issueCommand() — that boundary
 // is what makes lockstep multiplayer possible later.
 
-import { CONFIG } from '../config.js';
-import { UNITS } from '../units.js';
+import { CONFIG, RACES } from '../config.js';
+import { statsUnit } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 import { makeStructure } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
@@ -17,6 +17,9 @@ export class Game {
     this.nextId = 1;
     this.time = 0;
     this.winner = null;
+
+    // each team plays a race; unit stats resolve per race
+    this.races = options.races || [RACES[0], RACES[0]];
 
     this.money = [CONFIG.START_MONEY, CONFIG.START_MONEY];
     this.spent = [0, 0];
@@ -38,6 +41,11 @@ export class Game {
       makeStructure(this, t, 'main', CONFIG.MAIN.x[t], CONFIG.MAIN.y);
       makeStructure(this, t, 'turret', CONFIG.TURRET_X[t], CONFIG.FIELD_H / 2);
     }
+  }
+
+  // Resolved unit stats for a team, per its race.
+  ustat(team, type) {
+    return statsUnit(this.races[team], type);
   }
 
   mainOf(team) {
@@ -101,7 +109,7 @@ export class Game {
     if (this.winner !== null) return { ok: false, reason: 'game-over' };
 
     if (cmd.type === 'buy') {
-      const stats = UNITS[cmd.unitId];
+      const stats = this.ustat(cmd.team, cmd.unitId);
       if (!stats) return { ok: false, reason: 'unknown-unit' };
       if (stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
@@ -129,7 +137,7 @@ export class Game {
       const tpl = this.templates[cmd.team][cmd.index];
       if (!tpl) return { ok: false, reason: 'unknown-template' };
       this.templates[cmd.team].splice(cmd.index, 1);
-      this.money[cmd.team] += Math.round(UNITS[tpl.type].cost * CONFIG.SELL_REFUND);
+      this.money[cmd.team] += Math.round(this.ustat(cmd.team, tpl.type).cost * CONFIG.SELL_REFUND);
       return { ok: true };
     }
 

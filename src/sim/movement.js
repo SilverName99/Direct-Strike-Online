@@ -1,11 +1,10 @@
 import { CONFIG } from '../config.js';
-import { UNITS } from '../units.js';
 
 // Marching + boids-lite separation. Attacking units hold position.
 export function updateMovement(game, dt) {
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
-    const stats = UNITS[u.type];
+    const stats = game.ustat(u.team, u.type);
 
     // Close in on our current target if we have one; otherwise march
     // toward the enemy base.

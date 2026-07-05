@@ -2,7 +2,8 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { hasDeathAnim, drawCharacter } from './characters.js';
+import { hasDeathAnim, drawCharacter, sizeOf } from './characters.js';
+import { raceOf } from './sprites.js';
 
 const CORPSE_LIFE = 1.2;
 
@@ -85,7 +86,7 @@ export class Effects {
       ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
-      drawCharacter(ctx, c.type, 'die', frame, c.team);
+      drawCharacter(ctx, c.type, 'die', frame, c.team, sizeOf(raceOf(c.team), c.type));
       ctx.restore();
     }
     ctx.globalAlpha = 1;

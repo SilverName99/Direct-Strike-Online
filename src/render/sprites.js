@@ -9,9 +9,12 @@
 // Art is authored facing RIGHT on transparency, "blue-team" colored; the
 // red-team variant is generated here with a hue blend (grays stay gray).
 
+import { CONFIG } from '../config.js';
+
 const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null]
 const thumbs = new Map(); // `${race}/${ent}` -> entry
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
+const backgrounds = new Map(); // race -> Image
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -41,11 +44,11 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
         img.onerror = done;
         img.src = url;
       };
-      for (const [race, ents] of Object.entries(man.races)) {
+      for (const [race, ents] of Object.entries(man.races || {})) {
         for (const [ent, slots] of Object.entries(ents)) {
           if (slots.thumb) {
             load(`${base}${race}/${ent}/thumb.png?v=${man.v || 0}`, (img) => {
-              thumbs.set(`${race}/${ent}`, { img, red: recolor(img) });
+              thumbs.set(`${race}/${ent}`, entryFor(img));
             });
           }
           for (const [anim, frames] of Object.entries(slots)) {
@@ -59,7 +62,7 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
                   rec = [null, null];
                   anims.set(key, rec);
                 }
-                rec[i] = { img, red: recolor(img) };
+                rec[i] = entryFor(img);
                 // remember the tallest frame (the standing pose) so every
                 // frame of this unit draws at one shared scale
                 const entKey = `${race}/${ent}`;
@@ -69,24 +72,46 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           }
         }
       }
+      // per-race background image (shown on that side's half of the field)
+      for (const race of Object.keys(man.backgrounds || {})) {
+        load(`${base}${race}/background.png?v=${man.v || 0}`, (img) => backgrounds.set(race, img));
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
 }
 
-// Replace hues with the red team hue while keeping lightness/saturation.
-function recolor(img) {
+// Native + team-tinted (blue/red) variants for one image.
+function entryFor(img) {
+  return { img, blue: tint(img, '#3f7fe0'), red: tint(img, '#e04250') };
+}
+
+// Replace hues with a team hue while keeping lightness/saturation
+// (grays — swords, metal — stay gray).
+function tint(img, hex) {
   const c = document.createElement('canvas');
   c.width = img.width;
   c.height = img.height;
   const x = c.getContext('2d');
   x.drawImage(img, 0, 0);
   x.globalCompositeOperation = 'hue';
-  x.fillStyle = '#e04250';
+  x.fillStyle = hex;
   x.fillRect(0, 0, c.width, c.height);
   x.globalCompositeOperation = 'destination-in';
   x.drawImage(img, 0, 0);
   return c;
+}
+
+// Which image variant to draw for a team, per the team-tint setting.
+function pickImg(entry, team) {
+  const mode = CONFIG.TEAM_TINT || 'enemy';
+  if (mode === 'none') return entry.img;
+  if (mode === 'team') return team === 1 ? entry.red : entry.blue;
+  return team === 1 ? entry.red : entry.img; // 'enemy': mine native, enemy red
+}
+
+export function getBackground(race) {
+  return backgrounds.get(race) || null;
 }
 
 export function getSprite(race, ent, anim, frame) {
@@ -124,7 +149,7 @@ export function maxFrameHeight(race, ent) {
 // on its own — it appears exactly as drawn, at its true size relative to the
 // standing poses. Caller mirrors for team 1.
 export function drawSpriteScaled(ctx, entry, scale, team) {
-  const img = team === 1 ? entry.red : entry.img;
+  const img = pickImg(entry, team);
   const w = img.width * scale;
   const h = img.height * scale;
   ctx.drawImage(img, -w / 2, -h / 2, w, h);
@@ -133,7 +158,7 @@ export function drawSpriteScaled(ctx, entry, scale, team) {
 // Contain-fit into a targetH square (used for shop thumbnails, where each
 // icon should fill its card regardless of the frame's aspect).
 export function drawSprite(ctx, entry, targetH, team) {
-  const img = team === 1 ? entry.red : entry.img;
+  const img = pickImg(entry, team);
   const s = targetH / Math.max(img.width, img.height);
   drawSpriteScaled(ctx, entry, s, team);
 }

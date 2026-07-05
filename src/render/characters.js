@@ -4,12 +4,18 @@
 
 import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
+import { unitSizeOf, buildingSizeOf } from '../ui/balance.js';
 import {
   getSprite, getAnySprite, hasSpriteAnim, getThumb,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
 export { setTeamRaces } from './sprites.js';
+
+// Visual size multiplier: per-race for units, global for buildings.
+export function sizeOf(race, ent) {
+  return UNITS[ent] ? unitSizeOf(race, ent) : buildingSizeOf(ent);
+}
 
 function unitH(type, scale) {
   return (UNITS[type].radius * 2.8 + 4) * scale;
@@ -66,6 +72,6 @@ export function drawStructureSprite(ctx, kind, team, radius, clock, idSeed = 0) 
   const race = raceOf(team);
   const entry = getSprite(race, kind, 'idle', (Math.floor(clock * 2) + idSeed) % 2);
   if (!entry) return false;
-  drawEntitySprite(ctx, race, kind, entry, radius * 3, team);
+  drawEntitySprite(ctx, race, kind, entry, radius * 3 * sizeOf(race, kind), team);
   return true;
 }

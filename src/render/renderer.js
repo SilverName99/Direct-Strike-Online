@@ -1,6 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, sizeOf } from './characters.js';
+import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
@@ -148,6 +149,11 @@ export class Renderer {
     ctx.fillStyle = '#0e141d';
     ctx.fillRect(0, 0, CONFIG.FIELD_W, CONFIG.FIELD_H);
 
+    // per-race background on each side's half of the field
+    const mid = CONFIG.FIELD_W / 2;
+    this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid);
+    this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid);
+
     // per-team base quadrant: construction zone (back) + army zone (front)
     const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
     for (const team of [0, 1]) {
@@ -179,6 +185,22 @@ export class Renderer {
     ctx.lineTo(CONFIG.FIELD_W / 2, CONFIG.FIELD_H);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  // Cover-fit a background image into a half of the field, clipped to it.
+  drawBackgroundHalf(ctx, img, rx, rw) {
+    if (!img) return;
+    const rh = CONFIG.FIELD_H;
+    const s = Math.max(rw / img.width, rh / img.height);
+    const dw = img.width * s;
+    const dh = img.height * s;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rx, 0, rw, rh);
+    ctx.clip();
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    ctx.restore();
   }
 
   // Placement grid over the relevant zone while placing or dragging.
@@ -225,6 +247,12 @@ export class Renderer {
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
+
+      // art (sprite + vector) is scaled by the per-building size multiplier;
+      // the footprint (radius) already reflects the grid-cell setting
+      const size = sizeOf(raceOf(s.team), s.kind);
+      ctx.save();
+      ctx.scale(size, size);
 
       // uploaded building art (all kinds except walls); mirror for team 1
       let spriteDrawn = false;
@@ -305,6 +333,7 @@ export class Renderer {
         ctx.fill();
         ctx.globalAlpha = 1;
       }
+      ctx.restore(); // size scale
       ctx.restore();
 
       // HP bar (main always; others when damaged)
@@ -348,7 +377,7 @@ export class Renderer {
           // ghost character breathing in the build zone
           ctx.globalAlpha = hot ? 0.95 : 0.5;
           if (team === 1) ctx.scale(-1, 1);
-          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, team);
+          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, team, sizeOf(raceOf(team), tpl.type));
         } else {
           ctx.globalAlpha = hot ? 0.9 : 0.35;
           ctx.rotate(rot);
@@ -399,7 +428,7 @@ export class Renderer {
           anim = 'walk';
           frame = (Math.floor(this.now * 5) + u.id) % 2;
         }
-        drawCharacter(ctx, u.type, anim, frame, u.team);
+        drawCharacter(ctx, u.type, anim, frame, u.team, sizeOf(raceOf(u.team), u.type));
       } else {
         ctx.rotate(u.team === 0 ? 0 : Math.PI);
         if (stats.shape === 'ring') {
@@ -483,7 +512,7 @@ export class Renderer {
 
     const stats = UNITS[sel];
     if (hasCharacter(sel)) {
-      drawCharacter(ctx, sel, 'idle', 0, 0);
+      drawCharacter(ctx, sel, 'idle', 0, 0, sizeOf(raceOf(0), sel));
       ctx.beginPath();
       ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
       ctx.stroke();

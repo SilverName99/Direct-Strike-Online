@@ -18,6 +18,7 @@ const RACES = ['humans', 'orcs'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
 const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
 const MAX_BYTES = 1572864; // 1.5 MB
+const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 
 // slot id => label; slot files are "<slot>.png"
 function slotsFor(string $ent): array {
@@ -72,10 +73,14 @@ function regenManifest(string $assetsDir): void {
       if ($entData) $races[$r][$ent] = $entData;
     }
   }
+  $backgrounds = [];
+  foreach (RACES as $r) {
+    if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
+  }
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -169,6 +174,38 @@ if ($authed && $action === 'delete') {
     @unlink("$assetsDir/$race/$ent/$slot.png");
     regenManifest($assetsDir);
     $msg = "Șters: $race · $ent · $slot";
+  }
+}
+
+// per-race background (shown on that side's half of the field)
+if ($authed && $action === 'uploadbg') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/background.png")) {
+        regenManifest($assetsDir);
+        $msg = "Background încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebg') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    @unlink("$assetsDir/$race/background.png");
+    regenManifest($assetsDir);
+    $msg = "Background șters: $race";
   }
 }
 ?>
@@ -289,6 +326,38 @@ if ($authed && $action === 'delete') {
       <a href="?race=<?= $r ?>" class="<?= $r === $race ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
     <?php endforeach; ?>
     <a href="balance.php" style="margin-left:16px">⚙ Balance</a>
+  </div>
+
+  <?php $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile); ?>
+  <div class="ent" id="background">
+    <div class="title"><b>Background</b><span><?= $hasBg ? 'setat' : 'niciunul' ?></span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Jumătatea <?= $race ?></span>
+        <div class="thumb" style="width:160px;height:90px">
+          <?php if ($hasBg): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/background.png?t=<?= filemtime($bgFile) ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBg ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBg): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi background-ul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
+        Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.
+      </div>
+    </div>
   </div>
 
   <div class="quicknav">
