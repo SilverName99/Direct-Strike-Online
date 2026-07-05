@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, hasStructureAttack, drawStructureAttack, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -278,7 +278,18 @@ export class Renderer {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
         if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
-        spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, hw, hh, this.now, s.id);
+        // Armed buildings (turret/tower) show their attack animation while
+        // engaged: "fire" frame right after each shot, "aim" frame otherwise.
+        if ((s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, s.team)) {
+          const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
+          if (tgt && tgt.hp > 0) {
+            const period = game.bstat(s.team, s.kind).period || 1;
+            const sinceFire = period - s.cooldown; // 0 right after a shot
+            const frame = sinceFire >= 0 && sinceFire < 0.16 ? 1 : 0;
+            spriteDrawn = drawStructureAttack(ctx, s.kind, s.team, hw, hh, frame);
+          }
+        }
+        if (!spriteDrawn) spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, hw, hh, this.now, s.id);
         ctx.restore();
       }
 

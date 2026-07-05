@@ -99,7 +99,9 @@ La `https://site-ul-tau/admin/` există un panou de administrare (PHP):
   Crab, Wasp, Archon) au și un slot **Proiectil** — imaginea desenată în zbor (ex. o bilă albastră);
   se rotește singură spre direcția de zbor.
 - **Clădiri** (Baza principală, turnul inițial, Tower, Generator — zidurile rămân vectoriale):
-  **Thumb + Idle×2** (frame-urile alternează lent).
+  **Thumb + Idle×2** (frame-urile alternează lent). Clădirile care trag (turnul inițial și Tower)
+  au în plus **Attack×2** (redate cât timp au țintă: „fire" imediat după foc, „aim" în rest) și un
+  slot **Proiectil** (imaginea trasă, rotită spre direcția de zbor).
 - Convenție: PNG transparent, personajul cu fața spre **dreapta**. Desenează **toate frame-urile
   unei unități pe aceeași pânză pătrată** (ex. 256×256) și compune personajul în ea — jocul redă
   fiecare frame la aceeași scară, deci `die` (întins jos în pânză) apare mic și culcat exact cum

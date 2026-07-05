@@ -122,3 +122,18 @@ export function drawBuildingSprite(ctx, kind, team, hw, hh, frame = 0) {
   drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
   return true;
 }
+
+// True when an armed building (turret/tower) has an uploaded attack animation.
+export function hasStructureAttack(kind, team) {
+  return getSprite(raceOf(team), kind, 'attack', 0) != null;
+}
+
+// Draw an armed building's attack frame (used while it's firing). False ->
+// caller falls back to the idle sprite / vector.
+export function drawStructureAttack(ctx, kind, team, hw, hh, frame) {
+  const race = raceOf(team);
+  const entry = getSprite(race, kind, 'attack', frame);
+  if (!entry) return false;
+  drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
+  return true;
+}

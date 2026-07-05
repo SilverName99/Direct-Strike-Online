@@ -19,13 +19,21 @@ const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'd
 const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
 // ranged units (projectile:true in units.js) can upload a projectile image
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
+// armed buildings fire, so they get attack frames + a projectile image
+const ARMED_BUILDINGS = ['turret', 'tower'];
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 
 // slot id => label; slot files are "<slot>.png"
 function slotsFor(string $ent): array {
   if (in_array($ent, BUILDING_LIST, true)) {
-    return ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
+    $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
+    if (in_array($ent, ARMED_BUILDINGS, true)) {
+      $slots['attack_0'] = 'Attack 1';
+      $slots['attack_1'] = 'Attack 2';
+      $slots['projectile'] = 'Proiectil';
+    }
+    return $slots;
   }
   $slots = [
     'thumb' => 'Thumb',
