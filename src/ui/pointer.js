@@ -44,7 +44,24 @@ export class PointerManager {
     });
 
     document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement && document.pointerLockElement) {
+      if (document.fullscreenElement) {
+        // Keyboard Lock (Chromium): a short Esc no longer drops fullscreen —
+        // it is delivered to the page instead (handled below). Fully exiting
+        // fullscreen then needs a long Esc press, or F / the ⛶ button.
+        lockEscapeKey();
+      } else {
+        unlockEscapeKey();
+        if (document.pointerLockElement) document.exitPointerLock();
+      }
+    });
+
+    // With the Escape key locked, Esc reaches us instead of exiting
+    // fullscreen. Use it to free the mouse (release pointer lock) while
+    // staying fullscreen; a click on the map re-captures.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !document.fullscreenElement) return;
+      if (document.pointerLockElement) {
+        e.preventDefault();
         document.exitPointerLock();
       }
     });
@@ -183,6 +200,17 @@ export class PointerManager {
 
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+// Keyboard Lock API (Chromium-only, needs fullscreen + secure context). When
+// it works, the browser stops treating a short Esc as "exit fullscreen"; where
+// it's unavailable (Firefox/Safari) Esc still exits fullscreen — a browser
+// limitation JS cannot override.
+function lockEscapeKey() {
+  try { navigator.keyboard?.lock?.(['Escape']); } catch { /* unsupported */ }
+}
+function unlockEscapeKey() {
+  try { navigator.keyboard?.unlock?.(); } catch { /* unsupported */ }
 }
 
 let toastEl = null;

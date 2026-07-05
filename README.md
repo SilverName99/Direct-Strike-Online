@@ -34,7 +34,9 @@ Fiecare jucător are o adevărată bază:
 - **Minimap** (colțul stânga-jos) — vezi toată harta; click sau drag pe el ca să sari oriunde.
 - **Fullscreen + captură mouse:** meciul intră automat în fullscreen și capturează mouse-ul
   (cursorul nu poate aluneca pe al doilea monitor — edge-scroll ca într-un RTS nativ).
-  **Esc** eliberează mouse-ul și iese din fullscreen; **F** sau butonul ⛶ te bagă înapoi.
+  Un **Esc** scurt doar eliberează mouse-ul (rămâi în fullscreen); ca să ieși din fullscreen **ții Esc apăsat**
+  sau apeși **F** / butonul ⛶, iar un click pe hartă recapturează mouse-ul. (Blocarea tastei Esc merge pe
+  browsere Chromium; pe Firefox/Safari Esc iese din fullscreen — limitare de browser.)
 - **Contre:** piercing topește armored (Lancer vs Bruiser) · explosive topește swarm-urile light
   (Siege Crab vs Grunts) · unitățile melee și artileria nu pot lovi aerul (Wasp) · anti-aerul
   dedicat e Archon, iar Slinger e răspunsul ieftin.
