@@ -70,6 +70,7 @@ export function spawnProjectile(game, source, stats, target) {
     id: game.nextId++,
     team: source.team,
     srcType: source.type || source.kind || null, // for the projectile sprite
+    projSize: stats.projSize || 1,               // projectile size multiplier
     x: source.x, y: source.y,
     prevX: source.x, prevY: source.y,
     speed: stats.projectileSpeed || 0, // 0 -> use CONFIG default at update time

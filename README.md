@@ -69,7 +69,8 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 - **⚙ stats pe fiecare unitate/clădire** (în pagina de sprites): pentru **unități** — nume, dimensiune
   (Size %), cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Pentru **clădiri**
   — nume, dimensiune, footprint (**lățime × înălțime** în celule de grid), viteza animației idle (cât de
-  repede alternează idle 1↔2), cost, HP, cap, rază/damage/venit. **Atât unitățile cât și clădirile sunt
+  repede alternează idle 1↔2), cost, HP, cap, rază/damage/venit. Entitățile care trag (unități la distanță
+  și turnul inițial / Tower) au în plus **Proiectil (%)** — dimensiunea proiectilului. **Atât unitățile cât și clădirile sunt
   per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi). La plasare, footprint-ul
   apare colorat pe pătrățelele din grid, cu imaginea de idle 1 a clădirii pe cursor.
 - **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri

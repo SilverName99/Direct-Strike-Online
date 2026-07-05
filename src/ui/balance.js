@@ -69,16 +69,17 @@ const resolvedUnits = {};
 const resolvedBuildings = {};
 function baseUnits() {
   const t = {};
-  for (const [id, u] of Object.entries(UNITS)) t[id] = { ...u, size: 1 };
+  // size = visual scale, projSize = projectile scale (both 1 = 100%)
+  for (const [id, u] of Object.entries(UNITS)) t[id] = { ...u, size: 1, projSize: 1 };
   return t;
 }
 function baseBuildings() {
   return {
-    main: { hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name, size: 1 },
-    turret: { ...CONFIG.TURRET, size: 1 },
-    wall: { ...CONFIG.BUILDINGS.wall, size: 1 },
-    tower: { ...CONFIG.BUILDINGS.tower, size: 1 },
-    generator: { ...CONFIG.BUILDINGS.generator, size: 1 },
+    main: { hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name, size: 1, projSize: 1 },
+    turret: { ...CONFIG.TURRET, size: 1, projSize: 1 },
+    wall: { ...CONFIG.BUILDINGS.wall, size: 1, projSize: 1 },
+    tower: { ...CONFIG.BUILDINGS.tower, size: 1, projSize: 1 },
+    generator: { ...CONFIG.BUILDINGS.generator, size: 1, projSize: 1 },
   };
 }
 function rebuildResolved() {
@@ -112,7 +113,7 @@ const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'inc
 function raceUnitsSnapshot(race) {
   const out = {};
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
-    out[id] = { name: u.name, size: u.size };
+    out[id] = { name: u.name, size: u.size, projSize: u.projSize };
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
     for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
   }
@@ -123,7 +124,7 @@ function raceBuildingsSnapshot(race) {
   const out = {};
   for (const kind of BUILDING_ENTS) {
     const b = resolvedBuildings[race][kind];
-    const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed };
+    const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed, projSize: b.projSize };
     if (kind === 'main') o.hp = [...b.hp];
     else for (const f of BUILDING_SCALARS) if (b[f] !== undefined) o[f] = b[f];
     if (b.cw !== undefined) { o.cw = b.cw; o.ch = b.ch; }
@@ -183,6 +184,7 @@ function applyRaceUnits(race, unitsData) {
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) if (u[f] !== undefined && opts.includes(vals[f])) u[f] = vals[f];
     if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
     if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
+    if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
   }
 }
 
@@ -199,6 +201,7 @@ function applyBuilding(b, kind, vals) {
   if (typeof vals.name === 'string' && cleanName(vals.name)) b.name = cleanName(vals.name);
   if (num(vals.size) !== undefined) b.size = clamp(vals.size, 0.2, 4);
   if (num(vals.idleSpeed) !== undefined) b.idleSpeed = clamp(vals.idleSpeed, 0.2, 10);
+  if (num(vals.projSize) !== undefined) b.projSize = clamp(vals.projSize, 0.1, 6);
   if (kind === 'main') {
     if (Array.isArray(vals.hp)) for (let i = 0; i < 3; i++) if (num(vals.hp[i]) !== undefined) b.hp[i] = vals.hp[i];
     return;
@@ -233,7 +236,7 @@ export function currentBalance() {
 }
 
 export function resetRaceUnit(race, id) {
-  resolvedUnits[race][id] = { ...UNITS[id], size: 1 };
+  resolvedUnits[race][id] = { ...UNITS[id], size: 1, projSize: 1 };
 }
 
 export function resetRaceBuilding(race, kind) {

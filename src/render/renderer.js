@@ -502,12 +502,14 @@ export class Renderer {
       const y = p.prevY + (p.y - p.prevY) * alpha;
       if (!this.visible(x, y)) continue;
 
-      // uploaded projectile art (rotated toward travel), else the default dot
+      // uploaded projectile art (rotated toward travel), else the default dot;
+      // both scaled by the per-entity projectile size multiplier
+      const ps = p.projSize || 1;
       let drawn = false;
       if (p.srcType) {
         let ang = Math.atan2(p.y - p.prevY, p.x - p.prevX);
         if (p.x === p.prevX && p.y === p.prevY) ang = Math.atan2(p.ty - y, p.tx - x);
-        const size = p.splash > 0 ? 34 : 22;
+        const size = (p.splash > 0 ? 34 : 22) * ps;
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(ang);
@@ -517,7 +519,7 @@ export class Renderer {
       if (!drawn) {
         ctx.fillStyle = p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team];
         ctx.beginPath();
-        ctx.arc(x, y, p.splash > 0 ? 5 : 3, 0, Math.PI * 2);
+        ctx.arc(x, y, (p.splash > 0 ? 5 : 3) * ps, 0, Math.PI * 2);
         ctx.fill();
       }
     }

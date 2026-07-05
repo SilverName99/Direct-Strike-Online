@@ -92,6 +92,12 @@ function fieldsFor(ent, kind) {
       label: 'Size (%)', type: 'num', value: Math.round((u.size || 1) * 100),
       apply: (v) => { u.size = clamp(v / 100, 0.2, 4); },
     });
+    if (u.projectile) {
+      out.push({
+        label: 'Proiectil (%)', type: 'num', value: Math.round((u.projSize || 1) * 100),
+        apply: (v) => { u.projSize = clamp(v / 100, 0.1, 6); },
+      });
+    }
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });
     }
@@ -109,6 +115,12 @@ function fieldsFor(ent, kind) {
     label: 'Size (%)', type: 'num', value: Math.round((b.size || 1) * 100),
     apply: (v) => { b.size = clamp(v / 100, 0.2, 4); },
   });
+  if (b.range !== undefined) { // armed buildings (turret/tower) shoot projectiles
+    out.push({
+      label: 'Proiectil (%)', type: 'num', value: Math.round((b.projSize || 1) * 100),
+      apply: (v) => { b.projSize = clamp(v / 100, 0.1, 6); },
+    });
+  }
   if (FOOTPRINT_BUILDINGS.includes(ent)) {
     out.push({
       label: 'Lățime (celule)', type: 'num', value: b.cw || 1,
