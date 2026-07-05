@@ -77,8 +77,10 @@ La `https://site-ul-tau/admin/` există un panou de administrare (PHP):
   Die×1** (un singur frame la moarte).
 - **Clădiri** (Baza principală, turnul inițial, Tower, Generator — zidurile rămân vectoriale):
   **Thumb + Idle×2** (frame-urile alternează lent).
-- Convenție: PNG transparent, personajul cu fața spre **dreapta**, centrat (recomandat 256×256,
-  max 1.5 MB). Varianta echipei roșii și oglindirea se generează automat.
+- Convenție: PNG transparent, personajul cu fața spre **dreapta**. Desenează **toate frame-urile
+  unei unități pe aceeași pânză pătrată** (ex. 256×256) și compune personajul în ea — jocul redă
+  fiecare frame la aceeași scară, deci `die` (întins jos în pânză) apare mic și culcat exact cum
+  l-ai desenat, fără redimensionare. Max 1.5 MB. Varianta roșie și oglindirea se generează automat.
 - **Fallback:** unde nu ai încărcat imagini, jocul folosește arta vectorială integrată — poți
   lucra treptat, imagine cu imagine.
 - Rezultatul se verifică live în `dev/puppet-preview.html?race=humans` sau direct în joc.

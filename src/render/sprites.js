@@ -11,6 +11,7 @@
 
 const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null]
 const thumbs = new Map(); // `${race}/${ent}` -> entry
+const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -59,6 +60,10 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
                   anims.set(key, rec);
                 }
                 rec[i] = { img, red: recolor(img) };
+                // remember the tallest frame (the standing pose) so every
+                // frame of this unit draws at one shared scale
+                const entKey = `${race}/${ent}`;
+                maxFrameH.set(entKey, Math.max(maxFrameH.get(entKey) || 0, img.height));
               });
             });
           }
@@ -107,14 +112,28 @@ export function getThumb(race, ent) {
   return thumbs.get(`${race}/${ent}`) || null;
 }
 
-// Draw centered at (0,0), contain-fit into a targetH square; the caller
-// mirrors for team 1. Fitting the dominant dimension keeps wide frames
-// (e.g. a corpse lying down) at a natural size: the fallen body spans
-// about the character's standing height instead of blowing up.
+// Tallest animation frame of a unit (the standing pose), in native px.
+// 0 if none loaded yet.
+export function maxFrameHeight(race, ent) {
+  return maxFrameH.get(`${race}/${ent}`) || 0;
+}
+
+// Draw the whole frame at an explicit scale (world units per image pixel),
+// preserving the artist's exact composition and proportions. Every frame of
+// a unit shares one scale, so a wide "lying down" die frame is never resized
+// on its own — it appears exactly as drawn, at its true size relative to the
+// standing poses. Caller mirrors for team 1.
+export function drawSpriteScaled(ctx, entry, scale, team) {
+  const img = team === 1 ? entry.red : entry.img;
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+}
+
+// Contain-fit into a targetH square (used for shop thumbnails, where each
+// icon should fill its card regardless of the frame's aspect).
 export function drawSprite(ctx, entry, targetH, team) {
   const img = team === 1 ? entry.red : entry.img;
   const s = targetH / Math.max(img.width, img.height);
-  const w = img.width * s;
-  const h = img.height * s;
-  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  drawSpriteScaled(ctx, entry, s, team);
 }

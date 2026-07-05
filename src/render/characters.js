@@ -5,13 +5,23 @@
 import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import {
-  getSprite, getAnySprite, hasSpriteAnim, getThumb, drawSprite, raceOf,
+  getSprite, getAnySprite, hasSpriteAnim, getThumb,
+  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
 export { setTeamRaces } from './sprites.js';
 
 function unitH(type, scale) {
   return (UNITS[type].radius * 2.8 + 4) * scale;
+}
+
+// One scale per unit, calibrated so the tallest (standing) frame is unitH
+// tall. Every frame then draws at this shared scale — the die frame keeps
+// its true relative size instead of being fitted on its own.
+function drawEntitySprite(ctx, race, ent, entry, targetH, team) {
+  const maxH = maxFrameHeight(race, ent);
+  if (maxH > 0) drawSpriteScaled(ctx, entry, targetH / maxH, team);
+  else drawSprite(ctx, entry, targetH, team); // pre-load fallback
 }
 
 export function hasCharacter(type, team = 0) {
@@ -27,7 +37,7 @@ export function drawCharacter(ctx, type, anim, frame, team, scale = 1) {
   const race = raceOf(team);
   const entry = getSprite(race, type, anim, frame);
   if (entry) {
-    drawSprite(ctx, entry, unitH(type, scale), team);
+    drawEntitySprite(ctx, race, type, entry, unitH(type, scale), team);
     return true;
   }
   if (PUPPETS[type]) {
@@ -37,7 +47,7 @@ export function drawCharacter(ctx, type, anim, frame, team, scale = 1) {
   // sprite set exists but not this animation — show any frame rather than nothing
   const any = getAnySprite(race, type);
   if (any) {
-    drawSprite(ctx, any, unitH(type, scale), team);
+    drawEntitySprite(ctx, race, type, any, unitH(type, scale), team);
     return true;
   }
   return false;
@@ -53,8 +63,9 @@ export function drawThumb(ctx, ent, team = 0, targetH = 34) {
 
 // Building sprite (idle, slow 2-frame pulse). False -> caller draws vector.
 export function drawStructureSprite(ctx, kind, team, radius, clock, idSeed = 0) {
-  const entry = getSprite(raceOf(team), kind, 'idle', (Math.floor(clock * 2) + idSeed) % 2);
+  const race = raceOf(team);
+  const entry = getSprite(race, kind, 'idle', (Math.floor(clock * 2) + idSeed) % 2);
   if (!entry) return false;
-  drawSprite(ctx, entry, radius * 3, team);
+  drawEntitySprite(ctx, race, kind, entry, radius * 3, team);
   return true;
 }
