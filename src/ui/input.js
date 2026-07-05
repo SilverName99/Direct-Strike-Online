@@ -121,6 +121,8 @@ export class Input {
 
     const PAN_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'];
     document.addEventListener('keydown', (e) => {
+      // typing in the balance editor must not trigger game hotkeys
+      if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
       if (PAN_KEYS.includes(e.key)) {
         e.preventDefault();
         this.keys.add(e.key);

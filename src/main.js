@@ -9,6 +9,9 @@ import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
 import { loadSprites, setTeamRaces } from './render/sprites.js';
+import { loadBalance } from './ui/balance.js';
+import { Editor } from './ui/editor.js';
+import { UNITS } from './units.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -44,6 +47,25 @@ document.getElementById('version').textContent = VERSION;
 // user-uploaded unit sprites (via /admin) override the built-in art
 loadSprites('assets/units/', () => hud.refreshIcons());
 
+// balance editor: gear on every card + the topbar gear for general rules
+const editor = new Editor(() => hud.buildShop());
+loadBalance().then((loaded) => {
+  if (loaded) {
+    hud.buildShop();
+    console.log('balance overrides loaded');
+  }
+});
+document.getElementById('bal-btn').addEventListener('click', () => editor.openGeneral());
+document.getElementById('shop').addEventListener('click', (e) => {
+  const gear = e.target.closest('.c-gear');
+  if (!gear) return;
+  e.stopPropagation();
+  const id = gear.closest('.card').dataset.unit;
+  if (UNITS[id]) editor.openUnit(id);
+  else if (CONFIG.BUILDINGS[id]) editor.openBuilding(id);
+  else editor.openGeneral();
+}, true);
+
 document.getElementById('fs-btn').addEventListener('click', () => {
   console.log('fullscreen toggle requested');
   pointer.toggle();
@@ -54,6 +76,7 @@ document.getElementById('grid-btn').addEventListener('click', () => {
   toast(uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
 });
 document.addEventListener('keydown', (e) => {
+  if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
 });
 

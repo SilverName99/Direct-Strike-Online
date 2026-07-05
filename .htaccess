@@ -2,7 +2,7 @@
 # every git pull is visible immediately (files are tiny; ETags keep
 # revalidation cheap). Also neutralizes Hostinger's aggressive edge cache.
 <IfModule mod_headers.c>
-  <FilesMatch "\.(html|js|css)$">
+  <FilesMatch "\.(html|js|css|json)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>

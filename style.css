@@ -87,6 +87,7 @@ html, body {
   margin-left: 8px;
 }
 
+#bal-btn,
 #grid-btn,
 #fs-btn {
   font-size: 18px;
@@ -98,9 +99,88 @@ html, body {
   border-radius: 6px;
   cursor: pointer;
 }
+#bal-btn:hover,
 #grid-btn:hover,
 #fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
 #grid-btn.off { opacity: 0.4; }
+
+/* per-card balance gear */
+.card .c-gear {
+  position: absolute;
+  bottom: 3px;
+  right: 5px;
+  font-size: 12px;
+  color: var(--dim);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.1s;
+  z-index: 2;
+}
+.card:hover .c-gear,
+.card.hover .c-gear { opacity: 1; }
+.card .c-gear:hover { color: var(--gold); }
+.card.locked .c-gear { opacity: 0.9; } /* balancing locked units is allowed */
+
+/* balance editor modal */
+#editor {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 12, 0.7);
+  z-index: 200;
+}
+#editor.visible { display: flex; }
+.ed-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 380px;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+}
+.ed-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  text-transform: capitalize;
+}
+.ed-x {
+  background: none; border: none; color: var(--dim);
+  font-size: 14px; cursor: pointer; padding: 2px 6px;
+}
+.ed-x:hover { color: var(--text); }
+.ed-body { padding: 10px 16px; overflow-y: auto; }
+.ed-body h4 {
+  font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--gold); margin: 12px 0 6px;
+}
+.ed-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; margin: 5px 0; font-size: 13px;
+}
+.ed-row span { color: var(--text); }
+.ed-row input, .ed-row select {
+  width: 110px; padding: 5px 8px;
+  background: #0a0e14; color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; text-align: right;
+}
+.ed-row select { text-align: left; }
+.ed-foot {
+  display: flex; gap: 8px; padding: 12px 16px 4px;
+  border-top: 1px solid var(--border);
+}
+.ed-foot .btn { padding: 7px 12px; font-size: 12px; margin: 0; flex: 1; }
+.ed-note {
+  font-size: 11px; color: var(--dim); padding: 6px 16px 12px; line-height: 1.5;
+}
+.ed-note a { color: var(--blue); }
 
 /* transient status message (e.g. fullscreen refused) */
 #toast {

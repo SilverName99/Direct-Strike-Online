@@ -60,6 +60,18 @@ node test/sim-test.js
 Testele verifică: puritatea simulării, determinismul (același seed → același rezultat),
 că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 
+## Editor de balans (in-game)
+
+Fiecare card din shop are o **rotiță ⚙** (apare la hover) care deschide caracteristicile acelei
+unități/clădiri: cost, tier, HP, damage, perioadă de atac, rază, viteză, splash, armură, tip de
+damage. Rotița **⚙ din bara de sus** deschide regulile generale: bani la start, venit de bază,
+secunde între valuri, costuri de tier, refund-uri, HP-ul Bazei principale pe tier și turnul inițial.
+
+- **Apply (live):** valorile intră imediat în meciul curent — perfect pentru calibrare.
+- **Save to server:** devine balansul oficial al jocului (scris în `assets/balance.json`, încărcat
+  la fiecare pornire). Necesită sesiune de admin — loghează-te întâi în `/admin`.
+- **Reset defaults:** revine la valorile din cod.
+
 ## Rase
 
 La începutul meciului îți alegi rasa (**Humans** / **Orcs** — AI-ul o joacă pe cealaltă).
