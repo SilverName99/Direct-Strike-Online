@@ -10,8 +10,6 @@ import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
 import { loadSprites, setTeamRaces } from './render/sprites.js';
 import { loadBalance } from './ui/balance.js';
-import { Editor } from './ui/editor.js';
-import { UNITS } from './units.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -47,24 +45,13 @@ document.getElementById('version').textContent = VERSION;
 // user-uploaded unit sprites (via /admin) override the built-in art
 loadSprites('assets/units/', () => hud.refreshIcons());
 
-// balance editor: gear on every card + the topbar gear for general rules
-const editor = new Editor(() => hud.buildShop());
+// apply the balance published from /admin (edit it there, not in-game)
 loadBalance().then((loaded) => {
   if (loaded) {
     hud.buildShop();
     console.log('balance overrides loaded');
   }
 });
-document.getElementById('bal-btn').addEventListener('click', () => editor.openGeneral());
-document.getElementById('shop').addEventListener('click', (e) => {
-  const gear = e.target.closest('.c-gear');
-  if (!gear) return;
-  e.stopPropagation();
-  const id = gear.closest('.card').dataset.unit;
-  if (UNITS[id]) editor.openUnit(id);
-  else if (CONFIG.BUILDINGS[id]) editor.openBuilding(id);
-  else editor.openGeneral();
-}, true);
 
 document.getElementById('fs-btn').addEventListener('click', () => {
   console.log('fullscreen toggle requested');

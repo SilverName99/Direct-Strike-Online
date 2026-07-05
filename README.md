@@ -60,17 +60,19 @@ node test/sim-test.js
 Testele verifică: puritatea simulării, determinismul (același seed → același rezultat),
 că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 
-## Editor de balans (in-game)
+## Editor de balans (în admin)
 
-Fiecare card din shop are o **rotiță ⚙** (apare la hover) care deschide caracteristicile acelei
-unități/clădiri: cost, tier, HP, damage, perioadă de atac, rază, viteză, splash, armură, tip de
-damage. Rotița **⚙ din bara de sus** deschide regulile generale: bani la start, venit de bază,
-secunde între valuri, costuri de tier, refund-uri, HP-ul Bazei principale pe tier și turnul inițial.
+Balansul se editează din panoul de admin: `https://site-ul-tau/admin/` → tab-ul **⚙ Balance**
+(sau direct `/admin/balance.php`). Acolo modifici toate valorile într-un singur formular:
 
-- **Apply (live):** valorile intră imediat în meciul curent — perfect pentru calibrare.
-- **Save to server:** devine balansul oficial al jocului (scris în `assets/balance.json`, încărcat
-  la fiecare pornire). Necesită sesiune de admin — loghează-te întâi în `/admin`.
-- **Reset defaults:** revine la valorile din cod.
+- **Unități:** cost, tier, HP, damage/heal, perioadă de atac, rază, viteză, splash, armură, tip damage.
+- **Clădiri:** Wall/Tower/Generator (cost, HP, cap, plus rază/damage/venit unde e cazul).
+- **General:** bani la start, venit de bază, secunde între valuri, maxim unități, refund-uri,
+  costuri de tier, HP-ul Bazei principale pe tier, statisticile turnului inițial.
+
+Apeși **Salvează** → se scrie în `assets/balance.json` (gitignored, supraviețuiește la `git pull`)
+și devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revine la valorile din cod.
+Un link „Deschide jocul ↗" e chiar acolo, ca să testezi rapid după fiecare salvare.
 
 ## Rase
 

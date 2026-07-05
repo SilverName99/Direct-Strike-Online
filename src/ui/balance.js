@@ -1,8 +1,8 @@
-// Live balance data: editable copies of unit stats, building stats and
-// general rules. The in-game editor (editor.js) mutates UNITS/CONFIG in
-// place — the sim reads them every tick, so changes apply immediately.
-// "Save" publishes the current values to assets/balance.json through the
-// admin-authenticated endpoint; the game applies that file at boot.
+// Balance data + apply/save helpers. The admin balance editor
+// (admin/balance.php + admin-balance.js) mutates UNITS/CONFIG in place and
+// calls saveBalance(), which publishes the current values to
+// assets/balance.json through the admin-authenticated endpoint. The game
+// calls loadBalance() at boot to apply that file.
 
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
@@ -146,9 +146,10 @@ export async function loadBalance(base = 'assets/') {
   }
 }
 
-// Requires an active admin session (log in at /admin first).
-export async function saveBalance() {
-  const r = await fetch('admin/balance.php', {
+// Requires an active admin session. `endpoint` is relative to the caller's
+// page (the admin balance editor passes 'save-balance.php').
+export async function saveBalance(endpoint = 'admin/save-balance.php') {
+  const r = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-DS-Balance': '1' },
     body: JSON.stringify(currentBalance()),

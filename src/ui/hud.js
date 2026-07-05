@@ -60,7 +60,6 @@ export class Hud {
             : `${stats.hp} HP`;
       card.innerHTML = `
         <span class="c-hotkey">${b.hotkey}</span>
-        <span class="c-gear" title="Edit stats">⚙</span>
         <canvas width="40" height="40"></canvas>
         <span class="c-name">${b.name}</span>
         <span class="c-cost">◆ ${stats.cost}</span>
@@ -80,7 +79,6 @@ export class Hud {
     up.dataset.unit = 'upgrade';
     up.innerHTML = `
       <span class="c-hotkey">0</span>
-      <span class="c-gear" title="Edit general balance">⚙</span>
       <canvas width="40" height="40"></canvas>
       <span class="c-name">Base <b id="tier-label">I</b></span>
       <span class="c-cost" id="upgrade-cost">◆ ${CONFIG.TIER_COSTS[2]}</span>
@@ -116,7 +114,6 @@ export class Hud {
       card.innerHTML = `
         <span class="c-hotkey">${hotkey <= 9 ? hotkey : ''}</span>
         <span class="c-lock">T${u.tier}</span>
-        <span class="c-gear" title="Edit stats">⚙</span>
         <canvas width="40" height="40"></canvas>
         <span class="c-name">${u.name}</span>
         <span class="c-cost">◆ ${u.cost}</span>

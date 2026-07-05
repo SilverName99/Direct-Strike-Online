@@ -288,6 +288,7 @@ if ($authed && $action === 'delete') {
     <?php foreach (RACES as $r): ?>
       <a href="?race=<?= $r ?>" class="<?= $r === $race ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
     <?php endforeach; ?>
+    <a href="balance.php" style="margin-left:16px">⚙ Balance</a>
   </div>
 
   <div class="quicknav">
