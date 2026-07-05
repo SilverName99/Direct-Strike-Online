@@ -8,6 +8,8 @@ export function spawnUnit(game, team, type, x, y) {
     x, y, prevX: x, prevY: y,
     hp: s.hp, maxHp: s.hp,
     cooldown: 0,
+    windup: 0,      // >0 while a strike is winding up (attack 1 -> attack 2)
+    windupMax: 0,   // total windup for the current swing (for anim progress)
     targetId: null,
     state: 'march',
     radius: s.radius,
@@ -67,6 +69,7 @@ export function spawnProjectile(game, source, stats, target) {
   game.projectiles.push({
     id: game.nextId++,
     team: source.team,
+    srcType: source.type || source.kind || null, // for the projectile sprite
     x: source.x, y: source.y,
     prevX: source.x, prevY: source.y,
     speed: stats.projectileSpeed || 0, // 0 -> use CONFIG default at update time

@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -451,8 +451,9 @@ export class Renderer {
         const held = this.attackHold.get(u.id);
         if (u.state === 'attack' || (held !== undefined && this.now - held < 0.3)) {
           anim = 'attack';
-          // show the strike pose briefly right after each real hit
-          frame = u.cooldown > stats.period - 0.25 ? 1 : 0;
+          // sync to the sim wind-up: attack 1 for the first half of the swing,
+          // attack 2 for the second half (and held through the strike)
+          frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
         } else {
           anim = 'walk';
           frame = (Math.floor(this.now * 5) + u.id) % 2;
@@ -489,10 +490,25 @@ export class Renderer {
       const x = p.prevX + (p.x - p.prevX) * alpha;
       const y = p.prevY + (p.y - p.prevY) * alpha;
       if (!this.visible(x, y)) continue;
-      ctx.fillStyle = p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team];
-      ctx.beginPath();
-      ctx.arc(x, y, p.splash > 0 ? 5 : 3, 0, Math.PI * 2);
-      ctx.fill();
+
+      // uploaded projectile art (rotated toward travel), else the default dot
+      let drawn = false;
+      if (p.srcType) {
+        let ang = Math.atan2(p.y - p.prevY, p.x - p.prevX);
+        if (p.x === p.prevX && p.y === p.prevY) ang = Math.atan2(p.ty - y, p.tx - x);
+        const size = p.splash > 0 ? 34 : 22;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ang);
+        drawn = drawProjectileSprite(ctx, p.srcType, p.team, size);
+        ctx.restore();
+      }
+      if (!drawn) {
+        ctx.fillStyle = p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team];
+        ctx.beginPath();
+        ctx.arc(x, y, p.splash > 0 ? 5 : 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   }
 

@@ -6,7 +6,7 @@ import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
-  getSprite, getAnySprite, hasSpriteAnim, getThumb,
+  getSprite, getAnySprite, hasSpriteAnim, getThumb, getProjectile,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
@@ -57,6 +57,16 @@ export function drawCharacter(ctx, type, anim, frame, team, scale = 1) {
     return true;
   }
   return false;
+}
+
+// Uploaded projectile image for a unit type, contain-fit into a targetH
+// square (caller rotates the context toward travel). False -> caller draws
+// the default dot.
+export function drawProjectileSprite(ctx, type, team, targetH) {
+  const entry = getProjectile(raceOf(team), type);
+  if (!entry) return false;
+  drawSprite(ctx, entry, targetH, team);
+  return true;
 }
 
 // Uploaded shop thumbnail (units or buildings). False -> caller falls back.

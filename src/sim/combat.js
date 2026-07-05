@@ -9,7 +9,7 @@ export function updateCombat(game, dt) {
     if (stats.heal) {
       updateHealer(game, u, stats);
     } else {
-      updateFighter(game, u, stats);
+      updateFighter(game, u, stats, dt);
     }
   }
 
@@ -51,7 +51,15 @@ function updateTurret(game, turret, stats, dt) {
   }
 }
 
-function updateFighter(game, u, stats) {
+// Windup (swing) time before a strike lands: the attack 1 -> attack 2
+// animation plays during this, and the hit (projectile launch / melee damage)
+// fires exactly when it finishes. Kept below the attack period so DPS is
+// unchanged — it just shifts the hit to the end of the swing.
+function windupTime(stats) {
+  return Math.min(0.4, stats.period * 0.5);
+}
+
+function updateFighter(game, u, stats, dt) {
   let target = game.byId.get(u.targetId) || null;
   if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
     target = null;
@@ -68,17 +76,27 @@ function updateFighter(game, u, stats) {
   const rangeBonus = u.state === 'attack' ? 14 : 0;
   if (target && effDist(u, target) <= stats.range + rangeBonus) {
     u.state = 'attack';
-    if (u.cooldown <= 0) {
-      u.cooldown = stats.period;
-      if (stats.projectile) {
-        spawnProjectile(game, u, stats, target);
-        game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
-      } else {
-        applyDamage(game, target, stats.damage, stats.dmgType);
+    if (u.windup > 0) {
+      // mid-swing: land the hit when the wind-up (attack 1 -> 2) completes
+      u.windup -= dt;
+      if (u.windup <= 0) {
+        u.windup = 0;
+        if (stats.projectile) {
+          spawnProjectile(game, u, stats, target);
+          game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
+        } else {
+          applyDamage(game, target, stats.damage, stats.dmgType);
+        }
       }
+    } else if (u.cooldown <= 0) {
+      // start a new swing; the hit fires windupTime() later
+      u.cooldown = stats.period;
+      u.windupMax = windupTime(stats);
+      u.windup = u.windupMax;
     }
   } else {
     u.state = 'march';
+    u.windup = 0; // moved out of range -> the swing is interrupted
   }
 }
 

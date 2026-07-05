@@ -95,7 +95,9 @@ La `https://site-ul-tau/admin/` există un panou de administrare (PHP):
   neatinsă de `git pull`).
 - **Organizare:** tab per rasă (Humans/Orcs) + navigare rapidă per entitate.
 - **Unități:** per unitate încarci **Thumb** (iconița din shop) + **Idle×2, Walk×2, Attack×2,
-  Die×1** (un singur frame la moarte).
+  Die×1** (un singur frame la moarte). Unitățile care trag de la distanță (Slinger, Lancer, Siege
+  Crab, Wasp, Archon) au și un slot **Proiectil** — imaginea desenată în zbor (ex. o bilă albastră);
+  se rotește singură spre direcția de zbor.
 - **Clădiri** (Baza principală, turnul inițial, Tower, Generator — zidurile rămân vectoriale):
   **Thumb + Idle×2** (frame-urile alternează lent).
 - Convenție: PNG transparent, personajul cu fața spre **dreapta**. Desenează **toate frame-urile

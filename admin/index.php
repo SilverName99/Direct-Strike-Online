@@ -17,6 +17,8 @@ define('DS_ADMIN', 1);
 const RACES = ['humans', 'orcs'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
 const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
+// ranged units (projectile:true in units.js) can upload a projectile image
+const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 
@@ -25,13 +27,15 @@ function slotsFor(string $ent): array {
   if (in_array($ent, BUILDING_LIST, true)) {
     return ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
   }
-  return [
+  $slots = [
     'thumb' => 'Thumb',
     'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2',
     'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2',
     'attack_0' => 'Attack 1', 'attack_1' => 'Attack 2',
     'die_0' => 'Die',
   ];
+  if (in_array($ent, PROJECTILE_UNITS, true)) $slots['projectile'] = 'Proiectil';
+  return $slots;
 }
 
 $configFile = __DIR__ . '/config.php';
@@ -58,8 +62,8 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb') {
-          if ($exists) $entData['thumb'] = true;
+        if ($slot === 'thumb' || $slot === 'projectile') {
+          if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);
           if (!isset($entData[$anim])) $entData[$anim] = $anim === 'die' ? [false] : [false, false];

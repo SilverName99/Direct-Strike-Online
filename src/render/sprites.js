@@ -13,6 +13,7 @@ import { CONFIG } from '../config.js';
 
 const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null]
 const thumbs = new Map(); // `${race}/${ent}` -> entry
+const projectiles = new Map(); // `${race}/${ent}` -> entry (single projectile image)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
 let teamRaces = ['humans', 'humans'];
@@ -49,6 +50,11 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           if (slots.thumb) {
             load(`${base}${race}/${ent}/thumb.png?v=${man.v || 0}`, (img) => {
               thumbs.set(`${race}/${ent}`, entryFor(img));
+            });
+          }
+          if (slots.projectile) {
+            load(`${base}${race}/${ent}/projectile.png?v=${man.v || 0}`, (img) => {
+              projectiles.set(`${race}/${ent}`, entryFor(img));
             });
           }
           for (const [anim, frames] of Object.entries(slots)) {
@@ -135,6 +141,10 @@ export function hasSpriteAnim(race, ent, anim) {
 
 export function getThumb(race, ent) {
   return thumbs.get(`${race}/${ent}`) || null;
+}
+
+export function getProjectile(race, ent) {
+  return projectiles.get(`${race}/${ent}`) || null;
 }
 
 // Tallest animation frame of a unit (the standing pose), in native px.
