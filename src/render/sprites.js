@@ -107,9 +107,14 @@ export function getThumb(race, ent) {
   return thumbs.get(`${race}/${ent}`) || null;
 }
 
-// Draw centered at (0,0), scaled to targetH; caller mirrors for team 1.
+// Draw centered at (0,0), contain-fit into a targetH square; the caller
+// mirrors for team 1. Fitting the dominant dimension keeps wide frames
+// (e.g. a corpse lying down) at a natural size: the fallen body spans
+// about the character's standing height instead of blowing up.
 export function drawSprite(ctx, entry, targetH, team) {
   const img = team === 1 ? entry.red : entry.img;
-  const w = img.width * (targetH / img.height);
-  ctx.drawImage(img, -w / 2, -targetH / 2, w, targetH);
+  const s = targetH / Math.max(img.width, img.height);
+  const w = img.width * s;
+  const h = img.height * s;
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
 }
