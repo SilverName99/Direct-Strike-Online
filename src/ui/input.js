@@ -69,6 +69,7 @@ export class Input {
     }, { passive: false });
 
     canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 2) { this.handleRightClick(e); return; }
       if (e.button !== 0) return;
       const game = this.getGame();
       if (!game || game.winner !== null) return;
@@ -96,29 +97,10 @@ export class Input {
       this.uiState.drag = null;
     });
 
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const game = this.getGame();
-      if (this.uiState.selected) {
-        this.uiState.selected = null;
-        return;
-      }
-      if (!game || game.winner !== null) return;
-      const { x, y } = renderer.toSim(e);
-      const idx = hitTestTemplate(game, 0, x, y);
-      if (idx !== -1) {
-        game.issueCommand({ type: 'sellUnit', team: 0, index: idx });
-        return;
-      }
-      // sell an own building under the cursor (box hit test for footprints)
-      const s = game.structures.find(
-        (st) =>
-          st.team === 0 && st.hp > 0 &&
-          Math.abs(st.x - x) <= (st.hw || st.radius) + 4 &&
-          Math.abs(st.y - y) <= (st.hh || st.radius) + 4
-      );
-      if (s) game.issueCommand({ type: 'sellBuilding', team: 0, id: s.id });
-    });
+    // The right-click LOGIC lives on mousedown (button 2) below, because under
+    // pointer lock Chrome fires mousedown but not always 'contextmenu'. Here we
+    // only suppress the browser menu in windowed mode.
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     const PAN_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd'];
     document.addEventListener('keydown', (e) => {
@@ -168,6 +150,27 @@ export class Input {
       const card = e.target.closest('.card');
       if (card && !card.classList.contains('locked')) this.select(card.dataset.unit);
     });
+  }
+
+  // Right-click: first deselect the held unit/building (the "character on the
+  // mouse"); otherwise sell a placed template or an own building under the
+  // cursor. Called from mousedown so it works under pointer lock too.
+  handleRightClick(e) {
+    if (this.uiState.selected) { this.uiState.selected = null; return; }
+    if (this.uiState.drag) { this.uiState.drag = null; return; }
+    const game = this.getGame();
+    if (!game || game.winner !== null) return;
+    const { x, y } = this.renderer.toSim(e);
+    const idx = hitTestTemplate(game, 0, x, y);
+    if (idx !== -1) { game.issueCommand({ type: 'sellUnit', team: 0, index: idx }); return; }
+    // sell an own building under the cursor (box hit test for footprints)
+    const s = game.structures.find(
+      (st) =>
+        st.team === 0 && st.hp > 0 &&
+        Math.abs(st.x - x) <= (st.hw || st.radius) + 4 &&
+        Math.abs(st.y - y) <= (st.hh || st.radius) + 4
+    );
+    if (s) game.issueCommand({ type: 'sellBuilding', team: 0, id: s.id });
   }
 
   // Snap to the appropriate zone's grid when the grid is on. Buildings snap
