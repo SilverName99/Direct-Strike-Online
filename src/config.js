@@ -1,5 +1,9 @@
 // All game tunables live here (except unit stats — see units.js).
 
+// Bumped on every release; shown in the HUD and logged at boot so a stale
+// cached deploy is instantly recognizable.
+export const VERSION = 'v4.2';
+
 export const CONFIG = {
   // Simulation
   FIXED_DT: 1 / 30,

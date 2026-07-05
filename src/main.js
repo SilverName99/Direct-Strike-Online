@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js';
+import { CONFIG, VERSION } from './config.js';
 import { Game } from './sim/game.js';
 import { AIController } from './sim/ai.js';
 import { Renderer } from './render/renderer.js';
@@ -34,7 +34,13 @@ const input = new Input(canvas, renderer, camera, uiState, () =>
 );
 const pointer = new PointerManager(canvas);
 
-document.getElementById('fs-btn').addEventListener('click', () => pointer.toggle());
+console.log(`Direct Strike Online ${VERSION}`);
+document.getElementById('version').textContent = VERSION;
+
+document.getElementById('fs-btn').addEventListener('click', () => {
+  console.log('fullscreen toggle requested');
+  pointer.toggle();
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
 });
