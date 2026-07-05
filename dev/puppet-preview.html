@@ -22,8 +22,15 @@
 
   <script type="module">
     import { UNIT_IDS } from '../src/units.js';
-    import { hasCharacter, drawCharacter } from '../src/render/characters.js';
+    import { hasCharacter, drawCharacter, setTeamRaces } from '../src/render/characters.js';
     import { loadSprites } from '../src/render/sprites.js';
+
+    const race = new URLSearchParams(location.search).get('race') || 'humans';
+    setTeamRaces([race, race]);
+    document.querySelector('h1').textContent = `Character Preview — ${race}`;
+    const nav = document.createElement('p');
+    nav.innerHTML = 'Rasa: <a href="?race=humans">humans</a> · <a href="?race=orcs">orcs</a>';
+    document.querySelector('p').after(nav);
 
     loadSprites('../assets/units/', () => {}); // async; cells re-render below
 

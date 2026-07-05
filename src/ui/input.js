@@ -2,6 +2,7 @@ import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
 import { hitTestTemplate } from '../render/renderer.js';
 import { snapToZone, zoneFor } from './grid.js';
+import { toast } from './pointer.js';
 
 const BUILDING_IDS = ['wall', 'tower', 'generator'];
 
@@ -140,6 +141,7 @@ export class Input {
         this.uiState.gridOn = !this.uiState.gridOn;
         const btn = document.getElementById('grid-btn');
         if (btn) btn.classList.toggle('off', !this.uiState.gridOn);
+        toast(this.uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
         return;
       }
       // hotkeys: 1-9 units, Z/X/C buildings, 0 base upgrade

@@ -62,7 +62,11 @@ function updateFighter(game, u, stats) {
     u.targetId = target ? target.id : null;
   }
 
-  if (target && effDist(u, target) <= stats.range) {
+  // Hysteresis: once engaged, stay engaged until clearly out of range —
+  // otherwise back-row units shoved across the range boundary by the
+  // separation pass flicker between attack and march every tick.
+  const rangeBonus = u.state === 'attack' ? 14 : 0;
+  if (target && effDist(u, target) <= stats.range + rangeBonus) {
     u.state = 'attack';
     if (u.cooldown <= 0) {
       u.cooldown = stats.period;

@@ -60,19 +60,29 @@ node test/sim-test.js
 Testele verifică: puritatea simulării, determinismul (același seed → același rezultat),
 că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 
+## Rase
+
+La începutul meciului îți alegi rasa (**Humans** / **Orcs** — AI-ul o joacă pe cealaltă).
+Deocamdată rasele diferă doar prin artă (aceleași unități/stats); seturile de imagini se
+încarcă per rasă din admin.
+
 ## Admin: sprite-urile tale
 
 La `https://site-ul-tau/admin/` există un panou de administrare (PHP):
 
 - **Prima vizită:** îți setezi o parolă (salvată doar pe server, în `admin/config.php` —
   neatinsă de `git pull`).
-- **Upload:** pentru fiecare unitate × animație (idle/walk/attack/die) încarci **2 frame-uri PNG**.
-  Convenție: personajul cu fața spre **dreapta**, centrat, fundal transparent (recomandat 256×256,
-  max 1.5 MB). Varianta echipei roșii și oglindirea se generează automat în joc.
-- **Fallback:** unde nu ai încărcat imagini, jocul folosește personajele vectoriale integrate
-  (Grunt) sau formele geometrice — poți lucra treptat, unitate cu unitate.
-- Rezultatul se verifică live în `dev/puppet-preview.html` sau direct în joc.
-- Fișierele urcate stau în `assets/units/` pe server (gitignored — deploy-urile nu le ating).
+- **Organizare:** tab per rasă (Humans/Orcs) + navigare rapidă per entitate.
+- **Unități:** per unitate încarci **Thumb** (iconița din shop) + **Idle×2, Walk×2, Attack×2,
+  Die×1** (un singur frame la moarte).
+- **Clădiri** (Baza principală, turnul inițial, Tower, Generator — zidurile rămân vectoriale):
+  **Thumb + Idle×2** (frame-urile alternează lent).
+- Convenție: PNG transparent, personajul cu fața spre **dreapta**, centrat (recomandat 256×256,
+  max 1.5 MB). Varianta echipei roșii și oglindirea se generează automat.
+- **Fallback:** unde nu ai încărcat imagini, jocul folosește arta vectorială integrată — poți
+  lucra treptat, imagine cu imagine.
+- Rezultatul se verifică live în `dev/puppet-preview.html?race=humans` sau direct în joc.
+- Fișierele urcate stau în `assets/units/<rasă>/…` pe server (gitignored — deploy-urile nu le ating).
 
 ## Deploy pe Hostinger
 

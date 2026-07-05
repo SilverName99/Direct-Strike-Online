@@ -24,7 +24,7 @@ export class Effects {
           this.burst(e.x, e.y, e.big ? 4 : 1, '#ffffff', 60, 0.18, 2);
           break;
         case 'death':
-          if (hasDeathAnim(e.unitType)) {
+          if (hasDeathAnim(e.unitType, e.team)) {
             // character units play their 2-frame die animation, then fade
             this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0 });
             this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);

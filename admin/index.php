@@ -1,19 +1,37 @@
 <?php
 // Direct Strike Online — sprite admin.
 // First visit: set a password (stored as a hash in admin/config.php,
-// which is gitignored so deploys never touch it). Then upload 2 PNG
-// frames per unit × animation; the game picks them up automatically and
-// falls back to the built-in vector puppets where images are missing.
+// which is gitignored so deploys never touch it).
+//
+// Art is organized per RACE. Each unit has: a shop thumbnail, plus
+// idle×2, walk×2, attack×2 and die×1 frames. Buildings (main base,
+// turret, tower, generator — walls stay vector) have: thumbnail + idle×2.
+// The game picks uploads up automatically and falls back to the built-in
+// vector art wherever an image is missing.
 
 declare(strict_types=1);
 session_start();
 
 define('DS_ADMIN', 1);
 
-const UNITS = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
-const ANIMS = ['idle', 'walk', 'attack', 'die'];
-const FRAMES = [0, 1];
+const RACES = ['humans', 'orcs'];
+const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
+const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
 const MAX_BYTES = 1572864; // 1.5 MB
+
+// slot id => label; slot files are "<slot>.png"
+function slotsFor(string $ent): array {
+  if (in_array($ent, BUILDING_LIST, true)) {
+    return ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
+  }
+  return [
+    'thumb' => 'Thumb',
+    'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2',
+    'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2',
+    'attack_0' => 'Attack 1', 'attack_1' => 'Attack 2',
+    'die_0' => 'Die',
+  ];
+}
 
 $configFile = __DIR__ . '/config.php';
 $assetsDir = dirname(__DIR__) . '/assets/units';
@@ -24,28 +42,40 @@ $csrf = $_SESSION['csrf'];
 $msg = '';
 $err = '';
 
+$race = $_GET['race'] ?? $_POST['race'] ?? 'humans';
+if (!in_array($race, RACES, true)) $race = 'humans';
+
 function checkCsrf(): bool {
   return hash_equals($_SESSION['csrf'], $_POST['csrf'] ?? '');
 }
 
 function regenManifest(string $assetsDir): void {
-  $units = [];
-  foreach (UNITS as $u) {
-    foreach (ANIMS as $a) {
-      foreach (FRAMES as $f) {
-        $exists = is_file("$assetsDir/$u/{$a}_{$f}.png");
-        if ($exists) $units[$u][$a][$f] = true;
-        if (isset($units[$u][$a])) {
-          // normalize to a dense [bool, bool] array
-          $units[$u][$a] = [(bool)($units[$u][$a][0] ?? false), (bool)($units[$u][$a][1] ?? false)];
+  $races = [];
+  foreach (RACES as $r) {
+    foreach (array_merge(UNIT_LIST, BUILDING_LIST) as $ent) {
+      $slots = slotsFor($ent);
+      $entData = [];
+      foreach ($slots as $slot => $label) {
+        $exists = is_file("$assetsDir/$r/$ent/$slot.png");
+        if ($slot === 'thumb') {
+          if ($exists) $entData['thumb'] = true;
+        } else {
+          [$anim, $frame] = explode('_', $slot);
+          if (!isset($entData[$anim])) $entData[$anim] = $anim === 'die' ? [false] : [false, false];
+          if ($exists) $entData[$anim][(int)$frame] = true;
         }
       }
+      // keep only anims that have at least one frame
+      foreach ($entData as $k => $v) {
+        if (is_array($v) && !in_array(true, $v, true)) unset($entData[$k]);
+      }
+      if ($entData) $races[$r][$ent] = $entData;
     }
   }
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'units' => (object)$units], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -83,7 +113,7 @@ if ($action === 'login' && defined('ADMIN_PASSWORD_HASH')) {
     $_SESSION['csrf'] = bin2hex(random_bytes(16));
     $csrf = $_SESSION['csrf'];
   } else {
-    sleep(1); // slow down guessing
+    sleep(1);
     $err = 'Parolă greșită.';
   }
 }
@@ -96,13 +126,18 @@ if ($action === 'logout') {
 
 $authed = !empty($_SESSION['auth']);
 
+function validTarget(string $race, string $ent, string $slot): bool {
+  return in_array($race, RACES, true)
+    && in_array($ent, array_merge(UNIT_LIST, BUILDING_LIST), true)
+    && array_key_exists($slot, slotsFor($ent));
+}
+
 if ($authed && $action === 'upload') {
-  $unit = $_POST['unit'] ?? '';
-  $anim = $_POST['anim'] ?? '';
-  $frame = (int)($_POST['frame'] ?? -1);
+  $ent = $_POST['entity'] ?? '';
+  $slot = $_POST['slot'] ?? '';
   if (!checkCsrf()) {
     $err = 'Sesiune expirată — reîncearcă.';
-  } elseif (!in_array($unit, UNITS, true) || !in_array($anim, ANIMS, true) || !in_array($frame, FRAMES, true)) {
+  } elseif (!validTarget($race, $ent, $slot)) {
     $err = 'Țintă invalidă.';
   } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
     $err = 'Upload eșuat — fișier lipsă sau prea mare.';
@@ -114,10 +149,10 @@ if ($authed && $action === 'upload') {
     if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
       $err = 'Doar fișiere PNG (cu transparență).';
     } else {
-      @mkdir("$assetsDir/$unit", 0755, true);
-      if (move_uploaded_file($tmp, "$assetsDir/$unit/{$anim}_{$frame}.png")) {
+      @mkdir("$assetsDir/$race/$ent", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/$ent/$slot.png")) {
         regenManifest($assetsDir);
-        $msg = "Încărcat: $unit · $anim · frame " . ($frame + 1);
+        $msg = "Încărcat: $race · $ent · $slot";
       } else {
         $err = 'Nu pot salva fișierul — verifică permisiunile assets/units.';
       }
@@ -126,20 +161,15 @@ if ($authed && $action === 'upload') {
 }
 
 if ($authed && $action === 'delete') {
-  $unit = $_POST['unit'] ?? '';
-  $anim = $_POST['anim'] ?? '';
-  $frame = (int)($_POST['frame'] ?? -1);
+  $ent = $_POST['entity'] ?? '';
+  $slot = $_POST['slot'] ?? '';
   if (!checkCsrf()) {
     $err = 'Sesiune expirată — reîncearcă.';
-  } elseif (in_array($unit, UNITS, true) && in_array($anim, ANIMS, true) && in_array($frame, FRAMES, true)) {
-    @unlink("$assetsDir/$unit/{$anim}_{$frame}.png");
+  } elseif (validTarget($race, $ent, $slot)) {
+    @unlink("$assetsDir/$race/$ent/$slot.png");
     regenManifest($assetsDir);
-    $msg = "Șters: $unit · $anim · frame " . ($frame + 1);
+    $msg = "Șters: $race · $ent · $slot";
   }
-}
-
-function slotFile(string $assetsDir, string $u, string $a, int $f): string {
-  return "$assetsDir/$u/{$a}_{$f}.png";
 }
 ?>
 <!DOCTYPE html>
@@ -150,17 +180,17 @@ function slotFile(string $assetsDir, string $u, string $a, int $f): string {
   <title>Admin — Direct Strike Online</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0d1117; color: #dbe4f0; font-family: "Segoe UI", system-ui, sans-serif; padding: 28px; }
+    body { background: #0d1117; color: #dbe4f0; font-family: "Segoe UI", system-ui, sans-serif; padding: 24px; }
     h1 { font-size: 20px; letter-spacing: 1px; margin-bottom: 4px; }
     h1 .accent { color: #4da6ff; }
-    .sub { color: #7c8ba1; font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
-    .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+    h2 { font-size: 13px; letter-spacing: 2px; color: #7c8ba1; text-transform: uppercase; margin: 26px 0 10px; }
+    .sub { color: #7c8ba1; font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+    .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
     .flash.ok { background: #12331f; border: 1px solid #2a6b42; color: #58d68d; }
     .flash.bad { background: #3a1519; border: 1px solid #7a2a33; color: #ff8090; }
     .panel { background: #161c26; border: 1px solid #2a3446; border-radius: 12px; padding: 22px; max-width: 420px; }
-    .panel.wide { max-width: none; overflow-x: auto; }
     label { display: block; font-size: 12px; color: #7c8ba1; margin: 10px 0 4px; }
-    input[type=password], input[type=text] {
+    input[type=password] {
       width: 100%; padding: 9px 12px; background: #0a0e14; color: #dbe4f0;
       border: 1px solid #2a3446; border-radius: 7px; font-size: 14px;
     }
@@ -169,25 +199,52 @@ function slotFile(string $assetsDir, string $u, string $a, int $f): string {
       border: 1px solid #4da6ff; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
     }
     button:hover { background: #2563a8; }
-    button.mini { margin: 0; padding: 3px 8px; font-size: 11px; }
+    button.mini { margin: 0; padding: 2px 7px; font-size: 10px; }
     button.danger { background: #5a1e26; border-color: #ff5566; }
-    .topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #2a3446; padding: 8px; text-align: center; font-size: 12px; }
-    th { background: #1c2431; color: #7c8ba1; text-transform: uppercase; letter-spacing: 1px; font-size: 10px; }
-    td.unit { font-weight: 700; font-size: 13px; color: #4da6ff; text-transform: capitalize; }
-    .slot { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 96px; }
+    .topline { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+
+    /* race tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 6px; }
+    .tabs a {
+      padding: 8px 22px; border-radius: 8px 8px 0 0; text-decoration: none;
+      color: #7c8ba1; background: #10151d; border: 1px solid #2a3446; border-bottom: none;
+      font-weight: 700; letter-spacing: 1px; font-size: 13px; text-transform: uppercase;
+    }
+    .tabs a.active { color: #ffd35c; background: #161c26; }
+
+    /* quick nav */
+    .quicknav { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+    .quicknav a {
+      font-size: 11px; color: #4da6ff; text-decoration: none;
+      border: 1px solid #2a3446; border-radius: 20px; padding: 3px 10px; background: #10151d;
+    }
+    .quicknav a:hover { border-color: #4da6ff; }
+
+    /* entity rows */
+    .ent {
+      background: #161c26; border: 1px solid #2a3446; border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 12px;
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+    .ent .title { width: 110px; padding-top: 22px; }
+    .ent .title b { font-size: 14px; color: #4da6ff; text-transform: capitalize; display: block; }
+    .ent .title span { font-size: 11px; color: #7c8ba1; }
+    .slots { display: flex; flex-wrap: wrap; gap: 10px; }
+    .slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .slot .lbl { font-size: 10px; color: #7c8ba1; text-transform: uppercase; letter-spacing: 1px; }
+    .slot.thumbslot .lbl { color: #ffd35c; }
     .thumb {
-      width: 72px; height: 72px; background:
+      width: 64px; height: 64px; background:
         repeating-conic-gradient(#141a24 0 25%, #0e141d 0 50%) 0 0 / 16px 16px;
       border: 1px solid #2a3446; border-radius: 6px;
       display: flex; align-items: center; justify-content: center; overflow: hidden;
     }
+    .slot.thumbslot .thumb { border-color: #5a4a1e; }
     .thumb img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
-    .thumb .empty { color: #3d4c66; font-size: 22px; }
+    .thumb .empty { color: #3d4c66; font-size: 20px; }
     .slot input[type=file] { display: none; }
-    .slot .pick { color: #4da6ff; font-size: 11px; cursor: pointer; text-decoration: underline; }
-    .hint { color: #7c8ba1; font-size: 12px; margin-top: 14px; line-height: 1.6; }
+    .slot .pick { color: #4da6ff; font-size: 10px; cursor: pointer; text-decoration: underline; }
+    .hint { color: #7c8ba1; font-size: 12px; margin-top: 16px; line-height: 1.6; }
     a { color: #4da6ff; }
   </style>
 </head>
@@ -195,8 +252,8 @@ function slotFile(string $assetsDir, string $u, string $a, int $f): string {
   <div class="topline">
     <div>
       <h1>DIRECT STRIKE <span class="accent">ADMIN</span></h1>
-      <div class="sub">Sprite-uri de unități: 2 frame-uri PNG per animație. Personajul: cu fața spre <b>dreapta</b>,
-      centrat, fundal transparent (recomandat 256×256). Varianta roșie și oglindirea se generează automat în joc.</div>
+      <div class="sub">PNG cu transparență, personajul cu fața spre <b>dreapta</b>, centrat (recomandat 256×256).
+      <b>Thumb</b> = iconița din shop. Varianta echipei roșii și oglindirea se generează automat.</div>
     </div>
     <?php if ($authed): ?>
     <form method="post"><input type="hidden" name="action" value="logout"><button class="mini">Logout</button></form>
@@ -226,59 +283,76 @@ function slotFile(string $assetsDir, string $u, string $a, int $f): string {
     </form>
   </div>
 <?php else: ?>
-  <div class="panel wide">
-    <table>
-      <tr>
-        <th>Unitate</th>
-        <?php foreach (ANIMS as $a): foreach (FRAMES as $f): ?>
-          <th><?= $a ?> · f<?= $f + 1 ?></th>
-        <?php endforeach; endforeach; ?>
-      </tr>
-      <?php foreach (UNITS as $u): ?>
-      <tr>
-        <td class="unit"><?= $u ?></td>
-        <?php foreach (ANIMS as $a): foreach (FRAMES as $f):
-          $file = slotFile($assetsDir, $u, $a, $f);
+
+  <div class="tabs">
+    <?php foreach (RACES as $r): ?>
+      <a href="?race=<?= $r ?>" class="<?= $r === $race ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
+    <?php endforeach; ?>
+  </div>
+
+  <div class="quicknav">
+    <?php foreach (array_merge(UNIT_LIST, BUILDING_LIST) as $e): ?>
+      <a href="#<?= $e ?>"><?= $e ?></a>
+    <?php endforeach; ?>
+  </div>
+
+  <?php
+  function renderEnt(string $race, string $ent, string $assetsDir, string $assetsUrl, string $csrf): void {
+    $slots = slotsFor($ent);
+    $done = 0;
+    foreach ($slots as $slot => $label) if (is_file("$assetsDir/$race/$ent/$slot.png")) $done++;
+    ?>
+    <div class="ent" id="<?= $ent ?>">
+      <div class="title"><b><?= $ent ?></b><span><?= $done ?> / <?= count($slots) ?> imagini</span></div>
+      <div class="slots">
+        <?php foreach ($slots as $slot => $label):
+          $file = "$assetsDir/$race/$ent/$slot.png";
           $has = is_file($file);
         ?>
-        <td>
-          <div class="slot">
-            <div class="thumb">
-              <?php if ($has): ?>
-                <img src="<?= $assetsUrl ?>/<?= $u ?>/<?= $a ?>_<?= $f ?>.png?t=<?= filemtime($file) ?>" alt="">
-              <?php else: ?>
-                <span class="empty">+</span>
-              <?php endif; ?>
-            </div>
-            <form method="post" enctype="multipart/form-data">
-              <input type="hidden" name="action" value="upload">
-              <input type="hidden" name="csrf" value="<?= $csrf ?>">
-              <input type="hidden" name="unit" value="<?= $u ?>">
-              <input type="hidden" name="anim" value="<?= $a ?>">
-              <input type="hidden" name="frame" value="<?= $f ?>">
-              <label class="pick"><?= $has ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
-            </form>
+        <div class="slot <?= $slot === 'thumb' ? 'thumbslot' : '' ?>">
+          <span class="lbl"><?= $label ?></span>
+          <div class="thumb">
             <?php if ($has): ?>
-            <form method="post">
-              <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="csrf" value="<?= $csrf ?>">
-              <input type="hidden" name="unit" value="<?= $u ?>">
-              <input type="hidden" name="anim" value="<?= $a ?>">
-              <input type="hidden" name="frame" value="<?= $f ?>">
-              <button class="mini danger" onclick="return confirm('Ștergi acest frame?')">șterge</button>
-            </form>
+              <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $slot ?>.png?t=<?= filemtime($file) ?>" alt="">
+            <?php else: ?>
+              <span class="empty">+</span>
             <?php endif; ?>
           </div>
-        </td>
-        <?php endforeach; endforeach; ?>
-      </tr>
-      <?php endforeach; ?>
-    </table>
-    <div class="hint">
-      • Jocul folosește automat imaginile încărcate; unde lipsesc, rămân personajele vectoriale / formele geometrice.<br>
-      • Verifică rezultatul în <a href="../dev/puppet-preview.html" target="_blank">pagina de preview</a> sau direct în joc (refresh).<br>
-      • Fișierele stau în <code>assets/units/</code> pe server și nu sunt atinse de <code>git pull</code>.
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="upload">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="slot" value="<?= $slot ?>">
+            <label class="pick"><?= $has ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($has): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="slot" value="<?= $slot ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi această imagine?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
     </div>
+  <?php } ?>
+
+  <h2>Unități — <?= $race ?></h2>
+  <?php foreach (UNIT_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf); ?>
+
+  <h2>Clădiri — <?= $race ?> <span style="text-transform:none">(zidurile rămân desenate de joc)</span></h2>
+  <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf); ?>
+
+  <div class="hint">
+    • Jocul folosește automat imaginile; unde lipsesc, rămâne arta vectorială integrată.<br>
+    • <b>Die</b> are un singur frame. Clădirile au doar Idle (2 frame-uri, alternate lent) + Thumb.<br>
+    • Verifică rezultatul în <a href="../dev/puppet-preview.html?race=<?= $race ?>" target="_blank">pagina de preview</a> sau direct în joc (refresh).<br>
+    • Fișierele stau în <code>assets/units/<?= $race ?>/…</code> pe server și nu sunt atinse de <code>git pull</code>.
   </div>
 <?php endif; ?>
 </body>

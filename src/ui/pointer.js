@@ -187,7 +187,7 @@ function clamp(v, lo, hi) {
 
 let toastEl = null;
 let toastTimer = 0;
-function toast(msg) {
+export function toast(msg) {
   if (!toastEl) {
     toastEl = document.createElement('div');
     toastEl.id = 'toast';

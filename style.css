@@ -263,7 +263,8 @@ html, body {
 #overlay-stats.hidden { display: none; }
 #overlay-stats b { color: var(--gold); }
 
-.difficulty-row { display: flex; gap: 12px; justify-content: center; }
+.difficulty-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; }
+.btn.race.selected { border-color: var(--gold); background: #2b2413; }
 .btn {
   padding: 10px 26px;
   font-size: 15px;

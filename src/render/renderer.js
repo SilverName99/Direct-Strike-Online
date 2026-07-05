@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite } from './characters.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
@@ -90,6 +90,7 @@ export class Renderer {
     this.ctx = canvas.getContext('2d');
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
+    this.attackHold = new Map(); // unit id -> last time seen attacking
   }
 
   resize() {
@@ -120,6 +121,7 @@ export class Renderer {
     const cam = this.camera;
     const z = cam.zoom;
     this.now = performance.now() / 1000; // render clock for 2-frame anims
+    if (this.attackHold.size > 4000) this.attackHold.clear(); // bound the map
     this.view = {
       x0: cam.x,
       y0: cam.y,
@@ -212,7 +214,40 @@ export class Renderer {
       ctx.save();
       ctx.translate(s.x, s.y);
 
-      if (s.kind === 'main') {
+      // range ring first, so it sits under sprite or vector art
+      if (s.kind === 'turret' || s.kind === 'tower') {
+        const stats = s.kind === 'turret' ? CONFIG.TURRET : CONFIG.BUILDINGS.tower;
+        ctx.globalAlpha = 0.06;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, stats.range, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // uploaded building art (all kinds except walls); mirror for team 1
+      let spriteDrawn = false;
+      if (s.kind !== 'wall') {
+        ctx.save();
+        if (s.team === 1) ctx.scale(-1, 1);
+        if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
+        spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, r, this.now, s.id);
+        ctx.restore();
+      }
+
+      if (spriteDrawn && s.kind === 'main') {
+        // tier pips still shown over sprite art
+        const tier = game.tier[s.team];
+        ctx.fillStyle = '#ffd35c';
+        for (let i = 0; i < tier; i++) {
+          ctx.beginPath();
+          ctx.arc(-14 + i * 14, -r - 14, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (!spriteDrawn && s.kind === 'main') {
         if (s.hp <= 0) ctx.globalAlpha = 0.35; // ruined main on the end screen
         ctx.fillStyle = dark;
         drawShape(ctx, 'hexagon', r);
@@ -232,15 +267,7 @@ export class Renderer {
           ctx.arc(-14 + i * 14, -r - 14, 4, 0, Math.PI * 2);
           ctx.fill();
         }
-      } else if (s.kind === 'turret' || s.kind === 'tower') {
-        const stats = s.kind === 'turret' ? CONFIG.TURRET : CONFIG.BUILDINGS.tower;
-        ctx.globalAlpha = 0.06;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(0, 0, stats.range, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+      } else if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower')) {
         ctx.fillStyle = dark;
         ctx.fillRect(-r, -r, r * 2, r * 2);
         ctx.strokeStyle = color;
@@ -261,7 +288,7 @@ export class Renderer {
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-r * 0.5, -r * 0.5, r, r);
         ctx.globalAlpha = 1;
-      } else if (s.kind === 'generator') {
+      } else if (!spriteDrawn && s.kind === 'generator') {
         ctx.fillStyle = dark;
         drawShape(ctx, 'diamond', r * 1.1);
         ctx.fill();
@@ -317,7 +344,7 @@ export class Renderer {
           ctx.stroke();
           ctx.strokeStyle = TEAM_COLORS[team];
         }
-        if (hasCharacter(tpl.type)) {
+        if (hasCharacter(tpl.type, team)) {
           // ghost character breathing in the build zone
           ctx.globalAlpha = hot ? 0.95 : 0.5;
           if (team === 1) ctx.scale(-1, 1);
@@ -355,12 +382,16 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(x, y);
-      if (hasCharacter(u.type)) {
+      if (hasCharacter(u.type, u.team)) {
         // character path: side-view sprite/puppet, mirrored to face the enemy
         if (u.team === 1) ctx.scale(-1, 1);
         let anim;
         let frame;
-        if (u.state === 'attack') {
+        // hold the attack anim briefly so range-boundary jitter can't
+        // flicker back-row units between attack and walk
+        if (u.state === 'attack') this.attackHold.set(u.id, this.now);
+        const held = this.attackHold.get(u.id);
+        if (u.state === 'attack' || (held !== undefined && this.now - held < 0.3)) {
           anim = 'attack';
           // show the strike pose briefly right after each real hit
           frame = u.cooldown > stats.period - 0.25 ? 1 : 0;

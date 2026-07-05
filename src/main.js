@@ -1,4 +1,4 @@
-import { CONFIG, VERSION } from './config.js';
+import { CONFIG, VERSION, RACES } from './config.js';
 import { Game } from './sim/game.js';
 import { AIController } from './sim/ai.js';
 import { Renderer } from './render/renderer.js';
@@ -7,8 +7,8 @@ import { Camera } from './ui/camera.js';
 import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
-import { PointerManager } from './ui/pointer.js';
-import { loadSprites } from './render/sprites.js';
+import { PointerManager, toast } from './ui/pointer.js';
+import { loadSprites, setTeamRaces } from './render/sprites.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -51,14 +51,29 @@ document.getElementById('fs-btn').addEventListener('click', () => {
 document.getElementById('grid-btn').addEventListener('click', () => {
   uiState.gridOn = !uiState.gridOn;
   document.getElementById('grid-btn').classList.toggle('off', !uiState.gridOn);
+  toast(uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
 });
 
+let playerRace = 'humans';
+for (const btn of document.querySelectorAll('.btn.race')) {
+  btn.addEventListener('click', () => {
+    playerRace = btn.dataset.race;
+    document.querySelectorAll('.btn.race').forEach((b) =>
+      b.classList.toggle('selected', b === btn)
+    );
+    hud.refreshIcons(); // shop art follows the chosen race
+  });
+}
+
 function newGame(difficulty) {
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const diff = CONFIG.DIFFICULTY[difficulty] || CONFIG.DIFFICULTY.normal;
+  // race is a render-side art choice: the AI plays the other one
+  const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
+  setTeamRaces([playerRace, aiRace]);
   game = new Game(seed, { incomeMult: [1, diff.incomeMult] });
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
   effects.reset();

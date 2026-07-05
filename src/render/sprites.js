@@ -1,44 +1,70 @@
-// User-uploaded unit sprites (via /admin). The game fetches a manifest and
-// preloads the PNGs; every draw site falls back to the vector puppets (or
-// the geometric shapes) wherever an image is missing, so partial uploads
-// are always safe. Sprites are authored facing RIGHT on transparency; the
+// User-uploaded sprites (via /admin), organized per RACE and entity
+// (units + buildings). The game fetches a manifest and preloads PNGs;
+// every draw site falls back to the vector puppets / geometric shapes
+// wherever an image is missing, so partial uploads are always safe.
+//
+// Slots per unit:     thumb, idle×2, walk×2, attack×2, die×1
+// Slots per building: thumb, idle×2   (main, turret, tower, generator)
+//
+// Art is authored facing RIGHT on transparency, "blue-team" colored; the
 // red-team variant is generated here with a hue blend (grays stay gray).
 
-import { UNITS } from '../units.js';
+const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null]
+const thumbs = new Map(); // `${race}/${ent}` -> entry
+let teamRaces = ['humans', 'humans'];
 
-const store = new Map(); // `${type}/${anim}` -> [ {img, red} | null, ... ]
+export function setTeamRaces(races) {
+  teamRaces = races.slice();
+}
+
+export function raceOf(team) {
+  return teamRaces[team] || 'humans';
+}
 
 export function loadSprites(base = 'assets/units/', onReady = null) {
   fetch(`${base}manifest.json`, { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .then((man) => {
-      if (!man || !man.units) return;
-      let pending = 0;
+      if (!man || !man.races) return;
+      let pending = 1; // guard so done() can't fire before the loop ends
       const done = () => {
-        pending--;
-        if (pending === 0 && onReady) onReady();
+        if (--pending === 0 && onReady) onReady();
       };
-      for (const [unit, anims] of Object.entries(man.units)) {
-        for (const [anim, frames] of Object.entries(anims)) {
-          frames.forEach((present, i) => {
-            if (!present) return;
-            pending++;
-            const img = new Image();
-            img.onload = () => {
-              const key = `${unit}/${anim}`;
-              let rec = store.get(key);
-              if (!rec) {
-                rec = [null, null];
-                store.set(key, rec);
-              }
-              rec[i] = { img, red: recolor(img) };
-              done();
-            };
-            img.onerror = done;
-            img.src = `${base}${unit}/${anim}_${i}.png?v=${man.v || 0}`;
-          });
+      const load = (url, cb) => {
+        pending++;
+        const img = new Image();
+        img.onload = () => {
+          cb(img);
+          done();
+        };
+        img.onerror = done;
+        img.src = url;
+      };
+      for (const [race, ents] of Object.entries(man.races)) {
+        for (const [ent, slots] of Object.entries(ents)) {
+          if (slots.thumb) {
+            load(`${base}${race}/${ent}/thumb.png?v=${man.v || 0}`, (img) => {
+              thumbs.set(`${race}/${ent}`, { img, red: recolor(img) });
+            });
+          }
+          for (const [anim, frames] of Object.entries(slots)) {
+            if (anim === 'thumb' || !Array.isArray(frames)) continue;
+            frames.forEach((present, i) => {
+              if (!present) return;
+              load(`${base}${race}/${ent}/${anim}_${i}.png?v=${man.v || 0}`, (img) => {
+                const key = `${race}/${ent}/${anim}`;
+                let rec = anims.get(key);
+                if (!rec) {
+                  rec = [null, null];
+                  anims.set(key, rec);
+                }
+                rec[i] = { img, red: recolor(img) };
+              });
+            });
+          }
         }
       }
+      done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
 }
@@ -58,28 +84,32 @@ function recolor(img) {
   return c;
 }
 
-export function getSprite(type, anim, frame) {
-  const rec = store.get(`${type}/${anim}`);
+export function getSprite(race, ent, anim, frame) {
+  const rec = anims.get(`${race}/${ent}/${anim}`);
   if (!rec) return null;
-  return rec[frame] || rec[frame ^ 1] || null; // tolerate a missing twin frame
+  // tolerate a missing twin frame (e.g. die has a single frame)
+  return rec[frame] || rec[frame ^ 1] || null;
 }
 
-export function getAnySprite(type) {
-  for (const anim of ['idle', 'walk', 'attack', 'die']) {
-    const s = getSprite(type, anim, 0);
+export function getAnySprite(race, ent) {
+  for (const a of ['idle', 'walk', 'attack', 'die']) {
+    const s = getSprite(race, ent, a, 0);
     if (s) return s;
   }
   return null;
 }
 
-export function hasSpriteAnim(type, anim) {
-  return getSprite(type, anim, 0) != null;
+export function hasSpriteAnim(race, ent, anim) {
+  return getSprite(race, ent, anim, 0) != null;
 }
 
-// Draw centered at (0,0), already mirrored by the caller for team 1.
-export function drawSprite(ctx, entry, type, team, scale = 1) {
+export function getThumb(race, ent) {
+  return thumbs.get(`${race}/${ent}`) || null;
+}
+
+// Draw centered at (0,0), scaled to targetH; caller mirrors for team 1.
+export function drawSprite(ctx, entry, targetH, team) {
   const img = team === 1 ? entry.red : entry.img;
-  const targetH = (UNITS[type].radius * 2.8 + 4) * scale;
   const w = img.width * (targetH / img.height);
   ctx.drawImage(img, -w / 2, -targetH / 2, w, targetH);
 }

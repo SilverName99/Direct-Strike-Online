@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
 import { drawShape, TEAM_COLORS } from '../render/renderer.js';
-import { hasCharacter, drawCharacter } from '../render/characters.js';
+import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 
 const BUILDING_CARDS = [
   {
@@ -134,6 +134,10 @@ export class Hud {
     ctx.clearRect(0, 0, 40, 40);
     ctx.save();
     ctx.translate(20, 20);
+    if (drawThumb(ctx, id, 0, 36)) {
+      ctx.restore();
+      return;
+    }
     const c = TEAM_COLORS[0];
     if (id === 'wall') {
       ctx.fillStyle = '#2d3a4f';
@@ -163,17 +167,25 @@ export class Hud {
     ctx.restore();
   }
 
-  // Re-render all card icons (called when uploaded sprites finish loading).
+  // Re-render all card icons (called when sprites load or the race changes).
   refreshIcons() {
     for (const [id, card] of this.cards) {
-      if (!UNITS[id]) continue;
-      this.drawIcon(card.querySelector('canvas'), UNITS[id], id);
+      if (UNITS[id]) this.drawIcon(card.querySelector('canvas'), UNITS[id], id);
+      else if (CONFIG.BUILDINGS[id]) this.drawBuildingIcon(card.querySelector('canvas'), id);
     }
   }
 
   drawIcon(canvas, u, id) {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // uploaded thumbnail wins; then character art; then the plain shape
+    ctx.save();
+    ctx.translate(20, 21);
+    if (drawThumb(ctx, id, 0, 36)) {
+      ctx.restore();
+      return;
+    }
+    ctx.restore();
     if (hasCharacter(id)) {
       ctx.save();
       ctx.translate(20, 21);
