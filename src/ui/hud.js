@@ -1,6 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
 import { drawShape, TEAM_COLORS } from '../render/renderer.js';
+import { PUPPETS, PALETTES, drawPuppet } from '../render/puppets.js';
 
 export class Hud {
   constructor(uiState) {
@@ -44,7 +45,7 @@ export class Hud {
           <div>${u.tip}</div>
           <div class="t-stats">${u.hp} HP · ${u.armor} · ${dps}<br>range ${u.range} · speed ${u.speed}</div>
         </div>`;
-      this.drawIcon(card.querySelector('canvas'), u);
+      this.drawIcon(card.querySelector('canvas'), u, id);
       shop.appendChild(card);
       this.cards.set(id, card);
       hotkey++;
@@ -74,8 +75,15 @@ export class Hud {
     this.cards.set('income', card);
   }
 
-  drawIcon(canvas, u) {
+  drawIcon(canvas, u, id) {
     const ctx = canvas.getContext('2d');
+    if (PUPPETS[id]) {
+      ctx.save();
+      ctx.translate(20, 21);
+      drawPuppet(ctx, id, 'idle', 0, PALETTES[0], 1.35);
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.translate(20, 20);
     const r = Math.min(15, u.radius * 1.4 + 4);

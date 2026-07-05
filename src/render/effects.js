@@ -2,14 +2,19 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
+import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
+
+const CORPSE_LIFE = 1.2;
 
 export class Effects {
   constructor() {
     this.particles = [];
+    this.corpses = [];
   }
 
   reset() {
     this.particles = [];
+    this.corpses = [];
   }
 
   spawnFromEvents(events) {
@@ -19,7 +24,13 @@ export class Effects {
           this.burst(e.x, e.y, e.big ? 4 : 1, '#ffffff', 60, 0.18, 2);
           break;
         case 'death':
-          this.burst(e.x, e.y, 8, TEAM_COLORS[e.team], 120, 0.45, 3);
+          if (PUPPETS[e.unitType]) {
+            // puppet units play their 2-frame die animation, then fade
+            this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0 });
+            this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);
+          } else {
+            this.burst(e.x, e.y, 8, TEAM_COLORS[e.team], 120, 0.45, 3);
+          }
           break;
         case 'explosion':
           this.burst(e.x, e.y, 14, '#ffb347', 180, 0.4, 3.5);
@@ -63,6 +74,21 @@ export class Effects {
       alive.push(p);
     }
     this.particles = alive;
+    this.corpses = this.corpses.filter((c) => (c.t += dt) < CORPSE_LIFE);
+  }
+
+  // Drawn by the renderer beneath the living units.
+  drawCorpses(ctx) {
+    for (const c of this.corpses) {
+      const frame = c.t < 0.25 ? 0 : 1;
+      ctx.save();
+      ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
+      ctx.translate(c.x, c.y);
+      if (c.team === 1) ctx.scale(-1, 1);
+      drawPuppet(ctx, c.type, 'die', frame, PALETTES[c.team]);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   draw(ctx) {

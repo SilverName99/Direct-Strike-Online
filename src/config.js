@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v4.3';
+export const VERSION = 'v5.0';
 
 export const CONFIG = {
   // Simulation
@@ -27,7 +27,7 @@ export const CONFIG = {
     EDGE_PX: 28,       // pointer within this many px of the canvas edge scrolls
     EDGE_SPEED: 1100,  // world units per second
     KEY_SPEED: 1100,   // arrows / WASD
-    ZOOM_MAX: 2.5,     // max zoom = fit-the-map zoom × this
+    ZOOM_MAX: 4,       // max zoom = fit-the-map zoom × this (close enough to enjoy the characters)
     ZOOM_STEP: 1.15,   // wheel notch multiplier
     START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
   },

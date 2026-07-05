@@ -153,7 +153,13 @@ export function applyDamage(game, target, damage, dmgType) {
   target.hp -= damage * mult;
   game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
-    game.events.push({ type: 'death', x: target.x, y: target.y, team: target.team, radius: target.radius });
+    game.events.push({
+      type: 'death',
+      x: target.x, y: target.y,
+      team: target.team,
+      radius: target.radius,
+      unitType: target.type || null,
+    });
   }
 }
 

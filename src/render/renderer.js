@@ -1,5 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
+import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -117,6 +118,7 @@ export class Renderer {
     const { ctx } = this;
     const cam = this.camera;
     const z = cam.zoom;
+    this.now = performance.now() / 1000; // render clock for 2-frame anims
     this.view = {
       x0: cam.x,
       y0: cam.y,
@@ -130,6 +132,7 @@ export class Renderer {
     this.drawTemplates(ctx, game, uiState);
     this.drawBases(ctx, game);
     this.drawTurrets(ctx, game);
+    effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
@@ -257,19 +260,27 @@ export class Renderer {
         if (!this.visible(tpl.x, tpl.y)) return;
         const stats = UNITS[tpl.type];
         const hot = team === 0 && i === hoverIdx && !uiState.selected;
-        ctx.globalAlpha = hot ? 0.9 : 0.35;
         ctx.save();
         ctx.translate(tpl.x, tpl.y);
         if (hot) {
+          ctx.globalAlpha = 0.9;
           ctx.strokeStyle = '#ffffff';
           ctx.beginPath();
           ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
           ctx.stroke();
           ctx.strokeStyle = TEAM_COLORS[team];
         }
-        ctx.rotate(rot);
-        drawShape(ctx, stats.shape, stats.radius);
-        ctx.stroke();
+        if (PUPPETS[tpl.type]) {
+          // ghost puppet breathing in the build zone
+          ctx.globalAlpha = hot ? 0.95 : 0.5;
+          if (team === 1) ctx.scale(-1, 1);
+          drawPuppet(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, PALETTES[team]);
+        } else {
+          ctx.globalAlpha = hot ? 0.9 : 0.35;
+          ctx.rotate(rot);
+          drawShape(ctx, stats.shape, stats.radius);
+          ctx.stroke();
+        }
         ctx.restore();
       });
     }
@@ -297,16 +308,32 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(u.team === 0 ? 0 : Math.PI);
-      if (stats.shape === 'ring') {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3.5;
-        drawShape(ctx, 'ring', stats.radius);
-        ctx.stroke();
+      if (PUPPETS[u.type]) {
+        // puppet path: side-view character, mirrored to face the enemy
+        if (u.team === 1) ctx.scale(-1, 1);
+        let anim;
+        let frame;
+        if (u.state === 'attack') {
+          anim = 'attack';
+          // show the strike pose briefly right after each real hit
+          frame = u.cooldown > stats.period - 0.25 ? 1 : 0;
+        } else {
+          anim = 'walk';
+          frame = (Math.floor(this.now * 5) + u.id) % 2;
+        }
+        drawPuppet(ctx, u.type, anim, frame, PALETTES[u.team]);
       } else {
-        ctx.fillStyle = color;
-        drawShape(ctx, stats.shape, stats.radius);
-        ctx.fill();
+        ctx.rotate(u.team === 0 ? 0 : Math.PI);
+        if (stats.shape === 'ring') {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3.5;
+          drawShape(ctx, 'ring', stats.radius);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = color;
+          drawShape(ctx, stats.shape, stats.radius);
+          ctx.fill();
+        }
       }
       ctx.restore();
 
@@ -344,9 +371,16 @@ export class Renderer {
     ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
     ctx.fillStyle = valid ? 'rgba(88, 214, 141, 0.2)' : 'rgba(255, 85, 102, 0.2)';
     ctx.lineWidth = 2;
-    drawShape(ctx, stats.shape, stats.radius);
-    ctx.fill();
-    ctx.stroke();
+    if (PUPPETS[uiState.selected]) {
+      drawPuppet(ctx, uiState.selected, 'idle', 0, PALETTES[0]);
+      ctx.beginPath();
+      ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      drawShape(ctx, stats.shape, stats.radius);
+      ctx.fill();
+      ctx.stroke();
+    }
     // range indicator
     if (stats.range > 40) {
       ctx.globalAlpha = 0.15;
