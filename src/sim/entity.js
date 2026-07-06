@@ -2,6 +2,11 @@ import { CONFIG } from '../config.js';
 
 export function spawnUnit(game, team, type, x, y) {
   const s = game.ustat(team, type);
+  // A footprint bigger than 1x1 (grid cells) makes the unit physically larger:
+  // its collision/separation radius grows to span the cells. 1x1 keeps the
+  // unit's own base radius (backwards-compatible with every existing unit).
+  const cells = Math.max(s.cw || 1, s.ch || 1);
+  const radius = cells > 1 ? (cells * CONFIG.GRID) / 2 : s.radius;
   const e = {
     id: game.nextId++,
     team, type,
@@ -22,7 +27,7 @@ export function spawnUnit(game, team, type, x, y) {
     manaMax: s.caster ? (s.mana || 0) : 0,
     targetId: null,
     state: 'march',
-    radius: s.radius,
+    radius,
     armor: s.armor,
     isAir: !!s.isAir,
   };

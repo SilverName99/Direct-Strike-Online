@@ -66,13 +66,15 @@ că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 
 Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 
-- **⚙ stats pe fiecare unitate/clădire** (în pagina de sprites): pentru **unități** — nume, dimensiune
-  (Size %), cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Pentru **clădiri**
-  — nume, dimensiune, footprint (**lățime × înălțime** în celule de grid), viteza animației idle (cât de
-  repede alternează idle 1↔2), cost, HP, cap, rază/damage/venit. Entitățile care trag (unități la distanță
-  și turnul inițial / Tower) au în plus **Proiectil (%)** — dimensiunea proiectilului. **Atât unitățile cât și clădirile sunt
-  per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi). La plasare, footprint-ul
-  apare colorat pe pătrățelele din grid, cu imaginea de idle 1 a clădirii pe cursor.
+- **⚙ stats pe fiecare unitate/clădire** (în pagina de sprites): un panou grupat pe secțiuni
+  (**General / Luptă / Ranged & Bounce / Caster & Abilități**). Pentru **unități** — nume, dimensiune
+  (Size %), **footprint** (**lățime × înălțime** în celule de grid — cât spațiu ocupă fizic, ca la clădiri),
+  cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Pentru **clădiri** — nume,
+  dimensiune, footprint (lățime × înălțime), viteza animației idle (cât de repede alternează idle 1↔2),
+  cost, HP, cap, rază/damage/venit. Entitățile care trag (unități la distanță și turnul inițial / Tower)
+  au în plus **Proiectil (%)** — dimensiunea proiectilului. **Atât unitățile cât și clădirile sunt
+  per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi). La plasarea clădirilor,
+  footprint-ul apare colorat pe pătrățelele din grid, cu imaginea de idle 1 pe cursor.
 - **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
   de tier), **colorarea echipelor** („ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
   colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt lovite").

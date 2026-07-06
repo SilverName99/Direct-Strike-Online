@@ -77,6 +77,7 @@ function baseUnits() {
     const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     t[id] = {
       ...u, size: 1, projSize: 1,
+      cw: 1, ch: 1, // footprint in grid cells (drives the unit's physical size)
       ranged: !!u.projectile, projectile: !!u.projectile, // fires a projectile on basic attack
       projSpeed: ps, projectileSpeed: ps,
       bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3, // projectile cleaves up to bounceMax nearby enemies at bouncePower%
@@ -140,7 +141,7 @@ function raceUnitsSnapshot(race) {
   const out = {};
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
     out[id] = {
-      name: u.name, size: u.size, projSize: u.projSize,
+      name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch,
       ranged: !!u.ranged, projSpeed: u.projSpeed,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
@@ -233,6 +234,8 @@ function applyRaceUnits(race, unitsData) {
     if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
     if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
     if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
+    if (num(vals.cw) !== undefined) u.cw = Math.round(clamp(vals.cw, 1, 20));
+    if (num(vals.ch) !== undefined) u.ch = Math.round(clamp(vals.ch, 1, 20));
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
     if (typeof vals.ranged === 'boolean') u.ranged = vals.ranged;
@@ -304,7 +307,7 @@ export function resetRaceUnit(race, id) {
   const u = UNITS[id];
   const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
   resolvedUnits[race][id] = {
-    ...u, size: 1, projSize: 1,
+    ...u, size: 1, projSize: 1, cw: 1, ch: 1,
     ranged: !!u.projectile, projectile: !!u.projectile, projSpeed: ps, projectileSpeed: ps,
     bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
     caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,

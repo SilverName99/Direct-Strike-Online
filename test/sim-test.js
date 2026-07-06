@@ -479,6 +479,17 @@ console.log('abilities (casters, auras, status effects)');
     check('bounceMax caps the number of cleaved enemies', closeDmg > 0 && farDmg === 0, `close=${closeDmg} far=${farDmg}`);
   }
 
+  // Footprint: a unit's cw/ch (grid cells) drives its physical radius; 1x1
+  // keeps the unit's base radius
+  {
+    applyBalance({ races: { humans: { units: { grunt: { cw: 2, ch: 2 } } } } });
+    const big = spawnUnit(new Game(3, { races: ['humans', 'orcs'] }), 0, 'grunt', 600, 300);
+    check('footprint > 1x1 grows the unit radius', big.radius === CONFIG.GRID, `r=${big.radius}`); // 2*40/2
+    applyBalance({}); // back to defaults (1x1)
+    const base = spawnUnit(new Game(3, { races: ['humans', 'orcs'] }), 0, 'grunt', 600, 300);
+    check('1x1 footprint keeps the base radius', base.radius === UNITS.grunt.radius, `r=${base.radius}`);
+  }
+
   // cast priority: while mid-cast a caster does not also auto-attack
   {
     applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 50 } } } } });
