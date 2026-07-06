@@ -254,7 +254,7 @@ export function updateProjectiles(game, dt) {
     const step = speed * dt;
 
     if (d <= Math.max(step, CONFIG.PROJECTILE_HIT_DIST)) {
-      impact(game, p, target);
+      if (impact(game, p, target)) alive.push(p); // kept = it ricocheted onward
       continue;
     }
     p.x += (dx / d) * step;
@@ -293,25 +293,33 @@ function impact(game, p, target) {
       if (spec.atkSlow) applyEffect(target, 'atkslow', spec.atkSlow, until, game.time);
       game.events.push({ type: 'abilityHit', ability: p.ability, x: p.tx, y: p.ty });
     }
-    // "Bounce": the boomerang cleaves up to bounceMax other enemy units near
-    // the focused target for a fraction (bouncePower%) of the hit's damage.
-    // Pick the nearest ones, deterministically (distance, then id).
-    if (p.bounce && p.bouncePower > 0 && p.bounceRadius > 0 && p.bounceMax > 0) {
-      const dmg = p.damage * (p.bouncePower / 100);
+    // "Bounce": ricochet the projectile to the nearest not-yet-hit enemy in
+    // range (same air/ground plane), so it visibly flies to the next character
+    // and deals bounceDamage (bouncePower% of the original) there.
+    if (p.bounce && p.bounceLeft > 0 && p.bounceRadius > 0 && p.bounceDamage > 0) {
+      if (!p.bounceHit) p.bounceHit = new Set();
+      p.bounceHit.add(target.id);
       const r2 = p.bounceRadius * p.bounceRadius;
-      const cands = [];
+      let next = null;
+      let bestD = Infinity;
       for (const e of game.entities) {
-        if (e === target || e.team === p.team || e.hp <= 0) continue;
-        if (e.isAir !== target.isAir) continue; // bounce stays on the target's plane
+        if (e.team === p.team || e.hp <= 0 || p.bounceHit.has(e.id)) continue;
+        if (e.isAir !== target.isAir) continue; // ricochet stays on the target's plane
         const dx = e.x - target.x;
         const dy = e.y - target.y;
         const d2 = dx * dx + dy * dy;
-        if (d2 <= r2) cands.push({ e, d2 });
+        if (d2 <= r2 && (d2 < bestD || (d2 === bestD && e.id < next.id))) { bestD = d2; next = e; }
       }
-      cands.sort((a, b) => a.d2 - b.d2 || a.e.id - b.e.id);
-      const n = Math.min(cands.length, p.bounceMax);
-      for (let i = 0; i < n; i++) applyDamage(game, cands[i].e, dmg, p.dmgType);
-      if (n > 0) game.events.push({ type: 'bounce', x: target.x, y: target.y, radius: p.bounceRadius, team: p.team });
+      if (next) {
+        p.bounceLeft--;
+        p.damage = p.bounceDamage;   // ricochets deal bouncePower% of the original
+        p.targetId = next.id;
+        p.tx = next.x; p.ty = next.y;
+        p.x = target.x; p.y = target.y; // launch from the character just hit
+        p.prevX = p.x; p.prevY = p.y;
+        return true; // keep the projectile alive so it flies to `next`
+      }
     }
   }
+  return false;
 }

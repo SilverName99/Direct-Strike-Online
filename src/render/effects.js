@@ -40,11 +40,6 @@ export class Effects {
         case 'explosion':
           this.burst(e.x, e.y, 14, '#ffb347', 180, 0.4, 3.5);
           break;
-        case 'bounce':
-          // cleave ring over the splash area + a few chips
-          this.rings.push({ x: e.x, y: e.y, r0: 6, r1: e.radius || 60, life: 0.28, maxLife: 0.28, color: '#ffd9a0' });
-          this.burst(e.x, e.y, 6, '#ffd9a0', 90, 0.3, 2);
-          break;
         case 'structureDestroyed':
           this.burst(e.x, e.y, 26, '#ffb347', 240, 0.7, 4.5);
           this.burst(e.x, e.y, 12, TEAM_COLORS[e.team], 160, 0.9, 3);

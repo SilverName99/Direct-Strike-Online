@@ -178,18 +178,31 @@ export class Input {
   placePoint(p, selected) {
     if (!this.uiState.gridOn) return p;
     const game = this.getGame();
-    const bs = game && CONFIG.BUILDINGS[selected] ? game.bstat(0, selected) : null;
-    return snapToZone(zoneFor(selected), p.x, p.y, bs ? bs.cw : 1, bs ? bs.ch : 1);
+    if (!game) return p;
+    // snap by the footprint the ghost uses: buildings AND footprint units, so
+    // the placed position matches exactly where the preview showed it
+    let cw = 1, ch = 1;
+    if (CONFIG.BUILDINGS[selected]) {
+      const bs = game.bstat(0, selected); cw = bs.cw; ch = bs.ch;
+    } else if (UNITS[selected]) {
+      const us = game.ustat(0, selected);
+      cw = us.cw > 1 ? us.cw : 1; ch = us.ch > 1 ? us.ch : 1;
+    }
+    return snapToZone(zoneFor(selected), p.x, p.y, cw, ch);
   }
 
-  // While dragging, keep the template pinned under the cursor (snapped,
-  // clamped to the army zone).
+  // While dragging, keep the template pinned under the cursor (snapped by its
+  // footprint, clamped to the army zone).
   dragTo(x, y) {
     const game = this.getGame();
     if (!game || !this.uiState.drag) return;
     const z = CONFIG.ARMY_ZONE[0];
+    const tpl = game.templates[0][this.uiState.drag.index];
+    const us = tpl ? game.ustat(0, tpl.type) : null;
+    const cw = us && us.cw > 1 ? us.cw : 1;
+    const ch = us && us.ch > 1 ? us.ch : 1;
     let p = { x: clamp(x, z.x0, z.x1), y: clamp(y, z.y0, z.y1) };
-    if (this.uiState.gridOn) p = snapToZone(z, p.x, p.y);
+    if (this.uiState.gridOn) p = snapToZone(z, p.x, p.y, cw, ch);
     game.issueCommand({ type: 'moveUnit', team: 0, index: this.uiState.drag.index, x: p.x, y: p.y });
   }
 

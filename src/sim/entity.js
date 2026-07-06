@@ -94,11 +94,12 @@ export function spawnProjectile(game, source, stats, target) {
     damage: stats.damage,
     dmgType: stats.dmgType,
     splash: stats.splash || 0,
-    // "Bounce": on impact, also cleave up to bounceMax nearby enemies at
-    // bouncePower% damage
+    // "Bounce": on impact the projectile ricochets to the next nearby enemy
+    // (up to bounceLeft more hops), dealing bounceDamage (bouncePower% of the
+    // original) on each ricochet — you see it fly from character to character.
     bounce: !!stats.bounce,
-    bouncePower: stats.bouncePower || 0,
     bounceRadius: stats.bounceRadius || 0,
-    bounceMax: stats.bounceMax || 0,
+    bounceLeft: stats.bounce ? (stats.bounceMax || 0) : 0,
+    bounceDamage: (stats.damage || 0) * ((stats.bouncePower || 0) / 100),
   });
 }

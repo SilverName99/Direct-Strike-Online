@@ -446,8 +446,8 @@ console.log('abilities (casters, auras, status effects)');
     check('ranged flag fires a projectile', shot);
   }
 
-  // Bounce: a ranged unit's projectile also cleaves nearby enemies at
-  // bouncePower% of the hit's damage
+  // Bounce: a ranged unit's projectile ricochets to a nearby enemy for
+  // bouncePower% of the hit's damage (the focused target still takes full)
   {
     applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 50, bounceRadius: 100, bounceMax: 5 } } } } });
     const game = new Game(4, { races: ['humans', 'orcs'] });
@@ -459,24 +459,40 @@ console.log('abilities (casters, auras, status effects)');
     run(game, 2);
     const focusDmg = focus.maxHp - focus.hp;
     const nearDmg = near.maxHp - near.hp;
-    check('bounce cleaves a nearby enemy', nearDmg > 0, `near=${nearDmg}`);
-    check('bounce hits the focused target harder than the bounced one', focusDmg > nearDmg, `focus=${focusDmg} near=${nearDmg}`);
+    check('bounce ricochets to a nearby enemy', nearDmg > 0, `near=${nearDmg}`);
+    check('bounce hits the focused target harder than the ricochet', focusDmg > nearDmg, `focus=${focusDmg} near=${nearDmg}`);
   }
 
-  // Bounce cap: bounceMax limits how many nearby enemies are cleaved (nearest
-  // first); with max 1 only the closer of two in range takes bounce damage
+  // Bounce chain: with 3 enemies in a line and bounceMax 2, the projectile
+  // hops focus -> next -> next (all three take damage)
+  {
+    applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 60, bounceRadius: 60, bounceMax: 2 } } } } });
+    const game = new Game(4, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'slinger', 560, 300);
+    const a = spawnUnit(game, 1, 'grunt', 700, 300);
+    const c2 = spawnUnit(game, 1, 'grunt', 740, 300);
+    const c3 = spawnUnit(game, 1, 'grunt', 780, 300);
+    for (const g of [a, c2, c3]) { g.hp = g.maxHp = 100000; }
+    run(game, 2);
+    check('bounce chains through a line of enemies',
+      a.hp < a.maxHp && c2.hp < c2.maxHp && c3.hp < c3.maxHp,
+      `a=${a.maxHp - a.hp} c2=${c2.maxHp - c2.hp} c3=${c3.maxHp - c3.hp}`);
+  }
+
+  // Bounce cap: bounceMax limits how many ricochets happen (nearest first);
+  // with max 1 only the closer of two in range takes ricochet damage
   {
     applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 50, bounceRadius: 200, bounceMax: 1 } } } } });
     const game = new Game(4, { races: ['humans', 'orcs'] });
     spawnUnit(game, 0, 'slinger', 560, 300);
     const focus = spawnUnit(game, 1, 'grunt', 700, 300); // nearest to shooter -> focused
-    const close = spawnUnit(game, 1, 'grunt', 718, 300); // nearest to focus -> gets the single bounce
+    const close = spawnUnit(game, 1, 'grunt', 718, 300); // nearest to focus -> gets the single ricochet
     const far = spawnUnit(game, 1, 'grunt', 700, 460);   // also within bounce radius of focus, but farther
     for (const g of [focus, close, far]) { g.hp = g.maxHp = 100000; }
     run(game, 1.2);
     const closeDmg = close.maxHp - close.hp;
     const farDmg = far.maxHp - far.hp;
-    check('bounceMax caps the number of cleaved enemies', closeDmg > 0 && farDmg === 0, `close=${closeDmg} far=${farDmg}`);
+    check('bounceMax caps the number of ricochets', closeDmg > 0 && farDmg === 0, `close=${closeDmg} far=${farDmg}`);
   }
 
   // Footprint: a unit's cw/ch (grid cells) drives its physical radius; 1x1
