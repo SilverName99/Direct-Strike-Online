@@ -820,6 +820,42 @@ console.log('abilities (casters, auras, status effects)');
       ord2[0] === 'grunt' && ord2.length === Object.keys(UNITS).length);
   }
 
+  // Turret HP regen (per-race stat)
+  {
+    applyBalance({ races: { humans: { buildings: { turret: { regen: 50 } } } } });
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    const t = game.structures.find((s) => s.kind === 'turret' && s.team === 0);
+    t.hp = t.maxHp - 300;
+    run(game, 2);
+    check('turret regenerates HP at the configured rate', t.hp > t.maxHp - 250, `hp=${Math.round(t.hp)}`);
+    const t1 = game.structures.find((s) => s.kind === 'turret' && s.team === 1);
+    t1.hp = t1.maxHp - 300;
+    run(game, 2);
+    check('other race turret (regen 0) does not regenerate', t1.hp === t1.maxHp - 300);
+  }
+
+  // Mid-field income: extra gold per 20s while a unit sits past the middle
+  {
+    applyBalance({ general: { MID_INCOME: 100 } });
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    check('no units past middle -> no mid bonus', game.midBonusPerTick(0) === 0);
+    spawnUnit(game, 0, 'grunt', CONFIG.FIELD_W / 2 + 50, 300); // past midfield
+    check('unit past middle grants the mid bonus (per-20s slice)',
+      game.midBonusPerTick(0) === Math.round(100 * CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
+    check('enemy without units past middle gets nothing', game.midBonusPerTick(1) === 0);
+  }
+
+  // Turret kill bounty: destroying the mid turret pays ITS race's bounty
+  {
+    applyBalance({ races: { orcs: { buildings: { turret: { bounty: 250 } } } } });
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    const t1 = game.structures.find((s) => s.kind === 'turret' && s.team === 1); // orcs turret
+    const before = game.money[0];
+    t1.hp = 0;
+    game.update(DT); game.drainEvents();
+    check('destroying the enemy turret pays its bounty', game.money[0] === before + 250, `money=${game.money[0]}`);
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 

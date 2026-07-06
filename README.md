@@ -84,9 +84,16 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
   tot din ⚙ stats, iar jocul îl respectă (o unitate retiered la T1 e disponibilă din start). Cu **▲▼**
   de lângă fiecare unitate **reordonezi roster-ul** — **per rasă** (Humans și Orcs independent); ordinea
   se salvează și apare la fel în shop-ul din joc pentru rasa respectivă.
-- **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
-  de tier), **colorarea echipelor** („ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
-  colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt lovite").
+- **⚙ Balance** (tab separat): reguli generale (bani, venit — în **aur per 20 secunde**, interval wave,
+  cap-uri, refund-uri, costuri de tier), **colorarea echipelor** („ale mele albastre / inamic roșu",
+  „doar inamicul roșu" sau „fără colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt
+  lovite"). **„Extra gold every 20s past middle"**: venit suplimentar cât timp ai unități trecute de
+  mijlocul hărții (0 = dezactivat).
+- **Turnul de mijloc (⚙ stats la turret, per rasă)** are în plus **Regen viață (HP/s)** și **Gold pentru
+  inamic la distrugere** (bounty — cine îl dărâmă primește suma turnului dărâmat). Cap-ul de generatoare
+  („Max buildable") se setează tot din ⚙ stats la generator, per rasă.
+- Personajele se **întorc în direcția în care merg** (o unitate care se retrage sau vine din spate nu mai
+  „merge cu spatele"), iar contorul de aur **crește lin**, continuu.
 - **Background per rasă:** în fiecare tab de rasă poți încărca o imagine de fundal care apare pe toată
   jumătatea acelei rase în joc.
 - **Muzică de fundal per rasă:** lângă Background poți încărca o piesă (mp3 — merge și ogg/m4a, max 12 MB)

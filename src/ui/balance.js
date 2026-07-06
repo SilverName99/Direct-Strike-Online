@@ -43,6 +43,7 @@ export const BUILDING_FIELDS = {
 export const GENERAL_FIELDS = [
   ['START_MONEY', 'Starting money'],
   ['INCOME_BASE', 'Starting gold every 20 seconds'],
+  ['MID_INCOME', 'Extra gold every 20s past middle'],
   ['WAVE_INTERVAL', 'Seconds between waves'],
   ['MAX_TEMPLATES', 'Max placed units per side'],
   ['SELL_REFUND', 'Unit sell refund (0-1)'],
@@ -50,6 +51,7 @@ export const GENERAL_FIELDS = [
 ];
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],
+  ['regen', 'Regen viață (HP/s)'], ['bounty', 'Gold pentru inamic la distrugere'],
 ];
 export const TINT_MODES = ['team', 'enemy', 'none'];
 export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator'];
@@ -194,7 +196,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty'];
 
 function raceUnitsSnapshot(race) {
   const out = {};

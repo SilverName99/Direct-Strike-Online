@@ -83,8 +83,20 @@ export class Game {
     return Math.round(this.incomePer20s(team) * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
   }
 
+  // "Holding the middle": true while this team has a unit past midfield.
+  midHeld(team) {
+    const mid = CONFIG.FIELD_W / 2;
+    return this.entities.some((e) => (team === 0 ? e.x > mid : e.x < mid));
+  }
+
+  // Aggression reward: extra gold (configured per 20s) while past midfield.
+  midBonusPerTick(team) {
+    if (!CONFIG.MID_INCOME || !this.midHeld(team)) return 0;
+    return Math.round(CONFIG.MID_INCOME * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
+  }
+
   incomePerSecond(team) {
-    return this.incomePerTick(team) / CONFIG.INCOME_TICK;
+    return (this.incomePerTick(team) + this.midBonusPerTick(team)) / CONFIG.INCOME_TICK;
   }
 
   tierUpCost(team) {
@@ -255,7 +267,14 @@ export class Game {
     this.incomeTimer += dt;
     while (this.incomeTimer >= CONFIG.INCOME_TICK) {
       this.incomeTimer -= CONFIG.INCOME_TICK;
-      for (const t of [0, 1]) this.money[t] += this.incomePerTick(t);
+      for (const t of [0, 1]) this.money[t] += this.incomePerTick(t) + this.midBonusPerTick(t);
+    }
+
+    // Turret HP regen (per-race stat; 0 = off)
+    for (const s of this.structures) {
+      if (s.kind !== 'turret' || s.hp <= 0 || s.hp >= s.maxHp) continue;
+      const regen = this.bstat(s.team, 'turret').regen || 0;
+      if (regen > 0) s.hp = Math.min(s.maxHp, s.hp + regen * dt);
     }
 
     // Waves
@@ -287,6 +306,12 @@ export class Game {
   removeStructure(s, destroyed) {
     if (destroyed) {
       this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind });
+      // destroying the mid-field turret pays its bounty (the DESTROYED turret's
+      // per-race stat) to the other team
+      if (s.kind === 'turret') {
+        const bounty = this.bstat(s.team, 'turret').bounty || 0;
+        if (bounty > 0) this.money[1 - s.team] += bounty;
+      }
       if (s.kind === 'main' && this.winner === null) {
         s.hp = 0;
         this.winner = 1 - s.team;

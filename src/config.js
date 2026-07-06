@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.31';
+export const VERSION = 'v9.32';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -59,6 +59,8 @@ export const CONFIG = {
     dmgType: 'normal',
     projectileSpeed: 500,
     targetsAir: true,
+    regen: 0,   // HP regenerated per second (0 = none)
+    bounty: 0,  // gold the ENEMY earns for destroying this turret (0 = none)
     idleSpeed: 2, // idle frame flips per second
     name: 'Turret',
   },
@@ -85,6 +87,7 @@ export const CONFIG = {
   INCOME_TICK: 2,     // seconds between income payments (cadence only)
   INCOME_WINDOW: 20,  // seconds the income amounts below are expressed per
   INCOME_BASE: 200,   // starting gold every 20s (= +10/s); generators add on top
+  MID_INCOME: 0,      // extra gold every 20s while you have units past midfield
   SELL_REFUND: 0.75, // units (templates) refund
 
   // Waves

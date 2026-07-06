@@ -309,12 +309,15 @@ export class Hud {
     if (this.displayMoney == null || real <= this.displayMoney) {
       this.displayMoney = real;
     } else {
-      const rate = Math.max(game.incomePerSecond(0), 10);
+      // glide continuously: never slower than the true income rate, with the
+      // backlog eased in exponentially (~0.7s) so income ticks never step
       const gap = real - this.displayMoney;
-      this.displayMoney = Math.min(real, this.displayMoney + Math.max(rate, gap / 2) * dt);
+      const rate = game.incomePerSecond(0) + gap * 1.5;
+      this.displayMoney = Math.min(real, this.displayMoney + rate * dt);
     }
     this.el.money.textContent = Math.floor(this.displayMoney);
-    this.el.income.textContent = `+${game.incomePerSecond(0)}/s · ${gens} gen`;
+    const mid = game.midBonusPerTick(0) > 0 ? ' · +mid' : '';
+    this.el.income.textContent = `+${game.incomePerSecond(0).toFixed(1).replace(/\.0$/, '')}/s · ${gens} gen${mid}`;
     this.el.tier.textContent = `TIER ${'I'.repeat(game.tier[0])}`;
     this.el.waveNum.textContent = game.waveCount + 1;
     this.el.waveTimer.textContent = Math.ceil(game.waveTimer);

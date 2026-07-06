@@ -114,6 +114,25 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
+    this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
+  }
+
+  // Which way a character should face: its live target while fighting, its
+  // horizontal movement while walking, else whatever it faced last (default:
+  // toward the enemy base). Sticky so per-tick jitter can't flip it around.
+  unitFacing(game, u) {
+    let f = this.facing.get(u.id) || (u.team === 0 ? 1 : -1);
+    const target = u.targetId != null ? game.byId.get(u.targetId) : null;
+    if (target && u.state === 'attack') {
+      const dx = target.x - u.x;
+      if (Math.abs(dx) > 2) f = dx < 0 ? -1 : 1;
+    } else {
+      const dx = u.x - u.prevX;
+      if (Math.abs(dx) > 0.2) f = dx < 0 ? -1 : 1;
+    }
+    if (this.facing.size > 4000) this.facing.clear(); // bound the map
+    this.facing.set(u.id, f);
+    return f;
   }
 
   resize() {
@@ -483,8 +502,10 @@ export class Renderer {
       ctx.save();
       ctx.translate(x, y);
       if (hasCharacter(u.type, u.team)) {
-        // character path: side-view sprite/puppet, mirrored to face the enemy
-        if (u.team === 1) ctx.scale(-1, 1);
+        // character path: side-view sprite/puppet, mirrored to face where it is
+        // GOING (or its target) — a unit walking back toward its own base flips
+        // around instead of moonwalking. Sticky per-unit so jitter can't flap it.
+        if (this.unitFacing(game, u) < 0) ctx.scale(-1, 1);
         let anim;
         let frame;
         const isCaster = rstats.caster;
