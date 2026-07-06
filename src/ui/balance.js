@@ -68,6 +68,26 @@ export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall'];
 // tower.
 const resolvedUnits = {};
 const resolvedBuildings = {};
+
+// Shop display order for units (global — both races share the roster). The
+// admin reorders these and the game's shop iterates this order.
+const DEFAULT_UNIT_ORDER = Object.keys(UNITS);
+let unitOrder = [...DEFAULT_UNIT_ORDER];
+
+// Sanitize an order: keep only known ids (no dups), then append any missing
+// ones so a newly added unit always still shows up.
+function sanitizeOrder(arr) {
+  const seen = new Set();
+  const out = [];
+  if (Array.isArray(arr)) {
+    for (const id of arr) if (UNITS[id] && !seen.has(id)) { seen.add(id); out.push(id); }
+  }
+  for (const id of DEFAULT_UNIT_ORDER) if (!seen.has(id)) out.push(id);
+  return out;
+}
+export function resolvedUnitOrder() { return [...unitOrder]; }
+export function setUnitOrder(arr) { unitOrder = sanitizeOrder(arr); }
+
 function baseUnits() {
   const t = {};
   // size = visual scale, projSize = projectile scale (both 1 = 100%);
@@ -178,6 +198,7 @@ function snapshot() {
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
+    unitOrder: [...unitOrder],
     abilities,
     races,
   };
@@ -189,6 +210,8 @@ const DEFAULTS = snapshot();
 export function applyBalance(data) {
   if (!data || typeof data !== 'object') return;
   rebuildResolved(); // reset to base, then layer overrides on top
+  unitOrder = [...DEFAULT_UNIT_ORDER];
+  if (data.unitOrder) setUnitOrder(data.unitOrder);
 
   // ---- global rules (truly shared: economy, waves, tint, tier costs) ----
   for (const [f] of GENERAL_FIELDS) {

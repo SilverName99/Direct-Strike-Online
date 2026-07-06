@@ -10,7 +10,7 @@ import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
 import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
   FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
-  resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance,
+  resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance, setUnitOrder,
 } from './balance.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -72,6 +72,14 @@ style.textContent = `
   .sm-note { font-size: 11px; color: #8393a8; margin: 4px 0 0; line-height: 1.45; }
   .sm-cell select:disabled, .sm-cell input:disabled { opacity: 0.32; }
   .sm-check input:disabled + span { opacity: 0.4; }
+  .ent-move { display: inline-flex; gap: 4px; margin-left: 10px; vertical-align: middle; }
+  .ent-move button { width: 27px; height: 22px; padding: 0; font-size: 11px; line-height: 1; cursor: pointer;
+    background: #10151d; color: #9fb4d6; border: 1px solid #2a3446; border-radius: 6px; }
+  .ent-move button:hover { background: #1b2431; color: #dbe4f0; }
+  @keyframes ds-saved { from { box-shadow: 0 0 0 2px #58d68d inset; } to { box-shadow: none; } }
+  @keyframes ds-saveerr { from { box-shadow: 0 0 0 2px #ff8090 inset; } to { box-shadow: none; } }
+  .ent.saved { animation: ds-saved 0.9s ease-out; }
+  .ent.saveerr { animation: ds-saveerr 0.9s ease-out; }
 `;
 document.head.appendChild(style);
 
@@ -368,10 +376,48 @@ function refreshNames() {
   }
 }
 
+// ---- unit reorder (▲▼) — persists the shop display order to balance.json ----
+function unitEnts() { return [...document.querySelectorAll('.ent[data-kind="unit"]')]; }
+
+function persistOrder(ent) {
+  setUnitOrder(unitEnts().map((e) => e.id));
+  saveBalance('save-balance.php').then((res) => {
+    if (!ent) return;
+    ent.classList.remove('saved', 'saveerr');
+    void ent.offsetWidth; // restart the flash
+    ent.classList.add(res === 'ok' ? 'saved' : 'saveerr');
+  });
+}
+
+function moveEnt(ent, dir) {
+  const sib = dir < 0 ? ent.previousElementSibling : ent.nextElementSibling;
+  if (!sib || sib.dataset.kind !== 'unit') return; // stay within the unit list
+  if (dir < 0) ent.parentNode.insertBefore(ent, sib);
+  else ent.parentNode.insertBefore(sib, ent);
+  ent.scrollIntoView({ block: 'nearest' });
+  persistOrder(ent);
+}
+
+function wireReorder() {
+  for (const ent of unitEnts()) {
+    const title = ent.querySelector('.title');
+    if (!title || title.querySelector('.ent-move')) continue;
+    const box = document.createElement('span');
+    box.className = 'ent-move';
+    box.innerHTML = '<button type="button" data-d="-1" title="Mută mai sus">▲</button>'
+      + '<button type="button" data-d="1" title="Mută mai jos">▼</button>';
+    title.appendChild(box);
+    box.querySelector('[data-d="-1"]').onclick = () => moveEnt(ent, -1);
+    box.querySelector('[data-d="1"]').onclick = () => moveEnt(ent, 1);
+    ent.addEventListener('animationend', () => ent.classList.remove('saved', 'saveerr'));
+  }
+}
+
 // Wire the gears once the saved balance is applied, so saving preserves it.
 loadBalance('../assets/').then(() => {
   for (const g of document.querySelectorAll('.stat-gear')) {
     g.addEventListener('click', () => open(g.dataset.ent, g.dataset.kind));
   }
   refreshNames();
+  wireReorder();
 });

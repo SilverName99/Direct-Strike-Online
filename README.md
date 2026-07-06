@@ -74,7 +74,9 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
   cost, HP, cap, rază/damage/venit. Entitățile care trag (unități la distanță și turnul inițial / Tower)
   au în plus **Proiectil (%)** — dimensiunea proiectilului. **Atât unitățile cât și clădirile sunt
   per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi). La plasarea clădirilor,
-  footprint-ul apare colorat pe pătrățelele din grid, cu imaginea de idle 1 pe cursor.
+  footprint-ul apare colorat pe pătrățelele din grid, cu imaginea de idle 1 pe cursor. Tier-ul îl setezi
+  tot din ⚙ stats, iar jocul îl respectă (o unitate retiered la T1 e disponibilă din start). Cu **▲▼**
+  de lângă fiecare unitate **reordonezi roster-ul** — ordinea se salvează și apare la fel în shop-ul din joc.
 - **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
   de tier), **colorarea echipelor** („ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
   colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt lovite").

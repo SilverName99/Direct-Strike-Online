@@ -43,6 +43,16 @@ function dsBalance(): array {
   }
   return $bal;
 }
+// Units in the admin-defined shop order (falls back to the roster order);
+// unknown/missing ids are dropped/appended so it stays valid.
+function orderedUnits(): array {
+  $saved = dsBalance()['unitOrder'] ?? null;
+  if (!is_array($saved)) return UNIT_LIST;
+  $out = [];
+  foreach ($saved as $id) if (in_array($id, UNIT_LIST, true) && !in_array($id, $out, true)) $out[] = $id;
+  foreach (UNIT_LIST as $id) if (!in_array($id, $out, true)) $out[] = $id;
+  return $out;
+}
 function unitCfg(string $race, string $ent): ?array {
   return dsBalance()['races'][$race]['units'][$ent] ?? null;
 }
@@ -431,7 +441,7 @@ if ($authed && $action === 'deletebg') {
   </div>
 
   <div class="quicknav">
-    <?php foreach (array_merge(UNIT_LIST, BUILDING_LIST) as $e): ?>
+    <?php foreach (array_merge(orderedUnits(), BUILDING_LIST) as $e): ?>
       <a href="#<?= $e ?>"><?= $e ?></a>
     <?php endforeach; ?>
   </div>
@@ -442,7 +452,7 @@ if ($authed && $action === 'deletebg') {
     $done = 0;
     foreach ($slots as $slot => $label) if (is_file("$assetsDir/$race/$ent/$slot.png")) $done++;
     ?>
-    <div class="ent" id="<?= $ent ?>">
+    <div class="ent" id="<?= $ent ?>" data-kind="<?= $kind ?>">
       <div class="title"><b><?= $ent ?></b><span><?= $done ?> / <?= count($slots) ?> imagini</span>
         <button type="button" class="stat-gear" data-ent="<?= $ent ?>" data-kind="<?= $kind ?>" title="Editează statistici">⚙ stats</button>
       </div>
@@ -484,8 +494,8 @@ if ($authed && $action === 'deletebg') {
     </div>
   <?php } ?>
 
-  <h2>Unități — <?= $race ?></h2>
-  <?php foreach (UNIT_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  <h2>Unități — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(▲▼ reordonează — ordinea apare la fel în shop-ul din joc)</span></h2>
+  <?php foreach (orderedUnits() as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
 
   <h2>Clădiri — <?= $race ?> <span style="text-transform:none">(zidurile rămân desenate de joc)</span></h2>
   <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'building'); ?>

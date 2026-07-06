@@ -581,6 +581,21 @@ console.log('abilities (casters, auras, status effects)');
     check('caster sim is deterministic', scripted(99) === scripted(99));
   }
 
+  // shop unit order: admin order applied + sanitized (unknown dropped, missing
+  // appended so the roster stays complete)
+  {
+    const { resolvedUnitOrder } = await import('../src/ui/balance.js');
+    applyBalance({ unitOrder: ['archon', 'grunt'] });
+    const ord = resolvedUnitOrder();
+    check('unit order: admin order comes first', ord[0] === 'archon' && ord[1] === 'grunt');
+    check('unit order: missing ids appended (roster stays complete)',
+      ord.length === Object.keys(UNITS).length && ord.includes('slinger'));
+    applyBalance({ unitOrder: ['nope', 'grunt', 'grunt'] });
+    const ord2 = resolvedUnitOrder();
+    check('unit order: unknown/duplicate ids dropped',
+      ord2[0] === 'grunt' && ord2.length === Object.keys(UNITS).length);
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 

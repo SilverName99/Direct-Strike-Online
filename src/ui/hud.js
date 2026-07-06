@@ -2,7 +2,7 @@ import { CONFIG } from '../config.js';
 import { UNIT_IDS } from '../units.js';
 import { drawShape, TEAM_COLORS } from '../render/renderer.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
-import { statsUnit, statsBuilding, buildingNameOf } from './balance.js';
+import { statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder } from './balance.js';
 import { raceOf } from '../render/sprites.js';
 
 const BUILDING_CARDS = [
@@ -105,8 +105,9 @@ export class Hud {
     shop.appendChild(sep);
 
     // --- units group (shows the player race's resolved stats) -------------
+    // Iterate the admin-defined shop order (falls back to the roster order).
     let hotkey = 1;
-    for (const id of UNIT_IDS) {
+    for (const id of resolvedUnitOrder()) {
       const u = statsUnit(race, id);
       const card = document.createElement('div');
       card.className = 'card';
