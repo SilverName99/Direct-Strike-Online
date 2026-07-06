@@ -490,6 +490,21 @@ console.log('abilities (casters, auras, status effects)');
     check('1x1 footprint keeps the base radius', base.radius === UNITS.grunt.radius, `r=${base.radius}`);
   }
 
+  // Footprint placement: a 2x2 unit occupies its box — overlapping placements
+  // are rejected, clear ones accepted
+  {
+    applyBalance({ races: { humans: { units: { grunt: { cw: 2, ch: 2 } } } } });
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    const x0 = CONFIG.ARMY_ZONE[0].x0 + 40, y0 = 300; // 2x2 box fits the army zone
+    const r1 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: x0, y: y0 });
+    check('2x2 unit placed', r1.ok, JSON.stringify(r1));
+    const r2 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: x0 + 50, y: y0 });
+    check('2x2 unit rejects an overlapping placement', !r2.ok && r2.reason === 'zone');
+    const r3 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: x0, y: y0 + 90 });
+    check('2x2 unit placed clear of the first', r3.ok, JSON.stringify(r3));
+    applyBalance({});
+  }
+
   // cast priority: while mid-cast a caster does not also auto-attack
   {
     applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 50 } } } } });

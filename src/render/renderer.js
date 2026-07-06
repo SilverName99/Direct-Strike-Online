@@ -621,21 +621,27 @@ export class Renderer {
     if (uiState.mouseX == null) return;
 
     const isBuilding = !!CONFIG.BUILDINGS[sel];
+    // units also carry a cw×ch footprint (physical size in grid cells)
+    const us = isBuilding ? null : game.ustat(0, sel);
+    const uw = us && us.cw > 1 ? us.cw : 1;
+    const uh = us && us.ch > 1 ? us.ch : 1;
 
-    // grid snap for display, same as the click will use (buildings snap by
-    // their cw×ch footprint)
+    // grid snap for display, same as the click will use (buildings AND
+    // footprint units snap by their cw×ch box)
     let px = uiState.mouseX;
     let py = uiState.mouseY;
     if (uiState.gridOn) {
       const bs = isBuilding ? game.bstat(0, sel) : null;
-      const p = snapToZone(zoneFor(sel), px, py, bs ? bs.cw : 1, bs ? bs.ch : 1);
+      const cw = isBuilding ? bs.cw : uw;
+      const ch = isBuilding ? bs.ch : uh;
+      const p = snapToZone(zoneFor(sel), px, py, cw, ch);
       px = p.x;
       py = p.y;
     }
 
     const valid = isBuilding
       ? game.isValidBuildPlacement(0, sel, px, py)
-      : game.isValidPlacement(0, px, py);
+      : game.isValidPlacement(0, px, py, -1, sel);
 
     ctx.save();
     ctx.translate(px, py);
@@ -667,11 +673,25 @@ export class Renderer {
     }
 
     const stats = UNITS[sel];
+    const hasFootprint = uw > 1 || uh > 1;
+    if (hasFootprint) {
+      // colored footprint cells + box, exactly like a building's placement
+      const g = CONFIG.GRID;
+      const hw = (uw * g) / 2;
+      const hh = (uh * g) / 2;
+      drawFootprintCells(ctx, hw, hh, valid ? '#58d68d' : '#ff5566', 0.22);
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
+      ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+      ctx.globalAlpha = valid ? 0.85 : 0.55;
+    }
     if (hasCharacter(sel)) {
       drawCharacter(ctx, sel, 'idle', 0, 0, sizeOf(raceOf(0), sel));
-      ctx.beginPath();
-      ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
-      ctx.stroke();
+      if (!hasFootprint) {
+        ctx.beginPath();
+        ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     } else {
       drawShape(ctx, stats.shape, stats.radius);
       ctx.fill();

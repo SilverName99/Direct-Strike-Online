@@ -89,13 +89,39 @@ export class Game {
     return x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1;
   }
 
-  // Unit templates go in the army strip, spaced apart.
-  isValidPlacement(team, x, y, ignoreIndex = -1) {
-    if (!this.inZone(CONFIG.ARMY_ZONE[team], x, y)) return false;
+  // Unit templates go in the army strip, spaced apart. A unit with a footprint
+  // bigger than 1x1 (cw/ch grid cells) occupies that whole box: it must fit the
+  // zone and not overlap another template's box. Plain 1x1 units keep the old
+  // tight min-dist packing so formations stay dense.
+  footprintHalf(team, unitId) {
+    const g = CONFIG.GRID;
+    const us = unitId ? this.ustat(team, unitId) : null;
+    const cw = us && us.cw > 1 ? us.cw : 0;
+    const ch = us && us.ch > 1 ? us.ch : 0;
+    return { hw: cw ? (cw * g) / 2 : 0, hh: ch ? (ch * g) / 2 : 0 };
+  }
+
+  isValidPlacement(team, x, y, ignoreIndex = -1, unitId = null) {
+    const zone = CONFIG.ARMY_ZONE[team];
+    const { hw, hh } = this.footprintHalf(team, unitId);
+    // the footprint (a point for 1x1 units) must sit inside the army zone
+    if (x - hw < zone.x0 || x + hw > zone.x1 || y - hh < zone.y0 || y + hh > zone.y1) return false;
     const min = CONFIG.TEMPLATE_MIN_DIST;
-    return !this.templates[team].some(
-      (tpl, i) => i !== ignoreIndex && (tpl.x - x) ** 2 + (tpl.y - y) ** 2 < min * min
-    );
+    for (let i = 0; i < this.templates[team].length; i++) {
+      if (i === ignoreIndex) continue;
+      const tpl = this.templates[team][i];
+      const t = this.footprintHalf(team, tpl.type);
+      if (hw || hh || t.hw || t.hh) {
+        // box separation when either unit has a real footprint (1x1 uses a
+        // half-min-dist box so it can't sit on top of a big unit)
+        const ahw = hw || min / 2, ahh = hh || min / 2;
+        const bhw = t.hw || min / 2, bhh = t.hh || min / 2;
+        if (Math.abs(tpl.x - x) < ahw + bhw && Math.abs(tpl.y - y) < ahh + bhh) return false;
+      } else if ((tpl.x - x) ** 2 + (tpl.y - y) ** 2 < min * min) {
+        return false; // both plain 1x1: original tight circle packing
+      }
+    }
+    return true;
   }
 
   // Buildings go in the construction zone, without overlapping structures.
@@ -128,7 +154,7 @@ export class Game {
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.templates[cmd.team].length >= CONFIG.MAX_TEMPLATES)
         return { ok: false, reason: 'template-cap' };
-      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y))
+      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y, -1, cmd.unitId))
         return { ok: false, reason: 'zone' };
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
@@ -139,7 +165,7 @@ export class Game {
     if (cmd.type === 'moveUnit') {
       const tpl = this.templates[cmd.team][cmd.index];
       if (!tpl) return { ok: false, reason: 'unknown-template' };
-      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y, cmd.index))
+      if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y, cmd.index, tpl.type))
         return { ok: false, reason: 'zone' };
       tpl.x = cmd.x;
       tpl.y = cmd.y;
