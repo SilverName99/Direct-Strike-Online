@@ -293,23 +293,25 @@ function impact(game, p, target) {
       if (spec.atkSlow) applyEffect(target, 'atkslow', spec.atkSlow, until, game.time);
       game.events.push({ type: 'abilityHit', ability: p.ability, x: p.tx, y: p.ty });
     }
-    // "Bounce": the boomerang cleaves other enemy units near the focused
-    // target for a fraction (bouncePower%) of the hit's damage
-    if (p.bounce && p.bouncePower > 0 && p.bounceRadius > 0) {
+    // "Bounce": the boomerang cleaves up to bounceMax other enemy units near
+    // the focused target for a fraction (bouncePower%) of the hit's damage.
+    // Pick the nearest ones, deterministically (distance, then id).
+    if (p.bounce && p.bouncePower > 0 && p.bounceRadius > 0 && p.bounceMax > 0) {
       const dmg = p.damage * (p.bouncePower / 100);
       const r2 = p.bounceRadius * p.bounceRadius;
-      let hit = false;
+      const cands = [];
       for (const e of game.entities) {
         if (e === target || e.team === p.team || e.hp <= 0) continue;
         if (e.isAir !== target.isAir) continue; // bounce stays on the target's plane
         const dx = e.x - target.x;
         const dy = e.y - target.y;
-        if (dx * dx + dy * dy <= r2) {
-          applyDamage(game, e, dmg, p.dmgType);
-          hit = true;
-        }
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= r2) cands.push({ e, d2 });
       }
-      if (hit) game.events.push({ type: 'bounce', x: target.x, y: target.y, radius: p.bounceRadius, team: p.team });
+      cands.sort((a, b) => a.d2 - b.d2 || a.e.id - b.e.id);
+      const n = Math.min(cands.length, p.bounceMax);
+      for (let i = 0; i < n; i++) applyDamage(game, cands[i].e, dmg, p.dmgType);
+      if (n > 0) game.events.push({ type: 'bounce', x: target.x, y: target.y, radius: p.bounceRadius, team: p.team });
     }
   }
 }

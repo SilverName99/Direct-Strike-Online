@@ -449,7 +449,7 @@ console.log('abilities (casters, auras, status effects)');
   // Bounce: a ranged unit's projectile also cleaves nearby enemies at
   // bouncePower% of the hit's damage
   {
-    applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 50, bounceRadius: 100 } } } } });
+    applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 50, bounceRadius: 100, bounceMax: 5 } } } } });
     const game = new Game(4, { races: ['humans', 'orcs'] });
     spawnUnit(game, 0, 'slinger', 600, 300);
     const focus = spawnUnit(game, 1, 'grunt', 700, 300); // nearest -> focused
@@ -461,6 +461,22 @@ console.log('abilities (casters, auras, status effects)');
     const nearDmg = near.maxHp - near.hp;
     check('bounce cleaves a nearby enemy', nearDmg > 0, `near=${nearDmg}`);
     check('bounce hits the focused target harder than the bounced one', focusDmg > nearDmg, `focus=${focusDmg} near=${nearDmg}`);
+  }
+
+  // Bounce cap: bounceMax limits how many nearby enemies are cleaved (nearest
+  // first); with max 1 only the closer of two in range takes bounce damage
+  {
+    applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 50, bounceRadius: 200, bounceMax: 1 } } } } });
+    const game = new Game(4, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'slinger', 560, 300);
+    const focus = spawnUnit(game, 1, 'grunt', 700, 300); // nearest to shooter -> focused
+    const close = spawnUnit(game, 1, 'grunt', 718, 300); // nearest to focus -> gets the single bounce
+    const far = spawnUnit(game, 1, 'grunt', 700, 460);   // also within bounce radius of focus, but farther
+    for (const g of [focus, close, far]) { g.hp = g.maxHp = 100000; }
+    run(game, 1.2);
+    const closeDmg = close.maxHp - close.hp;
+    const farDmg = far.maxHp - far.hp;
+    check('bounceMax caps the number of cleaved enemies', closeDmg > 0 && farDmg === 0, `close=${closeDmg} far=${farDmg}`);
   }
 
   // cast priority: while mid-cast a caster does not also auto-attack

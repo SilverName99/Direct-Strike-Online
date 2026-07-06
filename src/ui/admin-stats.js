@@ -131,6 +131,11 @@ function fieldsFor(ent, kind) {
       value: Math.round(u.bounceRadius ?? 80),
       apply: (v) => { u.bounceRadius = clamp(v, 10, 600); },
     });
+    out.push({
+      label: 'Bounce ținte', type: 'num', cls: 'bounce-field', disabled: !u.ranged || !u.bounce,
+      value: Math.round(u.bounceMax ?? 3),
+      apply: (v) => { u.bounceMax = Math.round(clamp(v, 1, 50)); },
+    });
     // let a caster keep its basic attack between spells (off = pure caster)
     out.push({
       label: 'Auto attacks between spells', type: 'check', cls: 'ab-sel', disabled: !u.caster,
