@@ -126,6 +126,25 @@ function castActive(game, caster, aid, ab, time) {
   const p = ab.params;
   if (p.manaCost > 0 && caster.mana < p.manaCost) return; // not enough mana
 
+  if (aid === 'heal') {
+    // most-wounded ally in range (excluding self), stable iteration order
+    let best = null;
+    let bestRatio = 1;
+    for (const u of game.entities) {
+      if (u === caster || u.team !== caster.team || u.hp <= 0) continue;
+      if (u.hp >= u.maxHp || !inRadius(u, caster, p.range)) continue;
+      const ratio = u.hp / u.maxHp;
+      if (ratio < bestRatio) { bestRatio = ratio; best = u; }
+    }
+    if (!best) return;
+    best.hp = Math.min(best.maxHp, best.hp + p.amount);
+    caster.abilityCd[aid] = time + p.cooldown;
+    caster.mana -= p.manaCost || 0;
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: best.x, y: best.y });
+    game.events.push({ type: 'heal', x: best.x, y: best.y });
+    return;
+  }
+
   if (aid === 'dispell') {
     // trigger: an ally in range carries a debuff, or an enemy carries a buff
     let target = null;

@@ -24,11 +24,12 @@ const ARMED_BUILDINGS = ['turret', 'tower'];
 // ability catalog (mirrors src/abilities.js): id => [name, has cast animation]
 // — auras are passive, so they take no cast frames
 const ABILITY_INFO = [
-  'dispell' => ['Dispell', true],
-  'slowaura' => ['Aură de încetinire', false],
-  'hasteaura' => ['Aură de grabă', false],
-  'regenaura' => ['Aură de regenerare', false],
-  'frostbolt' => ['Săgeată de gheață', true],
+  'heal' => ['Heal', true],
+  'dispell' => ['Dispel', true],
+  'slowaura' => ['Slow Aura', false],
+  'hasteaura' => ['Haste Aura', false],
+  'regenaura' => ['Regeneration Aura', false],
+  'frostbolt' => ['Frost Bolt', true],
 ];
 
 // Which abilities a unit has selected (per race) — read from the saved

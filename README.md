@@ -88,8 +88,9 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 **Regen mană (/s)** și îi alegi până la **5 abilități** din catalog. Abilitățile se aruncă singure
 (auto-cast) — nu ai nimic de apăsat în meci; casterii au bară albastră de mana sub cea de viață.
 
-- **Catalogul** (comun ambelor rase) se balansează din **✨ Abilități** (lângă ⚙ Balance): Dispell,
-  Aură de încetinire, Aură de grabă, Aură de regenerare, Săgeată de gheață — fiecare cu cooldown,
+- **Catalogul** (comun ambelor rase, denumiri în engleză) se balansează din **✨ Abilități** (lângă
+  ⚙ Balance): **Heal** (cast simplu — cheltuie mană ca să vindece instant aliatul cel mai rănit),
+  **Dispel**, **Slow Aura**, **Haste Aura**, **Regeneration Aura**, **Frost Bolt** — fiecare cu cooldown,
   cost de mană (la aure: drenaj/s), raze, procente, durate. Fiecare abilitate are un **preview live**
   al efectului vizual (același desen procedural ca în joc), ca să vezi cum arată înainte s-o folosești.
 - **Aurele** sunt pasive: cerc de rune rotitor sub caster + inel discret cu raza reală; unitățile

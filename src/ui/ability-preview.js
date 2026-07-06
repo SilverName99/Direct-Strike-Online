@@ -93,6 +93,18 @@ function makeScene(canvas, id) {
         }
         if (id === 'regenaura' && Math.random() < dt * 6) burst(xs[(Math.random() * 2) | 0], cy, 1, '#58d68d', 20, 0.6, 1.6, -30);
         figure(cx, cy, color);
+      } else if (id === 'heal') {
+        const cx = W * 0.26, cy = H * 0.55;
+        const tx = W * 0.7, ty = H * 0.5;
+        s.castTimer -= dt;
+        if (s.castTimer <= 0) {
+          s.castTimer = 1.2;
+          s.rings.push({ x: tx, y: ty, r0: 4, r1: 24, life: 0.4, maxLife: 0.4, color });
+          burst(tx, ty, 8, color, 40, 0.6, 1.8, -45);
+        }
+        drawFx();
+        figure(cx, cy, color);
+        figure(tx, ty, ally);
       } else if (id === 'dispell') {
         const cx = W * 0.24, cy = H * 0.55;
         const tx = W * 0.7, ty = H * 0.5;

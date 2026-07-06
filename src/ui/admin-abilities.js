@@ -14,7 +14,7 @@ function render() {
   let html = '';
   for (const [id, base] of Object.entries(ABILITIES)) {
     const ab = resolvedAbility(id);
-    const kindLabel = base.kind === 'aura' ? 'aură (pasivă)' : 'activă (auto-cast)';
+    const kindLabel = base.kind === 'aura' ? 'aura (passive)' : 'active (auto-cast)';
     html += `<div class="group">
       <div class="ab-head">
         <div class="ab-info">

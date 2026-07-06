@@ -1,7 +1,7 @@
 // Ability catalog — the single source of truth for every castable ability.
 // GLOBAL (shared by both races); which units *have* them is per-race unit
 // config (the "Caster" checkbox + selection in the admin stats editor).
-// Params are balanced from the admin "Abilități" page and stored in
+// Params are balanced from the admin "Abilities" page and stored in
 // assets/balance.json under `abilities`.
 //
 // kind: 'aura'   — passive; while the caster lives it keeps refreshing a
@@ -10,14 +10,27 @@
 //                  (plays the unit's uploaded cast frames, if any).
 //
 // Ability ids must stay lowercase-alphanumeric: they become sprite slot
-// names (cast-<id>_0.png) and balance keys.
+// names (cast-<id>_0.png) and balance keys — do NOT rename existing ids or
+// saved caster selections break.
 
 export const ABILITIES = {
+  heal: {
+    name: 'Heal',
+    kind: 'active',
+    color: '#5be0a0',
+    desc: 'Spends mana to instantly heal the most-wounded nearby ally.',
+    params: {
+      cooldown: 3,   // seconds between casts
+      manaCost: 25,  // mana per cast
+      range: 160,    // how far the caster can reach an ally
+      amount: 120,   // HP restored per cast
+    },
+  },
   dispell: {
-    name: 'Dispell',
+    name: 'Dispel',
     kind: 'active',
     color: '#ffe9a8',
-    desc: 'Curăță o zonă: aliații pierd efectele negative și devin imuni o vreme; inamicii pierd buff-urile și nu pot primi altele.',
+    desc: 'Cleanses an area: allies lose debuffs and gain brief immunity; enemies lose buffs and cannot gain new ones.',
     params: {
       cooldown: 8,   // seconds between casts
       manaCost: 40,  // mana per cast
@@ -27,10 +40,10 @@ export const ABILITIES = {
     },
   },
   slowaura: {
-    name: 'Aură de încetinire',
+    name: 'Slow Aura',
     kind: 'aura',
     color: '#7fb4ff',
-    desc: 'Inamicii din rază atacă mai încet (aura Shamanului).',
+    desc: 'Enemies in range attack slower (Shaman aura).',
     params: {
       radius: 140,
       atkSlow: 30,  // % slower attacks
@@ -38,10 +51,10 @@ export const ABILITIES = {
     },
   },
   hasteaura: {
-    name: 'Aură de grabă',
+    name: 'Haste Aura',
     kind: 'aura',
     color: '#ffd35c',
-    desc: 'Aliații din rază atacă mai repede.',
+    desc: 'Allies in range attack faster.',
     params: {
       radius: 140,
       haste: 25,   // % faster attacks
@@ -49,10 +62,10 @@ export const ABILITIES = {
     },
   },
   regenaura: {
-    name: 'Aură de regenerare',
+    name: 'Regeneration Aura',
     kind: 'aura',
     color: '#58d68d',
-    desc: 'Aliații din rază se vindecă în timp (aura Priest-ului).',
+    desc: 'Allies in range regenerate health over time (Priest aura).',
     params: {
       radius: 140,
       hps: 5,      // HP healed per second
@@ -60,10 +73,10 @@ export const ABILITIES = {
     },
   },
   frostbolt: {
-    name: 'Săgeată de gheață',
+    name: 'Frost Bolt',
     kind: 'active',
     color: '#8fe3ff',
-    desc: 'Proiectil care rănește ținta și îi încetinește mișcarea și atacul pentru o durată.',
+    desc: 'A projectile that damages the target and slows its movement and attacks for a duration.',
     params: {
       cooldown: 6,
       manaCost: 30,        // mana per cast
@@ -80,18 +93,19 @@ export const ABILITIES = {
 export const ABILITY_IDS = Object.keys(ABILITIES);
 export const MAX_ABILITIES = 5; // per caster
 
-// Romanian labels for the editable params (admin "Abilități" page).
+// Labels for the editable params (admin "Abilities" page).
 export const ABILITY_PARAM_LABELS = {
   cooldown: 'Cooldown (s)',
-  manaCost: 'Cost mană (aure: /s)',
-  range: 'Rază de cast',
-  radius: 'Rază de efect',
-  immunity: 'Imunitate (s)',
-  atkSlow: 'Încetinire atac (%)',
-  moveSlow: 'Încetinire mișcare (%)',
-  haste: 'Grabă atac (%)',
-  hps: 'Vindecare (HP/s)',
+  manaCost: 'Mana cost (auras: /s)',
+  range: 'Cast range',
+  radius: 'Effect radius',
+  immunity: 'Immunity (s)',
+  atkSlow: 'Attack slow (%)',
+  moveSlow: 'Move slow (%)',
+  haste: 'Attack haste (%)',
+  hps: 'Regen (HP/s)',
+  amount: 'Heal amount (HP)',
   damage: 'Damage',
-  duration: 'Durată efect (s)',
-  projectileSpeed: 'Viteză proiectil',
+  duration: 'Effect duration (s)',
+  projectileSpeed: 'Projectile speed',
 };

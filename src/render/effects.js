@@ -56,6 +56,10 @@ export class Effects {
           } else if (e.ability === 'frostbolt') {
             // icy muzzle sparkle at the caster
             this.burst(e.x, e.y, 6, color, 90, 0.3, 2);
+          } else if (e.ability === 'heal') {
+            // green motes rising off the healed ally + a soft ring
+            this.rings.push({ x: e.x, y: e.y, r0: 4, r1: 24, life: 0.4, maxLife: 0.4, color });
+            this.burst(e.x, e.y, 8, color, 45, 0.6, 2, -55);
           } else {
             this.burst(e.x, e.y, 6, color, 80, 0.4, 2);
           }

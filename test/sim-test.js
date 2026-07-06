@@ -369,6 +369,17 @@ console.log('abilities (casters, auras, status effects)');
     check('dispell cleanses allies (immunity applied)', !!immune, JSON.stringify(runner.effects));
   }
 
+  // heal: an active caster restores a wounded ally's HP
+  {
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 5 } } } } });
+    const game = new Game(11, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'mender', 600, 300);
+    const wounded = spawnUnit(game, 0, 'grunt', 630, 300);
+    wounded.maxHp = 500; wounded.hp = 100; // hurt ally in range
+    run(game, 2);
+    check('heal restores a wounded ally', wounded.hp > 100, `hp=${wounded.hp}`);
+  }
+
   // mana gates casting: a caster with an empty pool never fires
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 0, manaRegen: 0 } } } } });
