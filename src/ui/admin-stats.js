@@ -116,6 +116,21 @@ function fieldsFor(ent, kind) {
       value: Math.round(u.projSpeed ?? 420),
       apply: (v) => { u.projSpeed = clamp(v, 20, 4000); },
     });
+    // Bounce: the projectile also cleaves nearby enemies (needs Ranged).
+    out.push({
+      label: 'Bounce', type: 'check', cls: 'ranged-field bounce-chk', disabled: !u.ranged,
+      value: !!u.bounce, apply: (v) => { u.bounce = !!v; },
+    });
+    out.push({
+      label: 'Bounce (% putere)', type: 'num', cls: 'bounce-field', disabled: !u.ranged || !u.bounce,
+      value: Math.round(u.bouncePower ?? 50),
+      apply: (v) => { u.bouncePower = clamp(v, 0, 100); },
+    });
+    out.push({
+      label: 'Bounce rază', type: 'num', cls: 'bounce-field', disabled: !u.ranged || !u.bounce,
+      value: Math.round(u.bounceRadius ?? 80),
+      apply: (v) => { u.bounceRadius = clamp(v, 10, 600); },
+    });
     // let a caster keep its basic attack between spells (off = pure caster)
     out.push({
       label: 'Auto attacks between spells', type: 'check', cls: 'ab-sel', disabled: !u.caster,
@@ -248,11 +263,19 @@ function open(ent, kind) {
     });
   }
   const rangedChk = bodyEl.querySelector('.ranged-chk');
+  const bounceChk = bodyEl.querySelector('.bounce-chk');
+  // Bounce %/radius need both Ranged and Bounce checked.
+  const syncBounce = () => {
+    const on = !!(rangedChk && rangedChk.checked) && !!(bounceChk && bounceChk.checked);
+    for (const s of bodyEl.querySelectorAll('.bounce-field')) s.disabled = !on;
+  };
   if (rangedChk) {
     rangedChk.addEventListener('change', () => {
       for (const s of bodyEl.querySelectorAll('.ranged-field')) s.disabled = !rangedChk.checked;
+      syncBounce();
     });
   }
+  if (bounceChk) bounceChk.addEventListener('change', syncBounce);
   modal.classList.add('on');
 }
 

@@ -89,5 +89,9 @@ export function spawnProjectile(game, source, stats, target) {
     damage: stats.damage,
     dmgType: stats.dmgType,
     splash: stats.splash || 0,
+    // "Bounce": on impact, also cleave nearby enemies at bouncePower% damage
+    bounce: !!stats.bounce,
+    bouncePower: stats.bouncePower || 0,
+    bounceRadius: stats.bounceRadius || 0,
   });
 }

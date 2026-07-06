@@ -293,5 +293,23 @@ function impact(game, p, target) {
       if (spec.atkSlow) applyEffect(target, 'atkslow', spec.atkSlow, until, game.time);
       game.events.push({ type: 'abilityHit', ability: p.ability, x: p.tx, y: p.ty });
     }
+    // "Bounce": the boomerang cleaves other enemy units near the focused
+    // target for a fraction (bouncePower%) of the hit's damage
+    if (p.bounce && p.bouncePower > 0 && p.bounceRadius > 0) {
+      const dmg = p.damage * (p.bouncePower / 100);
+      const r2 = p.bounceRadius * p.bounceRadius;
+      let hit = false;
+      for (const e of game.entities) {
+        if (e === target || e.team === p.team || e.hp <= 0) continue;
+        if (e.isAir !== target.isAir) continue; // bounce stays on the target's plane
+        const dx = e.x - target.x;
+        const dy = e.y - target.y;
+        if (dx * dx + dy * dy <= r2) {
+          applyDamage(game, e, dmg, p.dmgType);
+          hit = true;
+        }
+      }
+      if (hit) game.events.push({ type: 'bounce', x: target.x, y: target.y, radius: p.bounceRadius, team: p.team });
+    }
   }
 }

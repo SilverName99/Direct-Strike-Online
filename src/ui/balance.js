@@ -79,6 +79,7 @@ function baseUnits() {
       ...u, size: 1, projSize: 1,
       ranged: !!u.projectile, projectile: !!u.projectile, // fires a projectile on basic attack
       projSpeed: ps, projectileSpeed: ps,
+      bounce: false, bouncePower: 50, bounceRadius: 80, // projectile cleaves nearby enemies at bouncePower%
       caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
     };
   }
@@ -141,6 +142,7 @@ function raceUnitsSnapshot(race) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize,
       ranged: !!u.ranged, projSpeed: u.projSpeed,
+      bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen,
     };
@@ -236,6 +238,9 @@ function applyRaceUnits(race, unitsData) {
     if (typeof vals.ranged === 'boolean') u.ranged = vals.ranged;
     else if (vals.rangedCaster && vals.caster) u.ranged = true; // legacy (pre-general Ranged)
     if (num(vals.projSpeed) !== undefined) u.projSpeed = clamp(vals.projSpeed, 20, 4000);
+    if (typeof vals.bounce === 'boolean') u.bounce = vals.bounce;
+    if (num(vals.bouncePower) !== undefined) u.bouncePower = clamp(vals.bouncePower, 0, 100);
+    if (num(vals.bounceRadius) !== undefined) u.bounceRadius = clamp(vals.bounceRadius, 10, 600);
     if (Array.isArray(vals.abilities)) {
       u.abilities = vals.abilities.filter((a) => ABILITY_IDS.includes(a)).slice(0, MAX_ABILITIES);
     }
@@ -300,6 +305,7 @@ export function resetRaceUnit(race, id) {
   resolvedUnits[race][id] = {
     ...u, size: 1, projSize: 1,
     ranged: !!u.projectile, projectile: !!u.projectile, projSpeed: ps, projectileSpeed: ps,
+    bounce: false, bouncePower: 50, bounceRadius: 80,
     caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
   };
 }

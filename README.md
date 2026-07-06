@@ -91,6 +91,10 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 - Bifa **Ranged** (independentă de Caster) face ca atacul de bază al oricărei unități să tragă un
   proiectil; deblochează **Proiectil (%)**, **Viteză proiectil** și slotul de imagine **Proiectil**
   (după Salvează + refresh). Unitățile care erau deja ranged pornesc bifate.
+- Bifa **Bounce** (sub Ranged) face ca proiectilul, la impact, să lovească și celelalte unități inamice
+  din jurul țintei focusate cu **Bounce (% putere)** din damage-ul lovirii, în raza **Bounce rază**
+  (ex. o femeie pe panteră cu bumerang care ricoșează). Cleave-ul rămâne pe planul țintei (sol la sol,
+  aer la aer).
 - **Când castuiește (regulă generală):** casterul aruncă o abilitate doar când e **angajat** — are un
   inamic în raza lui de atac. Dacă nu, mărșăluiește până intră în rază, apoi castuiește. **Excepție:**
   abilitățile de suport **Heal** și **Regeneration Aura** se pot porni și neangajat, atâta timp cât au

@@ -446,6 +446,23 @@ console.log('abilities (casters, auras, status effects)');
     check('ranged flag fires a projectile', shot);
   }
 
+  // Bounce: a ranged unit's projectile also cleaves nearby enemies at
+  // bouncePower% of the hit's damage
+  {
+    applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 50, bounceRadius: 100 } } } } });
+    const game = new Game(4, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'slinger', 600, 300);
+    const focus = spawnUnit(game, 1, 'grunt', 700, 300); // nearest -> focused
+    const near = spawnUnit(game, 1, 'grunt', 720, 300);  // within bounce radius of focus
+    focus.hp = focus.maxHp = 100000;
+    near.hp = near.maxHp = 100000;
+    run(game, 2);
+    const focusDmg = focus.maxHp - focus.hp;
+    const nearDmg = near.maxHp - near.hp;
+    check('bounce cleaves a nearby enemy', nearDmg > 0, `near=${nearDmg}`);
+    check('bounce hits the focused target harder than the bounced one', focusDmg > nearDmg, `focus=${focusDmg} near=${nearDmg}`);
+  }
+
   // cast priority: while mid-cast a caster does not also auto-attack
   {
     applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 50 } } } } });
