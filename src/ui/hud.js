@@ -105,9 +105,9 @@ export class Hud {
     shop.appendChild(sep);
 
     // --- units group (shows the player race's resolved stats) -------------
-    // Iterate the admin-defined shop order (falls back to the roster order).
+    // Iterate this race's admin-defined shop order (falls back to roster order).
     let hotkey = 1;
-    for (const id of resolvedUnitOrder()) {
+    for (const id of resolvedUnitOrder(race)) {
       const u = statsUnit(race, id);
       const card = document.createElement('div');
       card.className = 'card';

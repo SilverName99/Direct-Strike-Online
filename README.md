@@ -67,10 +67,14 @@ că un meci AI vs AI se termină, și matchup-urile de contre la cost egal.
 
 Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 
+- **Slate gol (default):** fiecare unitate pornește cu **toate bifele nebifate** (Ranged, Zburător,
+  Can hit air, Splash, Bounce, Dash, Caster — toate off); doar statisticile numerice (HP, damage, rază,
+  viteză, cost, tier) vin din cod. Așa construiești orice tip de unitate de la zero, apoi activezi ce vrei.
 - **⚙ stats pe fiecare unitate/clădire** (în pagina de sprites): un panou grupat pe secțiuni
   (**General / Luptă / Ranged & Bounce / Caster & Abilități**). Pentru **unități** — nume, dimensiune
   (Size %), **footprint** (**lățime × înălțime** în celule de grid — cât spațiu ocupă fizic, ca la clădiri),
-  cost, tier, HP, damage, perioadă, rază, viteză, splash, armură, tip damage. Pentru **clădiri** — nume,
+  **viteza animației** (flip/s între frame-uri), cost, tier, HP, damage, perioadă, rază, viteză, **Splash**
+  (bifă + rază, independent de tipul de damage), armură, tip damage. Pentru **clădiri** — nume,
   dimensiune, footprint (lățime × înălțime), viteza animației idle (cât de repede alternează idle 1↔2),
   cost, HP, cap, rază/damage/venit. Entitățile care trag (unități la distanță și turnul inițial / Tower)
   au în plus **Proiectil (%)** — dimensiunea proiectilului. **Atât unitățile cât și clădirile sunt
@@ -78,7 +82,8 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
   unități cu footprint > 1×1**), footprint-ul apare colorat pe pătrățelele din grid și ocupă efectiv acele
   celule (o unitate 2×2 stă pe 4 pătrățele și nu se suprapune cu alta). Tier-ul îl setezi
   tot din ⚙ stats, iar jocul îl respectă (o unitate retiered la T1 e disponibilă din start). Cu **▲▼**
-  de lângă fiecare unitate **reordonezi roster-ul** — ordinea se salvează și apare la fel în shop-ul din joc.
+  de lângă fiecare unitate **reordonezi roster-ul** — **per rasă** (Humans și Orcs independent); ordinea
+  se salvează și apare la fel în shop-ul din joc pentru rasa respectivă.
 - **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
   de tier), **colorarea echipelor** („ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
   colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt lovite").
@@ -102,8 +107,9 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
   fi lovită doar de unități cu **Can hit air**. Așa îți creezi propriile trupe zburătoare și anti-aer.
 - Bifa **Dash (charge)** (în „Luptă") face unitatea să se **năpustească** spre un inamic aflat în
   **Dash range**: închide distanța la **Dash viteză** și, la sosire, dă o lovitură bonus de **Dash damage**
-  (peste atacul normal). Bifa deblochează pe pagina de sprites un slot **„Dash"** pentru poza de charge
-  (dacă nu-l încarci, folosește cadrul de mers).
+  (peste atacul normal), apoi așteaptă **Dash cooldown** secunde până se poate năpusti din nou. Bifa
+  deblochează pe pagina de sprites un slot **„Dash"** pentru poza de charge (dacă nu-l încarci, folosește
+  cadrul de mers).
 - Bifa **Bounce** (sub Ranged) face ca proiectilul, la impact, să **ricoșeze vizibil** spre următorul
   inamic din apropiere (îl vezi cum zboară de la un caracter la altul), lovind cu **Bounce (% putere)**
   din damage-ul original, în raza **Bounce rază** și pe cel mult **Bounce ținte** salturi — ex. o femeie

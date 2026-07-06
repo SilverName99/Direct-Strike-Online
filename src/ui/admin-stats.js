@@ -131,6 +131,11 @@ function fieldsFor(ent, kind) {
       group: G, label: 'Înălțime (celule)', type: 'num', value: u.ch || 1,
       apply: (v) => { u.ch = clamp(Math.round(v), 1, 20); },
     });
+    // idle/walk frame flip rate (time between frames)
+    out.push({
+      group: G, label: 'Viteză animație (flip/s)', type: 'num', value: u.animSpeed ?? 5,
+      apply: (v) => { u.animSpeed = clamp(v, 0.2, 30); },
+    });
 
     // Flying: the unit passes over walls/structures and can only be hit by
     // units flagged "Can hit air".
@@ -145,6 +150,18 @@ function fieldsFor(ent, kind) {
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) {
       if (u[f] !== undefined) out.push({ group: F, f, label: f, value: u[f], type: 'sel', opts, apply: (v) => { u[f] = v; } });
     }
+    // Splash: area damage on the basic attack (independent of damage type). Off
+    // = no splash. The checkbox and radius both drive u.splash (0 = off); the
+    // shared `splashOn` closure keeps them consistent when saving.
+    let splashOn = (u.splash || 0) > 0;
+    out.push({
+      group: F, label: 'Splash', type: 'check', cls: 'splash-chk', value: splashOn,
+      apply: (v) => { splashOn = !!v; if (!v) u.splash = 0; else if ((u.splash || 0) <= 0) u.splash = 60; },
+    });
+    out.push({
+      group: F, label: 'Splash radius', type: 'num', cls: 'splash-field', disabled: !splashOn,
+      value: Math.round(u.splash || 60), apply: (v) => { if (splashOn) u.splash = clamp(v, 0, 2000); },
+    });
     // Dash (charge): lunge in from dashRange at dashSpeed, bonus dashDamage on arrival
     out.push({
       group: F, label: 'Dash (charge)', type: 'check', cls: 'dash-chk', value: !!u.dash,
@@ -161,6 +178,10 @@ function fieldsFor(ent, kind) {
     out.push({
       group: F, label: 'Dash range', type: 'num', cls: 'dash-field', disabled: !u.dash,
       value: Math.round(u.dashRange ?? 250), apply: (v) => { u.dashRange = clamp(v, 20, 2000); },
+    });
+    out.push({
+      group: F, label: 'Dash cooldown (s)', type: 'num', cls: 'dash-field', disabled: !u.dash,
+      value: u.dashCd ?? 3, apply: (v) => { u.dashCd = clamp(v, 0, 120); },
     });
 
     // Ranged: basic attack fires a projectile; unlocks image + speed + bounce
@@ -367,6 +388,12 @@ function open(ent, kind) {
       for (const s of bodyEl.querySelectorAll('.dash-field')) s.disabled = !dashChk.checked;
     });
   }
+  const splashChk = bodyEl.querySelector('.splash-chk');
+  if (splashChk) {
+    splashChk.addEventListener('change', () => {
+      for (const s of bodyEl.querySelectorAll('.splash-field')) s.disabled = !splashChk.checked;
+    });
+  }
   modal.classList.add('on');
 }
 
@@ -414,7 +441,7 @@ function refreshNames() {
 function unitEnts() { return [...document.querySelectorAll('.ent[data-kind="unit"]')]; }
 
 function persistOrder(ent) {
-  setUnitOrder(unitEnts().map((e) => e.id));
+  setUnitOrder(RACE, unitEnts().map((e) => e.id));
   saveBalance('save-balance.php').then((res) => {
     if (!ent) return;
     ent.classList.remove('saved', 'saveerr');

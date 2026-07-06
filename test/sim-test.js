@@ -229,6 +229,20 @@ console.log('win condition');
 // ------------------------------------------------------ counter matchups
 console.log('counter matchups (equal cost)');
 
+// Special behaviors are blank by default now, so restore the classic roster's
+// ranged/air/splash/anti-air traits before testing its counter dynamics.
+{
+  const { applyBalance } = await import('../src/ui/balance.js');
+  const roster = {
+    slinger: { ranged: true, targetsAir: true },
+    lancer: { ranged: true },
+    crab: { ranged: true, splash: 60, projSpeed: 300 },
+    wasp: { ranged: true, isAir: true, targetsAir: true },
+    archon: { ranged: true, targetsAir: true },
+  };
+  applyBalance({ races: { humans: { units: roster }, orcs: { units: roster } } });
+}
+
 // Keep only the main bases (tucked in the far corners) so unit-vs-unit
 // combat is isolated from turrets/towers.
 function stripDefenses(game) {

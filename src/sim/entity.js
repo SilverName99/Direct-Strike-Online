@@ -25,6 +25,7 @@ export function spawnUnit(game, team, type, x, y) {
     spellHold: false, // caster is holding at range, saving up for a spell
     dashing: false,   // charging in at dashSpeed toward a target in dashRange
     dashCharge: false,// a dash is committed; its bonus lands on arrival
+    dashReadyAt: 0,   // game.time when the next dash is allowed (cooldown)
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,
     targetId: null,

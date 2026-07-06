@@ -519,7 +519,7 @@ export class Renderer {
         } else {
           // marching, or a caster calmly waiting to cast -> idle/walk
           anim = u.state === 'march' ? 'walk' : 'idle';
-          frame = (Math.floor(this.now * 5) + u.id) % 2;
+          frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, sizeOf(raceOf(u.team), u.type));
       } else {
@@ -537,23 +537,27 @@ export class Renderer {
       }
       ctx.restore();
 
+      // bars sit above the *visual* height, which scales with Size (%), so a
+      // >100% unit doesn't overlap its own HP/mana bar
+      const drawR = stats.radius * Math.max(1, sizeOf(raceOf(u.team), u.type));
+
       if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
-        const w = stats.radius * 2.4;
+        const w = drawR * 2.4;
         const ratio = Math.max(0, u.hp / u.maxHp);
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(x - w / 2, y - stats.radius - 9, w, 3.5);
+        ctx.fillRect(x - w / 2, y - drawR - 9, w, 3.5);
         ctx.fillStyle = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
-        ctx.fillRect(x - w / 2, y - stats.radius - 9, w * ratio, 3.5);
+        ctx.fillRect(x - w / 2, y - drawR - 9, w * ratio, 3.5);
       }
 
       // mana bar (casters only), right under the HP bar slot
       if (u.manaMax > 0) {
-        const w = stats.radius * 2.4;
+        const w = drawR * 2.4;
         const mratio = Math.max(0, Math.min(1, u.mana / u.manaMax));
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(x - w / 2, y - stats.radius - 5, w, 2.5);
+        ctx.fillRect(x - w / 2, y - drawR - 5, w, 2.5);
         ctx.fillStyle = '#4da6ff';
-        ctx.fillRect(x - w / 2, y - stats.radius - 5, w * mratio, 2.5);
+        ctx.fillRect(x - w / 2, y - drawR - 5, w * mratio, 2.5);
       }
 
       // status-effect indicators (slow swirl, haste sparks, regen cross...)

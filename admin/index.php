@@ -43,10 +43,12 @@ function dsBalance(): array {
   }
   return $bal;
 }
-// Units in the admin-defined shop order (falls back to the roster order);
+// Units in this race's admin-defined shop order (falls back to roster order);
 // unknown/missing ids are dropped/appended so it stays valid.
-function orderedUnits(): array {
-  $saved = dsBalance()['unitOrder'] ?? null;
+function orderedUnits(string $race): array {
+  $ord = dsBalance()['unitOrder'] ?? null;
+  // per-race object, or a legacy flat array applied to both races
+  $saved = is_array($ord) ? ($ord[$race] ?? (isset($ord[0]) ? $ord : null)) : null;
   if (!is_array($saved)) return UNIT_LIST;
   $out = [];
   foreach ($saved as $id) if (in_array($id, UNIT_LIST, true) && !in_array($id, $out, true)) $out[] = $id;
@@ -446,7 +448,7 @@ if ($authed && $action === 'deletebg') {
   </div>
 
   <div class="quicknav">
-    <?php foreach (array_merge(orderedUnits(), BUILDING_LIST) as $e): ?>
+    <?php foreach (array_merge(orderedUnits($race), BUILDING_LIST) as $e): ?>
       <a href="#<?= $e ?>"><?= $e ?></a>
     <?php endforeach; ?>
   </div>
@@ -500,7 +502,7 @@ if ($authed && $action === 'deletebg') {
   <?php } ?>
 
   <h2>Unități — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(▲▼ reordonează — ordinea apare la fel în shop-ul din joc)</span></h2>
-  <?php foreach (orderedUnits() as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  <?php foreach (orderedUnits($race) as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
 
   <h2>Clădiri — <?= $race ?> <span style="text-transform:none">(zidurile rămân desenate de joc)</span></h2>
   <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'building'); ?>

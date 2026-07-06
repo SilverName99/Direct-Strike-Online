@@ -128,12 +128,14 @@ function updateFighter(game, u, stats, dt) {
   // reads u.dashing); on arrival it lands a one-off dashDamage burst.
   u.dashing = false;
   if (stats.dash && target) {
-    if (!inRange && effDist(u, target) <= (stats.dashRange || 0)) {
+    const ready = game.time >= (u.dashReadyAt || 0);
+    if (!inRange && ready && effDist(u, target) <= (stats.dashRange || 0)) {
       u.dashing = true;
       u.dashCharge = true;
     } else if (inRange && u.dashCharge) {
       applyDamage(game, target, stats.dashDamage || 0, stats.dmgType);
       u.dashCharge = false;
+      u.dashReadyAt = game.time + (stats.dashCd || 0); // cooldown before it can dash again
       game.events.push({ type: 'dash', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
     }
   } else {

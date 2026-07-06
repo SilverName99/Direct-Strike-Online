@@ -22,8 +22,7 @@ export const UNIT_NUM_FIELDS = [
   ['period', 'Attack period (s)'],
   ['range', 'Range'],
   ['speed', 'Speed'],
-  ['splash', 'Splash radius'],
-  // projectile speed is edited via the "Ranged" section (projSpeed)
+  // splash is a toggle (Splash checkbox), projectile speed lives in "Ranged"
 ];
 export const UNIT_SELECT_FIELDS = {
   armor: ['light', 'armored'],
@@ -70,9 +69,11 @@ const resolvedUnits = {};
 const resolvedBuildings = {};
 
 // Shop display order for units (global — both races share the roster). The
-// admin reorders these and the game's shop iterates this order.
+// admin reorders these PER RACE and the game's shop iterates the player race's
+// order (Humans and Orcs reorder independently).
 const DEFAULT_UNIT_ORDER = Object.keys(UNITS);
-let unitOrder = [...DEFAULT_UNIT_ORDER];
+const unitOrder = {}; // race -> [id,...]
+for (const r of RACES) unitOrder[r] = [...DEFAULT_UNIT_ORDER];
 
 // Sanitize an order: keep only known ids (no dups), then append any missing
 // ones so a newly added unit always still shows up.
@@ -85,8 +86,12 @@ function sanitizeOrder(arr) {
   for (const id of DEFAULT_UNIT_ORDER) if (!seen.has(id)) out.push(id);
   return out;
 }
-export function resolvedUnitOrder() { return [...unitOrder]; }
-export function setUnitOrder(arr) { unitOrder = sanitizeOrder(arr); }
+export function resolvedUnitOrder(race) {
+  return [...(unitOrder[race] || unitOrder[RACES[0]])];
+}
+export function setUnitOrder(race, arr) {
+  if (RACES.includes(race)) unitOrder[race] = sanitizeOrder(arr);
+}
 
 function baseUnits() {
   const t = {};
@@ -97,11 +102,16 @@ function baseUnits() {
     const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     t[id] = {
       ...u, size: 1, projSize: 1,
-      cw: 1, ch: 1, // footprint in grid cells (drives the unit's physical size)
-      ranged: !!u.projectile, projectile: !!u.projectile, // fires a projectile on basic attack
+      cw: 1, ch: 1,        // footprint in grid cells (drives the unit's physical size)
+      animSpeed: 5,        // idle/walk frame flips per second
+      // Blank default: every special behavior is OFF; build any unit up from a
+      // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
+      ranged: false, projectile: false,
+      isAir: false, targetsAir: false,
+      splash: 0,
       projSpeed: ps, projectileSpeed: ps,
-      bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3, // projectile cleaves up to bounceMax nearby enemies at bouncePower%
-      dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, // charge: lunge in from dashRange, bonus dashDamage on arrival
+      bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
+      dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,
       caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
     };
   }
@@ -162,11 +172,11 @@ function raceUnitsSnapshot(race) {
   const out = {};
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
     out[id] = {
-      name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch,
-      ranged: !!u.ranged, projSpeed: u.projSpeed,
+      name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed,
+      ranged: !!u.ranged, projSpeed: u.projSpeed, splash: u.splash,
       isAir: !!u.isAir, targetsAir: !!u.targetsAir,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
-      dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange,
+      dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen,
     };
@@ -201,7 +211,7 @@ function snapshot() {
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
-    unitOrder: [...unitOrder],
+    unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
     abilities,
     races,
   };
@@ -213,8 +223,11 @@ const DEFAULTS = snapshot();
 export function applyBalance(data) {
   if (!data || typeof data !== 'object') return;
   rebuildResolved(); // reset to base, then layer overrides on top
-  unitOrder = [...DEFAULT_UNIT_ORDER];
-  if (data.unitOrder) setUnitOrder(data.unitOrder);
+  for (const r of RACES) unitOrder[r] = [...DEFAULT_UNIT_ORDER];
+  if (data.unitOrder) {
+    if (Array.isArray(data.unitOrder)) for (const r of RACES) setUnitOrder(r, data.unitOrder); // legacy (global)
+    else for (const r of RACES) if (data.unitOrder[r]) setUnitOrder(r, data.unitOrder[r]);
+  }
 
   // ---- global rules (truly shared: economy, waves, tint, tier costs) ----
   for (const [f] of GENERAL_FIELDS) {
@@ -262,6 +275,8 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
     if (num(vals.cw) !== undefined) u.cw = Math.round(clamp(vals.cw, 1, 20));
     if (num(vals.ch) !== undefined) u.ch = Math.round(clamp(vals.ch, 1, 20));
+    if (num(vals.animSpeed) !== undefined) u.animSpeed = clamp(vals.animSpeed, 0.2, 30);
+    if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
     if (typeof vals.isAir === 'boolean') u.isAir = vals.isAir;
@@ -277,6 +292,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.dashDamage) !== undefined) u.dashDamage = clamp(vals.dashDamage, 0, 100000);
     if (num(vals.dashSpeed) !== undefined) u.dashSpeed = clamp(vals.dashSpeed, 20, 4000);
     if (num(vals.dashRange) !== undefined) u.dashRange = clamp(vals.dashRange, 20, 2000);
+    if (num(vals.dashCd) !== undefined) u.dashCd = clamp(vals.dashCd, 0, 120);
     if (Array.isArray(vals.abilities)) {
       u.abilities = vals.abilities.filter((a) => ABILITY_IDS.includes(a)).slice(0, MAX_ABILITIES);
     }
@@ -339,10 +355,11 @@ export function resetRaceUnit(race, id) {
   const u = UNITS[id];
   const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
   resolvedUnits[race][id] = {
-    ...u, size: 1, projSize: 1, cw: 1, ch: 1,
-    ranged: !!u.projectile, projectile: !!u.projectile, projSpeed: ps, projectileSpeed: ps,
+    ...u, size: 1, projSize: 1, cw: 1, ch: 1, animSpeed: 5,
+    ranged: false, projectile: false, isAir: false, targetsAir: false, splash: 0,
+    projSpeed: ps, projectileSpeed: ps,
     bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
-    dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250,
+    dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,
     caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
   };
 }
