@@ -409,9 +409,25 @@ export class Renderer {
         if (!this.visible(tpl.x, tpl.y)) return;
         const stats = UNITS[tpl.type];
         const hot = team === 0 && i === hoverIdx && !uiState.selected;
+        const dragging = team === 0 && uiState.drag && i === uiState.drag.index;
         ctx.save();
         ctx.translate(tpl.x, tpl.y);
-        if (hot) {
+        if (dragging && uiState.gridOn) {
+          // moving a placed unit: highlight the grid cells it will occupy
+          const us = game.ustat(0, tpl.type);
+          const cw = us && us.cw > 1 ? us.cw : 1;
+          const ch = us && us.ch > 1 ? us.ch : 1;
+          const g = CONFIG.GRID;
+          const hw = (cw * g) / 2;
+          const hh = (ch * g) / 2;
+          drawFootprintCells(ctx, hw, hh, '#58d68d', 0.22);
+          ctx.globalAlpha = 0.9;
+          ctx.strokeStyle = '#58d68d';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+          ctx.strokeStyle = TEAM_COLORS[team];
+          ctx.lineWidth = 1.5;
+        } else if (hot) {
           ctx.globalAlpha = 0.9;
           ctx.strokeStyle = '#ffffff';
           ctx.beginPath();

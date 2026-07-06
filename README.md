@@ -22,7 +22,8 @@ Fiecare jucător are o adevărată bază:
   multe; drag le repoziționezi; click-dreapta le vinde la 75%. La fiecare **20s**, formația spawnează
   și mărșăluiește singură spre Baza principală inamică.
 - **Plasarea sare pe grid** (comutare cu `G` sau butonul ▦). Unitățile zburătoare trec peste ziduri —
-  raiduri aeriene pe economie sunt reale; apără-te cu Slinger/Archon/turnuri.
+  raiduri aeriene pe economie sunt reale; apără-te cu Slinger/Archon/turnuri. Când muți (drag) o unitate
+  deja plasată cu grid-ul pornit, pătrățelele pe care le va ocupa sunt evidențiate sub ea.
 - Fiecare parte pornește cu un **turn defensiv** la jumătatea drumului — distrus definitiv odată căzut.
 - Venit pasiv de bază **+10/s**; restul vine din generatoare.
 
