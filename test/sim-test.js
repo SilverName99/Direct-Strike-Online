@@ -506,6 +506,32 @@ console.log('abilities (casters, auras, status effects)');
     check('1x1 footprint keeps the base radius', base.radius === UNITS.grunt.radius, `r=${base.radius}`);
   }
 
+  // Air toggle: flagging a ground unit as flying makes it untouchable by plain
+  // ground melee; giving another unit anti-air lets it hit flyers
+  {
+    applyBalance({ races: { humans: { units: { grunt: { isAir: true } } } } });
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    const flyer = spawnUnit(game, 0, 'grunt', 640, 300); // now airborne
+    const ground = spawnUnit(game, 1, 'grunt', 660, 300); // plain melee, no anti-air
+    flyer.hp = flyer.maxHp = 100000; ground.hp = ground.maxHp = 100000;
+    const hp0 = flyer.hp;
+    run(game, 3);
+    check('flagged flyer is untouchable by ground melee', flyer.hp === hp0, `hp=${flyer.hp}`);
+  }
+  {
+    applyBalance({ races: {
+      humans: { units: { grunt: { isAir: true } } },
+      orcs: { units: { grunt: { targetsAir: true } } },
+    } });
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    const flyer = spawnUnit(game, 0, 'grunt', 640, 300);
+    const aa = spawnUnit(game, 1, 'grunt', 660, 300); // ground but anti-air
+    flyer.hp = flyer.maxHp = 100000; aa.hp = aa.maxHp = 100000;
+    run(game, 3);
+    check('anti-air unit can damage a flyer', flyer.hp < flyer.maxHp, `hp=${flyer.hp}`);
+    applyBalance({});
+  }
+
   // Footprint placement: a 2x2 unit occupies its box — overlapping placements
   // are rejected, clear ones accepted
   {

@@ -95,8 +95,11 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 (auto-cast) — nu ai nimic de apăsat în meci; casterii au bară albastră de mana sub cea de viață.
 
 - Bifa **Ranged** (independentă de Caster) face ca atacul de bază al oricărei unități să tragă un
-  proiectil; deblochează **Proiectil (%)**, **Viteză proiectil** și slotul de imagine **Proiectil**
-  (după Salvează + refresh). Unitățile care erau deja ranged pornesc bifate.
+  proiectil; deblochează **Proiectil (%)**, **Viteză proiectil**, bifa **Can hit air** (nu toate
+  trupele ranged pot lovi aerul) și slotul de imagine **Proiectil** (după Salvează + refresh).
+  Unitățile care erau deja ranged pornesc bifate.
+- Bifa **Zburător (aerian)** (în „Luptă") face unitatea aeriană: trece peste ziduri/structuri și poate
+  fi lovită doar de unități cu **Can hit air**. Așa îți creezi propriile trupe zburătoare și anti-aer.
 - Bifa **Bounce** (sub Ranged) face ca proiectilul, la impact, să **ricoșeze vizibil** spre următorul
   inamic din apropiere (îl vezi cum zboară de la un caracter la altul), lovind cu **Bounce (% putere)**
   din damage-ul original, în raza **Bounce rază** și pe cel mult **Bounce ținte** salturi — ex. o femeie

@@ -163,6 +163,7 @@ function raceUnitsSnapshot(race) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch,
       ranged: !!u.ranged, projSpeed: u.projSpeed,
+      isAir: !!u.isAir, targetsAir: !!u.targetsAir,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen,
@@ -261,6 +262,8 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.ch) !== undefined) u.ch = Math.round(clamp(vals.ch, 1, 20));
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
+    if (typeof vals.isAir === 'boolean') u.isAir = vals.isAir;
+    if (typeof vals.targetsAir === 'boolean') u.targetsAir = vals.targetsAir;
     if (typeof vals.ranged === 'boolean') u.ranged = vals.ranged;
     else if (vals.rangedCaster && vals.caster) u.ranged = true; // legacy (pre-general Ranged)
     if (num(vals.projSpeed) !== undefined) u.projSpeed = clamp(vals.projSpeed, 20, 4000);

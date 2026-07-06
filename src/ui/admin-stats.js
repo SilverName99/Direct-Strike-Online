@@ -132,6 +132,12 @@ function fieldsFor(ent, kind) {
       apply: (v) => { u.ch = clamp(Math.round(v), 1, 20); },
     });
 
+    // Flying: the unit passes over walls/structures and can only be hit by
+    // units flagged "Can hit air".
+    out.push({
+      group: F, label: 'Zburător (aerian)', type: 'check', value: !!u.isAir,
+      apply: (v) => { u.isAir = !!v; },
+    });
     // Combat numbers + select fields (armor / damage type)
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ group: F, f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });
@@ -144,6 +150,11 @@ function fieldsFor(ent, kind) {
     out.push({
       group: R, label: 'Ranged', type: 'check', cls: 'ranged-chk', value: !!u.ranged,
       apply: (v) => { u.ranged = !!v; },
+    });
+    // not every ranged troop can shoot flyers — this is the dedicated anti-air toggle
+    out.push({
+      group: R, label: 'Can hit air', type: 'check', value: !!u.targetsAir,
+      apply: (v) => { u.targetsAir = !!v; },
     });
     out.push({
       group: R, label: 'Proiectil (%)', type: 'num', cls: 'ranged-field', disabled: !u.ranged,
