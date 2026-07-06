@@ -119,7 +119,8 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['attack_1'] = 'Attack 2';
   }
   $slots['die_0'] = 'Die';
-  if (unitHasDash($race, $ent)) $slots['dash_0'] = 'Dash';
+  // a unit dashes if its own Dash toggle is on OR a mount upgrade makes it charge
+  if (unitHasDash($race, $ent) || unitHasDismount($race, $ent)) $slots['dash_0'] = 'Dash';
   // on-foot (dismounted) sprite set for units transformed by a mount upgrade
   if (unitHasDismount($race, $ent)) {
     $slots['foot-idle_0'] = 'Pe jos: Idle 1';

@@ -70,18 +70,19 @@ function updateTurret(game, turret, stats, dt) {
   }
 
   if (turret.cooldown <= 0) {
-    turret.cooldown = stats.period;
+    turret.cooldown = Math.max(0.1, stats.period); // floored: a 0 config must not wedge/machine-gun
     spawnProjectile(game, turret, stats, target);
     game.events.push({ type: 'shot', x: turret.x, y: turret.y, tx: target.x, ty: target.y, team: turret.team });
   }
 }
 
-// Windup (swing) time before a strike lands: the attack 1 -> attack 2
-// animation plays during this, and the hit (projectile launch / melee damage)
-// fires exactly when it finishes. Kept below the attack period so DPS is
-// unchanged — it just shifts the hit to the end of the swing.
-function windupTime(stats) {
-  return Math.min(0.4, stats.period * 0.5);
+// Effective attack range: a unit can always strike what it is physically
+// touching. Bodies never overlap (the separation pass holds centers at
+// radius+radius apart), so a configured range below the unit's own radius —
+// e.g. an admin-set 0 for "melee" — would otherwise NEVER be reached and the
+// unit would chase its target forever without landing a hit.
+function atkRange(u, stats) {
+  return Math.max(stats.range || 0, (u.radius || 0) + 4);
 }
 
 // Drive a caster's prepare -> release FSM and its between-cast hold. Returns
@@ -104,7 +105,7 @@ function stepCasterHold(game, u, stats, dt) {
     target = acquireTarget(game, u, stats);
     u.targetId = target ? target.id : null;
   }
-  const engaged = !!target && effDist(u, target) <= stats.range + (u.state === 'attack' ? 14 : 0);
+  const engaged = !!target && effDist(u, target) <= atkRange(u, stats) + (u.state === 'attack' ? 14 : 0);
 
   if (stepCaster(game, u, stats, dt, engaged)) { // preparing or releasing a spell
     u.spellHold = true;
@@ -140,7 +141,7 @@ function updateFighter(game, u, stats, dt) {
   // otherwise back-row units shoved across the range boundary by the
   // separation pass flicker between attack and march every tick.
   const rangeBonus = u.state === 'attack' ? 14 : 0;
-  const inRange = !!target && effDist(u, target) <= stats.range + rangeBonus;
+  const inRange = !!target && effDist(u, target) <= atkRange(u, stats) + rangeBonus;
 
   // Dash (charge): while a target sits inside dashRange but out of attack
   // range, the unit commits to a dash and closes at dashSpeed (movement.js
@@ -178,9 +179,12 @@ function updateFighter(game, u, stats, dt) {
       }
     } else if (u.cooldown <= 0) {
       // start a new swing; the hit fires windupTime() later. Status effects
-      // (slow/haste auras, frost bolts) stretch or shrink the period.
-      u.cooldown = stats.period * attackPeriodMult(u, game.time);
-      u.windupMax = windupTime(stats);
+      // (slow/haste auras, frost bolts) stretch or shrink the period. The
+      // period is floored so a 0 config can't wedge the swing (windup 0
+      // would never cross the >0 hit branch = a unit that never strikes).
+      const per = Math.max(0.1, stats.period * attackPeriodMult(u, game.time));
+      u.cooldown = per;
+      u.windupMax = Math.min(0.4, per * 0.5);
       u.windup = u.windupMax;
     }
   } else {
@@ -204,11 +208,11 @@ function updateHealer(game, u, stats) {
     }
   }
 
-  if (best && effDist(u, best) <= stats.range) {
+  if (best && effDist(u, best) <= atkRange(u, stats)) {
     u.state = 'attack';
     u.targetId = best.id;
     if (u.cooldown <= 0) {
-      u.cooldown = stats.period * attackPeriodMult(u, game.time);
+      u.cooldown = Math.max(0.1, stats.period * attackPeriodMult(u, game.time));
       best.hp = Math.min(best.maxHp, best.hp + stats.damage);
       game.events.push({ type: 'heal', x: best.x, y: best.y });
     }
@@ -267,7 +271,7 @@ function mountCharge(game, u, stats, dt) {
 
   u.mountTargetId = intruder.id;
   u.targetId = intruder.id;
-  if (effDist(u, intruder) <= stats.range + 14) {
+  if (effDist(u, intruder) <= atkRange(u, stats) + 14) {
     // arrived: dismount and fight on foot from now on (rest of this life)
     u.dismounted = true;
     u.dashing = false;

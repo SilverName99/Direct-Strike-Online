@@ -594,6 +594,28 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // Config-proofing: a 0 range (admin "melee") or 0 attack period must not
+  // produce a unit that chases forever / swings forever without ever hitting
+  {
+    applyBalance({ races: { humans: { units: { grunt: { range: 0 } } } } });
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'grunt', 620, 300);
+    const foe = spawnUnit(game, 1, 'grunt', 660, 300);
+    foe.hp = foe.maxHp = 100000;
+    run(game, 3);
+    check('range 0 still lands hits (touch range)', foe.hp < foe.maxHp, `dmg=${foe.maxHp - foe.hp}`);
+  }
+  {
+    applyBalance({ races: { humans: { units: { grunt: { period: 0 } } } } });
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'grunt', 620, 300);
+    const foe = spawnUnit(game, 1, 'grunt', 660, 300);
+    foe.hp = foe.maxHp = 100000;
+    run(game, 3);
+    check('period 0 still lands hits (floored swing)', foe.hp < foe.maxHp, `dmg=${foe.maxHp - foe.hp}`);
+    applyBalance({});
+  }
+
   // Dash (charge): a dash unit closes a far target fast (dashing flag) and
   // lands a bonus dashDamage burst on arrival
   {
