@@ -90,7 +90,8 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 
 - **Catalogul** (comun ambelor rase) se balansează din **✨ Abilități** (lângă ⚙ Balance): Dispell,
   Aură de încetinire, Aură de grabă, Aură de regenerare, Săgeată de gheață — fiecare cu cooldown,
-  cost de mană (la aure: drenaj/s), raze, procente, durate.
+  cost de mană (la aure: drenaj/s), raze, procente, durate. Fiecare abilitate are un **preview live**
+  al efectului vizual (același desen procedural ca în joc), ca să vezi cum arată înainte s-o folosești.
 - **Aurele** sunt pasive: cerc de rune rotitor sub caster + inel discret cu raza reală; unitățile
   afectate primesc indicatori (vârtej albastru = încetinit, scântei aurii = grăbit, cruce verde =
   regen, halo alb = imun după Dispell).

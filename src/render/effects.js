@@ -5,6 +5,7 @@ import { TEAM_COLORS } from './renderer.js';
 import { hasDeathAnim, drawCharacter, sizeOf } from './characters.js';
 import { raceOf } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
+import { drawExpandingRing } from './vfx.js';
 
 const CORPSE_LIFE = 1.2;
 
@@ -121,17 +122,7 @@ export class Effects {
     for (const r of this.rings) {
       const t = 1 - r.life / r.maxLife;
       const rad = r.r0 + (r.r1 - r.r0) * t;
-      ctx.strokeStyle = r.color;
-      ctx.globalAlpha = 0.7 * (1 - t);
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 0.25 * (1 - t);
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.arc(r.x, r.y, rad * 0.8, 0, Math.PI * 2);
-      ctx.stroke();
+      drawExpandingRing(ctx, r.x, r.y, rad, 1 - t, r.color);
     }
     for (const p of this.particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife);

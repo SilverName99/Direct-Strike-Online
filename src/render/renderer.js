@@ -5,6 +5,7 @@ import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
+import { drawAura, drawSlowSwirl, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -551,81 +552,24 @@ export class Renderer {
     for (const aid of rstats.abilities) {
       const ab = resolvedAbility(aid);
       if (!ab || ab.kind !== 'aura') continue;
-      const spin = this.now * 0.9 + i * 2.1;
       ctx.save();
-      ctx.translate(x, y + 3);
-      ctx.strokeStyle = ab.color;
-      // faint true-radius ring
-      ctx.globalAlpha = 0.06;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, ab.params.radius, 0, Math.PI * 2);
-      ctx.stroke();
-      // rune circle underfoot: 3 rotating dashes (flattened for perspective)
-      ctx.globalAlpha = 0.75;
-      ctx.lineWidth = 2;
-      ctx.scale(1, 0.45);
-      const rr = 15 + i * 4;
-      for (let k = 0; k < 3; k++) {
-        const a0 = spin + (k * Math.PI * 2) / 3;
-        ctx.beginPath();
-        ctx.arc(0, 0, rr, a0, a0 + 1.2);
-        ctx.stroke();
-      }
+      ctx.translate(x, y);
+      drawAura(ctx, this.now, ab.color, ab.params.radius, i);
       ctx.restore();
       i++;
     }
-    ctx.globalAlpha = 1;
   }
 
   // Small procedural markers for active status effects.
   drawEffectIndicators(ctx, u, x, y, r) {
-    const time = u.effects; // list already filtered by the sim to live effects
-    const has = (kind) => time.some((e) => e.kind === kind);
+    const has = (kind) => u.effects.some((e) => e.kind === kind);
     ctx.save();
     ctx.translate(x, y);
-    if (has('atkslow') || has('moveslow')) {
-      // icy blue swirl orbiting the unit
-      ctx.strokeStyle = '#7fb4ff';
-      ctx.globalAlpha = 0.8;
-      ctx.lineWidth = 1.8;
-      for (let k = 0; k < 2; k++) {
-        const a0 = -this.now * 2.4 + k * Math.PI;
-        ctx.beginPath();
-        ctx.arc(0, 0, r + 5, a0, a0 + 1.5);
-        ctx.stroke();
-      }
-    }
-    if (has('haste')) {
-      // golden sparks circling fast
-      ctx.fillStyle = '#ffd35c';
-      ctx.globalAlpha = 0.9;
-      for (let k = 0; k < 3; k++) {
-        const a = this.now * 5 + (k * Math.PI * 2) / 3;
-        ctx.beginPath();
-        ctx.arc(Math.cos(a) * (r + 5), Math.sin(a) * (r + 5) * 0.6, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    if (has('regen')) {
-      // green cross drifting upward, looping
-      const ph = (this.now % 1.2) / 1.2;
-      ctx.fillStyle = '#58d68d';
-      ctx.globalAlpha = 0.9 * (1 - ph);
-      const cy = -r - 6 - ph * 8;
-      ctx.fillRect(-1.5, cy - 4, 3, 8);
-      ctx.fillRect(-4, cy - 1.5, 8, 3);
-    }
-    if (has('immune')) {
-      ctx.strokeStyle = '#ffffff';
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, r + 8, 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    if (has('atkslow') || has('moveslow')) drawSlowSwirl(ctx, this.now, r);
+    if (has('haste')) drawHasteSparks(ctx, this.now, r);
+    if (has('regen')) drawRegenCross(ctx, this.now, r);
+    if (has('immune')) drawImmuneHalo(ctx, r);
     ctx.restore();
-    ctx.globalAlpha = 1;
   }
 
   drawProjectiles(ctx, game, alpha) {

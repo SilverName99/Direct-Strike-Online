@@ -27,6 +27,13 @@ $authed = !empty($_SESSION['auth']);
       background: #161c26; border: 1px solid #2a3446; border-radius: 10px;
       padding: 12px 16px; margin-bottom: 12px;
     }
+    .ab-head { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+    .ab-info { min-width: 0; }
+    .ab-preview {
+      flex: none; width: 168px; height: 90px; border-radius: 8px;
+      background: radial-gradient(circle at 50% 60%, #131c28, #0a0e14);
+      border: 1px solid #2a3446;
+    }
     .group h3 { font-size: 15px; margin-bottom: 2px; }
     .group .kind { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border-radius: 20px; padding: 2px 8px; margin-left: 8px; vertical-align: 2px; }
     .kind.aura { background: #1c2b1e; color: #58d68d; border: 1px solid #2b4a30; }

@@ -4,9 +4,11 @@
 
 import { ABILITIES, ABILITY_PARAM_LABELS } from '../abilities.js';
 import { resolvedAbility, resetAbility, loadBalance, saveBalance } from './balance.js';
+import { mountAbilityPreviews } from './ability-preview.js';
 
 const app = document.getElementById('ab-app');
 const status = document.getElementById('status');
+let stopPreviews = null;
 
 function render() {
   let html = '';
@@ -14,8 +16,13 @@ function render() {
     const ab = resolvedAbility(id);
     const kindLabel = base.kind === 'aura' ? 'aură (pasivă)' : 'activă (auto-cast)';
     html += `<div class="group">
-      <h3 style="color:${base.color}">${base.name}<span class="kind ${base.kind}">${kindLabel}</span></h3>
-      <div class="desc">${base.desc}</div>
+      <div class="ab-head">
+        <div class="ab-info">
+          <h3 style="color:${base.color}">${base.name}<span class="kind ${base.kind}">${kindLabel}</span></h3>
+          <div class="desc">${base.desc}</div>
+        </div>
+        <canvas class="ab-preview" data-ab="${id}" title="Preview VFX"></canvas>
+      </div>
       <div class="fields">`;
     for (const [k, v] of Object.entries(ab.params)) {
       const label = ABILITY_PARAM_LABELS[k] || k;
@@ -25,6 +32,11 @@ function render() {
     html += '</div></div>';
   }
   app.innerHTML = html;
+
+  // start (or restart) the live VFX previews
+  if (stopPreviews) stopPreviews();
+  const entries = [...app.querySelectorAll('.ab-preview')].map((c) => ({ canvas: c, id: c.dataset.ab }));
+  stopPreviews = mountAbilityPreviews(entries);
 }
 
 function collect() {
