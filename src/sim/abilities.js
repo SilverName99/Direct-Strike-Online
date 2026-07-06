@@ -11,6 +11,7 @@ import { resolvedAbility } from '../ui/balance.js';
 import { spawnProjectile } from './entity.js';
 
 const AURA_TICK = 0.35; // aura effects auto-expire this fast (re-applied while inside)
+const CAST_LOCK = 0.5;  // seconds a caster holds its auto-attack after casting
 
 // ---- status-effect helpers (read by combat/movement/renderer) ----
 
@@ -140,6 +141,7 @@ function castActive(game, caster, aid, ab, time) {
     best.hp = Math.min(best.maxHp, best.hp + p.amount);
     caster.abilityCd[aid] = time + p.cooldown;
     caster.mana -= p.manaCost || 0;
+    caster.abilityBusy = time + CAST_LOCK;
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: best.x, y: best.y });
     game.events.push({ type: 'heal', x: best.x, y: best.y });
     return;
@@ -171,6 +173,7 @@ function castActive(game, caster, aid, ab, time) {
     }
     caster.abilityCd[aid] = time + p.cooldown;
     caster.mana -= p.manaCost || 0;
+    caster.abilityBusy = time + CAST_LOCK;
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius });
     return;
   }
@@ -197,6 +200,7 @@ function castActive(game, caster, aid, ab, time) {
     proj.effectSpec = { moveSlow: p.moveSlow, atkSlow: p.atkSlow, duration: p.duration };
     caster.abilityCd[aid] = time + p.cooldown;
     caster.mana -= p.manaCost || 0;
+    caster.abilityBusy = time + CAST_LOCK;
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, tx: best.x, ty: best.y });
   }
 }

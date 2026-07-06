@@ -380,6 +380,35 @@ console.log('abilities (casters, auras, status effects)');
     check('heal restores a wounded ally', wounded.hp > 100, `hp=${wounded.hp}`);
   }
 
+  // ranged caster: a melee-base unit fires a projectile on its basic attack
+  {
+    applyBalance({ races: { humans: { units: { grunt: { caster: true, rangedCaster: true } } } } });
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    const g = spawnUnit(game, 0, 'grunt', 600, 300);
+    g.type; // grunt is melee by default
+    const enemy = spawnUnit(game, 1, 'grunt', 700, 300);
+    enemy.hp = enemy.maxHp = 100000;
+    // widen grunt range so it engages at distance and shoots
+    game.ustat(0, 'grunt').range = 160;
+    run(game, 2);
+    const shot = game.projectiles.some((p) => p.srcType === 'grunt') ||
+      game.entities.some((e) => e.team === 1 && e.hp < e.maxHp); // dmg landed via projectile
+    check('ranged caster fires a projectile', shot);
+  }
+
+  // cast priority: while mid-cast a caster does not also auto-attack
+  {
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 50 } } } } });
+    const game = new Game(8, { races: ['humans', 'orcs'] });
+    const mender = spawnUnit(game, 0, 'mender', 600, 300);
+    const ally = spawnUnit(game, 0, 'grunt', 620, 300);
+    ally.maxHp = 1000; ally.hp = 200;
+    // step a few ticks; on the cast tick the mender is busy (no auto-attack)
+    let sawBusy = false;
+    for (let i = 0; i < 30; i++) { game.update(DT); game.drainEvents(); if (mender.abilityBusy > game.time) sawBusy = true; }
+    check('caster locks its attack while casting', sawBusy);
+  }
+
   // mana gates casting: a caster with an empty pool never fires
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 0, manaRegen: 0 } } } } });

@@ -36,6 +36,13 @@ function render() {
   html += `<div class="group"><h3>Colorarea echipelor (sprite-uri)</h3>
     <label class="fld" style="width:100%"><span>Mod</span>
       <select data-scope="tint" style="width:auto;flex:1;max-width:340px">${opts}</select></label></div>`;
+  // health-bar visibility
+  const hbOpts = [['0', 'Doar când sunt lovite (ca acum)'], ['1', 'Mereu vizibile (chiar și full)']]
+    .map(([v, l]) => `<option value="${v}" ${(!!CONFIG.HEALTHBAR_ALWAYS === (v === '1')) ? 'selected' : ''}>${l}</option>`)
+    .join('');
+  html += `<div class="group"><h3>Bare de viață</h3>
+    <label class="fld" style="width:100%"><span>Afișare</span>
+      <select data-scope="healthbar" style="width:auto;flex:1;max-width:340px">${hbOpts}</select></label></div>`;
   html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (nume, dimensiune, footprint, HP-ul bazei, turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
   app.innerHTML = html;
 }
@@ -46,6 +53,7 @@ function collect() {
   for (const el of app.querySelectorAll('[data-scope]')) {
     const { scope, id, field } = el.dataset;
     if (scope === 'tint') { CONFIG.TEAM_TINT = el.value; continue; }
+    if (scope === 'healthbar') { CONFIG.HEALTHBAR_ALWAYS = el.value === '1'; continue; }
     const raw = Number(el.value);
     if (!isFinite(raw)) continue;
     if (scope === 'general') CONFIG[field] = raw;

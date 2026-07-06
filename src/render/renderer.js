@@ -396,7 +396,7 @@ export class Renderer {
       ctx.restore();
 
       // HP bar (main always; others when damaged)
-      if (s.kind === 'main' || s.hp < s.maxHp) {
+      if (s.kind === 'main' || s.hp < s.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
         const w = s.kind === 'main' ? 110 : r * 3;
         const ratio = Math.max(0, s.hp / s.maxHp);
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -519,7 +519,7 @@ export class Renderer {
       }
       ctx.restore();
 
-      if (u.hp < u.maxHp) {
+      if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
         const w = stats.radius * 2.4;
         const ratio = Math.max(0, u.hp / u.maxHp);
         ctx.fillStyle = 'rgba(0,0,0,0.6)';

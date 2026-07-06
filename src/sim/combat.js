@@ -61,6 +61,15 @@ function windupTime(stats) {
 }
 
 function updateFighter(game, u, stats, dt) {
+  // Casting takes priority over the basic attack: while a caster is mid-cast
+  // (just spent mana on an ability) it holds its swing instead of also
+  // auto-attacking. Between casts / when out of mana it attacks normally.
+  if (u.abilityBusy > game.time) {
+    u.state = 'attack';
+    u.windup = 0;
+    return;
+  }
+
   let target = game.byId.get(u.targetId) || null;
   if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
     target = null;

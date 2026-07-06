@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.2';
+export const VERSION = 'v9.3';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -25,6 +25,7 @@ export const CONFIG = {
   // Cosmetic overrides set from the admin balance editor:
   SIZES: {},            // entity id -> visual scale multiplier (default 1)
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
+  HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
   CONSTRUCTION_ZONE: [
     { x0: 60, x1: 420, y0: 80, y1: 1360 },    // team 0 (left)
     { x0: 2780, x1: 3140, y0: 80, y1: 1360 }, // team 1 (right)

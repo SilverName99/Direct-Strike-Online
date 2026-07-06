@@ -74,8 +74,8 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
   per-rasă** (Humans și Orcs se reglează independent — tab-ul din care editezi). La plasare, footprint-ul
   apare colorat pe pătrățelele din grid, cu imaginea de idle 1 a clădirii pe cursor.
 - **⚙ Balance** (tab separat): reguli generale (bani, venit, interval wave, cap-uri, refund-uri, costuri
-  de tier) și **colorarea echipelor**: „ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
-  colorare".
+  de tier), **colorarea echipelor** („ale mele albastre / inamic roșu", „doar inamicul roșu" sau „fără
+  colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt lovite").
 - **Background per rasă:** în fiecare tab de rasă poți încărca o imagine de fundal care apare pe toată
   jumătatea acelei rase în joc.
 
@@ -87,6 +87,10 @@ devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revin
 Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi setezi **Mana** și
 **Regen mană (/s)** și îi alegi până la **5 abilități** din catalog. Abilitățile se aruncă singure
 (auto-cast) — nu ai nimic de apăsat în meci; casterii au bară albastră de mana sub cea de viață.
+Bifa **Ranged caster** (apare doar după „Caster") face ca atacul de bază să tragă un proiectil și
+deblochează slotul de imagine **Proiectil** (după Salvează + refresh). **Casting-ul are prioritate:**
+cât timp aruncă o abilitate, casterul nu dă și auto-attack; între cast-uri / când rămâne fără mană,
+atacă normal.
 
 - **Catalogul** (comun ambelor rase, denumiri în engleză) se balansează din **✨ Abilități** (lângă
   ⚙ Balance): **Heal** (cast simplu — cheltuie mană ca să vindece instant aliatul cel mai rănit),

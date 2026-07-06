@@ -32,17 +32,27 @@ const ABILITY_INFO = [
   'frostbolt' => ['Frost Bolt', true],
 ];
 
-// Which abilities a unit has selected (per race) — read from the saved
-// balance, so the sprite page can show its cast slots. Cached per request.
-function unitAbilities(string $race, string $ent): array {
+// Saved balance (cached per request) — lets the sprite page know a unit's
+// caster config so it can show the matching cast / projectile slots.
+function dsBalance(): array {
   static $bal = null;
   if ($bal === null) {
     $f = dirname(__DIR__) . '/assets/balance.json';
     $bal = is_file($f) ? (json_decode(file_get_contents($f), true) ?: []) : [];
   }
-  $u = $bal['races'][$race]['units'][$ent] ?? null;
+  return $bal;
+}
+function unitCfg(string $race, string $ent): ?array {
+  return dsBalance()['races'][$race]['units'][$ent] ?? null;
+}
+function unitAbilities(string $race, string $ent): array {
+  $u = unitCfg($race, $ent);
   if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
   return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));
+}
+function unitIsRangedCaster(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['caster']) && !empty($u['rangedCaster']);
 }
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
@@ -70,7 +80,7 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     'attack_0' => 'Attack 1', 'attack_1' => 'Attack 2',
     'die_0' => 'Die',
   ];
-  if (in_array($ent, PROJECTILE_UNITS, true)) $slots['projectile'] = 'Proiectil';
+  if (in_array($ent, PROJECTILE_UNITS, true) || unitIsRangedCaster($race, $ent)) $slots['projectile'] = 'Proiectil';
   // cast frames for this unit's selected active abilities (per race)
   foreach (unitAbilities($race, $ent) as $aid) {
     if (empty(ABILITY_INFO[$aid][1])) continue; // auras have no cast anim
