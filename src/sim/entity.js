@@ -11,8 +11,11 @@ export function spawnUnit(game, team, type, x, y) {
     windup: 0,      // >0 while a strike is winding up (attack 1 -> attack 2)
     windupMax: 0,   // total windup for the current swing (for anim progress)
     effects: [],    // active status effects [{kind, val, until}]
-    abilityCd: {},  // abilityId -> game.time when it can cast again
-    abilityBusy: 0, // holds the auto-attack until this time (mid-cast)
+    abilityCd: {},    // abilityId -> game.time when it can cast again
+    castState: null,  // null | 'prepare' | 'release' — active-cast FSM phase
+    castAbility: null,// ability id currently being cast (drives the render pose)
+    castTargetId: null,
+    castPhaseEnd: 0,  // game.time when the current cast phase ends
     spellHold: false, // caster is holding at range, saving up for a spell
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,

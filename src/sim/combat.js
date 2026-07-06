@@ -1,12 +1,17 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile } from './entity.js';
-import { attackPeriodMult, applyEffect, casterPrioritizesSpells } from './abilities.js';
+import { attackPeriodMult, applyEffect, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
     const stats = game.ustat(u.team, u.type);
     u.cooldown = Math.max(0, u.cooldown - dt);
+    // A caster is defined by its active abilities and runs the prepare ->
+    // release FSM before (and instead of) its basic action, whether it is a
+    // healer or a fighter. It only falls through to the basic attack/heal
+    // when out of mana (or the admin opted into auto-attacks between spells).
+    if (hasActiveAbility(stats) && stepCasterHold(game, u, stats, dt)) continue;
     if (stats.heal) {
       updateHealer(game, u, stats);
     } else {
@@ -60,14 +65,42 @@ function windupTime(stats) {
   return Math.min(0.4, stats.period * 0.5);
 }
 
-function updateFighter(game, u, stats, dt) {
+// Drive a caster's prepare -> release FSM and its between-cast hold. Returns
+// true when the caster consumed this tick (mid-cast, or waiting for a spell it
+// can still afford) so the caller skips the basic attack/heal. Returns false
+// when the caster is out of mana (or opted into auto-attacks) and should fall
+// through to its basic action.
+function stepCasterHold(game, u, stats, dt) {
   u.spellHold = false;
-  // Mid-cast: hold position, no auto-attack.
-  if (u.abilityBusy > game.time) {
+  if (stepCaster(game, u, stats, dt)) { // preparing or releasing a spell
+    u.spellHold = true;
     u.state = 'attack';
     u.windup = 0;
-    return;
+    return true;
   }
+  if (!casterPrioritizesSpells(u, stats)) return false; // out of mana -> basic action
+
+  // Still has mana for a spell but nothing castable this instant: wait for it.
+  // Keep marching with the army while nothing is in reach; hold at range once
+  // an enemy is engaged, never slipping a basic attack in between spells.
+  let target = game.byId.get(u.targetId) || null;
+  if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
+    target = null;
+    u.targetId = null;
+  }
+  if (!target) {
+    target = acquireTarget(game, u, stats);
+    u.targetId = target ? target.id : null;
+  }
+  const inRange = !!target && effDist(u, target) <= stats.range + (u.state === 'attack' ? 14 : 0);
+  u.spellHold = true;
+  u.windup = 0;
+  u.state = inRange ? 'attack' : 'march';
+  return true;
+}
+
+function updateFighter(game, u, stats, dt) {
+  u.spellHold = false;
 
   let target = game.byId.get(u.targetId) || null;
   if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
@@ -83,15 +116,10 @@ function updateFighter(game, u, stats, dt) {
   // otherwise back-row units shoved across the range boundary by the
   // separation pass flicker between attack and march every tick.
   const rangeBonus = u.state === 'attack' ? 14 : 0;
-  if (target && effDist(u, target) <= stats.range + rangeBonus) {
+  const inRange = !!target && effDist(u, target) <= stats.range + rangeBonus;
+
+  if (inRange) {
     u.state = 'attack';
-    // Spellcaster with mana to spare: hold at range and wait to cast — no
-    // basic attack slipped between spells.
-    if (casterPrioritizesSpells(u, stats)) {
-      u.spellHold = true;
-      u.windup = 0;
-      return;
-    }
     if (u.windup > 0) {
       // mid-swing: land the hit when the wind-up (attack 1 -> 2) completes
       u.windup -= dt;

@@ -94,6 +94,12 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 - **Prioritate la spell-uri:** implicit, cât timp are mană pentru o abilitate, casterul stă la distanță
   și așteaptă să castuiască — nu strecoară auto-attack-uri între spell-uri (când rămâne fără mană,
   atacă normal). Bifa **Auto attacks between spells** îi permite să atace și între cast-uri.
+- **Secvențierea cast-urilor** (o abilitate pe rând, în ordine): casterul intră în **„Prepare spell"**
+  (windup), apoi pe frame-ul **„Cast X"** se declanșează efectul exact atunci — heal-ul aterizează pe
+  aliat (bulinele verzi), proiectilul de Frost Bolt pleacă din mână. Abia după ce efectul se rezolvă
+  (la Frost Bolt: **după ce lovește ținta**) revine la „Prepare spell" și **reia abilitățile la rând**,
+  aruncând prima pe care o poate folosi. Niciodată două cast-uri în același moment și niciun atac normal
+  strecurat între ele — casterul e folosit pentru magiile lui.
 - **Cadre de animație (caster):** în loc de 2 frame-uri per acțiune, casterul folosește **un frame comun
   „Prepare spell"** (windup) + câte **un singur frame** pentru fiecare acțiune (Attack, Cast Heal,
   Cast Frost Bolt…). Mai puțin de desenat și fără pâlpâit între poze.

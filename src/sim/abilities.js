@@ -7,16 +7,29 @@
 // timed effects (frost bolt) outlive their cast. Strongest value wins when
 // the same kind stacks.
 
+import { CONFIG } from '../config.js';
 import { resolvedAbility } from '../ui/balance.js';
 import { spawnProjectile } from './entity.js';
 
-const AURA_TICK = 0.35; // aura effects auto-expire this fast (re-applied while inside)
-const CAST_LOCK = 0.5;  // seconds a caster holds its auto-attack after casting
+const AURA_TICK = 0.35;    // aura effects auto-expire this fast (re-applied while inside)
+export const CAST_PREPARE = 0.45; // "Prepare spell" wind-up before the release frame
+export const CAST_RELEASE = 0.40; // minimum time on the release frame (instant spells)
+
+// Does this unit have at least one ACTIVE (auto-cast) ability configured?
+// Aura-only casters keep fighting normally; only active-ability casters run
+// the prepare -> release casting state machine.
+export function hasActiveAbility(stats) {
+  if (!stats.caster || !stats.abilities) return false;
+  return stats.abilities.some((aid) => {
+    const ab = resolvedAbility(aid);
+    return ab && ab.kind === 'active';
+  });
+}
 
 // A caster is a spellcaster first: while it can still afford at least one of
-// its ACTIVE abilities, it holds its basic attack and waits to cast instead
-// of slipping an auto-attack between every spell. Aura-only casters (and
-// casters out of mana) fall through and fight normally.
+// its ACTIVE abilities, it holds its basic attack and waits for the cooldown
+// instead of slipping an auto-attack between every spell. Aura-only casters
+// (and casters out of mana) fall through and fight normally.
 export function casterPrioritizesSpells(unit, stats) {
   if (!stats.caster || !stats.abilities) return false;
   if (stats.autoAttackBetween) return false; // admin opt-in: attack between spells
@@ -92,11 +105,11 @@ export function updateAbilities(game, dt) {
       u.mana = Math.min(u.manaMax, u.mana + (stats.manaRegen || 0) * dt);
     }
 
+    // Auras tick passively every frame; active abilities are driven by the
+    // prepare -> release state machine (stepCaster), called from combat.js.
     for (const aid of stats.abilities) {
       const ab = resolvedAbility(aid);
-      if (!ab) continue;
-      if (ab.kind === 'aura') tickAura(game, u, aid, ab, time, dt);
-      else castActive(game, u, aid, ab, time);
+      if (ab && ab.kind === 'aura') tickAura(game, u, aid, ab, time, dt);
     }
   }
 
@@ -135,12 +148,74 @@ function tickAura(game, caster, aid, ab, time, dt) {
   }
 }
 
-function castActive(game, caster, aid, ab, time) {
-  if (!caster.abilityCd) caster.abilityCd = {};
-  if ((caster.abilityCd[aid] || 0) > time) return;
-  const p = ab.params;
-  if (p.manaCost > 0 && caster.mana < p.manaCost) return; // not enough mana
+// ---- active-cast state machine ---------------------------------------------
+//
+// A caster casts one spell at a time as a strict sequence:
+//   Prepare (wind-up, "Prepare spell" frame)
+//     -> Release (the "Cast X" frame; the effect fires exactly here: heal
+//        lands, the frost bolt leaves the hand)
+//     -> re-evaluate (scan abilities in list order, pick the first castable
+//        one and start over).
+// It never slips an auto-attack between spells. For a projectile spell the
+// release phase runs until the bolt would land, so the caster only moves on
+// to the next spell after the hit — no teleporting between frames.
+//
+// Called once per tick from combat.js. Returns true while the caster is busy
+// preparing/releasing (combat then suppresses the basic attack and holds
+// position).
 
+function endCast(caster) {
+  caster.castState = null;
+  caster.castAbility = null;
+  caster.castTargetId = null;
+}
+
+export function stepCaster(game, caster, stats, dt) {
+  const time = game.time;
+  if (!caster.abilityCd) caster.abilityCd = {};
+
+  // advance an in-progress cast
+  if (caster.castState === 'prepare') {
+    if (time >= caster.castPhaseEnd) {
+      const rel = releaseSpell(game, caster, time); // fires the effect
+      if (rel == null) { endCast(caster); return false; } // target gone -> abort
+      caster.castState = 'release';
+      caster.castPhaseEnd = time + rel;
+    }
+    return true;
+  }
+  if (caster.castState === 'release') {
+    if (time < caster.castPhaseEnd) return true;
+    endCast(caster); // fall through and try to chain the next spell this tick
+  }
+
+  // idle: pick the first castable ability (list order) and start winding up
+  const pick = pickCastable(game, caster, stats, time);
+  if (!pick) return false;
+  caster.castState = 'prepare';
+  caster.castAbility = pick.aid;
+  caster.castTargetId = pick.target.id;
+  caster.castPhaseEnd = time + CAST_PREPARE;
+  return true;
+}
+
+// First active ability, in the caster's configured order, that is off
+// cooldown, affordable, and has a valid target right now.
+function pickCastable(game, caster, stats, time) {
+  for (const aid of stats.abilities) {
+    const ab = resolvedAbility(aid);
+    if (!ab || ab.kind !== 'active') continue;
+    if ((caster.abilityCd[aid] || 0) > time) continue;
+    if ((ab.params.manaCost || 0) > caster.mana) continue;
+    const target = findAbilityTarget(game, caster, aid, ab, time);
+    if (target) return { aid, ab, target };
+  }
+  return null;
+}
+
+// The target a given ability would act on, or null if there is none.
+function findAbilityTarget(game, caster, aid, ab, time) {
+  const p = ab.params;
   if (aid === 'heal') {
     // most-wounded ally in range (excluding self), stable iteration order
     let best = null;
@@ -151,18 +226,10 @@ function castActive(game, caster, aid, ab, time) {
       const ratio = u.hp / u.maxHp;
       if (ratio < bestRatio) { bestRatio = ratio; best = u; }
     }
-    if (!best) return;
-    best.hp = Math.min(best.maxHp, best.hp + p.amount);
-    caster.abilityCd[aid] = time + p.cooldown;
-    caster.mana -= p.manaCost || 0;
-    caster.abilityBusy = time + CAST_LOCK;
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: best.x, y: best.y });
-    game.events.push({ type: 'heal', x: best.x, y: best.y });
-    return;
+    return best;
   }
-
   if (aid === 'dispell') {
-    // trigger: an ally in range carries a debuff, or an enemy carries a buff
+    // an ally in range carrying a debuff, or an enemy carrying a buff
     let target = null;
     for (const u of game.entities) {
       if (u.hp <= 0 || !u.effects || !u.effects.length || !inRadius(u, caster, p.range)) continue;
@@ -172,26 +239,8 @@ function castActive(game, caster, aid, ab, time) {
       );
       if (hit && (!target || u.id < target.id)) target = u;
     }
-    if (!target) return;
-    // cleanse everyone in the blast radius around the target
-    for (const u of game.entities) {
-      if (u.hp <= 0 || !inRadius(u, target, p.radius)) continue;
-      if (!u.effects) u.effects = [];
-      if (u.team === caster.team) {
-        u.effects = u.effects.filter((e) => !DEBUFFS.includes(e.kind));
-        applyEffect(u, 'immune', 1, time + p.immunity, time);
-      } else {
-        u.effects = u.effects.filter((e) => !BUFFS.includes(e.kind));
-        applyEffect(u, 'nobuff', 1, time + p.immunity, time);
-      }
-    }
-    caster.abilityCd[aid] = time + p.cooldown;
-    caster.mana -= p.manaCost || 0;
-    caster.abilityBusy = time + CAST_LOCK;
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius });
-    return;
+    return target;
   }
-
   if (aid === 'frostbolt') {
     // nearest enemy in range, preferring ones not already slowed
     let best = null;
@@ -204,17 +253,67 @@ function castActive(game, caster, aid, ab, time) {
       const key = slowed * 1e9 + dx * dx + dy * dy; // unslowed first, then nearest
       if (key < bestKey) { bestKey = key; best = u; }
     }
-    if (!best) return;
+    return best;
+  }
+  return null;
+}
+
+// Fire the effect of caster.castAbility on the release frame. Re-picks a valid
+// target (the intended one may have died/moved). Pays mana + sets cooldown.
+// Returns how long the release phase should last (seconds), or null to abort.
+function releaseSpell(game, caster, time) {
+  const aid = caster.castAbility;
+  const ab = resolvedAbility(aid);
+  if (!ab) return null;
+  const p = ab.params;
+  const target = findAbilityTarget(game, caster, aid, ab, time);
+  if (!target) return null; // nothing valid to hit -> abort with no cost
+
+  caster.abilityCd[aid] = time + p.cooldown;
+  caster.mana -= p.manaCost || 0;
+
+  if (aid === 'heal') {
+    target.hp = Math.min(target.maxHp, target.hp + p.amount);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
+    game.events.push({ type: 'heal', x: target.x, y: target.y });
+    return CAST_RELEASE;
+  }
+
+  if (aid === 'dispell') {
+    // cleanse everyone in the blast radius around the target
+    for (const u of game.entities) {
+      if (u.hp <= 0 || !inRadius(u, target, p.radius)) continue;
+      if (!u.effects) u.effects = [];
+      if (u.team === caster.team) {
+        u.effects = u.effects.filter((e) => !DEBUFFS.includes(e.kind));
+        applyEffect(u, 'immune', 1, time + p.immunity, time);
+      } else {
+        u.effects = u.effects.filter((e) => !BUFFS.includes(e.kind));
+        applyEffect(u, 'nobuff', 1, time + p.immunity, time);
+      }
+    }
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius });
+    return CAST_RELEASE;
+  }
+
+  if (aid === 'frostbolt') {
     spawnProjectile(game, caster, {
       damage: p.damage, dmgType: 'normal',
       projectileSpeed: p.projectileSpeed, projSize: 1,
-    }, best);
+    }, target);
     const proj = game.projectiles[game.projectiles.length - 1];
     proj.ability = aid; // impact applies the slow (see combat.js)
     proj.effectSpec = { moveSlow: p.moveSlow, atkSlow: p.atkSlow, duration: p.duration };
-    caster.abilityCd[aid] = time + p.cooldown;
-    caster.mana -= p.manaCost || 0;
-    caster.abilityBusy = time + CAST_LOCK;
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, tx: best.x, ty: best.y });
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, tx: target.x, ty: target.y });
+    // hold the release frame until the bolt would land, so the caster only
+    // re-evaluates after the hit (no snap to the next spell mid-flight)
+    const dx = target.x - caster.x;
+    const dy = target.y - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
+    const travel = speed > 0 ? dist / speed : 0;
+    return Math.max(CAST_RELEASE, travel);
   }
+
+  return CAST_RELEASE;
 }

@@ -114,7 +114,6 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
-    this.castPose = new Map(); // unit id -> {ability, until} (uploaded cast frames)
   }
 
   resize() {
@@ -138,18 +137,6 @@ export class Renderer {
   visible(x, y, margin = 60) {
     const v = this.view;
     return x >= v.x0 - margin && x <= v.x1 + margin && y >= v.y0 - margin && y <= v.y1 + margin;
-  }
-
-  // Sim events the renderer cares about (cast pose windows). Called by
-  // main.js with the same drained batch the effects layer receives.
-  noteEvents(events) {
-    const now = performance.now() / 1000;
-    for (const e of events) {
-      if (e.type === 'cast' && e.unitId != null) {
-        this.castPose.set(e.unitId, { ability: e.ability, until: now + 0.6 });
-      }
-    }
-    if (this.castPose.size > 2000) this.castPose.clear(); // bound the map
   }
 
   draw(game, alpha, uiState, effects) {
@@ -488,10 +475,21 @@ export class Renderer {
         if (u.state === 'attack' && !u.spellHold) this.attackHold.set(u.id, this.now);
         const held = this.attackHold.get(u.id);
         const attacking = (u.state === 'attack' && !u.spellHold) || (held !== undefined && this.now - held < 0.3);
-        if (attacking) {
+        if (isCaster && u.castState) {
+          // active-cast FSM drives the pose frame-accurately: "Prepare spell"
+          // during the wind-up, then the single "Cast X" release frame exactly
+          // when the effect fires (heal lands / bolt leaves). Both fall back
+          // gracefully to attack/idle when a frame isn't uploaded.
+          if (u.castState === 'prepare') {
+            anim = prep ? 'prepare' : 'attack';
+          } else { // release
+            anim = castAnimOf(u.type, u.team, u.castAbility) || (prep ? 'prepare' : 'attack');
+          }
+          frame = 0;
+        } else if (attacking) {
           if (isCaster) {
-            // single-frame model: shared "prepare" during the wind-up, one
-            // "attack" release frame otherwise
+            // non-caster-ability fighter path (out of mana / auto-attacking):
+            // shared "prepare" during the wind-up, one "attack" release frame
             anim = u.windup > 0 && prep ? 'prepare' : 'attack';
             frame = 0;
           } else {
@@ -502,16 +500,6 @@ export class Renderer {
           // marching, or a caster calmly waiting to cast -> idle/walk
           anim = u.state === 'march' ? 'walk' : 'idle';
           frame = (Math.floor(this.now * 5) + u.id) % 2;
-        }
-        // an active cast overrides: "prepare" first, single cast-release frame
-        // second (both fall back gracefully when a frame isn't uploaded)
-        const cp = this.castPose.get(u.id);
-        if (cp && this.now < cp.until) {
-          const second = cp.until - this.now < 0.3;
-          const ca = castAnimOf(u.type, u.team, cp.ability);
-          if (second && ca) { anim = ca; frame = 0; }
-          else if (prep) { anim = 'prepare'; frame = 0; }
-          else if (ca) { anim = ca; frame = 0; }
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, sizeOf(raceOf(u.team), u.type));
       } else {

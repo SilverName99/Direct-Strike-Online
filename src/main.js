@@ -137,7 +137,6 @@ function frame(now) {
     }
     const events = game.drainEvents();
     effects.spawnFromEvents(events);
-    renderer.noteEvents(events); // cast pose windows
     effects.update(delta);
     hud.update(game, delta);
 

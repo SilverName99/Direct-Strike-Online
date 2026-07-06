@@ -380,6 +380,43 @@ console.log('abilities (casters, auras, status effects)');
     check('heal restores a wounded ally', wounded.hp > 100, `hp=${wounded.hp}`);
   }
 
+  // sequencing: the effect fires on the RELEASE frame, not at prepare start —
+  // so a caster mid-wind-up hasn't healed yet
+  {
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 5 } } } } });
+    const game = new Game(11, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'mender', 600, 300);
+    const wounded = spawnUnit(game, 0, 'grunt', 630, 300);
+    wounded.maxHp = 500; wounded.hp = 100;
+    // one tick: the caster has entered 'prepare' but has NOT released yet
+    game.update(DT); game.drainEvents();
+    check('effect deferred to release frame (no heal during prepare)',
+      caster.castState === 'prepare' && wounded.hp === 100, `state=${caster.castState} hp=${wounded.hp}`);
+  }
+
+  // sequencing: abilities cast one at a time, in list order — never two in the
+  // same tick. Heal (ally hurt) fires before Frost Bolt is prepared.
+  {
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal', 'frostbolt'], mana: 100, manaRegen: 20 } } } } });
+    const game = new Game(13, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'mender', 600, 300);
+    const ally = spawnUnit(game, 0, 'grunt', 630, 300);
+    ally.maxHp = 500; ally.hp = 100;
+    const enemy = spawnUnit(game, 1, 'grunt', 720, 300);
+    enemy.hp = enemy.maxHp = 100000;
+    let everTwoAtOnce = false;
+    const casts = [];
+    for (let i = 0; i < 90; i++) {
+      game.update(DT);
+      const ev = game.drainEvents().filter((e) => e.type === 'cast' && e.unitId === caster.id);
+      if (ev.length > 1) everTwoAtOnce = true;
+      for (const e of ev) casts.push(e.ability);
+    }
+    check('one spell at a time (never two casts in a tick)', !everTwoAtOnce);
+    check('casts follow list order (heal before frost bolt)',
+      casts.length >= 2 && casts[0] === 'heal' && casts.includes('frostbolt'), casts.join(','));
+  }
+
   // Ranged flag: a melee-base unit fires a projectile on its basic attack
   {
     applyBalance({ races: { humans: { units: { grunt: { ranged: true } } } } });
@@ -403,9 +440,10 @@ console.log('abilities (casters, auras, status effects)');
     const mender = spawnUnit(game, 0, 'mender', 600, 300);
     const ally = spawnUnit(game, 0, 'grunt', 620, 300);
     ally.maxHp = 1000; ally.hp = 200;
-    // step a few ticks; on the cast tick the mender is busy (no auto-attack)
+    // step a few ticks; while casting the mender is in a prepare/release phase
+    // and holds (no auto-attack slipped in)
     let sawBusy = false;
-    for (let i = 0; i < 30; i++) { game.update(DT); game.drainEvents(); if (mender.abilityBusy > game.time) sawBusy = true; }
+    for (let i = 0; i < 30; i++) { game.update(DT); game.drainEvents(); if (mender.castState && mender.spellHold) sawBusy = true; }
     check('caster locks its attack while casting', sawBusy);
   }
 
