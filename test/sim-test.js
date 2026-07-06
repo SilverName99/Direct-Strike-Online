@@ -572,6 +572,39 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // A RANGED mounted rider must charge all the way IN and fight on foot at its
+  // dismounted range — no dismount-at-mounted-range, no ranged shots on foot
+  {
+    applyBalance({
+      races: {
+        humans: { units: { slinger: { ranged: true } } },
+        orcs: { units: { crab: { ranged: true, range: 200, period: 1.0, damage: 30 } } },
+      },
+      upgrades: { dashmount: { race: 'orcs', unit: 'crab', params: { cost: 100, radius: 260, dashSpeed: 720, dmDamage: 22, dmRange: 30, dmPeriod: 0.8, dmSpeed: 95, dmSize: 100 } } },
+    });
+    const game = new Game(11, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'dashmount' });
+    const rider = spawnUnit(game, 1, 'crab', 950, 300);
+    const archer = spawnUnit(game, 0, 'slinger', 700, 300); // in trigger radius, at mounted range
+    archer.hp = archer.maxHp = 100000; rider.hp = rider.maxHp = 100000;
+    let shotsOnFoot = 0;
+    let dismountDist = null;
+    for (let i = 0; i < 30 * 8; i++) {
+      game.update(DT);
+      for (const e of game.drainEvents()) {
+        if (e.type === 'dismount' && dismountDist === null) {
+          dismountDist = Math.hypot(rider.x - archer.x, rider.y - archer.y);
+        }
+        if (e.type === 'shot' && e.team === 1 && rider.dismounted) shotsOnFoot++;
+      }
+    }
+    check('rider dismounts NEXT TO the enemy (on-foot range, not mounted)',
+      dismountDist !== null && dismountDist < 80, `dist=${Math.round(dismountDist ?? -1)}`);
+    check('dismounted orc never fires ranged shots', shotsOnFoot === 0, `shots=${shotsOnFoot}`);
+    check('dismounted orc lands melee damage', archer.hp < archer.maxHp);
+    applyBalance({});
+  }
+
   // Upgrade targets a specific race's unit: an orcs-only upgrade is unbuyable by
   // humans and leaves the humans same-type unit unaffected
   {

@@ -25,7 +25,7 @@ export function updateCombat(game, dt) {
     u.cooldown = Math.max(0, u.cooldown - dt);
     // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
     // intruder and dismount on arrival — takes over from normal combat.
-    if (!u.dismounted && mountCharge(game, u, base, dt)) continue;
+    if (!u.dismounted && mountCharge(game, u)) continue;
     // A caster is defined by its active abilities and runs the prepare ->
     // release FSM before (and instead of) its basic action, whether it is a
     // healer or a fighter. It only falls through to the basic attack/heal
@@ -260,7 +260,7 @@ function findRangedIntruder(game, u, radius) {
 // radius, charge it at dashSpeed and dismount on arrival (the mount "flees" =
 // the unit swaps to its on-foot sprite set + dismounted stats). Returns true
 // while charging so normal combat is skipped that tick.
-function mountCharge(game, u, stats, dt) {
+function mountCharge(game, u) {
   const up = mountUpgradeFor(game, u);
   if (!up) { u.mountTargetId = null; return false; }
   const p = up.params;
@@ -271,7 +271,14 @@ function mountCharge(game, u, stats, dt) {
 
   u.mountTargetId = intruder.id;
   u.targetId = intruder.id;
-  if (effDist(u, intruder) <= atkRange(u, stats) + 14) {
+  // Arrival is measured with the ON-FOOT attack range (dmRange), NOT the
+  // mounted one: the whole point is to charge right up to the ranged enemy and
+  // fight it THERE. With the mounted range (often long) the rider would
+  // "arrive" — and dismount — the instant the intruder entered the trigger
+  // radius, far away, with no visible dash and a mounted-range attack slipping
+  // through on the transition tick.
+  const arriveR = Math.max(p.dmRange || 0, (u.radius || 0) + 4) + 14;
+  if (effDist(u, intruder) <= arriveR) {
     // arrived: dismount and fight on foot from now on (rest of this life)
     u.dismounted = true;
     u.dashing = false;
@@ -279,7 +286,7 @@ function mountCharge(game, u, stats, dt) {
     u.ovSize = (p.dmSize != null ? p.dmSize : 100) / 100; // on-foot visual scale
     u.windup = 0; u.cooldown = 0;
     game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
-    return false; // updateFighter handles the on-foot attack this same tick
+    return true; // skip combat this tick — next tick fights with on-foot stats
   }
   // still charging in
   u.dashing = true;
