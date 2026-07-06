@@ -367,6 +367,8 @@ console.log('abilities (casters, auras, status effects)');
     spawnUnit(game, 0, 'mender', 600, 300);
     const wounded = spawnUnit(game, 0, 'grunt', 630, 300);
     wounded.maxHp = 500; wounded.hp = 100; // hurt ally in range
+    const foe = spawnUnit(game, 1, 'grunt', 680, 300); // enemy in range so the caster engages
+    foe.hp = foe.maxHp = 100000;
     run(game, 2);
     check('heal restores a wounded ally', wounded.hp > 100, `hp=${wounded.hp}`);
   }
@@ -379,6 +381,8 @@ console.log('abilities (casters, auras, status effects)');
     const caster = spawnUnit(game, 0, 'mender', 600, 300);
     const wounded = spawnUnit(game, 0, 'grunt', 630, 300);
     wounded.maxHp = 500; wounded.hp = 100;
+    const foe = spawnUnit(game, 1, 'grunt', 680, 300); // enemy in range so the caster engages
+    foe.hp = foe.maxHp = 100000;
     // one tick: the caster has entered 'prepare' but has NOT released yet
     game.update(DT); game.drainEvents();
     check('effect deferred to release frame (no heal during prepare)',
@@ -449,6 +453,8 @@ console.log('abilities (casters, auras, status effects)');
     const mender = spawnUnit(game, 0, 'mender', 600, 300);
     const ally = spawnUnit(game, 0, 'grunt', 620, 300);
     ally.maxHp = 1000; ally.hp = 200;
+    const foe = spawnUnit(game, 1, 'grunt', 680, 300); // enemy in range so the caster engages
+    foe.hp = foe.maxHp = 100000;
     // step a few ticks; while casting the mender is in a prepare/release phase
     // and holds (no auto-attack slipped in)
     let sawBusy = false;
@@ -483,6 +489,28 @@ console.log('abilities (casters, auras, status effects)');
     run(game, 3);
     const slowed = runner.effects && runner.effects.some((e) => e.kind === 'moveslow');
     check('no mana -> no cast', !slowed, JSON.stringify(runner.effects));
+  }
+
+  // engagement rule: a caster does not cast while no enemy is in attack range
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['hasteaura'], mana: 100, manaRegen: 0 } } } } });
+    const game = new Game(9, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 300);
+    const ally = spawnUnit(game, 0, 'grunt', 620, 300); // buff target present, but no enemy near
+    run(game, 2);
+    const buffed = ally.effects && ally.effects.some((e) => e.kind === 'haste');
+    check('no cast while not engaged (no enemy in attack range)', caster.mana === 100 && !buffed, `mana=${caster.mana}`);
+  }
+
+  // regen aura is the exception: it fires for wounded allies even unengaged
+  {
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['regenaura'], mana: 100, manaRegen: 0 } } } } });
+    const game = new Game(9, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'mender', 600, 300);
+    const wounded = spawnUnit(game, 0, 'grunt', 620, 300); // wounded ally, no enemy in range
+    wounded.maxHp = 500; wounded.hp = 100;
+    run(game, 2);
+    check('regen aura casts for wounded allies even when not engaged', caster.mana === 70, `mana=${caster.mana}`);
   }
 
   // determinism holds with casters in play

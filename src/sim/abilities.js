@@ -174,11 +174,11 @@ function endCast(caster) {
   caster.castTargetId = null;
 }
 
-export function stepCaster(game, caster, stats, dt) {
+export function stepCaster(game, caster, stats, dt, engaged) {
   const time = game.time;
   if (!caster.abilityCd) caster.abilityCd = {};
 
-  // advance an in-progress cast
+  // advance an in-progress cast (always finish what was started)
   if (caster.castState === 'prepare') {
     if (time >= caster.castPhaseEnd) {
       const rel = releaseSpell(game, caster, time); // fires the effect
@@ -194,7 +194,7 @@ export function stepCaster(game, caster, stats, dt) {
   }
 
   // idle: pick the first castable ability (list order) and start winding up
-  const pick = pickCastable(game, caster, stats, time);
+  const pick = pickCastable(game, caster, stats, time, engaged);
   if (!pick) return false;
   caster.castState = 'prepare';
   caster.castAbility = pick.aid;
@@ -203,14 +203,19 @@ export function stepCaster(game, caster, stats, dt) {
   return true;
 }
 
-// First active ability, in the caster's configured order, that is off
+// First castable ability, in the caster's configured order, that is off
 // cooldown, affordable, and has a valid target right now.
-function pickCastable(game, caster, stats, time) {
+//
+// General rule: a caster only casts while ENGAGED (an enemy sits in its attack
+// range). The one exception is Regeneration Aura, which fires for wounded
+// allies even with no enemy nearby.
+function pickCastable(game, caster, stats, time, engaged) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
+    if (!engaged && aid !== 'regenaura') continue; // must be engaged (except regen)
     const target = findAbilityTarget(game, caster, aid, ab, time);
     if (target) return { aid, ab, target };
   }
@@ -221,8 +226,12 @@ function pickCastable(game, caster, stats, time) {
 function findAbilityTarget(game, caster, aid, ab, time) {
   const p = ab.params;
   if (aid === 'regenaura') {
-    // self-centered zone; the caster itself always benefits (self-regen)
-    return caster;
+    // self-centered zone worth raising when any ally in range is wounded
+    // (the caster itself counts) — fires even when no enemy is engaged
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team === caster.team && u.hp < u.maxHp && inRadius(u, caster, p.radius)) return caster;
+    }
+    return null;
   }
   if (aid === 'hasteaura') {
     // only worth casting when at least one *other* ally is in range to buff

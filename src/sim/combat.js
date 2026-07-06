@@ -72,17 +72,10 @@ function windupTime(stats) {
 // through to its basic action.
 function stepCasterHold(game, u, stats, dt) {
   u.spellHold = false;
-  if (stepCaster(game, u, stats, dt)) { // preparing or releasing a spell
-    u.spellHold = true;
-    u.state = 'attack';
-    u.windup = 0;
-    return true;
-  }
-  if (!casterPrioritizesSpells(u, stats)) return false; // out of mana -> basic action
 
-  // Still has mana for a spell but nothing castable this instant: wait for it.
-  // Keep marching with the army while nothing is in reach; hold at range once
-  // an enemy is engaged, never slipping a basic attack in between spells.
+  // Find an enemy target and whether one is within attack range. General rule:
+  // a caster only casts while ENGAGED (an enemy in its attack range); the FSM
+  // enforces it (Regeneration Aura is the lone exception, handled in the FSM).
   let target = game.byId.get(u.targetId) || null;
   if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
     target = null;
@@ -92,10 +85,22 @@ function stepCasterHold(game, u, stats, dt) {
     target = acquireTarget(game, u, stats);
     u.targetId = target ? target.id : null;
   }
-  const inRange = !!target && effDist(u, target) <= stats.range + (u.state === 'attack' ? 14 : 0);
+  const engaged = !!target && effDist(u, target) <= stats.range + (u.state === 'attack' ? 14 : 0);
+
+  if (stepCaster(game, u, stats, dt, engaged)) { // preparing or releasing a spell
+    u.spellHold = true;
+    u.state = 'attack';
+    u.windup = 0;
+    return true;
+  }
+  if (!casterPrioritizesSpells(u, stats)) return false; // out of mana -> basic action
+
+  // Still has mana for a spell but nothing castable this instant: wait for it.
+  // Hold at range once engaged; otherwise march to close in (casting waits
+  // until an enemy is in attack range), never slipping a basic attack in.
   u.spellHold = true;
   u.windup = 0;
-  u.state = inRange ? 'attack' : 'march';
+  u.state = engaged ? 'attack' : 'march';
   return true;
 }
 
