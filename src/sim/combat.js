@@ -284,6 +284,12 @@ function mountCharge(game, u) {
     u.dashing = false;
     u.ovDamage = p.dmDamage; u.ovRange = p.dmRange; u.ovPeriod = p.dmPeriod; u.ovSpeed = p.dmSpeed;
     u.ovSize = (p.dmSize != null ? p.dmSize : 100) / 100; // on-foot visual scale
+    // The mount is gone: the on-foot body is the unit's BASE radius (not the
+    // mounted/footprint-inflated one), scaled by the on-foot size. Separation
+    // and the touch-range floor both use u.radius, so keeping the mounted bulk
+    // would stop the orc far from its target no matter how small dmRange is.
+    const bs = game.ustat(u.team, u.type);
+    u.radius = Math.max(5, (bs.radius || 10) * u.ovSize);
     u.windup = 0; u.cooldown = 0;
     game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
     return true; // skip combat this tick — next tick fights with on-foot stats

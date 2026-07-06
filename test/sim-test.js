@@ -605,6 +605,39 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // On dismount the mount is gone: the body shrinks from the mounted (footprint)
+  // radius to the base one, so a tiny dmRange really fights at touch distance
+  {
+    applyBalance({
+      races: {
+        humans: { units: { slinger: { ranged: true } } },
+        orcs: { units: { crab: { ranged: true, range: 200, cw: 2, ch: 2 } } }, // big mounted body (r=40)
+      },
+      upgrades: { dashmount: { race: 'orcs', unit: 'crab', params: { cost: 100, radius: 300, dashSpeed: 720, dmDamage: 22, dmRange: 5, dmPeriod: 0.8, dmSpeed: 95, dmSize: 100 } } },
+    });
+    const game = new Game(11, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'dashmount' });
+    const rider = spawnUnit(game, 1, 'crab', 990, 300);
+    const archer = spawnUnit(game, 0, 'slinger', 700, 300);
+    archer.hp = archer.maxHp = 100000; rider.hp = rider.maxHp = 100000;
+    const mountedR = rider.radius;
+    let firstHitDist = null;
+    let last = 0;
+    for (let i = 0; i < 30 * 8; i++) {
+      game.update(DT); game.drainEvents();
+      const dmg = archer.maxHp - archer.hp;
+      if (rider.dismounted && dmg > last && firstHitDist === null) {
+        firstHitDist = Math.hypot(rider.x - archer.x, rider.y - archer.y);
+      }
+      last = dmg;
+    }
+    check('on-foot body shrinks from the mounted footprint radius',
+      mountedR === 40 && rider.radius < 20, `mounted=${mountedR} foot=${rider.radius}`);
+    check('tiny dmRange fights at touch distance',
+      firstHitDist !== null && firstHitDist < 35, `dist=${Math.round(firstHitDist ?? -1)}`);
+    applyBalance({});
+  }
+
   // Upgrade targets a specific race's unit: an orcs-only upgrade is unbuyable by
   // humans and leaves the humans same-type unit unaffected
   {
