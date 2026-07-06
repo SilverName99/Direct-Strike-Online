@@ -21,11 +21,34 @@ const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image
 const ARMED_BUILDINGS = ['turret', 'tower'];
+// ability catalog (mirrors src/abilities.js): id => [name, has cast animation]
+// — auras are passive, so they take no cast frames
+const ABILITY_INFO = [
+  'dispell' => ['Dispell', true],
+  'slowaura' => ['Aură de încetinire', false],
+  'hasteaura' => ['Aură de grabă', false],
+  'regenaura' => ['Aură de regenerare', false],
+  'frostbolt' => ['Săgeată de gheață', true],
+];
+
+// Which abilities a unit has selected (per race) — read from the saved
+// balance, so the sprite page can show its cast slots. Cached per request.
+function unitAbilities(string $race, string $ent): array {
+  static $bal = null;
+  if ($bal === null) {
+    $f = dirname(__DIR__) . '/assets/balance.json';
+    $bal = is_file($f) ? (json_decode(file_get_contents($f), true) ?: []) : [];
+  }
+  $u = $bal['races'][$race]['units'][$ent] ?? null;
+  if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
+  return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));
+}
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 
-// slot id => label; slot files are "<slot>.png"
-function slotsFor(string $ent): array {
+// slot id => label; slot files are "<slot>.png". $race matters only for
+// units: casters gain 2 cast frames per selected ACTIVE ability.
+function slotsFor(string $ent, string $race = 'humans'): array {
   if (in_array($ent, BUILDING_LIST, true)) {
     // the main base shows a distinct image per upgrade tier (1/2/3)
     if ($ent === 'main') {
@@ -47,6 +70,13 @@ function slotsFor(string $ent): array {
     'die_0' => 'Die',
   ];
   if (in_array($ent, PROJECTILE_UNITS, true)) $slots['projectile'] = 'Proiectil';
+  // cast frames for this unit's selected active abilities (per race)
+  foreach (unitAbilities($race, $ent) as $aid) {
+    if (empty(ABILITY_INFO[$aid][1])) continue; // auras have no cast anim
+    $name = ABILITY_INFO[$aid][0];
+    $slots["cast-{$aid}_0"] = "Cast {$name} 1";
+    $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+  }
   return $slots;
 }
 
@@ -70,7 +100,7 @@ function regenManifest(string $assetsDir): void {
   $races = [];
   foreach (RACES as $r) {
     foreach (array_merge(UNIT_LIST, BUILDING_LIST) as $ent) {
-      $slots = slotsFor($ent);
+      $slots = slotsFor($ent, $r);
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
@@ -152,7 +182,7 @@ $authed = !empty($_SESSION['auth']);
 function validTarget(string $race, string $ent, string $slot): bool {
   return in_array($race, RACES, true)
     && in_array($ent, array_merge(UNIT_LIST, BUILDING_LIST), true)
-    && array_key_exists($slot, slotsFor($ent));
+    && array_key_exists($slot, slotsFor($ent, $race));
 }
 
 if ($authed && $action === 'upload') {
@@ -344,6 +374,7 @@ if ($authed && $action === 'deletebg') {
       <a href="?race=<?= $r ?>" class="<?= $r === $race ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
     <?php endforeach; ?>
     <a href="balance.php" style="margin-left:16px">⚙ Balance</a>
+    <a href="abilities.php" style="margin-left:4px">✨ Abilități</a>
   </div>
 
   <?php $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile); ?>
@@ -386,7 +417,7 @@ if ($authed && $action === 'deletebg') {
 
   <?php
   function renderEnt(string $race, string $ent, string $assetsDir, string $assetsUrl, string $csrf, string $kind): void {
-    $slots = slotsFor($ent);
+    $slots = slotsFor($ent, $race);
     $done = 0;
     foreach ($slots as $slot => $label) if (is_file("$assetsDir/$race/$ent/$slot.png")) $done++;
     ?>
@@ -447,7 +478,10 @@ if ($authed && $action === 'deletebg') {
 
   <div class="hint">
     • <b>⚙ stats</b> pe fiecare unitate/clădire editează caracteristicile ei (cost, HP, damage…).
-    Regulile generale (bani, venit, interval wave, costuri tier) sunt la <a href="balance.php">⚙ Balance</a>.<br>
+    Regulile generale (bani, venit, interval wave, costuri tier) sunt la <a href="balance.php">⚙ Balance</a>;
+    catalogul de abilități se balansează la <a href="abilities.php">✨ Abilități</a>.<br>
+    • Bifezi <b>Caster</b> în ⚙ stats la o unitate și îi alegi până la 5 abilități; după <b>Salvează</b> +
+    refresh, unitatea primește aici sloturi de <b>Cast</b> (2 frame-uri) pentru fiecare abilitate activă.<br>
     • Jocul folosește automat imaginile; unde lipsesc, rămâne arta vectorială integrată.<br>
     • <b>Die</b> are un singur frame. Clădirile au doar Idle (2 frame-uri, alternate lent) + Thumb.<br>
     • Verifică rezultatul în <a href="../dev/puppet-preview.html?race=<?= $race ?>" target="_blank">pagina de preview</a> sau direct în joc (refresh).<br>

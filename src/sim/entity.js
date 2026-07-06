@@ -10,6 +10,10 @@ export function spawnUnit(game, team, type, x, y) {
     cooldown: 0,
     windup: 0,      // >0 while a strike is winding up (attack 1 -> attack 2)
     windupMax: 0,   // total windup for the current swing (for anim progress)
+    effects: [],    // active status effects [{kind, val, until}]
+    abilityCd: {},  // abilityId -> game.time when it can cast again
+    mana: s.caster ? (s.mana || 0) : 0,    // casting resource
+    manaMax: s.caster ? (s.mana || 0) : 0,
     targetId: null,
     state: 'march',
     radius: s.radius,

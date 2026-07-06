@@ -9,6 +9,7 @@ import { mulberry32 } from './rng.js';
 import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
 import { updateMovement } from './movement.js';
+import { updateAbilities } from './abilities.js';
 import { spawnWave } from './waves.js';
 
 export class Game {
@@ -223,6 +224,7 @@ export class Game {
       e.prevY = e.y;
     }
 
+    updateAbilities(this, dt); // auras/status effects first, combat reads them
     updateCombat(this, dt);
     updateMovement(this, dt);
     updateProjectiles(this, dt);

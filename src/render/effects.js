@@ -4,6 +4,7 @@
 import { TEAM_COLORS } from './renderer.js';
 import { hasDeathAnim, drawCharacter, sizeOf } from './characters.js';
 import { raceOf } from './sprites.js';
+import { ABILITIES } from '../abilities.js';
 
 const CORPSE_LIFE = 1.2;
 
@@ -11,11 +12,13 @@ export class Effects {
   constructor() {
     this.particles = [];
     this.corpses = [];
+    this.rings = []; // expanding spell rings (dispell etc.)
   }
 
   reset() {
     this.particles = [];
     this.corpses = [];
+    this.rings = [];
   }
 
   spawnFromEvents(events) {
@@ -43,6 +46,26 @@ export class Effects {
         case 'heal':
           this.burst(e.x, e.y, 2, '#58d68d', 40, 0.5, 2, -40);
           break;
+        case 'cast': {
+          const color = (ABILITIES[e.ability] || {}).color || '#ffffff';
+          if (e.ability === 'dispell') {
+            // expanding holy ring over the cleansed area + rising sparks
+            this.rings.push({ x: e.x, y: e.y, r0: 12, r1: e.radius || 90, life: 0.55, maxLife: 0.55, color });
+            this.burst(e.x, e.y, 10, color, 70, 0.5, 2, -50);
+          } else if (e.ability === 'frostbolt') {
+            // icy muzzle sparkle at the caster
+            this.burst(e.x, e.y, 6, color, 90, 0.3, 2);
+          } else {
+            this.burst(e.x, e.y, 6, color, 80, 0.4, 2);
+          }
+          break;
+        }
+        case 'abilityHit': {
+          const color = (ABILITIES[e.ability] || {}).color || '#8fe3ff';
+          this.rings.push({ x: e.x, y: e.y, r0: 4, r1: 26, life: 0.3, maxLife: 0.3, color });
+          this.burst(e.x, e.y, 8, color, 110, 0.35, 2);
+          break;
+        }
       }
     }
   }
@@ -76,6 +99,7 @@ export class Effects {
     }
     this.particles = alive;
     this.corpses = this.corpses.filter((c) => (c.t += dt) < CORPSE_LIFE);
+    this.rings = this.rings.filter((r) => (r.life -= dt) > 0);
   }
 
   // Drawn by the renderer beneath the living units.
@@ -93,6 +117,22 @@ export class Effects {
   }
 
   draw(ctx) {
+    // expanding spell rings (double stroke for a soft glow)
+    for (const r of this.rings) {
+      const t = 1 - r.life / r.maxLife;
+      const rad = r.r0 + (r.r1 - r.r0) * t;
+      ctx.strokeStyle = r.color;
+      ctx.globalAlpha = 0.7 * (1 - t);
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.25 * (1 - t);
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, rad * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     for (const p of this.particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
       ctx.fillStyle = p.color;

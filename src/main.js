@@ -135,7 +135,9 @@ function frame(now) {
       ai.update(game, CONFIG.FIXED_DT);
       game.update(CONFIG.FIXED_DT);
     }
-    effects.spawnFromEvents(game.drainEvents());
+    const events = game.drainEvents();
+    effects.spawnFromEvents(events);
+    renderer.noteEvents(events); // cast pose windows
     effects.update(delta);
     hud.update(game, delta);
 

@@ -59,6 +59,13 @@ export function drawCharacter(ctx, type, anim, frame, team, scale = 1) {
   return false;
 }
 
+// The cast animation name for an ability, or null if that unit has no
+// uploaded cast frames for it (renderer then keeps the normal pose).
+export function castAnimOf(type, team, ability) {
+  const anim = `cast-${ability}`;
+  return hasSpriteAnim(raceOf(team), type, anim) ? anim : null;
+}
+
 // Uploaded projectile image for a unit type, contain-fit into a targetH
 // square (caller rotates the context toward travel). False -> caller draws
 // the default dot.

@@ -6,6 +6,7 @@
 // a single source of truth.
 
 import { RACES } from '../config.js';
+import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
 import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
   FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
@@ -54,6 +55,9 @@ style.textContent = `
   .sm-foot button.ghost { background: #161c26; border-color: #2a3446; }
   .sm-status { font-size: 12px; color: #7c8ba1; padding: 0 16px 12px; }
   .sm-status.ok { color: #58d68d; } .sm-status.bad { color: #ff8090; }
+  .sm-note { font-size: 11px; color: #7c8ba1; margin: 8px 0; line-height: 1.4; }
+  .sm-row input[type="checkbox"] { width: auto; }
+  .sm-row select:disabled, .sm-row input:disabled { opacity: 0.35; }
 `;
 document.head.appendChild(style);
 
@@ -98,6 +102,41 @@ function fieldsFor(ent, kind) {
         apply: (v) => { u.projSize = clamp(v / 100, 0.1, 6); },
       });
     }
+    // caster + up to MAX_ABILITIES abilities (the selects share one buffer so
+    // every change rebuilds the deduped list)
+    out.push({
+      label: 'Caster', type: 'check', cls: 'caster-chk', value: !!u.caster,
+      apply: (v) => { u.caster = !!v; },
+    });
+    out.push({
+      label: 'Mana', type: 'num', cls: 'ab-sel', disabled: !u.caster, value: u.mana ?? 100,
+      apply: (v) => { u.mana = clamp(v, 0, 100000); },
+    });
+    out.push({
+      label: 'Regen mană (/s)', type: 'num', cls: 'ab-sel', disabled: !u.caster, value: u.manaRegen ?? 2,
+      apply: (v) => { u.manaRegen = clamp(v, 0, 1000); },
+    });
+    const abSlots = [...(u.abilities || [])];
+    const abOpts = [{ v: '', label: '—' }, ...ABILITY_IDS.map((a) => ({ v: a, label: ABILITIES[a].name }))];
+    for (let i = 0; i < MAX_ABILITIES; i++) {
+      out.push({
+        label: `Abilitate ${i + 1}`, type: 'selkv', cls: 'ab-sel', disabled: !u.caster,
+        value: abSlots[i] || '', opts: abOpts,
+        apply: (v) => {
+          abSlots[i] = v;
+          const seen = new Set();
+          u.abilities = abSlots.filter((x) => {
+            if (!ABILITY_IDS.includes(x) || seen.has(x)) return false;
+            seen.add(x);
+            return true;
+          }).slice(0, MAX_ABILITIES);
+        },
+      });
+    }
+    out.push({
+      type: 'note',
+      label: 'După ce salvezi abilitățile, pe pagina de sprites apar sloturi de „Cast" (2 frame-uri) pentru fiecare abilitate activă.',
+    });
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });
     }
@@ -162,6 +201,18 @@ function open(ent, kind) {
   statusEl.textContent = '';
   statusEl.className = 'sm-status';
   bodyEl.innerHTML = current.fields.map((fd, i) => {
+    if (fd.type === 'note') {
+      return `<p class="sm-note">${fd.label}</p>`;
+    }
+    if (fd.type === 'check') {
+      return `<label class="sm-row"><span>${fd.label}</span>
+        <input type="checkbox" class="${fd.cls || ''}" data-i="${i}" ${fd.value ? 'checked' : ''}></label>`;
+    }
+    if (fd.type === 'selkv') {
+      const o = fd.opts.map((x) => `<option value="${x.v}" ${x.v === fd.value ? 'selected' : ''}>${x.label}</option>`).join('');
+      return `<label class="sm-row"><span>${fd.label}</span>
+        <select class="${fd.cls || ''}" data-i="${i}" ${fd.disabled ? 'disabled' : ''}>${o}</select></label>`;
+    }
     if (fd.type === 'sel') {
       const o = fd.opts.map((x) => `<option ${x === fd.value ? 'selected' : ''}>${x}</option>`).join('');
       return `<label class="sm-row"><span>${fd.label}</span><select data-i="${i}">${o}</select></label>`;
@@ -171,15 +222,23 @@ function open(ent, kind) {
         <input type="text" maxlength="20" data-i="${i}" value="${String(fd.value).replace(/"/g, '&quot;')}"></label>`;
     }
     return `<label class="sm-row"><span>${fd.label}</span>
-      <input type="number" step="any" data-i="${i}" value="${fd.value}"></label>`;
+      <input type="number" step="any" class="${fd.cls || ''}" data-i="${i}" value="${fd.value}" ${fd.disabled ? 'disabled' : ''}></label>`;
   }).join('');
+  // "Caster" live-toggles the ability selects without re-rendering the modal
+  const chk = bodyEl.querySelector('.caster-chk');
+  if (chk) {
+    chk.addEventListener('change', () => {
+      for (const s of bodyEl.querySelectorAll('.ab-sel')) s.disabled = !chk.checked;
+    });
+  }
   modal.classList.add('on');
 }
 
 function writeInputs() {
   for (const el of bodyEl.querySelectorAll('[data-i]')) {
     const fd = current.fields[Number(el.dataset.i)];
-    if (el.tagName === 'SELECT' || fd.type === 'text') fd.apply(el.value);
+    if (fd.type === 'check') fd.apply(el.checked);
+    else if (el.tagName === 'SELECT' || fd.type === 'text') fd.apply(el.value);
     else { const n = Number(el.value); if (isFinite(n)) fd.apply(n); }
   }
 }

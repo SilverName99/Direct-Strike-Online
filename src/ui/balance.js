@@ -11,6 +11,7 @@
 
 import { CONFIG, RACES } from '../config.js';
 import { UNITS } from '../units.js';
+import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
 
 // -------- editable field whitelists (nothing else is applied) --------
 export const UNIT_NUM_FIELDS = [
@@ -69,8 +70,12 @@ const resolvedUnits = {};
 const resolvedBuildings = {};
 function baseUnits() {
   const t = {};
-  // size = visual scale, projSize = projectile scale (both 1 = 100%)
-  for (const [id, u] of Object.entries(UNITS)) t[id] = { ...u, size: 1, projSize: 1 };
+  // size = visual scale, projSize = projectile scale (both 1 = 100%);
+  // caster + abilities come only from the admin config (empty by default);
+  // mana/manaRegen only matter while caster is on
+  for (const [id, u] of Object.entries(UNITS)) {
+    t[id] = { ...u, size: 1, projSize: 1, caster: false, abilities: [], mana: 100, manaRegen: 2 };
+  }
   return t;
 }
 function baseBuildings() {
@@ -82,10 +87,24 @@ function baseBuildings() {
     generator: { ...CONFIG.BUILDINGS.generator, size: 1, projSize: 1 },
   };
 }
+// Abilities are GLOBAL (one balance shared by both races); which units carry
+// them is stored per-race on the unit (caster + abilities list).
+const resolvedAbilities = {};
+function baseAbilities() {
+  const t = {};
+  for (const [id, ab] of Object.entries(ABILITIES)) t[id] = { ...ab, params: { ...ab.params } };
+  return t;
+}
+
 function rebuildResolved() {
   for (const r of RACES) { resolvedUnits[r] = baseUnits(); resolvedBuildings[r] = baseBuildings(); }
+  Object.assign(resolvedAbilities, baseAbilities());
 }
 rebuildResolved();
+
+export function resolvedAbility(id) {
+  return resolvedAbilities[id] || null;
+}
 
 export function statsUnit(race, id) {
   return (resolvedUnits[race] || resolvedUnits[RACES[0]])[id];
@@ -113,7 +132,11 @@ const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'inc
 function raceUnitsSnapshot(race) {
   const out = {};
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
-    out[id] = { name: u.name, size: u.size, projSize: u.projSize };
+    out[id] = {
+      name: u.name, size: u.size, projSize: u.projSize,
+      caster: !!u.caster, abilities: [...(u.abilities || [])],
+      mana: u.mana, manaRegen: u.manaRegen,
+    };
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
     for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
   }
@@ -138,10 +161,13 @@ function snapshot() {
   for (const [f] of GENERAL_FIELDS) general[f] = CONFIG[f];
   const races = {};
   for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r), buildings: raceBuildingsSnapshot(r) };
+  const abilities = {};
+  for (const [id, ab] of Object.entries(resolvedAbilities)) abilities[id] = { ...ab.params };
   return {
     general,
     tint: CONFIG.TEAM_TINT,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
+    abilities,
     races,
   };
 }
@@ -161,6 +187,17 @@ export function applyBalance(data) {
     for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
   }
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
+
+  // ---- global: ability params (only known abilities / numeric params) ----
+  if (data.abilities && typeof data.abilities === 'object') {
+    for (const [id, vals] of Object.entries(data.abilities)) {
+      const ab = resolvedAbilities[id];
+      if (!ab || typeof vals !== 'object') continue;
+      for (const k of Object.keys(ab.params)) {
+        if (num(vals[k]) !== undefined) ab.params[k] = clamp(vals[k], 0, 100000);
+      }
+    }
+  }
 
   // ---- legacy global building layer (pre per-race format) -> every race ----
   applyLegacyGlobalBuildings(data);
@@ -185,6 +222,12 @@ function applyRaceUnits(race, unitsData) {
     if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
     if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
     if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
+    if (typeof vals.caster === 'boolean') u.caster = vals.caster;
+    if (Array.isArray(vals.abilities)) {
+      u.abilities = vals.abilities.filter((a) => ABILITY_IDS.includes(a)).slice(0, MAX_ABILITIES);
+    }
+    if (num(vals.mana) !== undefined) u.mana = clamp(vals.mana, 0, 100000);
+    if (num(vals.manaRegen) !== undefined) u.manaRegen = clamp(vals.manaRegen, 0, 1000);
   }
 }
 
@@ -236,7 +279,11 @@ export function currentBalance() {
 }
 
 export function resetRaceUnit(race, id) {
-  resolvedUnits[race][id] = { ...UNITS[id], size: 1, projSize: 1 };
+  resolvedUnits[race][id] = { ...UNITS[id], size: 1, projSize: 1, caster: false, abilities: [], mana: 100, manaRegen: 2 };
+}
+
+export function resetAbility(id) {
+  if (ABILITIES[id]) resolvedAbilities[id] = { ...ABILITIES[id], params: { ...ABILITIES[id].params } };
 }
 
 export function resetRaceBuilding(race, kind) {

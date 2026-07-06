@@ -1,10 +1,12 @@
 import { CONFIG } from '../config.js';
+import { moveSpeedMult } from './abilities.js';
 
 // Marching + boids-lite separation. Attacking units hold position.
 export function updateMovement(game, dt) {
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
     const stats = game.ustat(u.team, u.type);
+    const speed = stats.speed * moveSpeedMult(u, game.time); // frost slows
 
     // Close in on our current target if we have one; otherwise march
     // toward the enemy base.
@@ -13,7 +15,7 @@ export function updateMovement(game, dt) {
       const dx = target.x - u.x;
       const dy = target.y - u.y;
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
-      const step = stats.speed * dt;
+      const step = speed * dt;
       u.x += (dx / d) * step;
       u.y += (dy / d) * step;
       continue;
@@ -21,7 +23,7 @@ export function updateMovement(game, dt) {
 
     const enemyMain = game.mainOf(1 - u.team);
     const dir = enemyMain ? Math.sign(enemyMain.x - u.x) || 1 : u.team === 0 ? 1 : -1;
-    u.x += stats.speed * dt * dir;
+    u.x += speed * dt * dir;
 
     // Once past midfield, home vertically toward the enemy main base.
     const mid = CONFIG.FIELD_W / 2;
@@ -29,7 +31,7 @@ export function updateMovement(game, dt) {
       (u.team === 0 && u.x > mid) || (u.team === 1 && u.x < mid);
     if (inEnemyHalf && enemyMain) {
       const dy = enemyMain.y - u.y;
-      const step = Math.min(Math.abs(dy), stats.speed * 0.6 * dt);
+      const step = Math.min(Math.abs(dy), speed * 0.6 * dt);
       u.y += Math.sign(dy) * step;
     }
   }

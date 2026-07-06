@@ -82,6 +82,25 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 Apeși **Salvează** → se scrie în `assets/balance.json` (gitignored, supraviețuiește la `git pull`) și
 devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revine la valorile din cod.
 
+## Casteri și abilități (magie)
+
+Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi setezi **Mana** și
+**Regen mană (/s)** și îi alegi până la **5 abilități** din catalog. Abilitățile se aruncă singure
+(auto-cast) — nu ai nimic de apăsat în meci; casterii au bară albastră de mana sub cea de viață.
+
+- **Catalogul** (comun ambelor rase) se balansează din **✨ Abilități** (lângă ⚙ Balance): Dispell,
+  Aură de încetinire, Aură de grabă, Aură de regenerare, Săgeată de gheață — fiecare cu cooldown,
+  cost de mană (la aure: drenaj/s), raze, procente, durate.
+- **Aurele** sunt pasive: cerc de rune rotitor sub caster + inel discret cu raza reală; unitățile
+  afectate primesc indicatori (vârtej albastru = încetinit, scântei aurii = grăbit, cruce verde =
+  regen, halo alb = imun după Dispell).
+- **Abilitățile active** (Dispell, Săgeata de gheață) au VFX procedural (inele care se dilată,
+  particule, proiectil cu glow) — nu trebuie desenat nimic. Opțional, după ce salvezi selecția,
+  unitatea primește pe pagina de sprites **sloturi de Cast** (2 frame-uri per abilitate activă)
+  pentru poza personajului în timpul cast-ului.
+- Efectele de stare sunt purtate de simulare (deterministe), deci încetinirile chiar reduc viteza
+  de atac/mișcare, iar Dispell chiar le curăță — nu e doar vizual.
+
 ## Rase
 
 La începutul meciului îți alegi rasa (**Humans** / **Orcs** — AI-ul o joacă pe cealaltă).

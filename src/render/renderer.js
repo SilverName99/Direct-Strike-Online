@@ -1,9 +1,10 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
+import { resolvedAbility } from '../ui/balance.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -112,6 +113,7 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
+    this.castPose = new Map(); // unit id -> {ability, until} (uploaded cast frames)
   }
 
   resize() {
@@ -135,6 +137,18 @@ export class Renderer {
   visible(x, y, margin = 60) {
     const v = this.view;
     return x >= v.x0 - margin && x <= v.x1 + margin && y >= v.y0 - margin && y <= v.y1 + margin;
+  }
+
+  // Sim events the renderer cares about (cast pose windows). Called by
+  // main.js with the same drained batch the effects layer receives.
+  noteEvents(events) {
+    const now = performance.now() / 1000;
+    for (const e of events) {
+      if (e.type === 'cast' && e.unitId != null) {
+        this.castPose.set(e.unitId, { ability: e.ability, until: now + 0.6 });
+      }
+    }
+    if (this.castPose.size > 2000) this.castPose.clear(); // bound the map
   }
 
   draw(game, alpha, uiState, effects) {
@@ -453,6 +467,12 @@ export class Renderer {
         ctx.restore();
       }
 
+      // casters project their aura circles beneath everyone's feet
+      const rstats = game.ustat(u.team, u.type);
+      if (rstats.caster && rstats.abilities && rstats.abilities.length) {
+        this.drawAuraRings(ctx, u, rstats, x, y);
+      }
+
       ctx.save();
       ctx.translate(x, y);
       if (hasCharacter(u.type, u.team)) {
@@ -472,6 +492,15 @@ export class Renderer {
         } else {
           anim = 'walk';
           frame = (Math.floor(this.now * 5) + u.id) % 2;
+        }
+        // an active cast overrides with the uploaded cast frames (if any)
+        const cp = this.castPose.get(u.id);
+        if (cp && this.now < cp.until) {
+          const ca = castAnimOf(u.type, u.team, cp.ability);
+          if (ca) {
+            anim = ca;
+            frame = cp.until - this.now < 0.3 ? 1 : 0;
+          }
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, sizeOf(raceOf(u.team), u.type));
       } else {
@@ -497,7 +526,106 @@ export class Renderer {
         ctx.fillStyle = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
         ctx.fillRect(x - w / 2, y - stats.radius - 9, w * ratio, 3.5);
       }
+
+      // mana bar (casters only), right under the HP bar slot
+      if (u.manaMax > 0) {
+        const w = stats.radius * 2.4;
+        const mratio = Math.max(0, Math.min(1, u.mana / u.manaMax));
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(x - w / 2, y - stats.radius - 5, w, 2.5);
+        ctx.fillStyle = '#4da6ff';
+        ctx.fillRect(x - w / 2, y - stats.radius - 5, w * mratio, 2.5);
+      }
+
+      // status-effect indicators (slow swirl, haste sparks, regen cross...)
+      if (u.effects && u.effects.length) {
+        this.drawEffectIndicators(ctx, u, x, y, stats.radius);
+      }
     }
+  }
+
+  // Rotating rune circle at the caster's feet + a faint ring showing each
+  // aura's true radius (colors come from the ability catalog).
+  drawAuraRings(ctx, u, rstats, x, y) {
+    let i = 0;
+    for (const aid of rstats.abilities) {
+      const ab = resolvedAbility(aid);
+      if (!ab || ab.kind !== 'aura') continue;
+      const spin = this.now * 0.9 + i * 2.1;
+      ctx.save();
+      ctx.translate(x, y + 3);
+      ctx.strokeStyle = ab.color;
+      // faint true-radius ring
+      ctx.globalAlpha = 0.06;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, ab.params.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      // rune circle underfoot: 3 rotating dashes (flattened for perspective)
+      ctx.globalAlpha = 0.75;
+      ctx.lineWidth = 2;
+      ctx.scale(1, 0.45);
+      const rr = 15 + i * 4;
+      for (let k = 0; k < 3; k++) {
+        const a0 = spin + (k * Math.PI * 2) / 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, rr, a0, a0 + 1.2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      i++;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Small procedural markers for active status effects.
+  drawEffectIndicators(ctx, u, x, y, r) {
+    const time = u.effects; // list already filtered by the sim to live effects
+    const has = (kind) => time.some((e) => e.kind === kind);
+    ctx.save();
+    ctx.translate(x, y);
+    if (has('atkslow') || has('moveslow')) {
+      // icy blue swirl orbiting the unit
+      ctx.strokeStyle = '#7fb4ff';
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 1.8;
+      for (let k = 0; k < 2; k++) {
+        const a0 = -this.now * 2.4 + k * Math.PI;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 5, a0, a0 + 1.5);
+        ctx.stroke();
+      }
+    }
+    if (has('haste')) {
+      // golden sparks circling fast
+      ctx.fillStyle = '#ffd35c';
+      ctx.globalAlpha = 0.9;
+      for (let k = 0; k < 3; k++) {
+        const a = this.now * 5 + (k * Math.PI * 2) / 3;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * (r + 5), Math.sin(a) * (r + 5) * 0.6, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (has('regen')) {
+      // green cross drifting upward, looping
+      const ph = (this.now % 1.2) / 1.2;
+      ctx.fillStyle = '#58d68d';
+      ctx.globalAlpha = 0.9 * (1 - ph);
+      const cy = -r - 6 - ph * 8;
+      ctx.fillRect(-1.5, cy - 4, 3, 8);
+      ctx.fillRect(-4, cy - 1.5, 8, 3);
+    }
+    if (has('immune')) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   drawProjectiles(ctx, game, alpha) {
@@ -521,9 +649,19 @@ export class Renderer {
         ctx.restore();
       }
       if (!drawn) {
-        ctx.fillStyle = p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team];
+        // ability projectiles glow in their ability color (frost = icy blue)
+        const abColor = p.ability ? (resolvedAbility(p.ability) || {}).color : null;
+        if (abColor) {
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = abColor;
+          ctx.beginPath();
+          ctx.arc(x, y, 7 * ps, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = abColor || (p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team]);
         ctx.beginPath();
-        ctx.arc(x, y, (p.splash > 0 ? 5 : 3) * ps, 0, Math.PI * 2);
+        ctx.arc(x, y, (p.splash > 0 ? 5 : 3.5) * ps, 0, Math.PI * 2);
         ctx.fill();
       }
     }

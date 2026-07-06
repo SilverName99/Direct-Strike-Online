@@ -303,6 +303,101 @@ function place(game, team, types, frontX, dir) {
   check('2 archons beat 3 wasps + grunt', r.a > 0 && r.b === 0, JSON.stringify(r));
 }
 
+// ------------------------------------------------------------- abilities
+console.log('abilities (casters, auras, status effects)');
+{
+  const { applyBalance, resetAll } = await import('../src/ui/balance.js');
+
+  // helper: place two units near each other, far from turrets
+  function duel(config, casterType, casterTeam) {
+    applyBalance(config);
+    const game = new Game(42, { races: ['humans', 'orcs'] });
+    const a = spawnUnit(game, 0, casterType === 'a' ? 'mender' : 'grunt', 600, 300);
+    const b = spawnUnit(game, 1, 'grunt', 640, 300);
+    return { game, a, b };
+  }
+
+  // slow aura: a humans mender-caster with slowaura makes the enemy grunt
+  // attack noticeably slower than without it
+  function grutHitsIn(seconds, withAura) {
+    const cfg = withAura
+      ? { races: { humans: { units: { mender: { caster: true, abilities: ['slowaura'] } } } } }
+      : {};
+    applyBalance(cfg);
+    const game = new Game(42, { races: ['humans', 'orcs'] });
+    const aura = spawnUnit(game, 0, 'mender', 600, 300);
+    const victim = spawnUnit(game, 0, 'grunt', 620, 300);
+    victim.hp = victim.maxHp = 100000; // survives the whole window
+    const attacker = spawnUnit(game, 1, 'grunt', 645, 300);
+    attacker.hp = attacker.maxHp = 100000;
+    const hp0 = victim.hp;
+    run(game, seconds);
+    return hp0 - victim.hp; // damage dealt = attack-rate proxy
+  }
+  const dmgFree = grutHitsIn(6, false);
+  const dmgSlowed = grutHitsIn(6, true);
+  check('slow aura reduces enemy attack rate', dmgSlowed < dmgFree * 0.9, `free=${dmgFree} slowed=${dmgSlowed}`);
+
+  // frost bolt: caster slows an enemy's movement
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'] } } } } });
+    const game = new Game(7, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'slinger', 600, 300);
+    const runner = spawnUnit(game, 1, 'grunt', 700, 300);
+    runner.hp = runner.maxHp = 100000;
+    run(game, 3);
+    const slowed = runner.effects && runner.effects.some((e) => e.kind === 'moveslow' && e.until > game.time);
+    check('frost bolt applies a movement slow', !!slowed, JSON.stringify(runner.effects));
+  }
+
+  // dispell: an allied caster cleanses the frost slow
+  {
+    applyBalance({
+      races: {
+        humans: { units: { slinger: { caster: true, abilities: ['frostbolt'] } } },
+        orcs: { units: { mender: { caster: true, abilities: ['dispell'] } } },
+      },
+    });
+    const game = new Game(7, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'slinger', 600, 300);
+    const cleric = spawnUnit(game, 1, 'mender', 720, 300);
+    cleric.hp = cleric.maxHp = 100000;
+    const runner = spawnUnit(game, 1, 'grunt', 700, 300);
+    runner.hp = runner.maxHp = 100000;
+    run(game, 2); // frost lands ~0.7s in; dispell follows — immunity still live
+    const immune = runner.effects && runner.effects.some((e) => e.kind === 'immune' && e.until > game.time);
+    check('dispell cleanses allies (immunity applied)', !!immune, JSON.stringify(runner.effects));
+  }
+
+  // mana gates casting: a caster with an empty pool never fires
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 0, manaRegen: 0 } } } } });
+    const game = new Game(7, { races: ['humans', 'orcs'] });
+    spawnUnit(game, 0, 'slinger', 600, 300);
+    const runner = spawnUnit(game, 1, 'grunt', 700, 300);
+    runner.hp = runner.maxHp = 100000;
+    run(game, 3);
+    const slowed = runner.effects && runner.effects.some((e) => e.kind === 'moveslow');
+    check('no mana -> no cast', !slowed, JSON.stringify(runner.effects));
+  }
+
+  // determinism holds with casters in play
+  {
+    function scripted(seed) {
+      applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['slowaura', 'regenaura'] } } } } });
+      const game = new Game(seed, { races: ['humans', 'orcs'] });
+      spawnUnit(game, 0, 'mender', 600, 300);
+      spawnUnit(game, 0, 'grunt', 620, 300);
+      spawnUnit(game, 1, 'grunt', 660, 300);
+      run(game, 5);
+      return JSON.stringify(game.entities.map((e) => [e.type, Math.round(e.x), Math.round(e.y), Math.round(e.hp)]));
+    }
+    check('caster sim is deterministic', scripted(99) === scripted(99));
+  }
+
+  resetAll(); // leave the shared balance pristine for any later tests
+}
+
 // ----------------------------------------------------------------- done
 console.log('');
 if (failures > 0) {

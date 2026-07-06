@@ -1,6 +1,7 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile } from './entity.js';
+import { attackPeriodMult, applyEffect } from './abilities.js';
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
@@ -89,8 +90,9 @@ function updateFighter(game, u, stats, dt) {
         }
       }
     } else if (u.cooldown <= 0) {
-      // start a new swing; the hit fires windupTime() later
-      u.cooldown = stats.period;
+      // start a new swing; the hit fires windupTime() later. Status effects
+      // (slow/haste auras, frost bolts) stretch or shrink the period.
+      u.cooldown = stats.period * attackPeriodMult(u, game.time);
       u.windupMax = windupTime(stats);
       u.windup = u.windupMax;
     }
@@ -119,7 +121,7 @@ function updateHealer(game, u, stats) {
     u.state = 'attack';
     u.targetId = best.id;
     if (u.cooldown <= 0) {
-      u.cooldown = stats.period;
+      u.cooldown = stats.period * attackPeriodMult(u, game.time);
       best.hp = Math.min(best.maxHp, best.hp + stats.damage);
       game.events.push({ type: 'heal', x: best.x, y: best.y });
     }
@@ -235,5 +237,13 @@ function impact(game, p, target) {
     }
   } else if (target && target.hp > 0) {
     applyDamage(game, target, p.damage, p.dmgType);
+    // ability projectiles (frost bolt) attach their status effect on impact
+    if (p.ability && p.effectSpec && !target.isStructure) {
+      const spec = p.effectSpec;
+      const until = game.time + spec.duration;
+      if (spec.moveSlow) applyEffect(target, 'moveslow', spec.moveSlow, until, game.time);
+      if (spec.atkSlow) applyEffect(target, 'atkslow', spec.atkSlow, until, game.time);
+      game.events.push({ type: 'abilityHit', ability: p.ability, x: p.tx, y: p.ty });
+    }
   }
 }
