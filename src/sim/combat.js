@@ -108,7 +108,7 @@ function updateFighter(game, u, stats, dt) {
   u.spellHold = false;
 
   let target = game.byId.get(u.targetId) || null;
-  if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
+  if (target && !isValidTarget(u, stats, target, aggroRange(stats))) {
     target = null;
     u.targetId = null;
   }
@@ -122,6 +122,23 @@ function updateFighter(game, u, stats, dt) {
   // separation pass flicker between attack and march every tick.
   const rangeBonus = u.state === 'attack' ? 14 : 0;
   const inRange = !!target && effDist(u, target) <= stats.range + rangeBonus;
+
+  // Dash (charge): while a target sits inside dashRange but out of attack
+  // range, the unit commits to a dash and closes at dashSpeed (movement.js
+  // reads u.dashing); on arrival it lands a one-off dashDamage burst.
+  u.dashing = false;
+  if (stats.dash && target) {
+    if (!inRange && effDist(u, target) <= (stats.dashRange || 0)) {
+      u.dashing = true;
+      u.dashCharge = true;
+    } else if (inRange && u.dashCharge) {
+      applyDamage(game, target, stats.dashDamage || 0, stats.dmgType);
+      u.dashCharge = false;
+      game.events.push({ type: 'dash', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
+    }
+  } else {
+    u.dashCharge = false;
+  }
 
   if (inRange) {
     u.state = 'attack';
@@ -184,8 +201,14 @@ function updateHealer(game, u, stats) {
   u.state = best || someoneAhead ? 'march' : 'attack'; // 'attack' with no cooldown use = hold position
 }
 
+// A dash unit needs to spot targets out to dashRange so it can charge from
+// there; everyone else uses the normal aggro radius.
+function aggroRange(stats) {
+  return Math.max(stats.range + CONFIG.AGGRO_BONUS, stats.dash ? (stats.dashRange || 0) : 0);
+}
+
 function acquireTarget(game, u, stats) {
-  const aggro = stats.range + CONFIG.AGGRO_BONUS;
+  const aggro = aggroRange(stats);
   let best = null;
   let bestD = Infinity;
   for (const e of game.entities) {

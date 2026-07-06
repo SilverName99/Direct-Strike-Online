@@ -100,6 +100,10 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
   Unitățile care erau deja ranged pornesc bifate.
 - Bifa **Zburător (aerian)** (în „Luptă") face unitatea aeriană: trece peste ziduri/structuri și poate
   fi lovită doar de unități cu **Can hit air**. Așa îți creezi propriile trupe zburătoare și anti-aer.
+- Bifa **Dash (charge)** (în „Luptă") face unitatea să se **năpustească** spre un inamic aflat în
+  **Dash range**: închide distanța la **Dash viteză** și, la sosire, dă o lovitură bonus de **Dash damage**
+  (peste atacul normal). Bifa deblochează pe pagina de sprites un slot **„Dash"** pentru poza de charge
+  (dacă nu-l încarci, folosește cadrul de mers).
 - Bifa **Bounce** (sub Ranged) face ca proiectilul, la impact, să **ricoșeze vizibil** spre următorul
   inamic din apropiere (îl vezi cum zboară de la un caracter la altul), lovind cu **Bounce (% putere)**
   din damage-ul original, în raza **Bounce rază** și pe cel mult **Bounce ținte** salturi — ex. o femeie

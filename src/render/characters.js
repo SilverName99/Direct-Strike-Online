@@ -71,6 +71,11 @@ export function hasPrepareAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'prepare');
 }
 
+// True when a dash unit has uploaded its "Dash" (charge) frame.
+export function hasDashAnim(type, team) {
+  return hasSpriteAnim(raceOf(team), type, 'dash');
+}
+
 // Uploaded projectile image for a unit type, contain-fit into a targetH
 // square (caller rotates the context toward travel). False -> caller draws
 // the default dot.

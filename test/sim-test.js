@@ -532,6 +532,21 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // Dash (charge): a dash unit closes a far target fast (dashing flag) and
+  // lands a bonus dashDamage burst on arrival
+  {
+    applyBalance({ races: { humans: { units: { grunt: { dash: true, dashDamage: 200, dashSpeed: 800, dashRange: 300 } } } } });
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    const charger = spawnUnit(game, 0, 'grunt', 400, 300);
+    const foe = spawnUnit(game, 1, 'grunt', 650, 300); // ~240 away: inside dashRange, outside attack range
+    foe.hp = foe.maxHp = 100000;
+    game.update(DT); game.drainEvents();
+    check('dash unit charges (dashing flag set)', charger.dashing === true);
+    run(game, 2);
+    check('dash lands its bonus damage on arrival', foe.maxHp - foe.hp >= 200, `dmg=${foe.maxHp - foe.hp}`);
+    applyBalance({});
+  }
+
   // Footprint placement: a 2x2 unit occupies its box — overlapping placements
   // are rejected, clear ones accepted
   {

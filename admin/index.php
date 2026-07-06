@@ -71,6 +71,10 @@ function unitIsCaster(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
   return $u && !empty($u['caster']);
 }
+function unitHasDash(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['dash']);
+}
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 
@@ -101,6 +105,7 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['attack_1'] = 'Attack 2';
   }
   $slots['die_0'] = 'Die';
+  if (unitHasDash($race, $ent)) $slots['dash_0'] = 'Dash';
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
   // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {

@@ -101,6 +101,7 @@ function baseUnits() {
       ranged: !!u.projectile, projectile: !!u.projectile, // fires a projectile on basic attack
       projSpeed: ps, projectileSpeed: ps,
       bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3, // projectile cleaves up to bounceMax nearby enemies at bouncePower%
+      dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, // charge: lunge in from dashRange, bonus dashDamage on arrival
       caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
     };
   }
@@ -165,6 +166,7 @@ function raceUnitsSnapshot(race) {
       ranged: !!u.ranged, projSpeed: u.projSpeed,
       isAir: !!u.isAir, targetsAir: !!u.targetsAir,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
+      dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen,
     };
@@ -271,6 +273,10 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.bouncePower) !== undefined) u.bouncePower = clamp(vals.bouncePower, 0, 100);
     if (num(vals.bounceRadius) !== undefined) u.bounceRadius = clamp(vals.bounceRadius, 10, 600);
     if (num(vals.bounceMax) !== undefined) u.bounceMax = Math.round(clamp(vals.bounceMax, 1, 50));
+    if (typeof vals.dash === 'boolean') u.dash = vals.dash;
+    if (num(vals.dashDamage) !== undefined) u.dashDamage = clamp(vals.dashDamage, 0, 100000);
+    if (num(vals.dashSpeed) !== undefined) u.dashSpeed = clamp(vals.dashSpeed, 20, 4000);
+    if (num(vals.dashRange) !== undefined) u.dashRange = clamp(vals.dashRange, 20, 2000);
     if (Array.isArray(vals.abilities)) {
       u.abilities = vals.abilities.filter((a) => ABILITY_IDS.includes(a)).slice(0, MAX_ABILITIES);
     }
@@ -336,6 +342,7 @@ export function resetRaceUnit(race, id) {
     ...u, size: 1, projSize: 1, cw: 1, ch: 1,
     ranged: !!u.projectile, projectile: !!u.projectile, projSpeed: ps, projectileSpeed: ps,
     bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
+    dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250,
     caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
   };
 }

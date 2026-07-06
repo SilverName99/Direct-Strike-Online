@@ -145,6 +145,23 @@ function fieldsFor(ent, kind) {
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) {
       if (u[f] !== undefined) out.push({ group: F, f, label: f, value: u[f], type: 'sel', opts, apply: (v) => { u[f] = v; } });
     }
+    // Dash (charge): lunge in from dashRange at dashSpeed, bonus dashDamage on arrival
+    out.push({
+      group: F, label: 'Dash (charge)', type: 'check', cls: 'dash-chk', value: !!u.dash,
+      apply: (v) => { u.dash = !!v; },
+    });
+    out.push({
+      group: F, label: 'Dash damage', type: 'num', cls: 'dash-field', disabled: !u.dash,
+      value: Math.round(u.dashDamage ?? 30), apply: (v) => { u.dashDamage = clamp(v, 0, 100000); },
+    });
+    out.push({
+      group: F, label: 'Dash viteză', type: 'num', cls: 'dash-field', disabled: !u.dash,
+      value: Math.round(u.dashSpeed ?? 400), apply: (v) => { u.dashSpeed = clamp(v, 20, 4000); },
+    });
+    out.push({
+      group: F, label: 'Dash range', type: 'num', cls: 'dash-field', disabled: !u.dash,
+      value: Math.round(u.dashRange ?? 250), apply: (v) => { u.dashRange = clamp(v, 20, 2000); },
+    });
 
     // Ranged: basic attack fires a projectile; unlocks image + speed + bounce
     out.push({
@@ -344,6 +361,12 @@ function open(ent, kind) {
     });
   }
   if (bounceChk) bounceChk.addEventListener('change', syncBounce);
+  const dashChk = bodyEl.querySelector('.dash-chk');
+  if (dashChk) {
+    dashChk.addEventListener('change', () => {
+      for (const s of bodyEl.querySelectorAll('.dash-field')) s.disabled = !dashChk.checked;
+    });
+  }
   modal.classList.add('on');
 }
 

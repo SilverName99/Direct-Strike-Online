@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -512,6 +512,10 @@ export class Renderer {
             anim = 'attack';
             frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
           }
+        } else if (u.dashing) {
+          // charging in: show the uploaded "Dash" frame, else fall back to walk
+          anim = hasDashAnim(u.type, u.team) ? 'dash' : 'walk';
+          frame = 0;
         } else {
           // marching, or a caster calmly waiting to cast -> idle/walk
           anim = u.state === 'march' ? 'walk' : 'idle';

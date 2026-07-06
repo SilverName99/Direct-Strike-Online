@@ -40,6 +40,13 @@ export class Effects {
         case 'explosion':
           this.burst(e.x, e.y, 14, '#ffb347', 180, 0.4, 3.5);
           break;
+        case 'dash': {
+          // charge impact: a quick ring + a spray of chips at the target
+          const c = TEAM_COLORS[e.team];
+          this.rings.push({ x: e.tx, y: e.ty, r0: 4, r1: 30, life: 0.26, maxLife: 0.26, color: c });
+          this.burst(e.tx, e.ty, 9, c, 160, 0.3, 2.5);
+          break;
+        }
         case 'structureDestroyed':
           this.burst(e.x, e.y, 26, '#ffb347', 240, 0.7, 4.5);
           this.burst(e.x, e.y, 12, TEAM_COLORS[e.team], 160, 0.9, 3);
