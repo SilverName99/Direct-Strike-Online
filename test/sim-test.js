@@ -546,6 +546,32 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // "Dashing & Fleeing mount" upgrade: bought from the base, a rider charges a
+  // ranged non-flying enemy that enters its radius, then dismounts
+  {
+    const upCfg = {
+      races: { orcs: { units: { slinger: { ranged: true } } } },
+      upgrades: { dashmount: { unit: 'grunt', params: { cost: 100, radius: 300, dashSpeed: 800, dmDamage: 60, dmRange: 30, dmPeriod: 0.5, dmSpeed: 90 } } },
+    };
+    applyBalance(upCfg);
+    const game = new Game(6, { races: ['humans', 'orcs'] });
+    const buy = game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'dashmount' });
+    const rider = spawnUnit(game, 0, 'grunt', 400, 300);
+    const foe = spawnUnit(game, 1, 'slinger', 650, 300); // enemy ranged in radius
+    foe.hp = foe.maxHp = 100000;
+    check('upgrade bought from base', buy.ok);
+    run(game, 3);
+    check('rider dismounts after charging the ranged enemy', rider.dismounted === true);
+    // control: without buying it, the rider never dismounts
+    applyBalance(upCfg);
+    const g2 = new Game(6, { races: ['humans', 'orcs'] });
+    const rider2 = spawnUnit(g2, 0, 'grunt', 400, 300);
+    const foe2 = spawnUnit(g2, 1, 'slinger', 650, 300); foe2.hp = foe2.maxHp = 100000;
+    run(g2, 3);
+    check('no upgrade bought -> rider stays mounted', rider2.dismounted === false);
+    applyBalance({});
+  }
+
   // Dash (charge): a dash unit closes a far target fast (dashing flag) and
   // lands a bonus dashDamage burst on arrival
   {

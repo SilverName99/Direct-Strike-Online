@@ -90,7 +90,14 @@ export class Input {
       // no shop selection: grab a placed unit template to drag it around
       const raw = this.renderer.toSim(e);
       const idx = hitTestTemplate(game, 0, raw.x, raw.y);
-      if (idx !== -1) this.uiState.drag = { index: idx };
+      if (idx !== -1) { this.uiState.drag = { index: idx }; return; }
+      // click your own Main Base -> open the upgrades shop
+      const main = game.mainOf(0);
+      if (main && this.onBaseClick) {
+        const dx = raw.x - main.x;
+        const dy = raw.y - main.y;
+        if (dx * dx + dy * dy <= (main.radius + 10) ** 2) this.onBaseClick();
+      }
     });
 
     window.addEventListener('mouseup', () => {

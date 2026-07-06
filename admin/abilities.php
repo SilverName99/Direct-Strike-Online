@@ -71,7 +71,8 @@ $authed = !empty($_SESSION['auth']);
   <div class="sub">Catalogul de abilități — comun ambelor rase. <b>Cine</b> le folosește se setează
     per unitate din <b>⚙ stats</b> (bifa „Caster" + selecția de abilități) în pagina de
     <a href="./">sprites</a>. Apasă <b>Salvează</b> — se scrie în <code>assets/balance.json</code>. ·
-    <a href="balance.php">⚙ Balance</a> · <a href="../" target="_blank">Deschide jocul ↗</a></div>
+    <a href="balance.php">⚙ Balance</a> · <a href="upgrades.php">🐗 Upgrades</a> ·
+    <a href="../" target="_blank">Deschide jocul ↗</a></div>
   <div id="ab-app">Se încarcă…</div>
   <div class="bar">
     <button id="save-btn">Salvează pe server</button>

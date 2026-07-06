@@ -47,6 +47,10 @@ export class Effects {
           this.burst(e.tx, e.ty, 9, c, 160, 0.3, 2.5);
           break;
         }
+        case 'dismount':
+          // the mount flees: a low dust puff kicked up at the rider's feet
+          this.burst(e.x, e.y + 6, 10, '#b39373', 130, 0.5, 3);
+          break;
         case 'structureDestroyed':
           this.burst(e.x, e.y, 26, '#ffb347', 240, 0.7, 4.5);
           this.burst(e.x, e.y, 12, TEAM_COLORS[e.team], 160, 0.9, 3);

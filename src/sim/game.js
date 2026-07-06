@@ -4,7 +4,8 @@
 // is what makes lockstep multiplayer possible later.
 
 import { CONFIG, RACES } from '../config.js';
-import { statsUnit, statsBuilding } from '../ui/balance.js';
+import { statsUnit, statsBuilding, resolvedUpgrade } from '../ui/balance.js';
+import { UPGRADE_IDS } from '../upgrades.js';
 import { mulberry32 } from './rng.js';
 import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
@@ -25,6 +26,7 @@ export class Game {
     this.money = [CONFIG.START_MONEY, CONFIG.START_MONEY];
     this.spent = [0, 0];
     this.tier = [1, 1];
+    this.upgrades = [new Set(), new Set()]; // bought upgrade ids, per team (permanent)
     this.incomeMult = options.incomeMult || [1, 1];
     this.incomeTimer = 0;
 
@@ -220,6 +222,20 @@ export class Game {
         main.hp = Math.min(main.maxHp, main.hp + 1000);
       }
       this.events.push({ type: 'tierUp', team: cmd.team, tier: this.tier[cmd.team] });
+      return { ok: true };
+    }
+
+    if (cmd.type === 'buyUpgrade') {
+      if (!UPGRADE_IDS.includes(cmd.id)) return { ok: false, reason: 'unknown-upgrade' };
+      const up = resolvedUpgrade(cmd.id);
+      if (!up || !up.unit) return { ok: false, reason: 'no-unit' }; // must target a unit
+      if (this.upgrades[cmd.team].has(cmd.id)) return { ok: false, reason: 'owned' };
+      const cost = up.params.cost || 0;
+      if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };
+      this.money[cmd.team] -= cost;
+      this.spent[cmd.team] += cost;
+      this.upgrades[cmd.team].add(cmd.id);
+      this.events.push({ type: 'upgradeBought', team: cmd.team, id: cmd.id });
       return { ok: true };
     }
 

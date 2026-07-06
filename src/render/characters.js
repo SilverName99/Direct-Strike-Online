@@ -76,6 +76,11 @@ export function hasDashAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'dash');
 }
 
+// True when a dismounted unit has an uploaded on-foot ("foot-<anim>") sprite.
+export function hasFootAnim(type, team, anim) {
+  return hasSpriteAnim(raceOf(team), type, `foot-${anim}`);
+}
+
 // Uploaded projectile image for a unit type, contain-fit into a targetH
 // square (caller rotates the context toward travel). False -> caller draws
 // the default dot.

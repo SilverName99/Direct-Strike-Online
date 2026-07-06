@@ -2,11 +2,30 @@ import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile } from './entity.js';
 import { attackPeriodMult, applyEffect, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
+import { resolvedUpgrade } from '../ui/balance.js';
+
+// Effective stats: a dismounted "mount" unit fights on foot with its override
+// damage/range/period/speed (and no projectile/splash).
+export function effStats(u, stats) {
+  if (!u.dismounted) return stats;
+  return {
+    ...stats,
+    damage: u.ovDamage != null ? u.ovDamage : stats.damage,
+    range: u.ovRange != null ? u.ovRange : stats.range,
+    period: u.ovPeriod != null ? u.ovPeriod : stats.period,
+    speed: u.ovSpeed != null ? u.ovSpeed : stats.speed,
+    projectile: false, ranged: false, splash: 0,
+  };
+}
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
-    const stats = game.ustat(u.team, u.type);
+    const base = game.ustat(u.team, u.type);
+    const stats = effStats(u, base);
     u.cooldown = Math.max(0, u.cooldown - dt);
+    // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
+    // intruder and dismount on arrival — takes over from normal combat.
+    if (!u.dismounted && mountCharge(game, u, base, dt)) continue;
     // A caster is defined by its active abilities and runs the prepare ->
     // release FSM before (and instead of) its basic action, whether it is a
     // healer or a fighter. It only falls through to the basic attack/heal
@@ -131,6 +150,7 @@ function updateFighter(game, u, stats, dt) {
     const ready = game.time >= (u.dashReadyAt || 0);
     if (!inRange && ready && effDist(u, target) <= (stats.dashRange || 0)) {
       u.dashing = true;
+      u.dashVel = stats.dashSpeed;
       u.dashCharge = true;
     } else if (inRange && u.dashCharge) {
       applyDamage(game, target, stats.dashDamage || 0, stats.dmgType);
@@ -201,6 +221,67 @@ function updateHealer(game, u, stats) {
     (e) => e.team === u.team && e !== u && (e.x - u.x) * dir > 0
   );
   u.state = best || someoneAhead ? 'march' : 'attack'; // 'attack' with no cooldown use = hold position
+}
+
+// ---- "Dashing & Fleeing mount" upgrade -------------------------------------
+// The active mount-kind upgrade this team owns that transforms u's type, else
+// null.
+function mountUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'mount' && up.unit === u.type) return up;
+  }
+  return null;
+}
+
+// An enemy Ranged, non-flying unit within `radius`.
+function isRangedFoe(game, u, e, radius) {
+  if (e.hp <= 0 || e.team === u.team || e.isAir) return false;
+  const es = game.ustat(e.team, e.type);
+  if (!es || !es.ranged) return false;
+  return effDist(u, e) <= radius;
+}
+function findRangedIntruder(game, u, radius) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of game.entities) {
+    if (!isRangedFoe(game, u, e, radius)) continue;
+    const d = effDist(u, e);
+    if (d < bestD) { bestD = d; best = e; }
+  }
+  return best;
+}
+
+// While still mounted: if a ranged non-flying enemy is inside the trigger
+// radius, charge it at dashSpeed and dismount on arrival (the mount "flees" =
+// the unit swaps to its on-foot sprite set + dismounted stats). Returns true
+// while charging so normal combat is skipped that tick.
+function mountCharge(game, u, stats, dt) {
+  const up = mountUpgradeFor(game, u);
+  if (!up) { u.mountTargetId = null; return false; }
+  const p = up.params;
+  let intruder = u.mountTargetId != null ? game.byId.get(u.mountTargetId) : null;
+  if (intruder && !isRangedFoe(game, u, intruder, p.radius)) intruder = null;
+  if (!intruder) intruder = findRangedIntruder(game, u, p.radius);
+  if (!intruder) { u.mountTargetId = null; u.dashing = false; return false; }
+
+  u.mountTargetId = intruder.id;
+  u.targetId = intruder.id;
+  if (effDist(u, intruder) <= stats.range + 14) {
+    // arrived: dismount and fight on foot from now on (rest of this life)
+    u.dismounted = true;
+    u.dashing = false;
+    u.ovDamage = p.dmDamage; u.ovRange = p.dmRange; u.ovPeriod = p.dmPeriod; u.ovSpeed = p.dmSpeed;
+    u.windup = 0; u.cooldown = 0;
+    game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
+    return false; // updateFighter handles the on-foot attack this same tick
+  }
+  // still charging in
+  u.dashing = true;
+  u.dashVel = p.dashSpeed;
+  u.state = 'march';
+  u.windup = 0;
+  return true;
 }
 
 // A dash unit needs to spot targets out to dashRange so it can charge from

@@ -12,6 +12,7 @@
 import { CONFIG, RACES } from '../config.js';
 import { UNITS } from '../units.js';
 import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
+import { UPGRADES, UPGRADE_IDS } from '../upgrades.js';
 
 // -------- editable field whitelists (nothing else is applied) --------
 export const UNIT_NUM_FIELDS = [
@@ -135,14 +136,27 @@ function baseAbilities() {
   return t;
 }
 
+// Upgrades are GLOBAL too (bought in-game from the base); which unit each one
+// transforms is stored on the upgrade (`unit`), balanced from the admin editor.
+const resolvedUpgrades = {};
+function baseUpgrades() {
+  const t = {};
+  for (const [id, up] of Object.entries(UPGRADES)) t[id] = { ...up, params: { ...up.params } };
+  return t;
+}
+
 function rebuildResolved() {
   for (const r of RACES) { resolvedUnits[r] = baseUnits(); resolvedBuildings[r] = baseBuildings(); }
   Object.assign(resolvedAbilities, baseAbilities());
+  Object.assign(resolvedUpgrades, baseUpgrades());
 }
 rebuildResolved();
 
 export function resolvedAbility(id) {
   return resolvedAbilities[id] || null;
+}
+export function resolvedUpgrade(id) {
+  return resolvedUpgrades[id] || null;
 }
 
 export function statsUnit(race, id) {
@@ -206,6 +220,8 @@ function snapshot() {
   for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r), buildings: raceBuildingsSnapshot(r) };
   const abilities = {};
   for (const [id, ab] of Object.entries(resolvedAbilities)) abilities[id] = { ...ab.params };
+  const upgrades = {};
+  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { unit: up.unit || '', params: { ...up.params } };
   return {
     general,
     tint: CONFIG.TEAM_TINT,
@@ -213,6 +229,7 @@ function snapshot() {
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
     unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
     abilities,
+    upgrades,
     races,
   };
 }
@@ -246,6 +263,19 @@ export function applyBalance(data) {
       if (!ab || typeof vals !== 'object') continue;
       for (const k of Object.keys(ab.params)) {
         if (num(vals[k]) !== undefined) ab.params[k] = clamp(vals[k], 0, 100000);
+      }
+    }
+  }
+
+  // ---- global: upgrade params + target unit ----
+  if (data.upgrades && typeof data.upgrades === 'object') {
+    for (const [id, vals] of Object.entries(data.upgrades)) {
+      const up = resolvedUpgrades[id];
+      if (!up || typeof vals !== 'object') continue;
+      if (typeof vals.unit === 'string' && (vals.unit === '' || UNITS[vals.unit])) up.unit = vals.unit;
+      const params = vals.params || {};
+      for (const k of Object.keys(up.params)) {
+        if (num(params[k]) !== undefined) up.params[k] = clamp(params[k], 0, 100000);
       }
     }
   }
@@ -366,6 +396,10 @@ export function resetRaceUnit(race, id) {
 
 export function resetAbility(id) {
   if (ABILITIES[id]) resolvedAbilities[id] = { ...ABILITIES[id], params: { ...ABILITIES[id].params } };
+}
+
+export function resetUpgrade(id) {
+  if (UPGRADES[id]) resolvedUpgrades[id] = { ...UPGRADES[id], params: { ...UPGRADES[id].params } };
 }
 
 export function resetRaceBuilding(race, kind) {

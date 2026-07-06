@@ -37,6 +37,8 @@ let state = 'menu'; // 'menu' | 'playing' | 'over'
 const input = new Input(canvas, renderer, camera, uiState, () =>
   state === 'playing' ? game : null
 );
+// clicking your own Main Base opens the upgrades shop
+input.onBaseClick = () => { if (state === 'playing' && game) hud.openUpgrades(game); };
 const pointer = new PointerManager(canvas);
 
 console.log(`Direct Strike Online ${VERSION}`);

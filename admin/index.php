@@ -77,6 +77,14 @@ function unitHasDash(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
   return $u && !empty($u['dash']);
 }
+// True when some upgrade transforms this unit into an on-foot (dismounted)
+// form — it then gets a second "foot-" sprite set.
+function unitHasDismount(string $ent): bool {
+  $ups = dsBalance()['upgrades'] ?? [];
+  if (!is_array($ups)) return false;
+  foreach ($ups as $up) if (is_array($up) && ($up['unit'] ?? '') === $ent) return true;
+  return false;
+}
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 
@@ -108,6 +116,15 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   }
   $slots['die_0'] = 'Die';
   if (unitHasDash($race, $ent)) $slots['dash_0'] = 'Dash';
+  // on-foot (dismounted) sprite set for units transformed by a mount upgrade
+  if (unitHasDismount($ent)) {
+    $slots['foot-idle_0'] = 'Pe jos: Idle 1';
+    $slots['foot-idle_1'] = 'Pe jos: Idle 2';
+    $slots['foot-walk_0'] = 'Pe jos: Walk 1';
+    $slots['foot-walk_1'] = 'Pe jos: Walk 2';
+    $slots['foot-attack_0'] = 'Pe jos: Attack 1';
+    $slots['foot-attack_1'] = 'Pe jos: Attack 2';
+  }
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
   // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {
@@ -413,6 +430,7 @@ if ($authed && $action === 'deletebg') {
     <?php endforeach; ?>
     <a href="balance.php" style="margin-left:16px">⚙ Balance</a>
     <a href="abilities.php" style="margin-left:4px">✨ Abilități</a>
+    <a href="upgrades.php" style="margin-left:4px">🐗 Upgrades</a>
   </div>
 
   <?php $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile); ?>

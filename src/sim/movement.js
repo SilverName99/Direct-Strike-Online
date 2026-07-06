@@ -6,8 +6,12 @@ export function updateMovement(game, dt) {
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
     const stats = game.ustat(u.team, u.type);
-    // dashing units close the gap at dashSpeed (charge); see combat.js
-    const base = u.dashing ? (stats.dashSpeed || stats.speed) : stats.speed;
+    // dashing units close the gap at their charge speed (basic dash or mount);
+    // dismounted units move at their on-foot override speed
+    let base;
+    if (u.dashing) base = u.dashVel || stats.dashSpeed || stats.speed;
+    else if (u.dismounted && u.ovSpeed != null) base = u.ovSpeed;
+    else base = stats.speed;
     const speed = base * moveSpeedMult(u, game.time); // frost slows
 
     // Close in on our current target if we have one; otherwise march
