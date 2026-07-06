@@ -28,27 +28,40 @@ export function drawAura(ctx, now, color, radius, i = 0) {
   ctx.globalAlpha = 1;
 }
 
-// Slowed unit: a faint blue wash over the body + a few barely-visible
-// snowflakes drifting down (frost/chill look).
+// Slowed unit: a clear blue chill wash over the body, a frosty glow ring at
+// the feet, and snowflakes drifting down (frost/chill look).
 export function drawSlow(ctx, now, r, seed = 0) {
   ctx.save();
-  // soft blue tint over the unit (fades out at the edges)
-  const g = ctx.createRadialGradient(0, -r * 0.2, r * 0.2, 0, -r * 0.2, r * 1.15);
-  g.addColorStop(0, 'rgba(120,175,255,0.30)');
+  // blue tint over the unit (fades out at the edges)
+  const g = ctx.createRadialGradient(0, -r * 0.2, r * 0.15, 0, -r * 0.2, r * 1.2);
+  g.addColorStop(0, 'rgba(120,180,255,0.55)');
+  g.addColorStop(0.6, 'rgba(110,170,255,0.32)');
   g.addColorStop(1, 'rgba(120,175,255,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(0, -r * 0.2, r * 1.15, 0, Math.PI * 2);
+  ctx.arc(0, -r * 0.2, r * 1.2, 0, Math.PI * 2);
   ctx.fill();
-  // barely-visible falling snowflakes
+  // frosty glow ring hugging the ground, pulsing gently
+  const pulse = 0.5 + 0.5 * Math.sin(now * 2 + seed);
+  ctx.save();
+  ctx.translate(0, r * 0.75);
+  ctx.scale(1, 0.4);
+  ctx.strokeStyle = '#bfe0ff';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.35 + 0.25 * pulse;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  // falling snowflakes — more of them, clearly visible
   ctx.fillStyle = '#eaf4ff';
-  for (let k = 0; k < 5; k++) {
-    const ph = (now * 0.35 + k * 0.37 + seed * 0.13) % 1;
-    const sx = Math.sin((k + seed) * 2.3) * r * 0.9 + Math.sin(now * 1.5 + k) * 1.5;
-    const sy = -r - 4 + ph * (r * 2.4);
-    ctx.globalAlpha = 0.35 * Math.sin(ph * Math.PI); // fade in near the top, out near the bottom
+  for (let k = 0; k < 9; k++) {
+    const ph = (now * 0.45 + k * 0.29 + seed * 0.13) % 1;
+    const sx = Math.sin((k + seed) * 2.3) * r * 1.0 + Math.sin(now * 1.6 + k) * 2;
+    const sy = -r - 4 + ph * (r * 2.6);
+    ctx.globalAlpha = 0.8 * Math.sin(ph * Math.PI); // fade in near the top, out near the bottom
     ctx.beginPath();
-    ctx.arc(sx, sy, 1.1, 0, Math.PI * 2);
+    ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
