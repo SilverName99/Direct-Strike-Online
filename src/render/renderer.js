@@ -459,6 +459,9 @@ export class Renderer {
       const y = u.prevY + (u.y - u.prevY) * alpha;
       if (!this.visible(x, y)) continue;
       const color = TEAM_COLORS[u.team];
+      // visual scale: dismounted units use the upgrade's on-foot size, else the
+      // unit's own Size (%)
+      const vScale = u.dismounted && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
 
       if (u.isAir) {
         // soft shadow under flyers
@@ -526,7 +529,7 @@ export class Renderer {
         if (u.dismounted && !anim.startsWith('foot-') && hasFootAnim(u.type, u.team, anim)) {
           anim = `foot-${anim}`;
         }
-        drawCharacter(ctx, u.type, anim, frame, u.team, sizeOf(raceOf(u.team), u.type));
+        drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
       } else {
         ctx.rotate(u.team === 0 ? 0 : Math.PI);
         if (stats.shape === 'ring') {
@@ -542,9 +545,9 @@ export class Renderer {
       }
       ctx.restore();
 
-      // bars sit above the *visual* height, which scales with Size (%), so a
-      // >100% unit doesn't overlap its own HP/mana bar
-      const drawR = stats.radius * Math.max(1, sizeOf(raceOf(u.team), u.type));
+      // bars sit above the *visual* height, which scales with Size (%) (or the
+      // dismounted size), so a big unit doesn't overlap its own HP/mana bar
+      const drawR = stats.radius * Math.max(1, vScale);
 
       if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
         const w = drawR * 2.4;

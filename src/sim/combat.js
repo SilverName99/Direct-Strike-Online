@@ -272,6 +272,7 @@ function mountCharge(game, u, stats, dt) {
     u.dismounted = true;
     u.dashing = false;
     u.ovDamage = p.dmDamage; u.ovRange = p.dmRange; u.ovPeriod = p.dmPeriod; u.ovSpeed = p.dmSpeed;
+    u.ovSize = (p.dmSize != null ? p.dmSize : 100) / 100; // on-foot visual scale
     u.windup = 0; u.cooldown = 0;
     game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
     return false; // updateFighter handles the on-foot attack this same tick
@@ -340,6 +341,7 @@ export function applyDamage(game, target, damage, dmgType) {
       radius: target.radius,
       unitType: target.type || null,
       dismounted: !!target.dismounted, // corpse uses the on-foot "foot-die" sprite
+      footScale: target.dismounted ? (target.ovSize || 1) : null,
     });
   }
 }

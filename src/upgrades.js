@@ -23,6 +23,7 @@ export const UPGRADES = {
       dmRange: 30,     // on-foot attack range
       dmPeriod: 0.8,   // on-foot attack period (s)
       dmSpeed: 95,     // on-foot move speed
+      dmSize: 100,     // on-foot visual size (%), independent of the mounted size
     },
   },
 };
@@ -38,4 +39,5 @@ export const UPGRADE_PARAM_LABELS = {
   dmRange: 'Rază atac pe jos',
   dmPeriod: 'Perioadă atac pe jos (s)',
   dmSpeed: 'Viteză mișcare pe jos',
+  dmSize: 'Mărime pe jos (Size %)',
 };

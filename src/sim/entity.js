@@ -31,7 +31,7 @@ export function spawnUnit(game, team, type, x, y) {
     // on foot with dismounted stat overrides for the rest of this life
     mountTargetId: null,
     dismounted: false,
-    ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null,
+    ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,
     targetId: null,
