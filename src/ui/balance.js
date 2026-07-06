@@ -38,6 +38,7 @@ export const BUILDING_FIELDS = {
   generator: [
     ['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable'],
     ['income', 'Extra gold every 20 seconds'],
+    ['buildCd', 'Cooldown construire (s)'],
   ],
 };
 export const GENERAL_FIELDS = [
@@ -196,7 +197,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd'];
 
 function raceUnitsSnapshot(race) {
   const out = {};

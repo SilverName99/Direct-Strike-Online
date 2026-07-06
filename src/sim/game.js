@@ -34,6 +34,7 @@ export class Game {
     this.waveCount = 0;
 
     this.templates = [[], []]; // per team: {type, x, y}
+    this.buildReadyAt = [{}, {}]; // per team: building kind -> game.time it can be built again
     this.entities = [];
     this.projectiles = [];
     this.structures = [];
@@ -81,6 +82,11 @@ export class Game {
 
   incomePerTick(team) {
     return Math.round(this.incomePer20s(team) * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
+  }
+
+  // Seconds left until this team may build that kind again (build cooldown).
+  buildCdLeft(team, kind) {
+    return Math.max(0, (this.buildReadyAt[team][kind] || 0) - this.time);
   }
 
   // "Holding the middle": true while this team has a unit past midfield.
@@ -201,6 +207,7 @@ export class Game {
     if (cmd.type === 'build') {
       if (!CONFIG.BUILDINGS[cmd.kind]) return { ok: false, reason: 'unknown-building' };
       const stats = this.bstat(cmd.team, cmd.kind);
+      if (this.buildCdLeft(cmd.team, cmd.kind) > 0) return { ok: false, reason: 'cooldown' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.countKind(cmd.team, cmd.kind) >= stats.cap)
         return { ok: false, reason: 'cap' };
@@ -208,6 +215,7 @@ export class Game {
         return { ok: false, reason: 'zone' };
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
+      if (stats.buildCd > 0) this.buildReadyAt[cmd.team][cmd.kind] = this.time + stats.buildCd;
       makeStructure(this, cmd.team, cmd.kind, cmd.x, cmd.y);
       return { ok: true };
     }

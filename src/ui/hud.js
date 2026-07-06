@@ -347,6 +347,15 @@ export class Hud {
         const bs = game.bstat(0, id);
         cost = bs.cost;
         if (game.countKind(0, id) >= bs.cap) locked = true;
+        // build cooldown: grey the card out and count the wait down on it
+        const cd = game.buildCdLeft(0, id);
+        const costEl = card.querySelector('.c-cost');
+        if (cd > 0) {
+          locked = true;
+          costEl.textContent = `⏳ ${Math.ceil(cd)}s`;
+        } else {
+          costEl.textContent = `◆ ${bs.cost}`;
+        }
       } else {
         const us = game.ustat(0, id);
         cost = us.cost;

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.32';
+export const VERSION = 'v9.33';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -75,7 +75,9 @@ export const CONFIG = {
       range: 200, damage: 18, period: 0.9, dmgType: 'normal',
       projectileSpeed: 480, targetsAir: true,
     },
-    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, idleSpeed: 2, name: 'Generator' }, // extra gold every 20s (= +4/s each)
+    // income = extra gold every 20s (= +4/s each); buildCd = seconds you must
+    // wait after building one before you can build the next (0 = none)
+    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, buildCd: 0, idleSpeed: 2, name: 'Generator' },
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)

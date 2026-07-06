@@ -91,7 +91,9 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
   mijlocul hărții (0 = dezactivat).
 - **Turnul de mijloc (⚙ stats la turret, per rasă)** are în plus **Regen viață (HP/s)** și **Gold pentru
   inamic la distrugere** (bounty — cine îl dărâmă primește suma turnului dărâmat). Cap-ul de generatoare
-  („Max buildable") se setează tot din ⚙ stats la generator, per rasă.
+  („Max buildable") și **cooldown-ul de construire** („Cooldown construire (s)" — câte secunde aștepți
+  după o mină până poți construi următoarea; cardul din shop arată ⏳ countdown-ul) se setează tot din
+  ⚙ stats la generator, per rasă.
 - Personajele se **întorc în direcția în care merg** (o unitate care se retrage sau vine din spate nu mai
   „merge cu spatele"), iar contorul de aur **crește lin**, continuu.
 - **Background per rasă:** în fiecare tab de rasă poți încărca o imagine de fundal care apare pe toată
