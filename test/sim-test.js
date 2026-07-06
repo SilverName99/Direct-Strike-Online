@@ -502,7 +502,8 @@ console.log('abilities (casters, auras, status effects)');
     check('no cast while not engaged (no enemy in attack range)', caster.mana === 100 && !buffed, `mana=${caster.mana}`);
   }
 
-  // regen aura is the exception: it fires for wounded allies even unengaged
+  // support spells (Regen Aura, Heal) are the exception: they fire for wounded
+  // allies even unengaged
   {
     applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['regenaura'], mana: 100, manaRegen: 0 } } } } });
     const game = new Game(9, { races: ['humans', 'orcs'] });
@@ -511,6 +512,15 @@ console.log('abilities (casters, auras, status effects)');
     wounded.maxHp = 500; wounded.hp = 100;
     run(game, 2);
     check('regen aura casts for wounded allies even when not engaged', caster.mana === 70, `mana=${caster.mana}`);
+  }
+  {
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 0 } } } } });
+    const game = new Game(9, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'mender', 600, 300);
+    const wounded = spawnUnit(game, 0, 'grunt', 620, 300); // wounded ally, no enemy in range
+    wounded.maxHp = 500; wounded.hp = 100;
+    run(game, 2);
+    check('heal casts for a wounded ally even when not engaged', wounded.hp > 100 && caster.mana < 100, `hp=${wounded.hp} mana=${caster.mana}`);
   }
 
   // determinism holds with casters in play

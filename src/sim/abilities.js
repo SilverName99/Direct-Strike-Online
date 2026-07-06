@@ -203,19 +203,23 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   return true;
 }
 
+// Support abilities that fire for a wounded/needy ally even when no enemy is in
+// range — they are exempt from the "cast only while engaged" rule.
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal']);
+
 // First castable ability, in the caster's configured order, that is off
 // cooldown, affordable, and has a valid target right now.
 //
 // General rule: a caster only casts while ENGAGED (an enemy sits in its attack
-// range). The one exception is Regeneration Aura, which fires for wounded
-// allies even with no enemy nearby.
+// range). The exceptions are the support abilities in ENGAGE_EXEMPT (Heal and
+// Regeneration Aura), which fire for wounded allies even with no enemy nearby.
 function pickCastable(game, caster, stats, time, engaged) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
-    if (!engaged && aid !== 'regenaura') continue; // must be engaged (except regen)
+    if (!engaged && !ENGAGE_EXEMPT.has(aid)) continue; // must be engaged (support spells excepted)
     const target = findAbilityTarget(game, caster, aid, ab, time);
     if (target) return { aid, ab, target };
   }

@@ -93,7 +93,8 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
   (după Salvează + refresh). Unitățile care erau deja ranged pornesc bifate.
 - **Când castuiește (regulă generală):** casterul aruncă o abilitate doar când e **angajat** — are un
   inamic în raza lui de atac. Dacă nu, mărșăluiește până intră în rază, apoi castuiește. **Excepție:**
-  **Regeneration Aura** se poate porni și neangajat, atâta timp cât are un aliat rănit în rază.
+  abilitățile de suport **Heal** și **Regeneration Aura** se pot porni și neangajat, atâta timp cât au
+  un aliat rănit în rază.
 - **Prioritate la spell-uri:** implicit, cât timp are mană pentru o abilitate, casterul stă la distanță
   și așteaptă să castuiască — nu strecoară auto-attack-uri între spell-uri (când rămâne fără mană,
   atacă normal). Bifa **Auto attacks between spells** îi permite să atace și între cast-uri.
