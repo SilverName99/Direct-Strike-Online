@@ -4,15 +4,27 @@
 
 import { UPGRADES, UPGRADE_PARAM_LABELS } from '../upgrades.js';
 import { UNITS } from '../units.js';
-import { resolvedUpgrade, resetUpgrade, loadBalance, saveBalance } from './balance.js';
+import { RACES } from '../config.js';
+import { resolvedUpgrade, resetUpgrade, statsUnit, loadBalance, saveBalance } from './balance.js';
 
 const app = document.getElementById('up-app');
 const status = document.getElementById('status');
 
-const UNIT_OPTS = [['', '— niciuna —'], ...Object.entries(UNITS).map(([id, u]) => [id, `${u.name} (${id})`])];
+// Unit options showing the CUSTOM (renamed) names. Names are per-race, so when
+// they differ across races we show both. Rebuilt each render (after the saved
+// balance is applied).
+function unitOpts() {
+  const opts = [['', '— niciuna —']];
+  for (const id of Object.keys(UNITS)) {
+    const names = [...new Set(RACES.map((r) => (statsUnit(r, id) || {}).name || id))];
+    opts.push([id, `${names.join(' / ')} (${id})`]);
+  }
+  return opts;
+}
 
 function render() {
   let html = '';
+  const UNIT_OPTS = unitOpts();
   for (const [id, base] of Object.entries(UPGRADES)) {
     const up = resolvedUpgrade(id);
     const opts = UNIT_OPTS.map(([v, label]) =>
