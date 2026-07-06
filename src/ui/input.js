@@ -224,7 +224,10 @@ export class Input {
       return;
     }
     if (!UNITS[id] && !BUILDING_IDS.includes(id)) return;
-    if (UNITS[id] && UNITS[id].tier > game.tier[0]) return; // locked
+    // Tier lock uses the RESOLVED per-race tier (the admin can retier a unit),
+    // matching the shop's lock badge and the sim's buy gate — not the static
+    // UNITS[id].tier, which would wrongly block a unit retiered down to T1.
+    if (UNITS[id] && game.ustat(0, id).tier > game.tier[0]) return; // locked
     this.uiState.selected = this.uiState.selected === id ? null : id;
   }
 }
