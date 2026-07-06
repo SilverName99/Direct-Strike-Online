@@ -1,11 +1,11 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
-import { drawAura, drawSlowSwirl, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
+import { drawAura, drawSlow, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -481,27 +481,37 @@ export class Renderer {
         if (u.team === 1) ctx.scale(-1, 1);
         let anim;
         let frame;
+        const isCaster = rstats.caster;
+        const prep = isCaster && hasPrepareAnim(u.type, u.team);
         // hold the attack anim briefly so range-boundary jitter can't
         // flicker back-row units between attack and walk
-        if (u.state === 'attack') this.attackHold.set(u.id, this.now);
+        if (u.state === 'attack' && !u.spellHold) this.attackHold.set(u.id, this.now);
         const held = this.attackHold.get(u.id);
-        if (u.state === 'attack' || (held !== undefined && this.now - held < 0.3)) {
-          anim = 'attack';
-          // sync to the sim wind-up: attack 1 for the first half of the swing,
-          // attack 2 for the second half (and held through the strike)
-          frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
+        const attacking = (u.state === 'attack' && !u.spellHold) || (held !== undefined && this.now - held < 0.3);
+        if (attacking) {
+          if (isCaster) {
+            // single-frame model: shared "prepare" during the wind-up, one
+            // "attack" release frame otherwise
+            anim = u.windup > 0 && prep ? 'prepare' : 'attack';
+            frame = 0;
+          } else {
+            anim = 'attack';
+            frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
+          }
         } else {
-          anim = 'walk';
+          // marching, or a caster calmly waiting to cast -> idle/walk
+          anim = u.state === 'march' ? 'walk' : 'idle';
           frame = (Math.floor(this.now * 5) + u.id) % 2;
         }
-        // an active cast overrides with the uploaded cast frames (if any)
+        // an active cast overrides: "prepare" first, single cast-release frame
+        // second (both fall back gracefully when a frame isn't uploaded)
         const cp = this.castPose.get(u.id);
         if (cp && this.now < cp.until) {
+          const second = cp.until - this.now < 0.3;
           const ca = castAnimOf(u.type, u.team, cp.ability);
-          if (ca) {
-            anim = ca;
-            frame = cp.until - this.now < 0.3 ? 1 : 0;
-          }
+          if (second && ca) { anim = ca; frame = 0; }
+          else if (prep) { anim = 'prepare'; frame = 0; }
+          else if (ca) { anim = ca; frame = 0; }
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, sizeOf(raceOf(u.team), u.type));
       } else {
@@ -565,7 +575,7 @@ export class Renderer {
     const has = (kind) => u.effects.some((e) => e.kind === kind);
     ctx.save();
     ctx.translate(x, y);
-    if (has('atkslow') || has('moveslow')) drawSlowSwirl(ctx, this.now, r);
+    if (has('atkslow') || has('moveslow')) drawSlow(ctx, this.now, r, u.id);
     if (has('haste')) drawHasteSparks(ctx, this.now, r);
     if (has('regen')) drawRegenCross(ctx, this.now, r);
     if (has('immune')) drawImmuneHalo(ctx, r);

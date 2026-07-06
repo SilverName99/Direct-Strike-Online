@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile } from './entity.js';
-import { attackPeriodMult, applyEffect } from './abilities.js';
+import { attackPeriodMult, applyEffect, casterPrioritizesSpells } from './abilities.js';
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
@@ -61,9 +61,8 @@ function windupTime(stats) {
 }
 
 function updateFighter(game, u, stats, dt) {
-  // Casting takes priority over the basic attack: while a caster is mid-cast
-  // (just spent mana on an ability) it holds its swing instead of also
-  // auto-attacking. Between casts / when out of mana it attacks normally.
+  u.spellHold = false;
+  // Mid-cast: hold position, no auto-attack.
   if (u.abilityBusy > game.time) {
     u.state = 'attack';
     u.windup = 0;
@@ -86,6 +85,13 @@ function updateFighter(game, u, stats, dt) {
   const rangeBonus = u.state === 'attack' ? 14 : 0;
   if (target && effDist(u, target) <= stats.range + rangeBonus) {
     u.state = 'attack';
+    // Spellcaster with mana to spare: hold at range and wait to cast — no
+    // basic attack slipped between spells.
+    if (casterPrioritizesSpells(u, stats)) {
+      u.spellHold = true;
+      u.windup = 0;
+      return;
+    }
     if (u.windup > 0) {
       // mid-swing: land the hit when the wind-up (attack 1 -> 2) completes
       u.windup -= dt;

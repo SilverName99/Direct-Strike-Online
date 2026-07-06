@@ -51,9 +51,15 @@ function unitAbilities(string $race, string $ent): array {
   if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
   return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));
 }
-function unitIsRangedCaster(string $race, string $ent): bool {
+// Ranged = explicit admin flag if set, else the unit's built-in default.
+function unitIsRanged(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
-  return $u && !empty($u['caster']) && !empty($u['rangedCaster']);
+  if ($u && array_key_exists('ranged', $u)) return !empty($u['ranged']);
+  return in_array($ent, PROJECTILE_UNITS, true);
+}
+function unitIsCaster(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['caster']);
 }
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
@@ -74,21 +80,22 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     }
     return $slots;
   }
-  $slots = [
-    'thumb' => 'Thumb',
-    'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2',
-    'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2',
-    'attack_0' => 'Attack 1', 'attack_1' => 'Attack 2',
-    'die_0' => 'Die',
-  ];
-  if (in_array($ent, PROJECTILE_UNITS, true) || unitIsRangedCaster($race, $ent)) $slots['projectile'] = 'Proiectil';
-  // cast frames + per-ability projectile for this unit's selected abilities
+  $caster = unitIsCaster($race, $ent);
+  $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2', 'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2'];
+  if ($caster) {
+    // single-frame model: one shared wind-up pose + one release per action
+    $slots['prepare_0'] = 'Prepare spell';
+    $slots['attack_0'] = 'Attack';
+  } else {
+    $slots['attack_0'] = 'Attack 1';
+    $slots['attack_1'] = 'Attack 2';
+  }
+  $slots['die_0'] = 'Die';
+  if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
+  // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
-    if ($hasCast) {
-      $slots["cast-{$aid}_0"] = "Cast {$name} 1";
-      $slots["cast-{$aid}_1"] = "Cast {$name} 2";
-    }
+    if ($hasCast) $slots["cast-{$aid}_0"] = "Cast {$name}";
     if ($hasProj) $slots["abilityproj-{$aid}"] = "Proiectil {$name}";
   }
   return $slots;

@@ -13,6 +13,20 @@ import { spawnProjectile } from './entity.js';
 const AURA_TICK = 0.35; // aura effects auto-expire this fast (re-applied while inside)
 const CAST_LOCK = 0.5;  // seconds a caster holds its auto-attack after casting
 
+// A caster is a spellcaster first: while it can still afford at least one of
+// its ACTIVE abilities, it holds its basic attack and waits to cast instead
+// of slipping an auto-attack between every spell. Aura-only casters (and
+// casters out of mana) fall through and fight normally.
+export function casterPrioritizesSpells(unit, stats) {
+  if (!stats.caster || !stats.abilities) return false;
+  if (stats.autoAttackBetween) return false; // admin opt-in: attack between spells
+  for (const aid of stats.abilities) {
+    const ab = resolvedAbility(aid);
+    if (ab && ab.kind === 'active' && unit.mana >= (ab.params.manaCost || 0)) return true;
+  }
+  return false;
+}
+
 // ---- status-effect helpers (read by combat/movement/renderer) ----
 
 // Strongest active value of one effect kind, or 0.

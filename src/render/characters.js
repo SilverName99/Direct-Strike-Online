@@ -66,6 +66,11 @@ export function castAnimOf(type, team, ability) {
   return hasSpriteAnim(raceOf(team), type, anim) ? anim : null;
 }
 
+// True when a caster has uploaded the shared "Prepare spell" wind-up frame.
+export function hasPrepareAnim(type, team) {
+  return hasSpriteAnim(raceOf(team), type, 'prepare');
+}
+
 // Uploaded projectile image for a unit type, contain-fit into a targetH
 // square (caller rotates the context toward travel). False -> caller draws
 // the default dot.

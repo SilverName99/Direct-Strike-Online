@@ -6,7 +6,6 @@
 // a single source of truth.
 
 import { RACES } from '../config.js';
-import { UNITS } from '../units.js';
 import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
 import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
@@ -97,27 +96,32 @@ function fieldsFor(ent, kind) {
       label: 'Size (%)', type: 'num', value: Math.round((u.size || 1) * 100),
       apply: (v) => { u.size = clamp(v / 100, 0.2, 4); },
     });
-    // caster + up to MAX_ABILITIES abilities (the selects share one buffer so
-    // every change rebuilds the deduped list)
-    const baseRanged = !!UNITS[ent].projectile;
+    // Caster + Ranged are independent toggles.
     out.push({
       label: 'Caster', type: 'check', cls: 'caster-chk', value: !!u.caster,
       apply: (v) => { u.caster = !!v; },
     });
-    // ranged caster: basic attack fires a projectile (+ unlocks its image)
+    // Ranged: basic attack fires a projectile; unlocks image + speed + size
     out.push({
-      label: 'Ranged caster', type: 'check', cls: 'ab-sel rc-chk', disabled: !u.caster, value: !!u.rangedCaster,
-      apply: (v) => { u.rangedCaster = !!v; },
+      label: 'Ranged', type: 'check', cls: 'ranged-chk', value: !!u.ranged,
+      apply: (v) => { u.ranged = !!v; },
     });
-    // projectile size — shown once the unit actually fires a projectile
-    // (native-ranged, or a saved ranged caster). Appears after Save + refresh,
-    // same as the projectile upload slot on the sprite page.
-    if (baseRanged || (u.caster && u.rangedCaster)) {
-      out.push({
-        label: 'Proiectil (%)', type: 'num', value: Math.round((u.projSize || 1) * 100),
-        apply: (v) => { u.projSize = clamp(v / 100, 0.1, 6); },
-      });
-    }
+    out.push({
+      label: 'Proiectil (%)', type: 'num', cls: 'ranged-field', disabled: !u.ranged,
+      value: Math.round((u.projSize || 1) * 100),
+      apply: (v) => { u.projSize = clamp(v / 100, 0.1, 6); },
+    });
+    out.push({
+      label: 'Viteză proiectil', type: 'num', cls: 'ranged-field', disabled: !u.ranged,
+      value: Math.round(u.projSpeed ?? 420),
+      apply: (v) => { u.projSpeed = clamp(v, 20, 4000); },
+    });
+    // let a caster keep its basic attack between spells (off = pure caster)
+    out.push({
+      label: 'Auto attacks between spells', type: 'check', cls: 'ab-sel', disabled: !u.caster,
+      value: !!u.autoAttackBetween,
+      apply: (v) => { u.autoAttackBetween = !!v; },
+    });
     out.push({
       label: 'Mana', type: 'num', cls: 'ab-sel', disabled: !u.caster, value: u.mana ?? 100,
       apply: (v) => { u.mana = clamp(v, 0, 100000); },
@@ -145,7 +149,7 @@ function fieldsFor(ent, kind) {
     }
     out.push({
       type: 'note',
-      label: 'După Salvează + refresh, pe pagina de sprites apar sloturi de „Cast" pentru fiecare abilitate activă, iar la „Ranged caster" apare slotul „Proiectil".',
+      label: 'După Salvează + refresh: la caster, atacul devine 1 frame + un frame comun „Prepare spell", iar fiecare abilitate activă primește 1 frame „Cast …". Bifa „Ranged" adaugă slotul de imagine „Proiectil".',
     });
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });
@@ -234,13 +238,19 @@ function open(ent, kind) {
     return `<label class="sm-row"><span>${fd.label}</span>
       <input type="number" step="any" class="${fd.cls || ''}" data-i="${i}" value="${fd.value}" ${fd.disabled ? 'disabled' : ''}></label>`;
   }).join('');
-  // "Caster" live-toggles the dependent rows (Ranged caster, Mana, Regen,
-  // abilities). The projectile size field + upload slot appear after Save +
-  // refresh, so no live toggle is needed for them.
+  // Live toggles without a re-render: "Caster" gates the mana/ability rows,
+  // "Ranged" gates the projectile size/speed fields. (The projectile upload
+  // slot still appears after Save + refresh.)
   const casterChk = bodyEl.querySelector('.caster-chk');
   if (casterChk) {
     casterChk.addEventListener('change', () => {
       for (const s of bodyEl.querySelectorAll('.ab-sel')) s.disabled = !casterChk.checked;
+    });
+  }
+  const rangedChk = bodyEl.querySelector('.ranged-chk');
+  if (rangedChk) {
+    rangedChk.addEventListener('change', () => {
+      for (const s of bodyEl.querySelectorAll('.ranged-field')) s.disabled = !rangedChk.checked;
     });
   }
   modal.classList.add('on');

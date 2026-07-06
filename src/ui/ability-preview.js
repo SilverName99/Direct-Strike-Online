@@ -4,7 +4,7 @@
 
 import { ABILITIES } from '../abilities.js';
 import {
-  drawAura, drawSlowSwirl, drawHasteSparks, drawRegenCross, drawImmuneHalo,
+  drawAura, drawSlow, drawHasteSparks, drawRegenCross, drawImmuneHalo,
   drawExpandingRing, drawSpellProjectile,
 } from '../render/vfx.js';
 
@@ -87,7 +87,7 @@ function makeScene(canvas, id) {
         const xs = [cx - 34, cx + 34];
         for (const x of xs) {
           figure(x, cy, others);
-          if (id === 'slowaura') marker(x, cy, drawSlowSwirl, now);
+          if (id === 'slowaura') marker(x, cy, drawSlow, now);
           else if (id === 'hasteaura') marker(x, cy, drawHasteSparks, now);
           else marker(x, cy, drawRegenCross, now);
         }
@@ -146,7 +146,7 @@ function makeScene(canvas, id) {
         figure(cx, cy, color);
         figure(tx, ty, foe);
         if (s.proj) drawSpellProjectile(ctx, s.proj.x, s.proj.y, 3.5, color);
-        if (now < s.fxUntil) marker(tx, ty, drawSlowSwirl, now);
+        if (now < s.fxUntil) marker(tx, ty, drawSlow, now);
       } else {
         drawFx();
       }

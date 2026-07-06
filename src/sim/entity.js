@@ -13,6 +13,7 @@ export function spawnUnit(game, team, type, x, y) {
     effects: [],    // active status effects [{kind, val, until}]
     abilityCd: {},  // abilityId -> game.time when it can cast again
     abilityBusy: 0, // holds the auto-attack until this time (mid-cast)
+    spellHold: false, // caster is holding at range, saving up for a spell
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,
     targetId: null,

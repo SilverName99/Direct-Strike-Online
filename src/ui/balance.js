@@ -23,7 +23,7 @@ export const UNIT_NUM_FIELDS = [
   ['range', 'Range'],
   ['speed', 'Speed'],
   ['splash', 'Splash radius'],
-  ['projectileSpeed', 'Projectile speed'],
+  // projectile speed is edited via the "Ranged" section (projSpeed)
 ];
 export const UNIT_SELECT_FIELDS = {
   armor: ['light', 'armored'],
@@ -74,7 +74,13 @@ function baseUnits() {
   // caster + abilities come only from the admin config (empty by default);
   // mana/manaRegen only matter while caster is on
   for (const [id, u] of Object.entries(UNITS)) {
-    t[id] = { ...u, size: 1, projSize: 1, caster: false, rangedCaster: false, abilities: [], mana: 100, manaRegen: 2 };
+    const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
+    t[id] = {
+      ...u, size: 1, projSize: 1,
+      ranged: !!u.projectile, projectile: !!u.projectile, // fires a projectile on basic attack
+      projSpeed: ps, projectileSpeed: ps,
+      caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
+    };
   }
   return t;
 }
@@ -134,7 +140,8 @@ function raceUnitsSnapshot(race) {
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize,
-      caster: !!u.caster, rangedCaster: !!u.rangedCaster, abilities: [...(u.abilities || [])],
+      ranged: !!u.ranged, projSpeed: u.projSpeed,
+      caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen,
     };
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
@@ -225,15 +232,18 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
     if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
-    if (typeof vals.rangedCaster === 'boolean') u.rangedCaster = vals.rangedCaster;
+    if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
+    if (typeof vals.ranged === 'boolean') u.ranged = vals.ranged;
+    else if (vals.rangedCaster && vals.caster) u.ranged = true; // legacy (pre-general Ranged)
+    if (num(vals.projSpeed) !== undefined) u.projSpeed = clamp(vals.projSpeed, 20, 4000);
     if (Array.isArray(vals.abilities)) {
       u.abilities = vals.abilities.filter((a) => ABILITY_IDS.includes(a)).slice(0, MAX_ABILITIES);
     }
     if (num(vals.mana) !== undefined) u.mana = clamp(vals.mana, 0, 100000);
     if (num(vals.manaRegen) !== undefined) u.manaRegen = clamp(vals.manaRegen, 0, 1000);
-    // a ranged caster fires a projectile on its basic attack, like a native
-    // ranged unit (the sim reads stats.projectile)
-    if (u.caster && u.rangedCaster) u.projectile = true;
+    // "Ranged" drives whether the basic attack fires a projectile + its speed
+    u.projectile = !!u.ranged;
+    u.projectileSpeed = u.projSpeed;
   }
 }
 
@@ -285,7 +295,13 @@ export function currentBalance() {
 }
 
 export function resetRaceUnit(race, id) {
-  resolvedUnits[race][id] = { ...UNITS[id], size: 1, projSize: 1, caster: false, rangedCaster: false, abilities: [], mana: 100, manaRegen: 2 };
+  const u = UNITS[id];
+  const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
+  resolvedUnits[race][id] = {
+    ...u, size: 1, projSize: 1,
+    ranged: !!u.projectile, projectile: !!u.projectile, projSpeed: ps, projectileSpeed: ps,
+    caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
+  };
 }
 
 export function resetAbility(id) {

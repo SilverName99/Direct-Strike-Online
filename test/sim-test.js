@@ -380,9 +380,9 @@ console.log('abilities (casters, auras, status effects)');
     check('heal restores a wounded ally', wounded.hp > 100, `hp=${wounded.hp}`);
   }
 
-  // ranged caster: a melee-base unit fires a projectile on its basic attack
+  // Ranged flag: a melee-base unit fires a projectile on its basic attack
   {
-    applyBalance({ races: { humans: { units: { grunt: { caster: true, rangedCaster: true } } } } });
+    applyBalance({ races: { humans: { units: { grunt: { ranged: true } } } } });
     const game = new Game(5, { races: ['humans', 'orcs'] });
     const g = spawnUnit(game, 0, 'grunt', 600, 300);
     g.type; // grunt is melee by default
@@ -393,7 +393,7 @@ console.log('abilities (casters, auras, status effects)');
     run(game, 2);
     const shot = game.projectiles.some((p) => p.srcType === 'grunt') ||
       game.entities.some((e) => e.team === 1 && e.hp < e.maxHp); // dmg landed via projectile
-    check('ranged caster fires a projectile', shot);
+    check('ranged flag fires a projectile', shot);
   }
 
   // cast priority: while mid-cast a caster does not also auto-attack
@@ -407,6 +407,23 @@ console.log('abilities (casters, auras, status effects)');
     let sawBusy = false;
     for (let i = 0; i < 30; i++) { game.update(DT); game.drainEvents(); if (mender.abilityBusy > game.time) sawBusy = true; }
     check('caster locks its attack while casting', sawBusy);
+  }
+
+  // spell priority: a caster prioritizes its spells over the basic attack
+  {
+    const { casterPrioritizesSpells } = await import('../src/sim/abilities.js');
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 100, manaRegen: 0 } } } } });
+    const game = new Game(4, { races: ['humans', 'orcs'] });
+    const st = game.ustat(0, 'slinger');
+    check('caster with mana prioritizes spells', casterPrioritizesSpells({ mana: 100 }, st));
+    check('caster out of mana attacks normally', !casterPrioritizesSpells({ mana: 0 }, st));
+    // in-game: it holds at range (no auto-attack spam) rather than swinging
+    const caster = spawnUnit(game, 0, 'slinger', 640, 300);
+    const enemy = spawnUnit(game, 1, 'grunt', 700, 300);
+    enemy.hp = enemy.maxHp = 100000;
+    let held = false;
+    for (let i = 0; i < 120; i++) { game.update(DT); game.drainEvents(); if (caster.spellHold) held = true; }
+    check('caster holds at range to cast (no attack spam)', held);
   }
 
   // mana gates casting: a caster with an empty pool never fires

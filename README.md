@@ -87,10 +87,16 @@ devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revin
 Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi setezi **Mana** și
 **Regen mană (/s)** și îi alegi până la **5 abilități** din catalog. Abilitățile se aruncă singure
 (auto-cast) — nu ai nimic de apăsat în meci; casterii au bară albastră de mana sub cea de viață.
-Bifa **Ranged caster** (apare doar după „Caster") face ca atacul de bază să tragă un proiectil și
-deblochează slotul de imagine **Proiectil** (după Salvează + refresh). **Casting-ul are prioritate:**
-cât timp aruncă o abilitate, casterul nu dă și auto-attack; între cast-uri / când rămâne fără mană,
-atacă normal.
+
+- Bifa **Ranged** (independentă de Caster) face ca atacul de bază al oricărei unități să tragă un
+  proiectil; deblochează **Proiectil (%)**, **Viteză proiectil** și slotul de imagine **Proiectil**
+  (după Salvează + refresh). Unitățile care erau deja ranged pornesc bifate.
+- **Prioritate la spell-uri:** implicit, cât timp are mană pentru o abilitate, casterul stă la distanță
+  și așteaptă să castuiască — nu strecoară auto-attack-uri între spell-uri (când rămâne fără mană,
+  atacă normal). Bifa **Auto attacks between spells** îi permite să atace și între cast-uri.
+- **Cadre de animație (caster):** în loc de 2 frame-uri per acțiune, casterul folosește **un frame comun
+  „Prepare spell"** (windup) + câte **un singur frame** pentru fiecare acțiune (Attack, Cast Heal,
+  Cast Frost Bolt…). Mai puțin de desenat și fără pâlpâit între poze.
 
 - **Catalogul** (comun ambelor rase, denumiri în engleză) se balansează din **✨ Abilități** (lângă
   ⚙ Balance): **Heal** (cast simplu — cheltuie mană ca să vindece instant aliatul cel mai rănit),

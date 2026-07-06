@@ -28,17 +28,28 @@ export function drawAura(ctx, now, color, radius, i = 0) {
   ctx.globalAlpha = 1;
 }
 
-// Icy swirl orbiting a slowed unit.
-export function drawSlowSwirl(ctx, now, r) {
+// Slowed unit: a faint blue wash over the body + a few barely-visible
+// snowflakes drifting down (frost/chill look).
+export function drawSlow(ctx, now, r, seed = 0) {
   ctx.save();
-  ctx.strokeStyle = '#7fb4ff';
-  ctx.globalAlpha = 0.8;
-  ctx.lineWidth = 1.8;
-  for (let k = 0; k < 2; k++) {
-    const a0 = -now * 2.4 + k * Math.PI;
+  // soft blue tint over the unit (fades out at the edges)
+  const g = ctx.createRadialGradient(0, -r * 0.2, r * 0.2, 0, -r * 0.2, r * 1.15);
+  g.addColorStop(0, 'rgba(120,175,255,0.30)');
+  g.addColorStop(1, 'rgba(120,175,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.2, r * 1.15, 0, Math.PI * 2);
+  ctx.fill();
+  // barely-visible falling snowflakes
+  ctx.fillStyle = '#eaf4ff';
+  for (let k = 0; k < 5; k++) {
+    const ph = (now * 0.35 + k * 0.37 + seed * 0.13) % 1;
+    const sx = Math.sin((k + seed) * 2.3) * r * 0.9 + Math.sin(now * 1.5 + k) * 1.5;
+    const sy = -r - 4 + ph * (r * 2.4);
+    ctx.globalAlpha = 0.35 * Math.sin(ph * Math.PI); // fade in near the top, out near the bottom
     ctx.beginPath();
-    ctx.arc(0, 0, r + 5, a0, a0 + 1.5);
-    ctx.stroke();
+    ctx.arc(sx, sy, 1.1, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
   ctx.globalAlpha = 1;
