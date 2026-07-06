@@ -99,9 +99,9 @@ export class Hud {
     const game = this.upgGame;
     if (!game) return;
     const race = raceOf(0);
-    // only upgrades that target a unit are buyable
+    // only upgrades that target a unit of the player's race are buyable
     const buyable = UPGRADE_IDS.map((id) => ({ id, up: resolvedUpgrade(id) }))
-      .filter((x) => x.up && x.up.unit);
+      .filter((x) => x.up && x.up.unit && (!x.up.race || x.up.race === race));
     if (!buyable.length) {
       this.upgBody.innerHTML = '<div class="upg-empty">Niciun upgrade configurat. Setează unitatea-țintă în admin → 🐗 Upgrades.</div>';
       return;
@@ -110,7 +110,7 @@ export class Hud {
       const owned = game.upgrades[0].has(id);
       const cost = up.params.cost || 0;
       const afford = game.money[0] >= cost;
-      const uname = (statsUnit(race, up.unit) || {}).name || up.unit;
+      const uname = (statsUnit(up.race || race, up.unit) || {}).name || up.unit;
       const btn = owned
         ? '<button class="upg-buy owned" disabled>Cumpărat ✓</button>'
         : `<button class="upg-buy" data-buy="${id}" ${afford ? '' : 'disabled'}>Cumpără</button>`;

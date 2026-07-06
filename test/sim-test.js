@@ -572,6 +572,28 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // Upgrade targets a specific race's unit: an orcs-only upgrade is unbuyable by
+  // humans and leaves the humans same-type unit unaffected
+  {
+    applyBalance({
+      races: { humans: { units: { slinger: { ranged: true } } } },
+      upgrades: { dashmount: { race: 'orcs', unit: 'grunt', params: { cost: 100, radius: 300, dashSpeed: 800, dmDamage: 50, dmRange: 30, dmPeriod: 0.5, dmSpeed: 90 } } },
+    });
+    const game = new Game(7, { races: ['humans', 'orcs'] });
+    const wrong = game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'dashmount' }); // humans
+    const right = game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'dashmount' }); // orcs
+    check('cannot buy an upgrade for another race', !wrong.ok && wrong.reason === 'wrong-race');
+    check('orcs can buy its own upgrade', right.ok);
+    const orcRider = spawnUnit(game, 1, 'grunt', 900, 300);   // orcs rider
+    const humanSame = spawnUnit(game, 0, 'grunt', 640, 300);  // humans, SAME type
+    const foe = spawnUnit(game, 0, 'slinger', 660, 300);      // humans ranged enemy near the orc rider
+    for (const e of [orcRider, humanSame, foe]) { e.hp = e.maxHp = 100000; }
+    run(game, 3);
+    check('orcs rider dismounts', orcRider.dismounted === true);
+    check('humans same-type unit is not transformed', humanSame.dismounted === false);
+    applyBalance({});
+  }
+
   // Dash (charge): a dash unit closes a far target fast (dashing flag) and
   // lands a bonus dashDamage burst on arrival
   {

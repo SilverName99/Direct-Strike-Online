@@ -221,7 +221,7 @@ function snapshot() {
   const abilities = {};
   for (const [id, ab] of Object.entries(resolvedAbilities)) abilities[id] = { ...ab.params };
   const upgrades = {};
-  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { unit: up.unit || '', params: { ...up.params } };
+  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { race: up.race || '', unit: up.unit || '', params: { ...up.params } };
   return {
     general,
     tint: CONFIG.TEAM_TINT,
@@ -272,6 +272,7 @@ export function applyBalance(data) {
     for (const [id, vals] of Object.entries(data.upgrades)) {
       const up = resolvedUpgrades[id];
       if (!up || typeof vals !== 'object') continue;
+      if (typeof vals.race === 'string' && (vals.race === '' || RACES.includes(vals.race))) up.race = vals.race;
       if (typeof vals.unit === 'string' && (vals.unit === '' || UNITS[vals.unit])) up.unit = vals.unit;
       const params = vals.params || {};
       for (const k of Object.keys(up.params)) {

@@ -229,6 +229,7 @@ export class Game {
       if (!UPGRADE_IDS.includes(cmd.id)) return { ok: false, reason: 'unknown-upgrade' };
       const up = resolvedUpgrade(cmd.id);
       if (!up || !up.unit) return { ok: false, reason: 'no-unit' }; // must target a unit
+      if (up.race && up.race !== this.races[cmd.team]) return { ok: false, reason: 'wrong-race' };
       if (this.upgrades[cmd.team].has(cmd.id)) return { ok: false, reason: 'owned' };
       const cost = up.params.cost || 0;
       if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };

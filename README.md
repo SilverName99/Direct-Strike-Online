@@ -158,17 +158,19 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 ## Upgrade-uri (cumpărate din Bază)
 
 Catalog global (ca abilitățile), balansat din **🐗 Upgrades** (lângă ✨ Abilități). Fiecare upgrade își
-alege **cărei unități** i se aplică. În meci, **click pe Baza ta** deschide magazinul de upgrade-uri: îl
-cumperi **o dată** (cost în aur, setabil) și rămâne activ **tot restul meciului**, pentru toate copiile
-acelei unități.
+alege **cărei unități** i se aplică — **per rasă** (același tip e o unitate diferită la fiecare rasă, ex.
+„Giant Eagle" la Humans vs „Boar Rider" la Orcs pentru `crab`), deci alegi exact unitatea rasei potrivite.
+În meci, **click pe Baza ta** deschide magazinul de upgrade-uri (doar cele ale rasei tale): îl cumperi
+**o dată** (cost în aur, setabil) și rămâne activ **tot restul meciului**, pentru toate copiile acelei unități.
 
 - **Dashing & Fleeing mount** (ex. un orc pe mistreț): unitatea se comportă normal, dar când un inamic
   **Ranged, non-zburător** intră în **raza** setată, se **năpustește** spre el (la *Dash viteză*), **muntele
   fuge** (unitatea trece pe al doilea set de sprites) și **luptă pe jos** de acolo încolo cu statistici de
   dismount proprii (damage / rază / perioadă / viteză). Dismount-ul e permanent pe viața acelei unități; la
   valul următor respawnează din nou călare.
-- Dacă un upgrade transformă o unitate, aceasta primește pe pagina de sprites un **al doilea set** de cadre
-  (**„Pe jos: Idle/Walk/Attack"**) pentru forma dismounted (fără ele, rămâne vizual pe forma călare).
+- Dacă un upgrade transformă o unitate, aceasta primește pe pagina de sprites (doar la rasa țintă) un
+  **al doilea set** de cadre — **„Pe jos: Idle/Walk/Attack/Die"** — pentru forma dismounted (fără ele,
+  rămâne vizual pe forma călare).
 
 ## Rase
 

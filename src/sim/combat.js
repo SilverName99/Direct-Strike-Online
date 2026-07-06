@@ -229,7 +229,7 @@ function updateHealer(game, u, stats) {
 function mountUpgradeFor(game, u) {
   for (const id of game.upgrades[u.team]) {
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'mount' && up.unit === u.type) return up;
+    if (up && up.kind === 'mount' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
   }
   return null;
 }
@@ -339,6 +339,7 @@ export function applyDamage(game, target, damage, dmgType) {
       team: target.team,
       radius: target.radius,
       unitType: target.type || null,
+      dismounted: !!target.dismounted, // corpse uses the on-foot "foot-die" sprite
     });
   }
 }

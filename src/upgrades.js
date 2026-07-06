@@ -13,6 +13,7 @@ export const UPGRADES = {
     name: 'Dashing & Fleeing mount',
     desc: 'A mounted rider (e.g. a boar rider): when an enemy Ranged, non-flying unit enters the trigger radius, it charges that unit, the mount flees, and the rider fights on foot from then on with its dismounted stats. Bought once from the base; permanent for the match.',
     kind: 'mount',
+    race: '',   // which race's unit this targets (same type differs per race)
     unit: '',   // which unit type this upgrade transforms (set in admin)
     params: {
       cost: 300,       // gold to buy from the base

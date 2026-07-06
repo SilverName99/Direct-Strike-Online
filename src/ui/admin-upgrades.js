@@ -10,14 +10,16 @@ import { resolvedUpgrade, resetUpgrade, statsUnit, loadBalance, saveBalance } fr
 const app = document.getElementById('up-app');
 const status = document.getElementById('status');
 
-// Unit options showing the CUSTOM (renamed) names. Names are per-race, so when
-// they differ across races we show both. Rebuilt each render (after the saved
-// balance is applied).
+// One option per (race, unit) — the same type is a different unit per race
+// (e.g. Humans "Giant Eagle" vs Orcs "Boar Rider" for `crab`), so the upgrade
+// targets a specific race's unit. Value = "race:unit"; shows the custom name.
 function unitOpts() {
   const opts = [['', '— niciuna —']];
-  for (const id of Object.keys(UNITS)) {
-    const names = [...new Set(RACES.map((r) => (statsUnit(r, id) || {}).name || id))];
-    opts.push([id, `${names.join(' / ')} (${id})`]);
+  for (const r of RACES) {
+    for (const id of Object.keys(UNITS)) {
+      const name = (statsUnit(r, id) || {}).name || id;
+      opts.push([`${r}:${id}`, `${name} — ${r} (${id})`]);
+    }
   }
   return opts;
 }
@@ -27,8 +29,9 @@ function render() {
   const UNIT_OPTS = unitOpts();
   for (const [id, base] of Object.entries(UPGRADES)) {
     const up = resolvedUpgrade(id);
+    const cur = up.unit ? `${up.race || RACES[0]}:${up.unit}` : '';
     const opts = UNIT_OPTS.map(([v, label]) =>
-      `<option value="${v}" ${v === (up.unit || '') ? 'selected' : ''}>${label}</option>`).join('');
+      `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`).join('');
     html += `<div class="group">
       <h3>${base.name}</h3>
       <div class="desc">${base.desc}</div>
@@ -48,7 +51,10 @@ function render() {
 function collect() {
   for (const sel of app.querySelectorAll('select[data-unit]')) {
     const up = resolvedUpgrade(sel.dataset.up);
-    if (up) up.unit = sel.value;
+    if (!up) continue;
+    const [race, unit] = sel.value ? sel.value.split(':') : ['', ''];
+    up.race = race;
+    up.unit = unit;
   }
   for (const el of app.querySelectorAll('input[data-up]')) {
     const up = resolvedUpgrade(el.dataset.up);
