@@ -17,6 +17,7 @@ const projectiles = new Map(); // `${race}/${ent}` -> entry (single projectile i
 const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
+const musicUrls = new Map();   // race -> url of the uploaded background track
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -91,6 +92,10 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const race of Object.keys(man.backgrounds || {})) {
         load(`${base}${race}/background.png?v=${man.v || 0}`, (img) => backgrounds.set(race, img));
       }
+      // per-race background music (played in-game, looping)
+      for (const [race, file] of Object.entries(man.music || {})) {
+        musicUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
@@ -127,6 +132,11 @@ function pickImg(entry, team) {
 
 export function getBackground(race) {
   return backgrounds.get(race) || null;
+}
+
+// URL of the uploaded background-music track for a race, or null.
+export function getMusicUrl(race) {
+  return musicUrls.get(race) || null;
 }
 
 export function getSprite(race, ent, anim, frame) {

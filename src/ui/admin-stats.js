@@ -11,6 +11,7 @@ import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
   FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
   resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance, setUnitOrder,
+  musicVolumeOf, setMusicVolume,
 } from './balance.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -474,6 +475,24 @@ function wireReorder() {
   }
 }
 
+// Music volume input (next to the Background/music upload): auto-saves the
+// per-race volume into balance.json and live-updates the preview player.
+function wireMusicVolume() {
+  const inp = document.getElementById('music-vol');
+  if (!inp) return;
+  const st = document.getElementById('music-vol-status');
+  inp.value = Math.round(musicVolumeOf(RACE));
+  const preview = inp.closest('.slot')?.querySelector('audio');
+  if (preview) preview.volume = musicVolumeOf(RACE) / 100;
+  inp.addEventListener('change', async () => {
+    setMusicVolume(RACE, Number(inp.value));
+    if (preview) preview.volume = musicVolumeOf(RACE) / 100;
+    if (st) st.textContent = 'se salvează…';
+    const res = await saveBalance('save-balance.php');
+    if (st) st.textContent = res === 'ok' ? 'salvat ✓' : 'eroare la salvare';
+  });
+}
+
 // Wire the gears once the saved balance is applied, so saving preserves it.
 loadBalance('../assets/').then(() => {
   for (const g of document.querySelectorAll('.stat-gear')) {
@@ -481,4 +500,5 @@ loadBalance('../assets/').then(() => {
   }
   refreshNames();
   wireReorder();
+  wireMusicVolume();
 });

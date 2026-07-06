@@ -89,6 +89,9 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
   colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt lovite").
 - **Background per rasă:** în fiecare tab de rasă poți încărca o imagine de fundal care apare pe toată
   jumătatea acelei rase în joc.
+- **Muzică de fundal per rasă:** lângă Background poți încărca o piesă (mp3 — merge și ogg/m4a, max 12 MB)
+  și îi setezi **volumul** (0-100%, salvat automat). În meci, piesa rasei tale pornește la start și se
+  **reia în buclă** când se termină; se oprește la finalul meciului. Preview direct în admin.
 
 Apeși **Salvează** → se scrie în `assets/balance.json` (gitignored, supraviețuiește la `git pull`) și
 devine balansul oficial: jocul îl încarcă la fiecare pornire. **Reset** revine la valorile din cod.

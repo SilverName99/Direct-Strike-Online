@@ -91,6 +91,14 @@ function unitHasDismount(string $race, string $ent): bool {
 }
 const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
+const MUSIC_MAX_BYTES = 12582912; // 12 MB (background music tracks)
+const MUSIC_EXTS = ['mp3', 'ogg', 'm4a', 'mp4'];
+
+// The uploaded background-music file for a race (music.<ext>), or null.
+function musicFileFor(string $assetsDir, string $race): ?string {
+  foreach (MUSIC_EXTS as $e) if (is_file("$assetsDir/$race/music.$e")) return "music.$e";
+  return null;
+}
 
 // slot id => label; slot files are "<slot>.png". $race matters only for
 // units: casters gain 2 cast frames per selected ACTIVE ability.
@@ -183,13 +191,16 @@ function regenManifest(string $assetsDir): void {
     }
   }
   $backgrounds = [];
+  $music = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
+    $mf = musicFileFor($assetsDir, $r);
+    if ($mf) $music[$r] = $mf;
   }
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -317,6 +328,39 @@ if ($authed && $action === 'deletebg') {
     $msg = "Background șters: $race";
   }
 }
+
+// per-race background music (loops in-game; volume set below and saved to balance)
+if ($authed && $action === 'uploadmusic') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['audio']) || $_FILES['audio']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['audio']['size'] > MUSIC_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['audio']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['audio']['tmp_name'];
+    if (!in_array($ext, MUSIC_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere audio: ' . implode(', ', MUSIC_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/$race/music.$e"); // one track per race
+      if (move_uploaded_file($tmp, "$assetsDir/$race/music.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Muzică încărcată: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletemusic') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/$race/music.$e");
+    regenManifest($assetsDir);
+    $msg = "Muzică ștearsă: $race";
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -439,9 +483,12 @@ if ($authed && $action === 'deletebg') {
     <a href="upgrades.php" style="margin-left:4px">🐗 Upgrades</a>
   </div>
 
-  <?php $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile); ?>
+  <?php
+    $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile);
+    $musicFile = musicFileFor($assetsDir, $race); $hasMusic = $musicFile !== null;
+  ?>
   <div class="ent" id="background">
-    <div class="title"><b>Background</b><span><?= $hasBg ? 'setat' : 'niciunul' ?></span></div>
+    <div class="title"><b>Background</b><span><?= $hasBg ? 'setat' : 'niciunul' ?> · muzică: <?= $hasMusic ? 'setată' : 'niciuna' ?></span></div>
     <div class="slots">
       <div class="slot">
         <span class="lbl" style="color:#ffd35c">Jumătatea <?= $race ?></span>
@@ -464,6 +511,33 @@ if ($authed && $action === 'deletebg') {
           <button class="mini danger" onclick="return confirm('Ștergi background-ul?')">șterge</button>
         </form>
         <?php endif; ?>
+      </div>
+      <div class="slot" style="min-width:240px">
+        <span class="lbl" style="color:#ffd35c">Muzică <?= $race ?> (mp3, loop)</span>
+        <?php if ($hasMusic): ?>
+          <audio controls preload="none" style="width:220px;height:32px;margin:6px 0"
+            src="<?= $assetsUrl ?>/<?= $race ?>/<?= $musicFile ?>?t=<?= filemtime("$assetsDir/$race/$musicFile") ?>"></audio>
+        <?php else: ?>
+          <div class="thumb" style="width:220px;height:32px"><span class="empty">♪</span></div>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadmusic">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasMusic ? 'înlocuiește' : 'încarcă' ?><input type="file" name="audio" accept=".mp3,.ogg,.m4a,.mp4,audio/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasMusic): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletemusic">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi muzica?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <div style="margin-top:8px;font-size:12px;color:#b9c4d4">
+          Volum: <input type="number" id="music-vol" min="0" max="100" step="1" style="width:64px;padding:4px 6px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px">%
+          <span id="music-vol-status" style="color:#7c8ba1;margin-left:6px"></span>
+        </div>
       </div>
       <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
         Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.

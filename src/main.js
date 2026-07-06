@@ -8,8 +8,8 @@ import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces } from './render/sprites.js';
-import { loadBalance } from './ui/balance.js';
+import { loadSprites, setTeamRaces, getMusicUrl } from './render/sprites.js';
+import { loadBalance, musicVolumeOf } from './ui/balance.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -69,6 +69,23 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
 });
 
+// Per-race background music: uploaded from /admin (next to the background),
+// loops for the whole match at the admin-set volume. Started from the match
+// button click, so autoplay policies are satisfied.
+let music = null;
+function startMusic(race) {
+  stopMusic();
+  const url = getMusicUrl(race);
+  if (!url) return;
+  music = new Audio(url);
+  music.loop = true;
+  music.volume = Math.min(1, Math.max(0, musicVolumeOf(race) / 100));
+  music.play().catch(() => { /* autoplay blocked — stay silent */ });
+}
+function stopMusic() {
+  if (music) { music.pause(); music = null; }
+}
+
 let playerRace = 'humans';
 for (const btn of document.querySelectorAll('.btn.race')) {
   btn.addEventListener('click', () => {
@@ -98,6 +115,7 @@ function newGame(difficulty) {
   camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
   state = 'playing';
   hud.hideOverlay();
+  startMusic(playerRace);
 }
 
 for (const btn of document.querySelectorAll('.btn.diff')) {
@@ -144,6 +162,7 @@ function frame(now) {
 
     if (game.winner !== null) {
       state = 'over';
+      stopMusic();
       setTimeout(() => hud.showGameOver(game, game.winner === 0), 900);
     }
   } else if (state === 'over' && game) {

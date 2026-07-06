@@ -94,6 +94,20 @@ export function setUnitOrder(race, arr) {
   if (RACES.includes(race)) unitOrder[race] = sanitizeOrder(arr);
 }
 
+// Per-race background-music volume (0-100). The track itself is a file upload
+// (assets/units/<race>/music.*, via the sprite admin); only the volume lives
+// in the balance.
+const DEFAULT_MUSIC_VOL = 60;
+const musicVol = {};
+for (const r of RACES) musicVol[r] = DEFAULT_MUSIC_VOL;
+export function musicVolumeOf(race) {
+  const v = musicVol[race];
+  return typeof v === 'number' && isFinite(v) ? v : DEFAULT_MUSIC_VOL;
+}
+export function setMusicVolume(race, v) {
+  if (RACES.includes(race) && isFinite(Number(v))) musicVol[race] = clamp(Number(v), 0, 100);
+}
+
 function baseUnits() {
   const t = {};
   // size = visual scale, projSize = projectile scale (both 1 = 100%);
@@ -228,6 +242,7 @@ function snapshot() {
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
     unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
+    music: Object.fromEntries(RACES.map((r) => [r, musicVol[r]])),
     abilities,
     upgrades,
     races,
@@ -244,6 +259,10 @@ export function applyBalance(data) {
   if (data.unitOrder) {
     if (Array.isArray(data.unitOrder)) for (const r of RACES) setUnitOrder(r, data.unitOrder); // legacy (global)
     else for (const r of RACES) if (data.unitOrder[r]) setUnitOrder(r, data.unitOrder[r]);
+  }
+  for (const r of RACES) musicVol[r] = DEFAULT_MUSIC_VOL;
+  if (data.music && typeof data.music === 'object') {
+    for (const r of RACES) if (num(data.music[r]) !== undefined) setMusicVolume(r, data.music[r]);
   }
 
   // ---- global rules (truly shared: economy, waves, tint, tier costs) ----
