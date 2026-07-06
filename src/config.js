@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.30';
+export const VERSION = 'v9.31';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -73,15 +73,18 @@ export const CONFIG = {
       range: 200, damage: 18, period: 0.9, dmgType: 'normal',
       projectileSpeed: 480, targetsAir: true,
     },
-    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 8, idleSpeed: 2, name: 'Generator' }, // +8/tick = +4/s each
+    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, idleSpeed: 2, name: 'Generator' }, // extra gold every 20s (= +4/s each)
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)
 
-  // Economy
+  // Economy — income amounts are expressed in GOLD PER 20 SECONDS (one wave
+  // interval), because that's the natural balancing unit; payments still land
+  // smoothly every INCOME_TICK seconds (scaled down accordingly).
   START_MONEY: 300,
-  INCOME_TICK: 2,   // seconds between income payments
-  INCOME_BASE: 20,  // money per tick (= +10/s); generators add on top
+  INCOME_TICK: 2,     // seconds between income payments (cadence only)
+  INCOME_WINDOW: 20,  // seconds the income amounts below are expressed per
+  INCOME_BASE: 200,   // starting gold every 20s (= +10/s); generators add on top
   SELL_REFUND: 0.75, // units (templates) refund
 
   // Waves

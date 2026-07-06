@@ -72,11 +72,15 @@ export class Game {
     return n;
   }
 
-  incomePerTick(team) {
+  // Income amounts are configured per INCOME_WINDOW (20s); each INCOME_TICK
+  // pays the proportional slice so gold still flows in smoothly.
+  incomePer20s(team) {
     const gens = this.countKind(team, 'generator');
-    return Math.round(
-      (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team]
-    );
+    return (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team];
+  }
+
+  incomePerTick(team) {
+    return Math.round(this.incomePer20s(team) * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
   }
 
   incomePerSecond(team) {

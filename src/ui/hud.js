@@ -20,7 +20,7 @@ const BUILDING_CARDS = [
   {
     id: 'generator', name: 'Generator', hotkey: 'C',
     role: 'Economy building',
-    tip: 'Each adds +4/s income. Destroyable — protect your economy!',
+    tip: 'Each adds extra gold every 20s. Destroyable — protect your economy!',
   },
 ];
 
@@ -143,7 +143,7 @@ export class Hud {
         b.id === 'tower'
           ? `${stats.hp} HP · ${(stats.damage / stats.period).toFixed(1)} DPS · range ${stats.range}`
           : b.id === 'generator'
-            ? `${stats.hp} HP · +${stats.income / CONFIG.INCOME_TICK}/s`
+            ? `${stats.hp} HP · +${stats.income} aur/20s`
             : `${stats.hp} HP`;
       card.innerHTML = `
         <span class="c-hotkey">${b.hotkey}</span>

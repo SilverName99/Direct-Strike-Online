@@ -150,9 +150,11 @@ console.log('buildings');
   const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 400 });
   const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 500 });
   check('generators build in construction zone', g1.ok && g2.ok);
+  // income amounts are per 20s; each tick pays the proportional slice
+  const tickShare = CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW;
   check(
     'each generator adds income',
-    game.incomePerTick(0) === base + 2 * CONFIG.BUILDINGS.generator.income
+    game.incomePerTick(0) === base + Math.round(2 * CONFIG.BUILDINGS.generator.income * tickShare)
   );
 
   const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 165, y: 405 });
