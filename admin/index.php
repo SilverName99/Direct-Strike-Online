@@ -21,15 +21,16 @@ const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image
 const ARMED_BUILDINGS = ['turret', 'tower'];
-// ability catalog (mirrors src/abilities.js): id => [name, has cast animation]
-// — auras are passive, so they take no cast frames
+// ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
+// — auras are passive (no cast frames); projectile abilities get a per-caster
+// projectile image slot
 const ABILITY_INFO = [
-  'heal' => ['Heal', true],
-  'dispell' => ['Dispel', true],
-  'slowaura' => ['Slow Aura', false],
-  'hasteaura' => ['Haste Aura', false],
-  'regenaura' => ['Regeneration Aura', false],
-  'frostbolt' => ['Frost Bolt', true],
+  'heal' => ['Heal', true, false],
+  'dispell' => ['Dispel', true, false],
+  'slowaura' => ['Slow Aura', false, false],
+  'hasteaura' => ['Haste Aura', false, false],
+  'regenaura' => ['Regeneration Aura', false, false],
+  'frostbolt' => ['Frost Bolt', true, true],
 ];
 
 // Saved balance (cached per request) — lets the sprite page know a unit's
@@ -81,12 +82,14 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     'die_0' => 'Die',
   ];
   if (in_array($ent, PROJECTILE_UNITS, true) || unitIsRangedCaster($race, $ent)) $slots['projectile'] = 'Proiectil';
-  // cast frames for this unit's selected active abilities (per race)
+  // cast frames + per-ability projectile for this unit's selected abilities
   foreach (unitAbilities($race, $ent) as $aid) {
-    if (empty(ABILITY_INFO[$aid][1])) continue; // auras have no cast anim
-    $name = ABILITY_INFO[$aid][0];
-    $slots["cast-{$aid}_0"] = "Cast {$name} 1";
-    $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+    [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
+    if ($hasCast) {
+      $slots["cast-{$aid}_0"] = "Cast {$name} 1";
+      $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+    }
+    if ($hasProj) $slots["abilityproj-{$aid}"] = "Proiectil {$name}";
   }
   return $slots;
 }
@@ -115,7 +118,7 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb' || $slot === 'projectile') {
+        if ($slot === 'thumb' || $slot === 'projectile' || str_starts_with($slot, 'abilityproj-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);

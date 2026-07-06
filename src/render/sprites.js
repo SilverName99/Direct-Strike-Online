@@ -14,6 +14,7 @@ import { CONFIG } from '../config.js';
 const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null]
 const thumbs = new Map(); // `${race}/${ent}` -> entry
 const projectiles = new Map(); // `${race}/${ent}` -> entry (single projectile image)
+const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
 let teamRaces = ['humans', 'humans'];
@@ -55,6 +56,14 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           if (slots.projectile) {
             load(`${base}${race}/${ent}/projectile.png?v=${man.v || 0}`, (img) => {
               projectiles.set(`${race}/${ent}`, entryFor(img));
+            });
+          }
+          // per-caster projectile image for an ability (slot "abilityproj-<id>")
+          for (const slot of Object.keys(slots)) {
+            if (!slot.startsWith('abilityproj-') || !slots[slot]) continue;
+            const aid = slot.slice('abilityproj-'.length);
+            load(`${base}${race}/${ent}/${slot}.png?v=${man.v || 0}`, (img) => {
+              abilityProjectiles.set(`${race}/${ent}/${aid}`, entryFor(img));
             });
           }
           for (const [anim, frames] of Object.entries(slots)) {
@@ -152,6 +161,10 @@ export function getThumb(race, ent) {
 
 export function getProjectile(race, ent) {
   return projectiles.get(`${race}/${ent}`) || null;
+}
+
+export function getAbilityProjectile(race, ent, aid) {
+  return abilityProjectiles.get(`${race}/${ent}/${aid}`) || null;
 }
 
 // Tallest animation frame of a unit (the standing pose), in native px.

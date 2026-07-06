@@ -100,10 +100,12 @@ atacă normal.
 - **Aurele** sunt pasive: cerc de rune rotitor sub caster + inel discret cu raza reală; unitățile
   afectate primesc indicatori (vârtej albastru = încetinit, scântei aurii = grăbit, cruce verde =
   regen, halo alb = imun după Dispell).
-- **Abilitățile active** (Dispell, Săgeata de gheață) au VFX procedural (inele care se dilată,
-  particule, proiectil cu glow) — nu trebuie desenat nimic. Opțional, după ce salvezi selecția,
-  unitatea primește pe pagina de sprites **sloturi de Cast** (2 frame-uri per abilitate activă)
-  pentru poza personajului în timpul cast-ului.
+- **Abilitățile active** (Dispel, Frost Bolt) au VFX procedural (inele care se dilată, particule,
+  proiectil cu glow) — nu trebuie desenat nimic. Opțional, după ce salvezi selecția, unitatea
+  primește pe pagina de sprites **sloturi de Cast** (2 frame-uri per abilitate activă) pentru poza
+  personajului în timpul cast-ului. Abilitățile care trag un proiectil (Frost Bolt) primesc și un
+  slot **de imagine de proiectil per caster** — așa doi casteri din rase diferite pot avea Frost
+  Bolt-uri care arată complet diferit (fără imagine, rămâne glow-ul procedural).
 - Efectele de stare sunt purtate de simulare (deterministe), deci încetinirile chiar reduc viteza
   de atac/mișcare, iar Dispell chiar le curăță — nu e doar vizual.
 

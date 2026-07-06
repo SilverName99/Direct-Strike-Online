@@ -6,7 +6,7 @@ import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
-  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile,
+  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
@@ -71,6 +71,15 @@ export function castAnimOf(type, team, ability) {
 // the default dot.
 export function drawProjectileSprite(ctx, type, team, targetH) {
   const entry = getProjectile(raceOf(team), type);
+  if (!entry) return false;
+  drawSprite(ctx, entry, targetH, team);
+  return true;
+}
+
+// Per-caster projectile image for an ability (e.g. one unit's Frost Bolt).
+// False -> caller falls back to the ability's procedural glow.
+export function drawAbilityProjectileSprite(ctx, ability, type, team, targetH) {
+  const entry = getAbilityProjectile(raceOf(team), type, ability);
   if (!entry) return false;
   drawSprite(ctx, entry, targetH, team);
   return true;

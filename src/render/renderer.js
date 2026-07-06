@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -579,7 +579,9 @@ export class Renderer {
       if (!this.visible(x, y)) continue;
 
       // uploaded projectile art (rotated toward travel), else the default dot;
-      // both scaled by the per-entity projectile size multiplier
+      // both scaled by the per-entity projectile size multiplier. Ability
+      // projectiles (e.g. Frost Bolt) use the caster's per-ability image —
+      // never the basic-attack image — so two races' casters look different.
       const ps = p.projSize || 1;
       let drawn = false;
       if (p.srcType) {
@@ -589,7 +591,9 @@ export class Renderer {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(ang);
-        drawn = drawProjectileSprite(ctx, p.srcType, p.team, size);
+        drawn = p.ability
+          ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
+          : drawProjectileSprite(ctx, p.srcType, p.team, size);
         ctx.restore();
       }
       if (!drawn) {

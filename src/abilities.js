@@ -76,6 +76,7 @@ export const ABILITIES = {
     name: 'Frost Bolt',
     kind: 'active',
     color: '#8fe3ff',
+    projectile: true, // fires a projectile -> per-caster projectile image slot
     desc: 'A projectile that damages the target and slows its movement and attacks for a duration.',
     params: {
       cooldown: 6,
