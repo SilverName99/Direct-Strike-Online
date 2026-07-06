@@ -37,6 +37,7 @@ $authed = !empty($_SESSION['auth']);
     .group h3 { font-size: 15px; margin-bottom: 2px; }
     .group .kind { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border-radius: 20px; padding: 2px 8px; margin-left: 8px; vertical-align: 2px; }
     .kind.aura { background: #1c2b1e; color: #58d68d; border: 1px solid #2b4a30; }
+    .kind.castaura { background: #2b2a16; color: #ffd35c; border: 1px solid #4a4526; }
     .kind.active { background: #2b1e33; color: #b58cff; border: 1px solid #45325a; }
     .group .desc { color: #7c8ba1; font-size: 12px; margin-bottom: 10px; }
     .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }

@@ -417,6 +417,24 @@ console.log('abilities (casters, auras, status effects)');
       casts.length >= 2 && casts[0] === 'heal' && casts.includes('frostbolt'), casts.join(','));
   }
 
+  // cast aura: Haste/Regen auras are now cast (prepare -> release), the zone
+  // persists for its duration, costs mana once, and is NOT recast while up —
+  // a pure-aura caster attacks normally between casts
+  {
+    applyBalance({ races: { humans: { units: { grunt: { caster: true, abilities: ['hasteaura'], mana: 100, manaRegen: 0 } } } } });
+    const game = new Game(6, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'grunt', 600, 300);
+    const ally = spawnUnit(game, 0, 'grunt', 620, 300);
+    game.ustat(0, 'grunt').range = 160; // engage the enemy at distance
+    const enemy = spawnUnit(game, 1, 'grunt', 700, 300);
+    enemy.hp = enemy.maxHp = 100000;
+    run(game, 3);
+    const hasted = ally.effects && ally.effects.some((e) => e.kind === 'haste' && e.until > game.time);
+    check('cast aura buffs allies in the zone', !!hasted);
+    check('cast aura costs mana once (no per-tick drain, no recast)', caster.mana === 70, `mana=${caster.mana}`);
+    check('cast aura caster auto-attacks while the zone is up', enemy.hp < enemy.maxHp);
+  }
+
   // Ranged flag: a melee-base unit fires a projectile on its basic attack
   {
     applyBalance({ races: { humans: { units: { grunt: { ranged: true } } } } });

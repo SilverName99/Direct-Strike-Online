@@ -12,6 +12,7 @@ export function spawnUnit(game, team, type, x, y) {
     windupMax: 0,   // total windup for the current swing (for anim progress)
     effects: [],    // active status effects [{kind, val, until}]
     abilityCd: {},    // abilityId -> game.time when it can cast again
+    auraUntil: {},    // castaura id -> game.time the raised buff-zone expires
     castState: null,  // null | 'prepare' | 'release' — active-cast FSM phase
     castAbility: null,// ability id currently being cast (drives the render pose)
     castTargetId: null,

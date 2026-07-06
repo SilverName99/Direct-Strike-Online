@@ -4,10 +4,14 @@
 // Params are balanced from the admin "Abilities" page and stored in
 // assets/balance.json under `abilities`.
 //
-// kind: 'aura'   — passive; while the caster lives it keeps refreshing a
-//                  status effect on units inside `radius` (no cast anim).
-//       'active' — auto-cast on cooldown when a valid trigger exists
-//                  (plays the unit's uploaded cast frames, if any).
+// kind: 'aura'     — passive; while the caster lives it keeps refreshing a
+//                    status effect on units inside `radius` (no cast anim).
+//       'castaura' — cast on cooldown (prepare -> cast frame); the buff/heal
+//                    zone then persists around the caster for `duration`
+//                    seconds. Costs `manaCost` per cast; recastable only once
+//                    the zone expires (cooldown = duration).
+//       'active'   — auto-cast on cooldown when a valid trigger exists
+//                    (plays the unit's uploaded cast frames, if any).
 //
 // Ability ids must stay lowercase-alphanumeric: they become sprite slot
 // names (cast-<id>_0.png) and balance keys — do NOT rename existing ids or
@@ -52,24 +56,26 @@ export const ABILITIES = {
   },
   hasteaura: {
     name: 'Haste Aura',
-    kind: 'aura',
+    kind: 'castaura',
     color: '#ffd35c',
-    desc: 'Allies in range attack faster.',
+    desc: 'Cast to raise a zone that makes nearby allies attack faster for a duration.',
     params: {
       radius: 140,
-      haste: 25,   // % faster attacks
-      manaCost: 0, // auras drain this per second (0 = free)
+      haste: 25,     // % faster attacks
+      duration: 12,  // seconds the zone lasts after the cast
+      manaCost: 30,  // mana per cast
     },
   },
   regenaura: {
     name: 'Regeneration Aura',
-    kind: 'aura',
+    kind: 'castaura',
     color: '#58d68d',
-    desc: 'Allies in range regenerate health over time (Priest aura).',
+    desc: 'Cast to raise a zone that regenerates nearby allies for a duration (Priest aura).',
     params: {
       radius: 140,
-      hps: 5,      // HP healed per second
-      manaCost: 0, // auras drain this per second (0 = free)
+      hps: 5,        // HP healed per second
+      duration: 12,  // seconds the zone lasts after the cast
+      manaCost: 30,  // mana per cast
     },
   },
   frostbolt: {
@@ -97,7 +103,7 @@ export const MAX_ABILITIES = 5; // per caster
 // Labels for the editable params (admin "Abilities" page).
 export const ABILITY_PARAM_LABELS = {
   cooldown: 'Cooldown (s)',
-  manaCost: 'Mana cost (auras: /s)',
+  manaCost: 'Mana cost (Slow Aura: /s)',
   range: 'Cast range',
   radius: 'Effect radius',
   immunity: 'Immunity (s)',

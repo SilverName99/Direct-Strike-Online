@@ -22,14 +22,15 @@ const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image
 const ARMED_BUILDINGS = ['turret', 'tower'];
 // ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
-// — auras are passive (no cast frames); projectile abilities get a per-caster
-// projectile image slot
+// — Slow Aura is passive (no cast frame); Haste/Regen auras are cast (they get
+// a "Cast X" frame, then the zone persists); projectile abilities also get a
+// per-caster projectile image slot
 const ABILITY_INFO = [
   'heal' => ['Heal', true, false],
   'dispell' => ['Dispel', true, false],
   'slowaura' => ['Slow Aura', false, false],
-  'hasteaura' => ['Haste Aura', false, false],
-  'regenaura' => ['Regeneration Aura', false, false],
+  'hasteaura' => ['Haste Aura', true, false],
+  'regenaura' => ['Regeneration Aura', true, false],
   'frostbolt' => ['Frost Bolt', true, true],
 ];
 

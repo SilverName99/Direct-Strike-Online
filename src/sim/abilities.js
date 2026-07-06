@@ -15,15 +15,19 @@ const AURA_TICK = 0.35;    // aura effects auto-expire this fast (re-applied whi
 export const CAST_PREPARE = 0.45; // "Prepare spell" wind-up before the release frame
 export const CAST_RELEASE = 0.40; // minimum time on the release frame (instant spells)
 
-// Does this unit have at least one ACTIVE (auto-cast) ability configured?
-// Aura-only casters keep fighting normally; only active-ability casters run
-// the prepare -> release casting state machine.
+// Abilities that go through the prepare -> release casting FSM: instant/
+// projectile spells ('active') and cast-then-persist buff zones ('castaura').
+// Passive 'aura' abilities are not cast.
+function isCastable(ab) {
+  return !!ab && (ab.kind === 'active' || ab.kind === 'castaura');
+}
+
+// Does this unit have at least one castable ability configured? Only such
+// casters run the prepare -> release state machine; passive-aura-only casters
+// keep fighting normally.
 export function hasActiveAbility(stats) {
   if (!stats.caster || !stats.abilities) return false;
-  return stats.abilities.some((aid) => {
-    const ab = resolvedAbility(aid);
-    return ab && ab.kind === 'active';
-  });
+  return stats.abilities.some((aid) => isCastable(resolvedAbility(aid)));
 }
 
 // A caster is a spellcaster first: while it can still afford at least one of
@@ -105,11 +109,14 @@ export function updateAbilities(game, dt) {
       u.mana = Math.min(u.manaMax, u.mana + (stats.manaRegen || 0) * dt);
     }
 
-    // Auras tick passively every frame; active abilities are driven by the
+    // Passive auras tick every frame; cast buff-zones (castaura) tick only
+    // while their cast is still active; active spells are driven by the
     // prepare -> release state machine (stepCaster), called from combat.js.
     for (const aid of stats.abilities) {
       const ab = resolvedAbility(aid);
-      if (ab && ab.kind === 'aura') tickAura(game, u, aid, ab, time, dt);
+      if (!ab) continue;
+      if (ab.kind === 'aura') tickAura(game, u, aid, ab, time, dt);
+      else if (ab.kind === 'castaura') tickCastAura(game, u, aid, ab, time);
     }
   }
 
@@ -130,7 +137,7 @@ function inRadius(a, b, r) {
 
 function tickAura(game, caster, aid, ab, time, dt) {
   const p = ab.params;
-  // auras with a mana cost drain it per second and switch off when dry
+  // passive auras with a mana cost drain it per second and switch off when dry
   if (p.manaCost > 0) {
     if (caster.mana < p.manaCost * dt) return;
     caster.mana -= p.manaCost * dt;
@@ -141,6 +148,23 @@ function tickAura(game, caster, aid, ab, time, dt) {
     if (aid === 'slowaura') {
       if (u.team !== caster.team) applyEffect(u, 'atkslow', p.atkSlow, until, time);
     } else if (aid === 'hasteaura') {
+      if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
+    } else if (aid === 'regenaura') {
+      if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
+    }
+  }
+}
+
+// A cast buff-zone: applies its effect to units in radius every frame, but
+// only while the caster's cast is still live (auraUntil[aid] > time). The mana
+// was paid once at cast time (see releaseSpell), so there is no per-tick drain.
+function tickCastAura(game, caster, aid, ab, time) {
+  if (!caster.auraUntil || (caster.auraUntil[aid] || 0) <= time) return;
+  const p = ab.params;
+  const until = time + AURA_TICK;
+  for (const u of game.entities) {
+    if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
+    if (aid === 'hasteaura') {
       if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
     } else if (aid === 'regenaura') {
       if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
@@ -204,7 +228,7 @@ export function stepCaster(game, caster, stats, dt) {
 function pickCastable(game, caster, stats, time) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
-    if (!ab || ab.kind !== 'active') continue;
+    if (!isCastable(ab)) continue;
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
     const target = findAbilityTarget(game, caster, aid, ab, time);
@@ -216,6 +240,17 @@ function pickCastable(game, caster, stats, time) {
 // The target a given ability would act on, or null if there is none.
 function findAbilityTarget(game, caster, aid, ab, time) {
   const p = ab.params;
+  if (aid === 'regenaura') {
+    // self-centered zone; the caster itself always benefits (self-regen)
+    return caster;
+  }
+  if (aid === 'hasteaura') {
+    // only worth casting when at least one *other* ally is in range to buff
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team === caster.team && u !== caster && inRadius(u, caster, p.radius)) return caster;
+    }
+    return null;
+  }
   if (aid === 'heal') {
     // most-wounded ally in range (excluding self), stable iteration order
     let best = null;
@@ -269,8 +304,18 @@ function releaseSpell(game, caster, time) {
   const target = findAbilityTarget(game, caster, aid, ab, time);
   if (!target) return null; // nothing valid to hit -> abort with no cost
 
-  caster.abilityCd[aid] = time + p.cooldown;
+  // cast buff-zones use `duration` as their cooldown (not recastable until the
+  // zone expires); instant/projectile spells use their own `cooldown`.
+  caster.abilityCd[aid] = time + (p.cooldown != null ? p.cooldown : (p.duration || 0));
   caster.mana -= p.manaCost || 0;
+
+  if (ab.kind === 'castaura') {
+    // raise the persistent zone around the caster; tickCastAura applies it
+    if (!caster.auraUntil) caster.auraUntil = {};
+    caster.auraUntil[aid] = time + (p.duration || 0);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
+    return CAST_RELEASE;
+  }
 
   if (aid === 'heal') {
     target.hp = Math.min(target.maxHp, target.hp + p.amount);

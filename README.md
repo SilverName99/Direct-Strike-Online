@@ -107,17 +107,24 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
 - **Catalogul** (comun ambelor rase, denumiri în engleză) se balansează din **✨ Abilități** (lângă
   ⚙ Balance): **Heal** (cast simplu — cheltuie mană ca să vindece instant aliatul cel mai rănit),
   **Dispel**, **Slow Aura**, **Haste Aura**, **Regeneration Aura**, **Frost Bolt** — fiecare cu cooldown,
-  cost de mană (la aure: drenaj/s), raze, procente, durate. Fiecare abilitate are un **preview live**
+  cost de mană, raze, procente, durate. Fiecare abilitate are un **preview live**
   al efectului vizual (același desen procedural ca în joc), ca să vezi cum arată înainte s-o folosești.
-- **Aurele** sunt pasive: cerc de rune rotitor sub caster + inel discret cu raza reală; unitățile
-  afectate primesc indicatori (vârtej albastru = încetinit, scântei aurii = grăbit, cruce verde =
-  regen, halo alb = imun după Dispell).
-- **Abilitățile active** (Dispel, Frost Bolt) au VFX procedural (inele care se dilată, particule,
-  proiectil cu glow) — nu trebuie desenat nimic. Opțional, după ce salvezi selecția, unitatea
-  primește pe pagina de sprites **sloturi de Cast** (2 frame-uri per abilitate activă) pentru poza
-  personajului în timpul cast-ului. Abilitățile care trag un proiectil (Frost Bolt) primesc și un
-  slot **de imagine de proiectil per caster** — așa doi casteri din rase diferite pot avea Frost
-  Bolt-uri care arată complet diferit (fără imagine, rămâne glow-ul procedural).
+- **Slow Aura** e **pasivă**: cât trăiește casterul, încetinește atacul inamicilor din rază (drenaj de
+  mană/s, 0 = gratis). Cerc de rune rotitor sub caster + inel discret cu raza reală.
+- **Haste Aura** și **Regeneration Aura** sunt **aure la cast** (nu pasive): casterul intră în „Prepare
+  spell", face **cast** (are frame de „Cast X"), apoi zona de buff/heal se **menține în jurul lui o
+  durată** setabilă — costă mană o dată la cast (nu drenaj/s). Nu o recastuiește cât e activă; dacă are
+  doar aure, între cast-uri **atacă normal**, iar când zona expiră o ridică din nou. Inelul de zonă
+  apare doar cât e activă.
+- Unitățile afectate primesc indicatori (albastru înghețat = încetinit, scântei aurii = grăbit, cruce
+  verde = regen, halo alb = imun după Dispell).
+- **Abilitățile care se castuiesc** (Heal, Dispel, Frost Bolt, Haste Aura, Regeneration Aura) au VFX
+  procedural (inele care se dilată, particule, proiectil cu glow, zona de aură) — nu trebuie desenat
+  nimic. Opțional, după ce salvezi selecția, unitatea primește pe pagina de sprites **un slot de Cast**
+  (un singur frame „Cast X" per abilitate) pentru poza personajului în timpul cast-ului. Abilitățile
+  care trag un proiectil (Frost Bolt) primesc și un slot **de imagine de proiectil per caster** — așa
+  doi casteri din rase diferite pot avea Frost Bolt-uri care arată complet diferit (fără imagine,
+  rămâne glow-ul procedural).
 - Efectele de stare sunt purtate de simulare (deterministe), deci încetinirile chiar reduc viteza
   de atac/mișcare, iar Dispell chiar le curăță — nu e doar vizual.
 
