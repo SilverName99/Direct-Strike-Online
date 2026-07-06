@@ -45,13 +45,14 @@ export const ABILITIES = {
   },
   slowaura: {
     name: 'Slow Aura',
-    kind: 'aura',
+    kind: 'castaura',
     color: '#7fb4ff',
-    desc: 'Enemies in range attack slower (Shaman aura).',
+    desc: 'Cast to raise a zone that makes nearby enemies attack slower for a duration (Shaman).',
     params: {
       radius: 140,
-      atkSlow: 30,  // % slower attacks
-      manaCost: 0,  // auras drain this per second (0 = free)
+      atkSlow: 30,   // % slower attacks
+      duration: 12,  // seconds the zone lasts after the cast
+      manaCost: 30,  // mana per cast
     },
   },
   hasteaura: {
@@ -103,7 +104,7 @@ export const MAX_ABILITIES = 5; // per caster
 // Labels for the editable params (admin "Abilities" page).
 export const ABILITY_PARAM_LABELS = {
   cooldown: 'Cooldown (s)',
-  manaCost: 'Mana cost (Slow Aura: /s)',
+  manaCost: 'Mana cost (per cast)',
   range: 'Cast range',
   radius: 'Effect radius',
   immunity: 'Immunity (s)',

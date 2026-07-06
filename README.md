@@ -109,13 +109,12 @@ Orice unitate poate deveni **caster** din ⚙ stats: bifezi **Caster**, îi sete
   **Dispel**, **Slow Aura**, **Haste Aura**, **Regeneration Aura**, **Frost Bolt** — fiecare cu cooldown,
   cost de mană, raze, procente, durate. Fiecare abilitate are un **preview live**
   al efectului vizual (același desen procedural ca în joc), ca să vezi cum arată înainte s-o folosești.
-- **Slow Aura** e **pasivă**: cât trăiește casterul, încetinește atacul inamicilor din rază (drenaj de
-  mană/s, 0 = gratis). Cerc de rune rotitor sub caster + inel discret cu raza reală.
-- **Haste Aura** și **Regeneration Aura** sunt **aure la cast** (nu pasive): casterul intră în „Prepare
-  spell", face **cast** (are frame de „Cast X"), apoi zona de buff/heal se **menține în jurul lui o
+- **Aurele (Slow / Haste / Regeneration) sunt aure la cast** (nu pasive): casterul intră în „Prepare
+  spell", face **cast** (are frame de „Cast X"), apoi zona de buff/debuff se **menține în jurul lui o
   durată** setabilă — costă mană o dată la cast (nu drenaj/s). Nu o recastuiește cât e activă; dacă are
-  doar aure, între cast-uri **atacă normal**, iar când zona expiră o ridică din nou. Inelul de zonă
-  apare doar cât e activă.
+  ca abilități doar aure, între cast-uri **atacă normal**, iar când zona expiră o ridică din nou. Inelul
+  de zonă apare doar cât e activă. (Slow Aura încetinește atacul inamicilor din rază; Haste grăbește
+  aliații; Regeneration îi vindecă în timp.)
 - Unitățile afectate primesc indicatori (albastru înghețat = încetinit, scântei aurii = grăbit, cruce
   verde = regen, halo alb = imun după Dispell).
 - **Abilitățile care se castuiesc** (Heal, Dispel, Frost Bolt, Haste Aura, Regeneration Aura) au VFX

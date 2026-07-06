@@ -109,14 +109,12 @@ export function updateAbilities(game, dt) {
       u.mana = Math.min(u.manaMax, u.mana + (stats.manaRegen || 0) * dt);
     }
 
-    // Passive auras tick every frame; cast buff-zones (castaura) tick only
-    // while their cast is still active; active spells are driven by the
-    // prepare -> release state machine (stepCaster), called from combat.js.
+    // Cast buff-zones (castaura) tick every frame while their cast is still
+    // active; active spells are driven by the prepare -> release state machine
+    // (stepCaster), called from combat.js.
     for (const aid of stats.abilities) {
       const ab = resolvedAbility(aid);
-      if (!ab) continue;
-      if (ab.kind === 'aura') tickAura(game, u, aid, ab, time, dt);
-      else if (ab.kind === 'castaura') tickCastAura(game, u, aid, ab, time);
+      if (ab && ab.kind === 'castaura') tickCastAura(game, u, aid, ab, time);
     }
   }
 
@@ -135,26 +133,6 @@ function inRadius(a, b, r) {
   return dx * dx + dy * dy <= r * r;
 }
 
-function tickAura(game, caster, aid, ab, time, dt) {
-  const p = ab.params;
-  // passive auras with a mana cost drain it per second and switch off when dry
-  if (p.manaCost > 0) {
-    if (caster.mana < p.manaCost * dt) return;
-    caster.mana -= p.manaCost * dt;
-  }
-  const until = time + AURA_TICK;
-  for (const u of game.entities) {
-    if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
-    if (aid === 'slowaura') {
-      if (u.team !== caster.team) applyEffect(u, 'atkslow', p.atkSlow, until, time);
-    } else if (aid === 'hasteaura') {
-      if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
-    } else if (aid === 'regenaura') {
-      if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
-    }
-  }
-}
-
 // A cast buff-zone: applies its effect to units in radius every frame, but
 // only while the caster's cast is still live (auraUntil[aid] > time). The mana
 // was paid once at cast time (see releaseSpell), so there is no per-tick drain.
@@ -164,7 +142,9 @@ function tickCastAura(game, caster, aid, ab, time) {
   const until = time + AURA_TICK;
   for (const u of game.entities) {
     if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
-    if (aid === 'hasteaura') {
+    if (aid === 'slowaura') {
+      if (u.team !== caster.team) applyEffect(u, 'atkslow', p.atkSlow, until, time);
+    } else if (aid === 'hasteaura') {
       if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
     } else if (aid === 'regenaura') {
       if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
@@ -248,6 +228,13 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     // only worth casting when at least one *other* ally is in range to buff
     for (const u of game.entities) {
       if (u.hp > 0 && u.team === caster.team && u !== caster && inRadius(u, caster, p.radius)) return caster;
+    }
+    return null;
+  }
+  if (aid === 'slowaura') {
+    // only worth casting when at least one enemy is in range to slow
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team !== caster.team && inRadius(u, caster, p.radius)) return caster;
     }
     return null;
   }

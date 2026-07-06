@@ -317,26 +317,17 @@ console.log('abilities (casters, auras, status effects)');
     return { game, a, b };
   }
 
-  // slow aura: a humans mender-caster with slowaura makes the enemy grunt
-  // attack noticeably slower than without it
-  function grutHitsIn(seconds, withAura) {
-    const cfg = withAura
-      ? { races: { humans: { units: { mender: { caster: true, abilities: ['slowaura'] } } } } }
-      : {};
-    applyBalance(cfg);
+  // slow aura: cast raises a zone; enemies inside get an attack-slow effect
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['slowaura'], mana: 100, manaRegen: 0 } } } } });
     const game = new Game(42, { races: ['humans', 'orcs'] });
-    const aura = spawnUnit(game, 0, 'mender', 600, 300);
-    const victim = spawnUnit(game, 0, 'grunt', 620, 300);
-    victim.hp = victim.maxHp = 100000; // survives the whole window
-    const attacker = spawnUnit(game, 1, 'grunt', 645, 300);
-    attacker.hp = attacker.maxHp = 100000;
-    const hp0 = victim.hp;
-    run(game, seconds);
-    return hp0 - victim.hp; // damage dealt = attack-rate proxy
+    spawnUnit(game, 0, 'slinger', 600, 300);
+    const enemy = spawnUnit(game, 1, 'grunt', 660, 300);
+    enemy.hp = enemy.maxHp = 100000;
+    run(game, 2);
+    const slowed = enemy.effects && enemy.effects.some((e) => e.kind === 'atkslow' && e.until > game.time);
+    check('slow aura slows enemies in the zone', !!slowed, JSON.stringify(enemy.effects));
   }
-  const dmgFree = grutHitsIn(6, false);
-  const dmgSlowed = grutHitsIn(6, true);
-  check('slow aura reduces enemy attack rate', dmgSlowed < dmgFree * 0.9, `free=${dmgFree} slowed=${dmgSlowed}`);
 
   // frost bolt: caster slows an enemy's movement
   {

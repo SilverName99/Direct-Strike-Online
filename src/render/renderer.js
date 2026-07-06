@@ -549,15 +549,9 @@ export class Renderer {
     let i = 0;
     for (const aid of rstats.abilities) {
       const ab = resolvedAbility(aid);
-      if (!ab) continue;
-      if (ab.kind === 'aura') {
-        // passive aura: shown while the caster lives
-      } else if (ab.kind === 'castaura') {
-        // cast buff-zone: shown only while the raised zone is still active
-        if (!u.auraUntil || (u.auraUntil[aid] || 0) <= simTime) continue;
-      } else {
-        continue;
-      }
+      if (!ab || ab.kind !== 'castaura') continue;
+      // cast buff-zone: shown only while the raised zone is still active
+      if (!u.auraUntil || (u.auraUntil[aid] || 0) <= simTime) continue;
       ctx.save();
       ctx.translate(x, y);
       drawAura(ctx, this.now, ab.color, ab.params.radius, i);
