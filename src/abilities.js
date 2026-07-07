@@ -24,6 +24,7 @@ export const ABILITIES = {
     color: '#5be0a0',
     desc: 'Spends mana to instantly heal the most-wounded nearby ally.',
     params: {
+      tier: 1,       // base tier required before this ability can be used
       cooldown: 3,   // seconds between casts
       manaCost: 25,  // mana per cast
       range: 160,    // how far the caster can reach an ally
@@ -36,6 +37,7 @@ export const ABILITIES = {
     color: '#ffe9a8',
     desc: 'Cleanses an area: allies lose debuffs and gain brief immunity; enemies lose buffs and cannot gain new ones.',
     params: {
+      tier: 1,       // base tier required before this ability can be used
       cooldown: 8,   // seconds between casts
       manaCost: 40,  // mana per cast
       range: 180,    // how far the caster can target
@@ -49,6 +51,7 @@ export const ABILITIES = {
     color: '#7fb4ff',
     desc: 'Cast to raise a zone that makes nearby enemies attack slower for a duration (Shaman).',
     params: {
+      tier: 1,       // base tier required before this ability can be used
       radius: 140,
       atkSlow: 30,   // % slower attacks
       duration: 12,  // seconds the zone lasts after the cast
@@ -61,6 +64,7 @@ export const ABILITIES = {
     color: '#ffd35c',
     desc: 'Cast to raise a zone that makes nearby allies attack faster for a duration.',
     params: {
+      tier: 1,       // base tier required before this ability can be used
       radius: 140,
       haste: 25,     // % faster attacks
       duration: 12,  // seconds the zone lasts after the cast
@@ -73,6 +77,7 @@ export const ABILITIES = {
     color: '#58d68d',
     desc: 'Cast to raise a zone that regenerates nearby allies for a duration (Priest aura).',
     params: {
+      tier: 1,       // base tier required before this ability can be used
       radius: 140,
       hps: 5,        // HP healed per second
       duration: 12,  // seconds the zone lasts after the cast
@@ -86,6 +91,7 @@ export const ABILITIES = {
     projectile: true, // fires a projectile -> per-caster projectile image slot
     desc: 'A projectile that damages the target and slows its movement and attacks for a duration.',
     params: {
+      tier: 1,             // base tier required before this ability can be used
       cooldown: 6,
       manaCost: 30,        // mana per cast
       range: 200,
@@ -103,6 +109,7 @@ export const MAX_ABILITIES = 5; // per caster
 
 // Labels for the editable params (admin "Abilities" page).
 export const ABILITY_PARAM_LABELS = {
+  tier: 'Tier necesar (1-3)',
   cooldown: 'Cooldown (s)',
   manaCost: 'Mana cost (per cast)',
   range: 'Cast range',

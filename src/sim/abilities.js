@@ -22,24 +22,26 @@ function isCastable(ab) {
   return !!ab && (ab.kind === 'active' || ab.kind === 'castaura');
 }
 
-// Does this unit have at least one castable ability configured? Only such
-// casters run the prepare -> release state machine; passive-aura-only casters
-// keep fighting normally.
-export function hasActiveAbility(stats) {
+// Does this unit have at least one castable ability USABLE right now (not
+// autocast-toggled off, base tier reached)? Only such casters run the
+// prepare -> release state machine; the rest keep fighting normally.
+export function hasActiveAbility(game, u, stats) {
   if (!stats.caster || !stats.abilities) return false;
-  return stats.abilities.some((aid) => isCastable(resolvedAbility(aid)));
+  return stats.abilities.some((aid) =>
+    isCastable(resolvedAbility(aid)) && game.abilityUsable(u.team, u.type, aid));
 }
 
 // A caster is a spellcaster first: while it can still afford at least one of
 // its ACTIVE abilities, it holds its basic attack and waits for the cooldown
 // instead of slipping an auto-attack between every spell. Aura-only casters
 // (and casters out of mana) fall through and fight normally.
-export function casterPrioritizesSpells(unit, stats) {
+export function casterPrioritizesSpells(game, unit, stats) {
   if (!stats.caster || !stats.abilities) return false;
   if (stats.autoAttackBetween) return false; // admin opt-in: attack between spells
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
-    if (ab && ab.kind === 'active' && unit.mana >= (ab.params.manaCost || 0)) return true;
+    if (ab && ab.kind === 'active' && unit.mana >= (ab.params.manaCost || 0) &&
+        game.abilityUsable(unit.team, unit.type, aid)) return true;
   }
   return false;
 }
@@ -217,6 +219,7 @@ function pickCastable(game, caster, stats, time, engaged) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
+    if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // toggled off / tier-locked
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
     if (!engaged && !ENGAGE_EXEMPT.has(aid)) continue; // must be engaged (support spells excepted)

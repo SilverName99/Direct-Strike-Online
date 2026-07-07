@@ -181,6 +181,7 @@ export class Renderer {
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
+    this.drawInspect(ctx, game, uiState);
     this.drawGhost(ctx, game, uiState);
 
     ctx.restore();
@@ -282,6 +283,43 @@ export class Renderer {
     ctx.moveTo(zone.x1, zone.y0); ctx.lineTo(zone.x1, zone.y1);
     ctx.moveTo(zone.x0, zone.y1); ctx.lineTo(zone.x1, zone.y1);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // Selection ring for the inspect panel: a WC3-style circle (units/templates)
+  // or box (structures) around whatever is selected for inspection.
+  drawInspect(ctx, game, uiState) {
+    const sel = uiState.inspect;
+    if (!sel) return;
+    ctx.save();
+    ctx.strokeStyle = '#58d68d';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    if (sel.kind === 'template') {
+      const tpl = game.templates[0][sel.index];
+      if (tpl) {
+        const us = game.ustat(0, tpl.type);
+        const r = Math.max(14, (us.radius || 10) + 8);
+        ctx.beginPath();
+        ctx.arc(tpl.x, tpl.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (sel.kind === 'entity') {
+      const u = game.byId.get(sel.id);
+      if (u && u.hp > 0) {
+        ctx.beginPath();
+        ctx.arc(u.x, u.y, (u.radius || 10) + 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (sel.kind === 'structure') {
+      const s = game.structures.find((st) => st.id === sel.id);
+      if (s) {
+        const hw = (s.hw || s.radius) + 6;
+        const hh = (s.hh || s.radius) + 6;
+        ctx.strokeRect(s.x - hw, s.y - hh, hw * 2, hh * 2);
+      }
+    }
+    ctx.setLineDash([]);
     ctx.restore();
   }
 

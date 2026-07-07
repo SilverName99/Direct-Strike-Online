@@ -88,16 +88,27 @@ export class Input {
       }
 
       // no shop selection: grab a placed unit template to drag it around
+      // (selecting it for the inspect panel at the same time)
       const raw = this.renderer.toSim(e);
       const idx = hitTestTemplate(game, 0, raw.x, raw.y);
-      if (idx !== -1) { this.uiState.drag = { index: idx }; return; }
-      // click your own Main Base -> open the upgrades shop
-      const main = game.mainOf(0);
-      if (main && this.onBaseClick) {
-        const dx = raw.x - main.x;
-        const dy = raw.y - main.y;
-        if (dx * dx + dy * dy <= (main.radius + 10) ** 2) this.onBaseClick();
+      if (idx !== -1) {
+        this.uiState.drag = { index: idx };
+        this.uiState.inspect = { kind: 'template', index: idx };
+        return;
       }
+      // click a LIVE unit (either team) -> inspect it
+      const ent = hitTestEntity(game, raw.x, raw.y);
+      if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
+      // click a structure (either team) -> inspect; your own Main Base also
+      // opens the upgrades shop
+      const st = hitTestStructure(game, raw.x, raw.y);
+      if (st) {
+        this.uiState.inspect = { kind: 'structure', id: st.id };
+        if (st.kind === 'main' && st.team === 0 && this.onBaseClick) this.onBaseClick();
+        return;
+      }
+      // clicked empty ground -> clear the selection
+      this.uiState.inspect = null;
     });
 
     window.addEventListener('mouseup', () => {
@@ -127,6 +138,7 @@ export class Input {
       if (e.key === 'Escape') {
         this.uiState.selected = null;
         this.uiState.drag = null;
+        this.uiState.inspect = null;
         return;
       }
       if (e.key === 'g' || e.key === 'G') {
@@ -254,4 +266,28 @@ export class Input {
 
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;
+}
+
+// Nearest LIVE unit (either team) under the cursor, or null.
+function hitTestEntity(game, x, y) {
+  let best = null;
+  let bestD = Infinity;
+  for (const u of game.entities) {
+    if (u.hp <= 0) continue;
+    const dx = u.x - x;
+    const dy = u.y - y;
+    const d = Math.sqrt(dx * dx + dy * dy) - (u.radius || 10);
+    if (d <= 8 && d < bestD) { bestD = d; best = u; }
+  }
+  return best;
+}
+
+// Structure (either team) under the cursor — box test for footprints.
+function hitTestStructure(game, x, y) {
+  for (const s of game.structures) {
+    if (s.hp <= 0 && s.kind !== 'main') continue;
+    if (Math.abs(s.x - x) <= (s.hw || s.radius) + 6 &&
+        Math.abs(s.y - y) <= (s.hh || s.radius) + 6) return s;
+  }
+  return null;
 }

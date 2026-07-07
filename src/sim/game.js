@@ -4,8 +4,9 @@
 // is what makes lockstep multiplayer possible later.
 
 import { CONFIG, RACES } from '../config.js';
-import { statsUnit, statsBuilding, resolvedUpgrade } from '../ui/balance.js';
+import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility } from '../ui/balance.js';
 import { UPGRADE_IDS } from '../upgrades.js';
+import { ABILITY_IDS } from '../abilities.js';
 import { mulberry32 } from './rng.js';
 import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
@@ -27,6 +28,10 @@ export class Game {
     this.spent = [0, 0];
     this.tier = [1, 1];
     this.upgrades = [new Set(), new Set()]; // bought upgrade ids, per team (permanent)
+    // Player-facing toggles (via the selection panel). Both are OFF-lists so
+    // everything defaults to ON (the AI never toggles — full behavior).
+    this.abilityOff = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` autocast disabled
+    this.upgradeOff = [new Set(), new Set()]; // per team: upgrade id owned but deactivated
     this.incomeMult = options.incomeMult || [1, 1];
     this.incomeTimer = 0;
 
@@ -57,6 +62,20 @@ export class Game {
   // Resolved building stats for a team, per its race.
   bstat(team, kind) {
     return statsBuilding(this.races[team], kind);
+  }
+
+  // Can this team's unit TYPE use an ability right now? Respects the per-type
+  // autocast toggle and the ability's required base tier (params.tier, min 1).
+  abilityUsable(team, unitType, aid) {
+    if (this.abilityOff[team].has(`${unitType}/${aid}`)) return false;
+    const ab = resolvedAbility(aid);
+    const req = Math.max(1, (ab && ab.params && ab.params.tier) || 1);
+    return this.tier[team] >= req;
+  }
+
+  // An upgrade counts only while owned AND not deactivated from the panel.
+  upgradeActive(team, id) {
+    return this.upgrades[team].has(id) && !this.upgradeOff[team].has(id);
   }
 
   mainOf(team) {
@@ -283,6 +302,24 @@ export class Game {
       this.spent[cmd.team] += cost;
       this.upgrades[cmd.team].add(cmd.id);
       this.events.push({ type: 'upgradeBought', team: cmd.team, id: cmd.id });
+      return { ok: true };
+    }
+
+    // Autocast on/off for one ability on one unit TYPE (selection panel).
+    if (cmd.type === 'toggleAbility') {
+      if (!ABILITY_IDS.includes(cmd.ability)) return { ok: false, reason: 'unknown-ability' };
+      if (!this.ustat(cmd.team, cmd.unit)) return { ok: false, reason: 'unknown-unit' };
+      const key = `${cmd.unit}/${cmd.ability}`;
+      if (cmd.on) this.abilityOff[cmd.team].delete(key);
+      else this.abilityOff[cmd.team].add(key);
+      return { ok: true };
+    }
+
+    // Activate/deactivate an ALREADY-OWNED upgrade (selection panel).
+    if (cmd.type === 'toggleUpgrade') {
+      if (!this.upgrades[cmd.team].has(cmd.id)) return { ok: false, reason: 'not-owned' };
+      if (cmd.on) this.upgradeOff[cmd.team].delete(cmd.id);
+      else this.upgradeOff[cmd.team].add(cmd.id);
       return { ok: true };
     }
 

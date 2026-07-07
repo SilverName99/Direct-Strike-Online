@@ -35,7 +35,7 @@ export function updateCombat(game, dt) {
     // release FSM before (and instead of) its basic action, whether it is a
     // healer or a fighter. It only falls through to the basic attack/heal
     // when out of mana (or the admin opted into auto-attacks between spells).
-    if (hasActiveAbility(stats) && stepCasterHold(game, u, stats, dt)) continue;
+    if (hasActiveAbility(game, u, stats) && stepCasterHold(game, u, stats, dt)) continue;
     if (stats.heal) {
       updateHealer(game, u, stats);
     } else {
@@ -118,7 +118,7 @@ function stepCasterHold(game, u, stats, dt) {
     u.windup = 0;
     return true;
   }
-  if (!casterPrioritizesSpells(u, stats)) return false; // out of mana -> basic action
+  if (!casterPrioritizesSpells(game, u, stats)) return false; // out of mana -> basic action
 
   // Still has mana for a spell but nothing castable this instant: wait for it.
   // Hold at range once engaged; otherwise march to close in (casting waits
@@ -237,6 +237,7 @@ function updateHealer(game, u, stats) {
 // null.
 function mountUpgradeFor(game, u) {
   for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue; // owned but toggled off
     const up = resolvedUpgrade(id);
     if (up && up.kind === 'mount' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
   }
@@ -247,6 +248,7 @@ function mountUpgradeFor(game, u) {
 // targets u's type — grants ground attack to an otherwise air-only unit.
 function groundUpgradeFor(game, u) {
   for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue; // owned but toggled off
     const up = resolvedUpgrade(id);
     if (up && up.kind === 'ground' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return true;
   }

@@ -6,6 +6,7 @@ import { Effects } from './render/effects.js';
 import { Camera } from './ui/camera.js';
 import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
+import { InspectPanel } from './ui/inspect.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
 import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl } from './render/sprites.js';
@@ -20,6 +21,7 @@ const effects = new Effects();
 const uiState = {
   selected: null,
   drag: null,
+  inspect: null, // selection-panel target: {kind:'template'|'entity'|'structure', ...}
   gridOn: true,
   mouseX: null,
   mouseY: null,
@@ -39,6 +41,10 @@ const input = new Input(canvas, renderer, camera, uiState, () =>
 );
 // clicking your own Main Base opens the upgrades shop
 input.onBaseClick = () => { if (state === 'playing' && game) hud.openUpgrades(game); };
+// WC3-style selection panel (click units/templates/structures to inspect)
+const inspectPanel = new InspectPanel(uiState, () =>
+  state === 'playing' ? game : null
+);
 const pointer = new PointerManager(canvas);
 
 console.log(`Direct Strike Online ${VERSION}`);
@@ -119,6 +125,7 @@ function newGame(difficulty) {
   effects.reset();
   uiState.selected = null;
   uiState.drag = null;
+  uiState.inspect = null;
   camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
   state = 'playing';
   hud.hideOverlay();
@@ -178,6 +185,7 @@ function frame(now) {
     effects.update(delta);
   }
 
+  inspectPanel.update(state === 'playing' ? game : null); // hides when stale/over
   if (game) {
     const alpha = state === 'playing' ? accumulator / CONFIG.FIXED_DT : 1;
     renderer.draw(game, alpha, uiState, effects);

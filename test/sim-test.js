@@ -773,8 +773,8 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 100, manaRegen: 0 } } } } });
     const game = new Game(4, { races: ['humans', 'orcs'] });
     const st = game.ustat(0, 'slinger');
-    check('caster with mana prioritizes spells', casterPrioritizesSpells({ mana: 100 }, st));
-    check('caster out of mana attacks normally', !casterPrioritizesSpells({ mana: 0 }, st));
+    check('caster with mana prioritizes spells', casterPrioritizesSpells(game, { team: 0, type: 'slinger', mana: 100 }, st));
+    check('caster out of mana attacks normally', !casterPrioritizesSpells(game, { team: 0, type: 'slinger', mana: 0 }, st));
     // in-game: it holds at range (no auto-attack spam) rather than swinging
     const caster = spawnUnit(game, 0, 'slinger', 640, 300);
     const enemy = spawnUnit(game, 1, 'grunt', 700, 300);
@@ -987,6 +987,81 @@ console.log('abilities (casters, auras, status effects)');
     for (let i = 0; i < 20; i++) ai.update(game, 1);
     check('AI keeps buying affordable units when the ideal pick is priced out',
       game.templates[1].length >= 3, `count=${game.templates[1].length}`);
+  }
+
+  // Autocast toggle per unit TYPE: a healer with Heal toggled off never casts;
+  // toggled back on it heals again.
+  {
+    // slinger has NO basic heal, so any HP gain can only come from the ability
+    const healerCfg = { races: { humans: { units: { slinger: {
+      caster: true, abilities: ['heal'], mana: 100, manaRegen: 10,
+    } } } } };
+    const wounded = (g) => { const u = spawnUnit(g, 0, 'grunt', 620, 400); u.maxHp = 1000; u.hp = 300; return u; };
+
+    applyBalance(healerCfg);
+    const g0 = new Game(8, { races: ['humans', 'orcs'] });
+    spawnUnit(g0, 0, 'slinger', 600, 400);
+    const w0 = wounded(g0);
+    run(g0, 3);
+    check('heal autocast ON by default (ally healed)', w0.hp > 300, `hp=${Math.round(w0.hp)}`);
+
+    applyBalance(healerCfg);
+    const g1 = new Game(8, { races: ['humans', 'orcs'] });
+    const off = g1.issueCommand({ type: 'toggleAbility', team: 0, unit: 'slinger', ability: 'heal', on: false });
+    spawnUnit(g1, 0, 'slinger', 600, 400);
+    const w1 = wounded(g1);
+    run(g1, 3);
+    check('heal toggled OFF -> never cast', off.ok && w1.hp === 300, `hp=${Math.round(w1.hp)}`);
+    g1.issueCommand({ type: 'toggleAbility', team: 0, unit: 'slinger', ability: 'heal', on: true });
+    run(g1, 3);
+    check('heal toggled back ON -> heals again', w1.hp > 300, `hp=${Math.round(w1.hp)}`);
+  }
+
+  // Ability tier gating: an ability with `tier: 2` stays locked until the
+  // base reaches tier 2.
+  {
+    applyBalance({
+      races: { humans: { units: { slinger: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 10 } } } },
+      abilities: { heal: { tier: 2 } },
+    });
+    const g = new Game(8, { races: ['humans', 'orcs'] });
+    spawnUnit(g, 0, 'slinger', 600, 400);
+    const w = spawnUnit(g, 0, 'grunt', 620, 400); w.maxHp = 1000; w.hp = 300;
+    run(g, 3);
+    check('tier-2 ability locked at base tier 1', w.hp === 300, `hp=${Math.round(w.hp)}`);
+    g.money[0] = 5000;
+    g.issueCommand({ type: 'upgradeBase', team: 0 });
+    run(g, 3);
+    check('tier-2 ability unlocks after base upgrade', w.hp > 300, `hp=${Math.round(w.hp)}`);
+  }
+
+  // Upgrade on/off toggle: an owned "Attack ground units" can be deactivated
+  // (unit loses ground attack) and reactivated.
+  {
+    const cfg = {
+      races: {
+        humans: { units: { grunt: { targetsGround: false } } },
+        orcs: { units: { grunt: { targetsGround: false } } },
+      },
+      upgrades: { groundattack: { race: 'humans', unit: 'grunt', params: { cost: 100 } } },
+    };
+    applyBalance(cfg);
+    const g = new Game(9, { races: ['humans', 'orcs'] });
+    g.issueCommand({ type: 'buyUpgrade', team: 0, id: 'groundattack' });
+    const tOff = g.issueCommand({ type: 'toggleUpgrade', team: 0, id: 'groundattack', on: false });
+    spawnUnit(g, 0, 'grunt', 600, 400);
+    const tgt = spawnUnit(g, 1, 'grunt', 650, 400); tgt.hp = tgt.maxHp = 100000;
+    run(g, 3);
+    check('owned upgrade toggled OFF -> no ground attack', tOff.ok && tgt.hp === tgt.maxHp);
+    g.issueCommand({ type: 'toggleUpgrade', team: 0, id: 'groundattack', on: true });
+    // fresh pair (the first attacker marched past its untouchable target)
+    spawnUnit(g, 0, 'grunt', 1000, 400);
+    const tgt2 = spawnUnit(g, 1, 'grunt', 1050, 400); tgt2.hp = tgt2.maxHp = 100000;
+    run(g, 3);
+    check('upgrade toggled back ON -> ground attack works', tgt2.hp < tgt2.maxHp);
+    const notOwned = new Game(9, { races: ['humans', 'orcs'] })
+      .issueCommand({ type: 'toggleUpgrade', team: 0, id: 'groundattack', on: false });
+    check('toggling an unowned upgrade rejected', !notOwned.ok);
   }
 
   resetAll(); // leave the shared balance pristine for any later tests
