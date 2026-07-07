@@ -19,6 +19,7 @@ import {
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
 import { raceOf, getSprite, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay } from '../render/sprites.js';
+import { downloadBarTemplate } from './bartemplate.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -204,75 +205,9 @@ export class BottomBar {
     this.bar.classList.toggle('overlaid', !!over);
   }
 
-  // Download a PNG guide of the bar's EXACT live layout: the curved silhouette
-  // plus a labeled dashed box for every zone (map, portrait, details, the nine
-  // command slots, the two tab buttons). The user paints their design under the
-  // elements and re-exports at the same size, then uploads it per race in admin.
+  // Download the bar design guide (shared with the admin page).
   downloadTemplate() {
-    if (!this.bar) return;
-    const bar = this.bar.getBoundingClientRect();
-    const W = Math.round(bar.width);
-    const H = Math.round(bar.height);
-    if (!W || !H) return;
-    // Export at 3× the bar's CSS size: the game stretches the uploaded art to
-    // 100%×100% of the bar (~W×H CSS px), so a source at 3× stays crisp even on
-    // 2×–3× high-DPI screens. Design/export at the FULL canvas px below.
-    const s = 3;
-    const PW = W * s, PH = H * s;
-    const cv = document.createElement('canvas');
-    cv.width = PW; cv.height = PH;
-    const ctx = cv.getContext('2d');
-    ctx.scale(s, s);
-    // checkerboard so transparent areas are visible while editing
-    ctx.fillStyle = '#20262f';
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#252c36';
-    for (let y = 0; y < H; y += 16) for (let x = 0; x < W; x += 16) {
-      if (((x / 16) + (y / 16)) % 2 === 0) ctx.fillRect(x, y, 16, 16);
-    }
-    // the silhouette guide (fill + outline)
-    const d = this.bgPath && this.bgPath.getAttribute('d');
-    if (d) {
-      const path = new Path2D(d);
-      ctx.fillStyle = 'rgba(16,21,30,0.55)';
-      ctx.fill(path);
-      ctx.strokeStyle = 'rgba(190,210,235,0.95)';
-      ctx.lineWidth = 2;
-      ctx.stroke(path);
-    }
-    // labeled zone boxes
-    const box = (el, label) => {
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const x = r.left - bar.left, y = r.top - bar.top;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(120,200,255,0.95)';
-      ctx.setLineDash([6, 4]);
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x + 0.5, y + 0.5, r.width - 1, r.height - 1);
-      ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(150,215,255,0.95)';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textBaseline = 'top';
-      ctx.fillText(label, x + 4, y + 3);
-      ctx.restore();
-    };
-    box(document.getElementById('bb-map'), 'HARTĂ');
-    box(document.getElementById('bb-portrait'), 'PORTRET');
-    box(document.getElementById('bb-details'), 'DETALII');
-    this.slots.forEach((sl, i) => box(sl.el, `#${i + 1}`));
-    box(this.tabBtns.units, 'UNITS');
-    box(this.tabBtns.buildings, 'CLĂDIRI');
-    // caption
-    ctx.fillStyle = 'rgba(255,211,92,0.95)';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(`Direct Strike — șablon meniu jos · exportă la EXACT ${PW}×${PH}px (nu redimensiona) · pictează SUB elemente`, 8, H - 6);
-
-    const a = document.createElement('a');
-    a.href = cv.toDataURL('image/png');
-    a.download = `ds-bara-jos-${PW}x${PH}.png`;
-    a.click();
+    downloadBarTemplate();
   }
 
   // While a shop item is held for placement, if the cursor sits over the bar

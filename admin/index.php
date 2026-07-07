@@ -989,17 +989,20 @@ if ($authed && $action === 'deletebarover') {
         </form>
         <?php endif; ?>
       </div>
-      <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
-        Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.
-        Cursorul înlocuiește săgeata mouse-ului în joc pentru această rasă (vârful = colțul stânga-sus), max 40px afișat.
-        Butoanele UNITS / CLĂDIRI apar lângă grila de comenzi din joc și diferă pe rasă.
-        <b>Meniu jos, două straturi</b> (descarcă șablonul cu butonul 🎨 din bara de sus a jocului, exportă la
-        aceeași mărime): <b>Fundal</b> = desenat ÎN SPATELE elementelor (înlocuiește forma curbată implicită);
-        <b>Overlay</b> = desenat PESTE elemente (rame/ornamente care trebuie să treacă peste căsuțe; lasă restul
-        transparent, e click-through). Ambele per rasă.
+      <div class="slot" style="min-width:220px;padding-top:12px">
+        <span class="lbl" style="color:#ffd35c">Șablon meniu jos</span>
+        <button type="button" id="dl-bar-template" class="pick" style="cursor:pointer">⬇ Descarcă șablonul (PNG)</button>
+        <div style="color:#7c8ba1;font-size:11px;max-width:230px;margin-top:8px;line-height:1.5">
+          Pictează designul peste el, exportă la <b>aceeași mărime</b>, apoi încarcă mai sus:
+          <b>Fundal</b> = ÎN SPATELE elementelor; <b>Overlay</b> = PESTE elemente (lasă restul transparent).
+        </div>
       </div>
     </div>
   </div>
+  <script type="module">
+    import { downloadBarTemplate } from '../src/ui/bartemplate.js?v=<?= time() ?>';
+    document.getElementById('dl-bar-template')?.addEventListener('click', () => downloadBarTemplate());
+  </script>
 
   <div class="quicknav">
     <?php foreach (array_merge(orderedUnits($race), BUILDING_LIST) as $e): ?>
