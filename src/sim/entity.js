@@ -103,6 +103,7 @@ export function spawnProjectile(game, source, stats, target) {
     damage: stats.damage,
     dmgType: stats.dmgType,
     splash: stats.splash || 0,
+    acid: stats.acid || null, // {dot, dur} -> damage-over-time on impact (Acid Spit)
     // "Bounce": on impact the projectile ricochets to the next nearby enemy
     // (up to bounceLeft more hops), dealing bounceDamage (bouncePower% of the
     // original) on each ricochet — you see it fly from character to character.

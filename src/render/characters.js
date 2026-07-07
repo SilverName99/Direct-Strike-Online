@@ -76,6 +76,11 @@ export function hasDashAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'dash');
 }
 
+// True when an acid-spit unit has uploaded its "Acid" attack frames.
+export function hasAcidAnim(type, team) {
+  return hasSpriteAnim(raceOf(team), type, 'acid');
+}
+
 // True when a dismounted unit has an uploaded on-foot ("foot-<anim>") sprite.
 export function hasFootAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `foot-${anim}`);

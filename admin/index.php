@@ -25,6 +25,8 @@ const ARMED_BUILDINGS = ['turret', 'tower'];
 // on-foot form, so ONLY these grant the extra "foot-" sprite set. Other
 // upgrade kinds (e.g. 'ground' = Attack ground units) need no new sprites.
 const DISMOUNT_UPGRADES = ['dashmount'];
+// upgrades of kind 'acid' (Acid Spit) — grant two extra "acid" attack frames
+const ACID_UPGRADES = ['acidspit'];
 // ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
 // — every aura is now cast (a "Cast X" frame, then the zone persists for its
 // duration); projectile abilities also get a per-caster projectile image slot
@@ -40,6 +42,7 @@ const ABILITY_INFO = [
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
   'groundattack' => 'Attack ground units',
+  'acidspit' => 'Acid Spit',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
@@ -98,10 +101,18 @@ function unitHasDash(string $race, string $ent): bool {
 // True when some upgrade transforms THIS race's unit into an on-foot
 // (dismounted) form — it then gets a second "foot-" sprite set.
 function unitHasDismount(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, DISMOUNT_UPGRADES);
+}
+// True when this race's unit is targeted by an "Acid Spit" upgrade.
+function unitHasAcid(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, ACID_UPGRADES);
+}
+// Shared: is $ent (this race) the target of any upgrade whose id is in $ids?
+function unitHasUpgradeKind(string $race, string $ent, array $ids): bool {
   $ups = dsBalance()['upgrades'] ?? [];
   if (!is_array($ups)) return false;
   foreach ($ups as $id => $up) {
-    if (!in_array($id, DISMOUNT_UPGRADES, true)) continue; // only mount upgrades add foot sprites
+    if (!in_array($id, $ids, true)) continue;
     if (!is_array($up) || ($up['unit'] ?? '') !== $ent) continue;
     $upRace = $up['race'] ?? '';
     if ($upRace === '' || $upRace === $race) return true;
@@ -178,6 +189,11 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['foot-attack_1'] = 'Pe jos: Attack 2';
     $slots['foot-die_0'] = 'Pe jos: Die';
   }
+  // "Acid Spit" upgrade: two extra frames for the acid attack animation
+  if (unitHasAcid($race, $ent)) {
+    $slots['acid_0'] = 'Acid 1';
+    $slots['acid_1'] = 'Acid 2';
+  }
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
   // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {
@@ -199,6 +215,9 @@ $err = '';
 
 $race = $_GET['race'] ?? $_POST['race'] ?? 'humans';
 if (!in_array($race, RACES, true)) $race = 'humans';
+// which top-level view of the sprites admin: per-race sprites, or the global
+// ability/upgrade icon library
+$view = ($_GET['view'] ?? '') === 'icons' ? 'icons' : 'sprites';
 
 function checkCsrf(): bool {
   return hash_equals($_SESSION['csrf'], $_POST['csrf'] ?? '');
@@ -634,12 +653,46 @@ if ($authed && $action === 'deletetab') {
 
   <div class="tabs">
     <?php foreach (RACES as $r): ?>
-      <a href="?race=<?= $r ?>" class="<?= $r === $race ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
+      <a href="?race=<?= $r ?>" class="<?= ($view !== 'icons' && $r === $race) ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
     <?php endforeach; ?>
+    <a href="?view=icons" class="<?= $view === 'icons' ? 'active' : '' ?>" style="margin-left:16px">🎨 Iconițe</a>
     <a href="balance.php" style="margin-left:16px">⚙ Balance</a>
     <a href="abilities.php" style="margin-left:4px">✨ Abilități</a>
     <a href="upgrades.php" style="margin-left:4px">🐗 Upgrades</a>
   </div>
+
+  <?php if ($view === 'icons'): ?>
+  <?php // GLOBAL command-card icons: one per ability + upgrade (shared by both races) ?>
+  <div class="ent" id="ui-icons">
+    <div class="title"><b>Iconițe abilități &amp; upgrade-uri</b><span>globale — comune ambelor rase (grila de comenzi din joc)</span></div>
+    <div class="slots">
+      <?php foreach (iconKeys() as $key => $label): $if = iconFileFor($assetsDir, $key); $hasIcon = $if !== null; ?>
+      <div class="slot">
+        <span class="lbl"><?= $label ?></span>
+        <div class="thumb" style="background:#0a0e14">
+          <?php if ($hasIcon): ?>
+            <img src="<?= $assetsUrl ?>/icons/<?= $if ?>?t=<?= filemtime("$assetsDir/icons/$if") ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="key" value="<?= $key ?>">
+          <label class="pick"><?= $hasIcon ? 'înlocuiește' : 'încarcă' ?><input type="file" name="icon" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasIcon): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deleteicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="key" value="<?= $key ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php else: ?>
 
   <?php
     $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile);
@@ -754,37 +807,6 @@ if ($authed && $action === 'deletetab') {
     </div>
   </div>
 
-  <?php // GLOBAL command-card icons: one per ability + upgrade (shared by both races) ?>
-  <div class="ent" id="ui-icons">
-    <div class="title"><b>Iconițe abilități &amp; upgrade-uri</b><span>globale — comune ambelor rase (grila de comenzi din joc)</span></div>
-    <div class="slots">
-      <?php foreach (iconKeys() as $key => $label): $if = iconFileFor($assetsDir, $key); $hasIcon = $if !== null; ?>
-      <div class="slot">
-        <span class="lbl"><?= $label ?></span>
-        <div class="thumb" style="background:#0a0e14">
-          <?php if ($hasIcon): ?>
-            <img src="<?= $assetsUrl ?>/icons/<?= $if ?>?t=<?= filemtime("$assetsDir/icons/$if") ?>" alt="">
-          <?php else: ?><span class="empty">+</span><?php endif; ?>
-        </div>
-        <form method="post" enctype="multipart/form-data">
-          <input type="hidden" name="action" value="uploadicon">
-          <input type="hidden" name="csrf" value="<?= $csrf ?>">
-          <input type="hidden" name="key" value="<?= $key ?>">
-          <label class="pick"><?= $hasIcon ? 'înlocuiește' : 'încarcă' ?><input type="file" name="icon" accept="image/*" onchange="this.form.submit()"></label>
-        </form>
-        <?php if ($hasIcon): ?>
-        <form method="post">
-          <input type="hidden" name="action" value="deleteicon">
-          <input type="hidden" name="csrf" value="<?= $csrf ?>">
-          <input type="hidden" name="key" value="<?= $key ?>">
-          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
-        </form>
-        <?php endif; ?>
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-
   <div class="quicknav">
     <?php foreach (array_merge(orderedUnits($race), BUILDING_LIST) as $e): ?>
       <a href="#<?= $e ?>"><?= $e ?></a>
@@ -857,6 +879,7 @@ if ($authed && $action === 'deletetab') {
     • Fișierele stau în <code>assets/units/<?= $race ?>/…</code> pe server și nu sunt atinse de <code>git pull</code>.
   </div>
   <script type="module" src="../src/ui/admin-stats.js?v=<?= time() ?>"></script>
-<?php endif; ?>
+  <?php endif; // view ?>
+<?php endif; // authed ?>
 </body>
 </html>

@@ -1101,6 +1101,43 @@ console.log('abilities (casters, auras, status effects)');
       above >= 1 && below >= 1, `ys=${ys.map((y) => Math.round(y)).join(',')}`);
   }
 
+  // "Acid Spit" upgrade: the unit's attack becomes a ranged acid projectile
+  // that splashes AND leaves a damage-over-time acid on everyone caught.
+  {
+    applyBalance({
+      upgrades: { acidspit: { race: 'humans', unit: 'grunt', params: {
+        cost: 100, range: 260, damage: 20, splashRadius: 100,
+        dotDamage: 30, dotDuration: 3, projectileSpeed: 400,
+      } } },
+    });
+    const game = new Game(9, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'acidspit' });
+    const spitter = spawnUnit(game, 0, 'grunt', 600, 400);
+    // two enemies close together -> the splash should catch BOTH
+    const a = spawnUnit(game, 1, 'grunt', 700, 400); a.hp = a.maxHp = 100000;
+    const b = spawnUnit(game, 1, 'grunt', 740, 420); b.hp = b.maxHp = 100000;
+    run(game, 2);
+    check('acid spit splashes both nearby enemies', a.hp < a.maxHp && b.hp < b.maxHp,
+      `a=${Math.round(a.maxHp - a.hp)} b=${Math.round(b.maxHp - b.hp)}`);
+    check('acid leaves a damage-over-time effect',
+      !!a.effects && a.effects.some((e) => e.kind === 'acid' && e.until > game.time));
+    // the acid keeps ticking after impact (freeze the sim's projectiles, let DoT run)
+    const hpBefore = a.hp;
+    run(game, 1);
+    check('acid damage-over-time keeps chipping HP', a.hp < hpBefore, `dropped ${Math.round(hpBefore - a.hp)}`);
+
+    // toggled off -> no acid attack (reverts to the grunt's melee)
+    game.issueCommand({ type: 'toggleUpgrade', team: 0, id: 'acidspit', on: false });
+    const g2 = new Game(9, { races: ['humans', 'orcs'] });
+    g2.issueCommand({ type: 'buyUpgrade', team: 0, id: 'acidspit' });
+    g2.issueCommand({ type: 'toggleUpgrade', team: 0, id: 'acidspit', on: false });
+    const s2 = spawnUnit(g2, 0, 'grunt', 600, 400);
+    run(g2, 1);
+    check('acid upgrade toggled off -> no acid projectile fired',
+      g2.projectiles.every((p) => !p.acid));
+    applyBalance({});
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 

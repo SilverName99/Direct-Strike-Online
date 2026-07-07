@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasFootAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -600,6 +600,10 @@ export class Renderer {
             // shared "prepare" during the wind-up, one "attack" release frame
             anim = u.windup > 0 && prep ? 'prepare' : 'attack';
             frame = 0;
+          } else if (u.acidAttacker && hasAcidAnim(u.type, u.team)) {
+            // Acid Spit upgrade: play the uploaded 2-frame "Acid" attack
+            anim = 'acid';
+            frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
           } else {
             anim = 'attack';
             frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;

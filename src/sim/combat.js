@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile } from './entity.js';
-import { attackPeriodMult, applyEffect, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
+import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
 import { resolvedUpgrade } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
@@ -27,6 +27,22 @@ export function updateCombat(game, dt) {
     if (stats.targetsGround === false && groundUpgradeFor(game, u)) {
       stats = { ...stats, targetsGround: true };
     }
+    // "Acid Spit" upgrade: the basic attack becomes a ranged acid projectile
+    // that bursts for splash damage and leaves a damage-over-time acid pool.
+    const acid = !u.dismounted ? acidUpgradeFor(game, u) : null;
+    if (acid) {
+      const p = acid.params;
+      stats = {
+        ...stats,
+        ranged: true, projectile: true,
+        range: p.range, damage: p.damage,
+        splash: p.splashRadius, projectileSpeed: p.projectileSpeed,
+        acid: { dot: p.dotDamage, dur: p.dotDuration, radius: p.splashRadius },
+      };
+      u.acidAttacker = true; // renderer -> "acid" attack frames
+    } else if (u.acidAttacker) {
+      u.acidAttacker = false;
+    }
     u.cooldown = Math.max(0, u.cooldown - dt);
     // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
     // intruder and dismount on arrival — takes over from normal combat.
@@ -41,6 +57,14 @@ export function updateCombat(game, dt) {
     } else {
       updateFighter(game, u, stats, dt);
     }
+  }
+
+  // Acid / damage-over-time: units carrying an 'acid' effect lose HP each tick
+  // (silent = no per-frame hit particle spam; the effect draws its own tint).
+  for (const u of game.entities) {
+    if (u.hp <= 0) continue;
+    const dps = effectVal(u, 'acid', game.time);
+    if (dps > 0) applyDamage(game, u, dps * dt, 'normal', true);
   }
 
   // Armed structures (starting turret + built towers) shoot the nearest
@@ -255,6 +279,16 @@ function groundUpgradeFor(game, u) {
   return false;
 }
 
+// The active "Acid Spit" (kind 'acid') upgrade transforming u's type, else null.
+function acidUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue;
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'acid' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+  }
+  return null;
+}
+
 // An enemy Ranged, non-flying unit within `radius`.
 function isRangedFoe(game, u, e, radius) {
   if (e.hp <= 0 || e.team === u.team || e.isAir) return false;
@@ -364,10 +398,10 @@ function effDist(a, b) {
   return Math.sqrt(dx * dx + dy * dy) - (b.radius || 0);
 }
 
-export function applyDamage(game, target, damage, dmgType) {
+export function applyDamage(game, target, damage, dmgType, silent = false) {
   const mult = DAMAGE_MATRIX[dmgType][target.armor];
   target.hp -= damage * mult;
-  game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
+  if (!silent) game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
     game.events.push({
       type: 'death',
@@ -410,13 +444,15 @@ export function updateProjectiles(game, dt) {
 
 function impact(game, p, target) {
   if (p.splash > 0) {
-    game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash });
+    game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, acid: !!p.acid });
     for (const e of game.entities) {
       if (e.team === p.team || e.isAir) continue; // splash is ground-only
       const dx = e.x - p.tx;
       const dy = e.y - p.ty;
       if (dx * dx + dy * dy <= p.splash * p.splash) {
         applyDamage(game, e, p.damage, p.dmgType);
+        // acid pool: everyone caught keeps taking damage over time
+        if (p.acid) applyEffect(e, 'acid', p.acid.dot, game.time + p.acid.dur, game.time);
       }
     }
     // splash also chips enemy structures caught in the blast
@@ -429,6 +465,11 @@ function impact(game, p, target) {
     }
   } else if (target && target.hp > 0) {
     applyDamage(game, target, p.damage, p.dmgType);
+    // a splash-less acid spit still leaves the damage-over-time on its target
+    if (p.acid && !target.isStructure) {
+      applyEffect(target, 'acid', p.acid.dot, game.time + p.acid.dur, game.time);
+      game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.acid.radius || 40, acid: true });
+    }
     // ability projectiles (frost bolt) attach their status effect on impact
     if (p.ability && p.effectSpec && !target.isStructure) {
       const spec = p.effectSpec;
