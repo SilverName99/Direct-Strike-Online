@@ -40,8 +40,7 @@ export class Game {
 
     this.templates = [[], []]; // per team: {type, x, y}
     this.buildReadyAt = [{}, {}]; // per team: building kind -> game.time it can be built again
-    this.midOwner = null;      // control point: last team to push a unit past midfield
-    this.midWas = [false, false]; // had units past mid last tick (crossing edge-detect)
+    this.midOwner = null;      // control point: team currently holding the middle
     this.entities = [];
     this.projectiles = [];
     this.structures = [];
@@ -122,26 +121,25 @@ export class Game {
       e.team === team && e.hp > 0 && (team === 0 ? e.x > mid : e.x < mid));
   }
 
-  // Aggression reward: the middle is a CONTROL POINT. Crossing it captures it;
-  // you hold the extra income only while you KEEP a unit past the middle. Lose
-  // every unit there (killed or retreated) and the bonus drops — the enemy
-  // takes it by killing off your push or by crossing with a unit of his own.
+  // Aggression reward: the middle is a CONTROL POINT. You keep the extra income
+  // once you have captured it, and only LOSE it when the enemy owns the middle
+  // outright — i.e. he has a unit past midfield and you have none on his side.
+  // Killing off your push isn't enough; he must also cross to take the bonus.
   midBonusPerTick(team) {
     if (!CONFIG.MID_INCOME || this.midOwner !== team) return 0;
     return Math.round(CONFIG.MID_INCOME * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
   }
 
-  // Capture on the crossing EDGE, hold by PRESENCE: a team that newly gets a
-  // unit past midfield takes ownership; the moment the owner has no unit left
-  // past the middle, ownership is released (so the enemy no longer needs to
-  // cross — clearing your push is enough to strip the bonus).
+  // Ownership follows EXCLUSIVE presence past midfield: whichever team has a
+  // unit past the middle while the other does not becomes (or stays) the owner.
+  // If both have a unit there, or neither does, ownership persists with the
+  // current holder — so you keep the bonus after your push dies until the enemy
+  // actually crosses and holds the middle alone.
   updateMidControl() {
-    for (const t of [0, 1]) {
-      const has = this.midHeld(t);
-      if (has && !this.midWas[t]) this.midOwner = t;
-      this.midWas[t] = has;
-    }
-    if (this.midOwner !== null && !this.midHeld(this.midOwner)) this.midOwner = null;
+    const p0 = this.midHeld(0);
+    const p1 = this.midHeld(1);
+    if (p0 && !p1) this.midOwner = 0;
+    else if (p1 && !p0) this.midOwner = 1;
   }
 
   incomePerSecond(team) {

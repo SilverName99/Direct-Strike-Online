@@ -871,31 +871,47 @@ console.log('abilities (casters, auras, status effects)');
     check('other race turret (regen 0) does not regenerate', t1.hp === t1.maxHp - 300);
   }
 
-  // Mid-field income: the middle is a CONTROL POINT — crossing captures it, but
-  // you hold the bonus only while you KEEP a unit past the middle
+  // Mid-field income: the middle is a CONTROL POINT — crossing captures it, and
+  // you lose it ONLY when the enemy holds the middle alone (his unit past mid,
+  // none of yours on his side). Just losing your own push does NOT drop it.
   {
     applyBalance({ general: { MID_INCOME: 100 } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
     check('nobody crossed yet -> no mid bonus', game.midBonusPerTick(0) === 0 && game.midBonusPerTick(1) === 0);
     const scout = spawnUnit(game, 0, 'grunt', CONFIG.FIELD_W / 2 + 50, 300); // crosses
-    scout.hp = scout.maxHp = 1e6;
     game.update(DT); game.drainEvents();
     check('crossing captures the middle (per-20s slice)',
       game.midBonusPerTick(0) === Math.round(100 * CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
     check('enemy does not share the bonus', game.midBonusPerTick(1) === 0);
-    // losing your last unit past mid drops the bonus — no enemy crossing needed
+    // owner keeps it even after its push dies — the enemy hasn't crossed yet
     scout.hp = 0;
     game.update(DT); game.drainEvents();
-    check('bonus lost when the last unit past mid dies', game.midBonusPerTick(0) === 0);
-    // the enemy then takes control by crossing with a unit of his own
-    const foe = spawnUnit(game, 1, 'grunt', CONFIG.FIELD_W / 2 - 50, 300);
-    foe.hp = foe.maxHp = 1e6;
+    check('bonus persists after your push dies (enemy not across yet)', game.midBonusPerTick(0) > 0);
+    // the enemy crossing (and you having nothing on his side) steals control
+    spawnUnit(game, 1, 'grunt', CONFIG.FIELD_W / 2 - 50, 300);
     game.update(DT); game.drainEvents();
-    check('enemy crossing takes the middle', game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
+    check('enemy holding the middle alone steals it', game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
+  }
+
+  // While BOTH sides have a unit past the middle it is contested: ownership does
+  // not flip — you only lose it once the enemy is past mid and you are NOT.
+  {
+    applyBalance({ general: { MID_INCOME: 100 } });
+    const game = new Game(7, { races: ['humans', 'orcs'] });
+    const mid = CONFIG.FIELD_W / 2;
+    const mine = spawnUnit(game, 0, 'grunt', mid + 60, 300); mine.hp = mine.maxHp = 1e6; // I cross first
+    game.update(DT); game.drainEvents();
+    check('I own the middle after crossing', game.midBonusPerTick(0) > 0);
+    const foe = spawnUnit(game, 1, 'grunt', mid - 60, 320); foe.hp = foe.maxHp = 1e6;   // enemy also crosses
+    game.update(DT); game.drainEvents();
+    check('contested (both past mid): I keep it', game.midBonusPerTick(0) > 0 && game.midBonusPerTick(1) === 0);
+    mine.hp = 0; // now only the enemy is past mid
+    game.update(DT); game.drainEvents();
+    check('enemy alone past mid finally steals it', game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
   }
 
   // Real-match scenario: both sides keep armies on their OWN half. Those must
-  // NOT block the crossing edge-detect. (The old bug: midHeld didn't filter by
+  // NOT count as "past the middle". (The old bug: midHeld didn't filter by
   // team, so any unit on a half counted — the enemy could never steal because
   // the player's home units kept midHeld(1) permanently true.)
   {
@@ -907,7 +923,8 @@ console.log('abilities (casters, auras, status effects)');
     const s0 = spawnUnit(game, 0, 'grunt', mid + 60, 500); s0.hp = s0.maxHp = 1e6; // player crosses
     game.update(DT); game.drainEvents();
     check('player captures mid despite both home armies', game.midBonusPerTick(0) > 0);
-    const s1 = spawnUnit(game, 1, 'grunt', mid - 60, 520); s1.hp = s1.maxHp = 1e6; // enemy crosses
+    const s1 = spawnUnit(game, 1, 'grunt', mid - 60, 520); s1.hp = s1.maxHp = 1e6; // enemy crosses too
+    s0.hp = 0; // player's push falls, leaving only the enemy past mid
     game.update(DT); game.drainEvents();
     check('enemy steals mid despite both home armies',
       game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
