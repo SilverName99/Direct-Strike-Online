@@ -12,7 +12,7 @@ import { UNITS } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 
 const DT = CONFIG.FIXED_DT;
-const MID_Y = CONFIG.FIELD_H / 2;
+const MID_Y = CONFIG.MAIN.y; // lane center (field extends lower as a scenic apron)
 let failures = 0;
 
 function check(name, cond, detail = '') {
@@ -1062,6 +1062,24 @@ console.log('abilities (casters, auras, status effects)');
     const notOwned = new Game(9, { races: ['humans', 'orcs'] })
       .issueCommand({ type: 'toggleUpgrade', team: 0, id: 'groundattack', on: false });
     check('toggling an unowned upgrade rejected', !notOwned.ok);
+  }
+
+  // Marching units keep their OWN lanes in the enemy half (no Indian file):
+  // a pack that crossed midfield on the same y must spread vertically while
+  // homing toward the enemy base.
+  {
+    applyBalance({});
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    const mid = CONFIG.FIELD_W / 2;
+    for (let i = 0; i < 8; i++) {
+      const g = spawnUnit(game, 0, 'grunt', mid + 60 + i * 18, CONFIG.MAIN.y);
+      g.hp = g.maxHp = 100000;
+    }
+    run(game, 3);
+    const ys = game.entities.filter((u) => u.team === 0).map((u) => u.y);
+    const spread = Math.max(...ys) - Math.min(...ys);
+    check('marching pack spreads into lanes (no Indian file)',
+      spread > 60, `spread=${Math.round(spread)}`);
   }
 
   // Attackers FAN OUT around a targeted structure instead of queueing on its

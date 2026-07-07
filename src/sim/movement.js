@@ -48,12 +48,16 @@ export function updateMovement(game, dt) {
     const dir = enemyMain ? Math.sign(enemyMain.x - u.x) || 1 : u.team === 0 ? 1 : -1;
     u.x += speed * dt * dir;
 
-    // Once past midfield, home vertically toward the enemy main base.
+    // Once past midfield, home vertically toward the enemy main base — but
+    // each unit keeps its OWN lane (stable id-hashed offset around the base),
+    // otherwise the whole pack converges onto one y and marches Indian-file.
     const mid = CONFIG.FIELD_W / 2;
     const inEnemyHalf =
       (u.team === 0 && u.x > mid) || (u.team === 1 && u.x < mid);
     if (inEnemyHalf && enemyMain) {
-      const dy = enemyMain.y - u.y;
+      const h = ((u.id * 2654435761) >>> 0) / 4294967296; // deterministic per-unit
+      const laneY = enemyMain.y + (h - 0.5) * 180;
+      const dy = laneY - u.y;
       const step = Math.min(Math.abs(dy), speed * 0.6 * dt);
       u.y += Math.sign(dy) * step;
     }

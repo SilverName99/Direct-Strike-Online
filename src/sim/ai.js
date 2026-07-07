@@ -361,7 +361,7 @@ export class AIController {
 
     // Bias y toward the enemy army's center of mass.
     const enemy = game.templates[1 - this.team];
-    let avgY = CONFIG.FIELD_H / 2;
+    let avgY = CONFIG.MAIN.y; // lane center (the field extends lower as scenery)
     if (enemy.length > 0) {
       avgY = enemy.reduce((s, tpl) => s + tpl.y, 0) / enemy.length;
     }

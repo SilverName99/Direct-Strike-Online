@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.51';
+export const VERSION = 'v9.52';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -15,10 +15,10 @@ export const CONFIG = {
   // Battlefield (simulation units) — larger than the screen; an RTS
   // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
   FIELD_W: 3600,
-  // Height is kept close to the actual play content (a 20-cell-tall band plus
-  // a 2-cell margin top/bottom) so the camera's fit-zoom doesn't leave big
-  // empty margins — a taller field would just read as "zoomed out".
-  FIELD_H: 960,
+  // The playable band (zones y80-880) hugs the top; below it the world extends
+  // an extra ~240 units as a scenic APRON — real map (the uploaded per-race
+  // background covers it), scrollable, but with no gameplay content.
+  FIELD_H: 1200,
 
   // Each side's quadrant is a real base, split in two grid-aligned parts:
   //   [construction zone: main base + buildings][army zone: unit formation]

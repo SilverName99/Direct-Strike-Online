@@ -50,7 +50,9 @@ export class Game {
 
     for (const t of [0, 1]) {
       makeStructure(this, t, 'main', CONFIG.MAIN.x[t], CONFIG.MAIN.y);
-      makeStructure(this, t, 'turret', CONFIG.TURRET_X[t], CONFIG.FIELD_H / 2);
+      // the turret guards the LANE center (MAIN.y), not the field's vertical
+      // middle — the field extends lower as a scenic apron with no gameplay
+      makeStructure(this, t, 'turret', CONFIG.TURRET_X[t], CONFIG.MAIN.y);
     }
   }
 

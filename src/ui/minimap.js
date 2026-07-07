@@ -12,7 +12,7 @@ export class Minimap {
     // Fixed CSS size; internal resolution matches for crispness.
     // Sized to fill the bottom-bar map panel (#bb-map), aspect preserved.
     const dpr = window.devicePixelRatio || 1;
-    const w = 368;
+    const w = 350; // 350×(FIELD_H/FIELD_W) ≈ 117 tall — fits the 124px panel
     const h = Math.round((w * CONFIG.FIELD_H) / CONFIG.FIELD_W);
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
