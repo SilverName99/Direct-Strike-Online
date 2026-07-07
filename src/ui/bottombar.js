@@ -296,14 +296,17 @@ export class BottomBar {
   // ------------------------------------------------------------------ frame
   update(game) {
     this.updatePlacingFade();
+    const sel = this.uiState.inspect;
     const info = this.resolveInspect(game);
 
-    // a NEW selection flips the grid to its command card; losing the
-    // selection falls back to the last shop tab
-    const key = info ? `${info.kind}:${info.kind === 'template' ? this.uiState.inspect.index : this.uiState.inspect.id}` : null;
-    if (key && key !== this.lastInspectKey) this.mode = 'inspect';
-    if (!key && this.mode === 'inspect') this.mode = this.tab;
-    this.lastInspectKey = key;
+    // A fresh click always stores a NEW inspect object (even when re-selecting
+    // the SAME target), so detect selection by reference: a new object => open
+    // its command card. Tab buttons change `mode` without touching
+    // uiState.inspect, so clicking a tab and then re-clicking the same base
+    // correctly re-opens the base's upgrades.
+    if (sel && sel !== this.lastInspectRef) this.mode = 'inspect';
+    this.lastInspectRef = sel;
+    // selection gone or stale (sold / died / clicked empty): back to the shop
     if (this.mode === 'inspect' && !info) this.mode = this.tab;
 
     this.refreshPanel(game, info);
