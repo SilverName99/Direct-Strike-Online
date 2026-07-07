@@ -401,16 +401,21 @@ export class Renderer {
       }
       ctx.restore();
 
-      // HP bar (main always; others when damaged) — sits above the VISUAL
-      // height (radius × Size %), so an enlarged sprite can't cover its bar
+      // HP bar (main always; others when damaged) — sits above the sprite's
+      // real drawn height: main/turret art is r*3*size tall (centered), so
+      // its top edge is 1.5*r*size above center; footprint buildings fit
+      // their hh*size box. Vector fallbacks stay at the physical radius.
       if (s.kind === 'main' || s.hp < s.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
-        const vr = r * Math.max(1, sizeOf(raceOf(s.team), s.kind));
+        const size = Math.max(1, sizeOf(raceOf(s.team), s.kind));
+        const topH = spriteDrawn
+          ? (s.kind === 'main' || s.kind === 'turret' ? r * 1.5 * size : (s.hh || r) * size)
+          : r;
         const w = s.kind === 'main' ? 110 : r * 3;
         const ratio = Math.max(0, s.hp / s.maxHp);
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(s.x - w / 2, s.y - vr - (s.kind === 'main' ? 26 : 14), w, s.kind === 'main' ? 8 : 5);
+        ctx.fillRect(s.x - w / 2, s.y - topH - (s.kind === 'main' ? 14 : 10), w, s.kind === 'main' ? 8 : 5);
         ctx.fillStyle = color;
-        ctx.fillRect(s.x - w / 2, s.y - vr - (s.kind === 'main' ? 26 : 14), w * ratio, s.kind === 'main' ? 8 : 5);
+        ctx.fillRect(s.x - w / 2, s.y - topH - (s.kind === 'main' ? 14 : 10), w * ratio, s.kind === 'main' ? 8 : 5);
       }
     }
   }

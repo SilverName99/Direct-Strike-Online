@@ -21,11 +21,14 @@ const ROLE_BANDS = {
   back: [0.7, 0.95],
 };
 
-const UNIT_ROLE = {
-  grunt: 'front', bruiser: 'front', dasher: 'front',
-  slinger: 'mid', lancer: 'mid', archon: 'mid', wasp: 'mid',
-  crab: 'back', mender: 'back',
-};
+// Role from RESOLVED stats (works for fully custom units): healers/casters and
+// artillery sit in the back, ranged/fliers mid, everyone else up front.
+function roleOf(s) {
+  if (s.heal || (s.caster && s.abilities && s.abilities.length)) return 'back';
+  if ((s.range || 0) >= 250) return 'back';
+  if (s.isAir || (s.range || 0) >= 100) return 'mid';
+  return 'front';
+}
 
 export class AIController {
   constructor(team, difficulty, seed) {
@@ -36,6 +39,7 @@ export class AIController {
     this.purchases = 0;
     this.wallsPlanned = false;
     this.wallQueue = [];
+    this.manageTick = 0; // army-management cadence (sell / rearrange)
   }
 
   update(game, dt) {
@@ -50,6 +54,13 @@ export class AIController {
   think(game) {
     const t = this.team;
     const money = game.money[t];
+
+    // 0. Army management every 3rd think: sell dead weight or fix the
+    // formation — at most ONE action, so it looks deliberate, not spastic.
+    if (++this.manageTick >= 3) {
+      this.manageTick = 0;
+      if (this.manageArmy(game)) return;
+    }
 
     // 1. Economy first: rush 2 generators, grow to 5 as the game develops.
     // While the generator build-cooldown runs, don't stall — spend elsewhere.
@@ -125,6 +136,72 @@ export class AIController {
     if (game.issueCommand({ type: 'buy', team: t, unitId: want, x, y }).ok) {
       this.purchases++;
     }
+  }
+
+  // One army-management action per call: sell a unit that can't contribute
+  // against the enemy's composition, free a slot when capped, or move the
+  // most out-of-position unit back into its role band. Returns true if acted.
+  manageArmy(game) {
+    const t = this.team;
+    const et = 1 - t;
+    const tpls = game.templates[t];
+    if (tpls.length === 0) return false;
+
+    // enemy air share (by cost)
+    let etotal = 0;
+    let eair = 0;
+    for (const tpl of game.templates[et]) {
+      const s = game.ustat(et, tpl.type);
+      etotal += s.cost;
+      if (s.isAir) eair += s.cost;
+    }
+
+    // A) Dead weight: the enemy is mostly AIR and this unit can never touch
+    // air — sell it (one per pass) and rebuy something useful later. Only if
+    // we actually have an anti-air option to rebuild with.
+    if (etotal > 0 && eair / etotal > 0.5) {
+      const haveAA = UNIT_IDS.some((id) => {
+        const s = game.ustat(t, id);
+        return s.tier <= game.tier[t] && s.targetsAir;
+      });
+      if (haveAA) {
+        const idx = tpls.findIndex((tpl) => !game.ustat(t, tpl.type).targetsAir);
+        if (idx !== -1 && game.issueCommand({ type: 'sellUnit', team: t, index: idx }).ok) return true;
+      }
+    }
+
+    // B) At the template cap with money to spare: sell the cheapest unit so a
+    // stronger buy can replace it.
+    if (tpls.length >= CONFIG.MAX_TEMPLATES && game.money[t] > 400) {
+      let cheap = 0;
+      for (let i = 1; i < tpls.length; i++) {
+        if (game.ustat(t, tpls[i].type).cost < game.ustat(t, tpls[cheap].type).cost) cheap = i;
+      }
+      if (game.issueCommand({ type: 'sellUnit', team: t, index: cheap }).ok) return true;
+    }
+
+    // C) Rearrange: move the unit farthest outside its role band back into it.
+    const zone = CONFIG.ARMY_ZONE[t];
+    const depth = zone.x1 - zone.x0;
+    let worst = -1;
+    let worstErr = 30; // ignore small offsets
+    for (let i = 0; i < tpls.length; i++) {
+      const band = ROLE_BANDS[roleOf(game.ustat(t, tpls[i].type))];
+      const frac = t === 1 ? (tpls[i].x - zone.x0) / depth : (zone.x1 - tpls[i].x) / depth;
+      const target = clamp(frac, band[0], band[1]);
+      const err = Math.abs(frac - target) * depth;
+      if (err > worstErr) { worstErr = err; worst = i; }
+    }
+    if (worst !== -1) {
+      const band = ROLE_BANDS[roleOf(game.ustat(t, tpls[worst].type))];
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const frac = band[0] + this.rng() * (band[1] - band[0]);
+        const x = t === 1 ? zone.x0 + frac * depth : zone.x1 - frac * depth;
+        const y = clamp(tpls[worst].y + (this.rng() * 2 - 1) * 40, zone.y0 + 16, zone.y1 - 16);
+        if (game.issueCommand({ type: 'moveUnit', team: t, index: worst, x, y }).ok) return true;
+      }
+    }
+    return false;
   }
 
   // Try a handful of candidate spots; the sim validates zone/overlap.
@@ -247,7 +324,7 @@ export class AIController {
 
   pickPlacement(game, unitId) {
     const zone = CONFIG.ARMY_ZONE[this.team];
-    const band = ROLE_BANDS[UNIT_ROLE[unitId]];
+    const band = ROLE_BANDS[roleOf(game.ustat(this.team, unitId))];
     const frac = band[0] + this.rng() * (band[1] - band[0]);
     const depth = zone.x1 - zone.x0;
     // The edge facing the enemy: x0 for the right team, x1 for the left.

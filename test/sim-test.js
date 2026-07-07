@@ -884,6 +884,36 @@ console.log('abilities (casters, auras, status effects)');
     check('destroying the enemy turret pays its bounty', game.money[0] === before + 250, `money=${game.money[0]}`);
   }
 
+  // AI army management: sells units that can't touch an air-heavy enemy
+  {
+    const { AIController } = await import('../src/sim/ai.js');
+    applyBalance({ races: {
+      humans: { units: { wasp: { isAir: true } } },
+      orcs: { units: { slinger: { ranged: true, targetsAir: true } } },
+    } });
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    game.templates[0].push({ type: 'wasp', x: 500, y: 300 }, { type: 'wasp', x: 500, y: 360 });
+    game.templates[1].push({ type: 'grunt', x: 2600, y: 300 }); // can't hit air
+    const ai = new AIController(1, 'normal', 7);
+    for (let i = 0; i < 9; i++) ai.update(game, 1);
+    check('AI sells a unit that cannot hit an air-heavy enemy',
+      !game.templates[1].some((tpl) => tpl.type === 'grunt'));
+  }
+
+  // AI army management: moves an out-of-position unit back into its role band
+  {
+    const { AIController } = await import('../src/sim/ai.js');
+    applyBalance({});
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    const zone = CONFIG.ARMY_ZONE[1];
+    game.templates[1].push({ type: 'crab', x: zone.x0 + 10, y: 300 }); // artillery on the front edge
+    const ai = new AIController(1, 'normal', 7);
+    for (let i = 0; i < 9; i++) ai.update(game, 1);
+    const crab = game.templates[1][0];
+    check('AI moves misplaced artillery toward the back band',
+      crab.x > zone.x0 + (zone.x1 - zone.x0) * 0.6, `x=${Math.round(crab.x)}`);
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 
