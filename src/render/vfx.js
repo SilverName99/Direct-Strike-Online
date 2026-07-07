@@ -68,6 +68,46 @@ export function drawSlow(ctx, now, r, seed = 0) {
   ctx.globalAlpha = 1;
 }
 
+// Corrosive acid: a green cousin of the frost effect — sickly tint over the
+// unit, a pulsing acid ring hugging the ground, and bubbles rising off it.
+export function drawAcid(ctx, now, r, seed = 0) {
+  ctx.save();
+  // green tint over the unit (fades out at the edges)
+  const g = ctx.createRadialGradient(0, -r * 0.2, r * 0.15, 0, -r * 0.2, r * 1.2);
+  g.addColorStop(0, 'rgba(150,225,90,0.55)');
+  g.addColorStop(0.6, 'rgba(120,200,70,0.30)');
+  g.addColorStop(1, 'rgba(140,210,80,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.2, r * 1.2, 0, Math.PI * 2);
+  ctx.fill();
+  // corrosive glow ring hugging the ground, pulsing gently
+  const pulse = 0.5 + 0.5 * Math.sin(now * 2.4 + seed);
+  ctx.save();
+  ctx.translate(0, r * 0.75);
+  ctx.scale(1, 0.4);
+  ctx.strokeStyle = '#b6f36a';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.35 + 0.25 * pulse;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.95, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  // acid bubbles rising off the unit (opposite of frost's falling flakes)
+  ctx.fillStyle = '#d6ff9e';
+  for (let k = 0; k < 8; k++) {
+    const ph = (now * 0.5 + k * 0.31 + seed * 0.13) % 1;
+    const sx = Math.sin((k + seed) * 2.7) * r * 0.9 + Math.sin(now * 1.8 + k) * 2;
+    const sy = r * 0.6 - ph * (r * 2.4); // start low, float upward
+    ctx.globalAlpha = 0.85 * Math.sin(ph * Math.PI);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1.4 + (k % 3 === 0 ? 1 : 0), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
 // Golden sparks circling a hasted unit.
 export function drawHasteSparks(ctx, now, r) {
   ctx.save();

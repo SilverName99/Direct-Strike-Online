@@ -1,11 +1,11 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
-import { drawAura, drawSlow, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
+import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
@@ -691,6 +691,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(x, y);
     if (has('atkslow') || has('moveslow')) drawSlow(ctx, this.now, r, u.id);
+    if (has('acid')) drawAcid(ctx, this.now, r, u.id);
     if (has('haste')) drawHasteSparks(ctx, this.now, r);
     if (has('regen')) drawRegenCross(ctx, this.now, r);
     if (has('immune')) drawImmuneHalo(ctx, r);
@@ -716,14 +717,19 @@ export class Renderer {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(ang);
-        drawn = p.ability
-          ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
-          : drawProjectileSprite(ctx, p.srcType, p.team, size);
+        // Acid Spit: its own uploaded projectile image, else the unit's normal
+        // one; frost & other ability bolts use the per-ability image.
+        drawn = p.acid
+          ? (drawAcidProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
+          : p.ability
+            ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
+            : drawProjectileSprite(ctx, p.srcType, p.team, size);
         ctx.restore();
       }
       if (!drawn) {
-        // ability projectiles glow in their ability color (frost = icy blue)
-        const abColor = p.ability ? (resolvedAbility(p.ability) || {}).color : null;
+        // ability projectiles glow in their ability color (frost = icy blue);
+        // acid spits glow corrosive green
+        const abColor = p.acid ? '#8fd14f' : (p.ability ? (resolvedAbility(p.ability) || {}).color : null);
         if (abColor) {
           ctx.globalAlpha = 0.35;
           ctx.fillStyle = abColor;

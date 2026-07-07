@@ -6,7 +6,7 @@ import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
-  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile,
+  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
@@ -91,6 +91,15 @@ export function hasFootAnim(type, team, anim) {
 // the default dot.
 export function drawProjectileSprite(ctx, type, team, targetH) {
   const entry = getProjectile(raceOf(team), type);
+  if (!entry) return false;
+  drawSprite(ctx, entry, targetH, team);
+  return true;
+}
+
+// Dedicated Acid Spit projectile image for a unit type. False -> caller
+// falls back to the normal projectile image / procedural dot.
+export function drawAcidProjectileSprite(ctx, type, team, targetH) {
+  const entry = getAcidProjectile(raceOf(team), type);
   if (!entry) return false;
   drawSprite(ctx, entry, targetH, team);
   return true;

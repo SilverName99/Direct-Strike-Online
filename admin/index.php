@@ -189,10 +189,12 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['foot-attack_1'] = 'Pe jos: Attack 2';
     $slots['foot-die_0'] = 'Pe jos: Die';
   }
-  // "Acid Spit" upgrade: two extra frames for the acid attack animation
+  // "Acid Spit" upgrade: two extra frames for the acid attack animation, plus
+  // a dedicated acid projectile image
   if (unitHasAcid($race, $ent)) {
     $slots['acid_0'] = 'Acid 1';
     $slots['acid_1'] = 'Acid 2';
+    $slots['acidproj'] = 'Proiectil acid';
   }
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
   // one cast-release frame + per-ability projectile for each selected ability
@@ -231,7 +233,7 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb' || $slot === 'projectile' || str_starts_with($slot, 'abilityproj-')) {
+        if ($slot === 'thumb' || $slot === 'projectile' || $slot === 'acidproj' || str_starts_with($slot, 'abilityproj-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);

@@ -15,6 +15,7 @@ const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null
 const thumbs = new Map(); // `${race}/${ent}` -> entry
 const projectiles = new Map(); // `${race}/${ent}` -> entry (single projectile image)
 const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
+const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
 const musicUrls = new Map();   // race -> url of the uploaded background track
@@ -60,6 +61,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           if (slots.projectile) {
             load(`${base}${race}/${ent}/projectile.png?v=${man.v || 0}`, (img) => {
               projectiles.set(`${race}/${ent}`, entryFor(img));
+            });
+          }
+          // dedicated acid-spit projectile image (slot "acidproj")
+          if (slots.acidproj) {
+            load(`${base}${race}/${ent}/acidproj.png?v=${man.v || 0}`, (img) => {
+              acidProjectiles.set(`${race}/${ent}`, entryFor(img));
             });
           }
           // per-caster projectile image for an ability (slot "abilityproj-<id>")
@@ -203,6 +210,10 @@ export function getThumb(race, ent) {
 
 export function getProjectile(race, ent) {
   return projectiles.get(`${race}/${ent}`) || null;
+}
+
+export function getAcidProjectile(race, ent) {
+  return acidProjectiles.get(`${race}/${ent}`) || null;
 }
 
 export function getAbilityProjectile(race, ent, aid) {
