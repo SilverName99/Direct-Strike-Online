@@ -19,6 +19,8 @@ const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
 const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
+const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
+const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image (shop tab buttons)
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -101,6 +103,16 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [race, file] of Object.entries(man.cursors || {})) {
         cursorUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
+      // GLOBAL ability/upgrade thumbnails for the command card (assets/units/icons/)
+      for (const [key, file] of Object.entries(man.icons || {})) {
+        load(`${base}icons/${file}?v=${man.v || 0}`, (img) => uiIcons.set(key, img));
+      }
+      // per-race UNITS / CLĂDIRI shop-tab button art
+      for (const [race, slots] of Object.entries(man.tabs || {})) {
+        for (const [slot, file] of Object.entries(slots)) {
+          load(`${base}${race}/${file}?v=${man.v || 0}`, (img) => tabIcons.set(`${race}/${slot}`, img));
+        }
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
@@ -147,6 +159,16 @@ export function getMusicUrl(race) {
 // URL of the uploaded custom mouse-cursor image for a race, or null.
 export function getCursorUrl(race) {
   return cursorUrls.get(race) || null;
+}
+
+// Uploaded command-card icon: key 'ability-<id>' or 'upgrade-<id>' (global).
+export function getUiIcon(key) {
+  return uiIcons.get(key) || null;
+}
+
+// Uploaded art for a race's UNITS / CLĂDIRI shop-tab button, or null.
+export function getTabIcon(race, slot) {
+  return tabIcons.get(`${race}/${slot}`) || null;
 }
 
 export function getSprite(race, ent, anim, frame) {

@@ -164,11 +164,8 @@ export class Input {
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.key));
     window.addEventListener('blur', () => this.keys.clear());
-
-    document.getElementById('shop').addEventListener('click', (e) => {
-      const card = e.target.closest('.card');
-      if (card && !card.classList.contains('locked')) this.select(card.dataset.unit);
-    });
+    // shop clicks now come from the bottom bar's command grid, routed
+    // through this.select() by main.js (same tier gating as hotkeys)
   }
 
   // Right-click: first deselect the held unit/building (the "character on the

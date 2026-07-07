@@ -6,7 +6,7 @@ import { Effects } from './render/effects.js';
 import { Camera } from './ui/camera.js';
 import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
-import { InspectPanel } from './ui/inspect.js';
+import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
 import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl } from './render/sprites.js';
@@ -42,8 +42,10 @@ const input = new Input(canvas, renderer, camera, uiState, () =>
 // clicking your own Main Base opens the upgrades shop
 input.onBaseClick = () => { if (state === 'playing' && game) hud.openUpgrades(game); };
 // WC3-style selection panel (click units/templates/structures to inspect)
-const inspectPanel = new InspectPanel(uiState, () =>
-  state === 'playing' ? game : null
+const bottombar = new BottomBar(
+  uiState,
+  () => (state === 'playing' ? game : null),
+  (id) => input.select(id) // shop slot clicks share the hotkey gating
 );
 const pointer = new PointerManager(canvas);
 
@@ -51,12 +53,12 @@ console.log(`Direct Strike Online ${VERSION}`);
 document.getElementById('version').textContent = VERSION;
 
 // user-uploaded unit sprites (via /admin) override the built-in art
-loadSprites('assets/units/', () => hud.refreshIcons());
+loadSprites('assets/units/', () => bottombar.refresh());
 
 // apply the balance published from /admin (edit it there, not in-game)
 loadBalance().then((loaded) => {
   if (loaded) {
-    hud.buildShop();
+    bottombar.refresh();
     console.log('balance overrides loaded');
   }
 });
@@ -108,7 +110,7 @@ for (const btn of document.querySelectorAll('.btn.race')) {
     document.querySelectorAll('.btn.race').forEach((b) =>
       b.classList.toggle('selected', b === btn)
     );
-    hud.buildShop(); // shop stats + art follow the chosen race
+    bottombar.refresh(); // shop stats + art follow the chosen race
     applyCursor(playerRace); // custom mouse for this race
   });
 }
@@ -119,7 +121,7 @@ function newGame(difficulty) {
   // race is a render-side art choice: the AI plays the other one
   const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
   setTeamRaces([playerRace, aiRace]);
-  hud.buildShop(); // shop reflects the player race at match start
+  bottombar.refresh(); // shop reflects the player race at match start
   game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult] });
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
   effects.reset();
@@ -185,7 +187,7 @@ function frame(now) {
     effects.update(delta);
   }
 
-  inspectPanel.update(state === 'playing' ? game : null); // hides when stale/over
+  bottombar.update(state === 'playing' ? game : null); // grid + panel follow the selection
   if (game) {
     const alpha = state === 'playing' ? accumulator / CONFIG.FIXED_DT : 1;
     renderer.draw(game, alpha, uiState, effects);

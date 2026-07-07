@@ -10,8 +10,9 @@ export class Minimap {
     this.ctx = canvas.getContext('2d');
 
     // Fixed CSS size; internal resolution matches for crispness.
+    // Sized to fill the bottom-bar map panel (#bb-map), aspect preserved.
     const dpr = window.devicePixelRatio || 1;
-    const w = 220;
+    const w = 296;
     const h = Math.round((w * CONFIG.FIELD_H) / CONFIG.FIELD_W);
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;

@@ -36,6 +36,20 @@ const ABILITY_INFO = [
   'regenaura' => ['Regeneration Aura', true, false],
   'frostbolt' => ['Frost Bolt', true, true],
 ];
+// upgrade catalog (mirrors src/upgrades.js): id => name
+const UPGRADE_INFO = [
+  'dashmount' => 'Dashing & Fleeing mount',
+  'groundattack' => 'Attack ground units',
+];
+// GLOBAL command-card icon keys (assets/units/icons/<key>.png)
+function iconKeys(): array {
+  $keys = [];
+  foreach (ABILITY_INFO as $id => $_) $keys["ability-$id"] = ABILITY_INFO[$id][0];
+  foreach (UPGRADE_INFO as $id => $name) $keys["upgrade-$id"] = $name;
+  return $keys;
+}
+// per-race shop tab buttons (UNITS / CLĂDIRI) — tab-<slot>.png in the race dir
+const TAB_SLOTS = ['units' => 'Buton UNITS', 'buildings' => 'Buton CLĂDIRI'];
 
 // Saved balance (cached per request) — lets the sprite page know a unit's
 // caster config so it can show the matching cast / projectile slots.
@@ -110,6 +124,18 @@ function musicFileFor(string $assetsDir, string $race): ?string {
 // The uploaded custom-cursor file for a race (cursor.<ext>), or null.
 function cursorFileFor(string $assetsDir, string $race): ?string {
   foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/cursor.$e")) return "cursor.$e";
+  return null;
+}
+
+// A GLOBAL command-card icon file (assets/units/icons/<key>.<ext>), or null.
+function iconFileFor(string $assetsDir, string $key): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/icons/$key.$e")) return "$key.$e";
+  return null;
+}
+
+// A race's shop tab-button file (tab-<slot>.<ext>), or null.
+function tabFileFor(string $assetsDir, string $race, string $slot): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/tab-$slot.$e")) return "tab-$slot.$e";
   return null;
 }
 
@@ -206,17 +232,30 @@ function regenManifest(string $assetsDir): void {
   $backgrounds = [];
   $music = [];
   $cursors = [];
+  $tabs = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
     if ($mf) $music[$r] = $mf;
     $cf = cursorFileFor($assetsDir, $r);
     if ($cf) $cursors[$r] = $cf;
+    $t = [];
+    foreach (array_keys(TAB_SLOTS) as $slot) {
+      $tf = tabFileFor($assetsDir, $r, $slot);
+      if ($tf) $t[$slot] = $tf;
+    }
+    if ($t) $tabs[$r] = $t;
+  }
+  // GLOBAL ability/upgrade command-card icons
+  $icons = [];
+  foreach (array_keys(iconKeys()) as $key) {
+    $if = iconFileFor($assetsDir, $key);
+    if ($if) $icons[$key] = $if;
   }
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -408,6 +447,76 @@ if ($authed && $action === 'deletecursor') {
     foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/cursor.$e");
     regenManifest($assetsDir);
     $msg = "Cursor șters: $race";
+  }
+}
+
+// GLOBAL command-card icons (abilities + upgrades) — assets/units/icons/
+if ($authed && $action === 'uploadicon') {
+  $key = $_POST['key'] ?? '';
+  if (!checkCsrf() || !array_key_exists($key, iconKeys())) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['icon']) || $_FILES['icon']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['icon']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['icon']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/icons", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/icons/$key.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/icons/$key.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Iconiță încărcată: $key";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteicon') {
+  $key = $_POST['key'] ?? '';
+  if (checkCsrf() && array_key_exists($key, iconKeys())) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/icons/$key.$e");
+    regenManifest($assetsDir);
+    $msg = "Iconiță ștearsă: $key";
+  }
+}
+
+// per-race UNITS / CLĂDIRI shop tab buttons (tab-<slot>.<ext>)
+if ($authed && $action === 'uploadtab') {
+  $slot = $_POST['slot'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !array_key_exists($slot, TAB_SLOTS)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['tab']) || $_FILES['tab']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['tab']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['tab']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['tab']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/tab-$slot.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/tab-$slot.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Buton încărcat: $slot ($race)";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletetab') {
+  $slot = $_POST['slot'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && array_key_exists($slot, TAB_SLOTS)) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/tab-$slot.$e");
+    regenManifest($assetsDir);
+    $msg = "Buton șters: $slot ($race)";
   }
 }
 ?>
@@ -611,10 +720,68 @@ if ($authed && $action === 'deletecursor') {
         </form>
         <?php endif; ?>
       </div>
+      <?php foreach (TAB_SLOTS as $slot => $slotLabel): $tf = tabFileFor($assetsDir, $race, $slot); $hasTab = $tf !== null; ?>
+      <div class="slot" style="min-width:130px">
+        <span class="lbl" style="color:#ffd35c"><?= $slotLabel ?> (<?= $race ?>)</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasTab): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $tf ?>?t=<?= filemtime("$assetsDir/$race/$tf") ?>" alt="" style="max-width:56px;max-height:56px">
+          <?php else: ?><span class="empty"><?= $slot === 'units' ? '⚔' : '🏰' ?></span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadtab">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $slot ?>">
+          <label class="pick"><?= $hasTab ? 'înlocuiește' : 'încarcă' ?><input type="file" name="tab" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasTab): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletetab">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $slot ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi butonul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
       <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
         Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.
         Cursorul înlocuiește săgeata mouse-ului în joc pentru această rasă (vârful = colțul stânga-sus), max 40px afișat.
+        Butoanele UNITS / CLĂDIRI apar lângă grila de comenzi din joc și diferă pe rasă.
       </div>
+    </div>
+  </div>
+
+  <?php // GLOBAL command-card icons: one per ability + upgrade (shared by both races) ?>
+  <div class="ent" id="ui-icons">
+    <div class="title"><b>Iconițe abilități &amp; upgrade-uri</b><span>globale — comune ambelor rase (grila de comenzi din joc)</span></div>
+    <div class="slots">
+      <?php foreach (iconKeys() as $key => $label): $if = iconFileFor($assetsDir, $key); $hasIcon = $if !== null; ?>
+      <div class="slot">
+        <span class="lbl"><?= $label ?></span>
+        <div class="thumb" style="background:#0a0e14">
+          <?php if ($hasIcon): ?>
+            <img src="<?= $assetsUrl ?>/icons/<?= $if ?>?t=<?= filemtime("$assetsDir/icons/$if") ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="key" value="<?= $key ?>">
+          <label class="pick"><?= $hasIcon ? 'înlocuiește' : 'încarcă' ?><input type="file" name="icon" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasIcon): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deleteicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="key" value="<?= $key ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
     </div>
   </div>
 

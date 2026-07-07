@@ -37,10 +37,22 @@
 
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
-      <canvas id="minimap"></canvas>
     </div>
 
-    <footer id="shop"></footer>
+    <!-- WC3-style bottom bar: map | portrait | details | 4x4 command grid | tabs -->
+    <footer id="bottombar">
+      <div id="bb-map"><canvas id="minimap"></canvas></div>
+      <div id="bb-portrait"><canvas id="portrait" width="112" height="112"></canvas></div>
+      <div id="bb-details"><div class="bb-empty">Selectează o unitate sau o clădire.</div></div>
+      <div id="bb-grid-wrap">
+        <div id="bb-popup"></div>
+        <div id="bb-grid"></div>
+      </div>
+      <div id="bb-tabs">
+        <button id="tab-units" class="bb-tab active" title="Unități (cumpără)"><canvas width="72" height="72"></canvas><span>UNITS</span></button>
+        <button id="tab-buildings" class="bb-tab" title="Clădiri (construiește)"><canvas width="72" height="72"></canvas><span>CLĂDIRI</span></button>
+      </div>
+    </footer>
 
     <div id="overlay" class="visible">
       <div class="overlay-panel">
