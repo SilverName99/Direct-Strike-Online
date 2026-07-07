@@ -22,6 +22,7 @@ const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
 const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image (shop tab buttons)
+const baseUpgIcons = new Map(); // race -> Image (base tier-upgrade slot icon, per race)
 const barSkins = new Map();    // race -> url of the uploaded bottom-bar background design
 const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
 let teamRaces = ['humans', 'humans'];
@@ -122,6 +123,10 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           load(`${base}${race}/${file}?v=${man.v || 0}`, (img) => tabIcons.set(`${race}/${slot}`, img));
         }
       }
+      // per-race base tier-upgrade slot icon
+      for (const [race, file] of Object.entries(man.baseupg || {})) {
+        load(`${base}${race}/${file}?v=${man.v || 0}`, (img) => baseUpgIcons.set(race, img));
+      }
       // per-race bottom-bar background design + overlay (just URLs for CSS)
       for (const [race, file] of Object.entries(man.barskins || {})) {
         barSkins.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
@@ -185,6 +190,11 @@ export function getUiIcon(key) {
 // Uploaded art for a race's UNITS / CLĂDIRI shop-tab button, or null.
 export function getTabIcon(race, slot) {
   return tabIcons.get(`${race}/${slot}`) || null;
+}
+
+// Uploaded per-race icon for the base tier-upgrade slot, or null.
+export function getBaseUpgradeIcon(race) {
+  return baseUpgIcons.get(race) || null;
 }
 
 // URL of a race's uploaded bottom-bar background design, or null.

@@ -46,7 +46,7 @@ const UPGRADE_INFO = [
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
-  $keys = ['baseupgrade' => 'Upgrade Bază (tier)'];
+  $keys = [];
   foreach (ABILITY_INFO as $id => $_) $keys["ability-$id"] = ABILITY_INFO[$id][0];
   foreach (UPGRADE_INFO as $id => $name) $keys["upgrade-$id"] = $name;
   return $keys;
@@ -148,6 +148,12 @@ function iconFileFor(string $assetsDir, string $key): ?string {
 // A race's shop tab-button file (tab-<slot>.<ext>), or null.
 function tabFileFor(string $assetsDir, string $race, string $slot): ?string {
   foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/tab-$slot.$e")) return "tab-$slot.$e";
+  return null;
+}
+
+// A race's base tier-upgrade icon (baseupgrade.<ext>), or null.
+function baseUpgFileFor(string $assetsDir, string $race): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/baseupgrade.$e")) return "baseupgrade.$e";
   return null;
 }
 
@@ -269,6 +275,7 @@ function regenManifest(string $assetsDir): void {
   $tabs = [];
   $barskins = [];
   $barovers = [];
+  $baseupg = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
@@ -285,6 +292,8 @@ function regenManifest(string $assetsDir): void {
     if ($bsf) $barskins[$r] = $bsf;
     $bof = baroverFileFor($assetsDir, $r);
     if ($bof) $barovers[$r] = $bof;
+    $buf = baseUpgFileFor($assetsDir, $r);
+    if ($buf) $baseupg[$r] = $buf;
   }
   // GLOBAL ability/upgrade command-card icons
   $icons = [];
@@ -295,7 +304,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -557,6 +566,39 @@ if ($authed && $action === 'deletetab') {
     foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/tab-$slot.$e");
     regenManifest($assetsDir);
     $msg = "Buton șters: $slot ($race)";
+  }
+}
+
+// per-race base tier-upgrade icon
+if ($authed && $action === 'uploadbaseupg') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['baseupg']) || $_FILES['baseupg']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['baseupg']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['baseupg']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['baseupg']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/baseupgrade.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/baseupgrade.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Iconiță Upgrade Bază încărcată: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebaseupg') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/baseupgrade.$e");
+    regenManifest($assetsDir);
+    $msg = "Iconiță Upgrade Bază ștearsă: $race";
   }
 }
 
@@ -878,6 +920,29 @@ if ($authed && $action === 'deletebarover') {
         <?php endif; ?>
       </div>
       <?php endforeach; ?>
+      <?php $baseUpgFile = baseUpgFileFor($assetsDir, $race); $hasBaseUpg = $baseUpgFile !== null; ?>
+      <div class="slot" style="min-width:150px">
+        <span class="lbl" style="color:#ffd35c">Iconiță Upgrade Bază <?= $race ?></span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasBaseUpg): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $baseUpgFile ?>?t=<?= filemtime("$assetsDir/$race/$baseUpgFile") ?>" alt="" style="max-width:56px;max-height:56px">
+          <?php else: ?><span class="empty">▲</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbaseupg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBaseUpg ? 'înlocuiește' : 'încarcă' ?><input type="file" name="baseupg" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBaseUpg): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebaseupg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
       <?php $barskinFile = barskinFileFor($assetsDir, $race); $hasBarskin = $barskinFile !== null; ?>
       <div class="slot" style="min-width:200px">
         <span class="lbl" style="color:#ffd35c">Fundal meniu jos <?= $race ?></span>

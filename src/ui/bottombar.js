@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
-import { raceOf, getSprite, getUiIcon, getTabIcon, getBarSkin, getBarOverlay } from '../render/sprites.js';
+import { raceOf, getSprite, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -611,7 +611,7 @@ export class BottomBar {
       return;
     }
     if (data.kind === 'upgradeBase') {
-      const img = getUiIcon('baseupgrade');
+      const img = getBaseUpgradeIcon(raceOf(0));
       if (img) {
         const sc = Math.min(46 / img.width, 46 / img.height);
         ctx.drawImage(img, (46 - img.width * sc) / 2, (46 - img.height * sc) / 2, img.width * sc, img.height * sc);
