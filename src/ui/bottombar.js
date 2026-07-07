@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
-import { raceOf, getSprite, getUiIcon, getTabIcon, getBarSkin } from '../render/sprites.js';
+import { raceOf, getSprite, getUiIcon, getTabIcon, getBarSkin, getBarOverlay } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -182,20 +182,26 @@ export class BottomBar {
     this.applyBarSkin();
   }
 
-  // Per-race uploaded bar background ("skin"): when present it fills the whole
-  // bar and the default curved silhouette is hidden (the design already carries
-  // its own shape — the user painted it over the downloaded template).
+  // Per-race uploaded bar art, in two layers:
+  //   - BACKGROUND ("skin"): fills the whole bar behind the UI; when present it
+  //     hides the default curved silhouette (the design carries its own shape).
+  //   - OVERLAY: drawn ON TOP of the UI (frames/ornaments that must sit over the
+  //     slots); click-through so it never blocks the controls.
   applyBarSkin() {
     if (!this.bar) return;
-    const url = getBarSkin(raceOf(0));
-    if (url) {
-      this.bar.style.backgroundImage = `url("${url}")`;
+    const skin = getBarSkin(raceOf(0));
+    if (skin) {
+      this.bar.style.backgroundImage = `url("${skin}")`;
       this.bar.style.backgroundSize = '100% 100%';
       this.bar.classList.add('skinned');
     } else {
       this.bar.style.backgroundImage = '';
       this.bar.classList.remove('skinned');
     }
+    const over = getBarOverlay(raceOf(0));
+    const overEl = document.getElementById('bb-over');
+    if (overEl) overEl.style.backgroundImage = over ? `url("${over}")` : '';
+    this.bar.classList.toggle('overlaid', !!over);
   }
 
   // Download a PNG guide of the bar's EXACT live layout: the curved silhouette

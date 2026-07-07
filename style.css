@@ -166,7 +166,20 @@ html, body {
   pointer-events: none;
 }
 #bb-bg path { fill: rgba(16, 21, 30, 0.93); stroke: var(--border); stroke-width: 1; }
-#bottombar > *:not(#bb-bg) { position: relative; z-index: 1; }
+#bottombar > *:not(#bb-bg):not(#bb-over) { position: relative; z-index: 1; }
+
+/* per-race decorative overlay drawn ON TOP of the UI elements (frames,
+   ornaments, rivets…). Click-through so it never blocks the controls. */
+#bb-over {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  display: none;
+}
+#bottombar.overlaid #bb-over { display: block; }
 
 #bb-map {
   /* sits IN the tray, level with the portrait — no raised pod on the left */

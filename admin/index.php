@@ -157,6 +157,12 @@ function barskinFileFor(string $assetsDir, string $race): ?string {
   return null;
 }
 
+// A race's uploaded bottom-bar OVERLAY (barover.<ext>) — drawn over the UI.
+function baroverFileFor(string $assetsDir, string $race): ?string {
+  foreach (BARSKIN_EXTS as $e) if (is_file("$assetsDir/$race/barover.$e")) return "barover.$e";
+  return null;
+}
+
 // slot id => label; slot files are "<slot>.png". $race matters only for
 // units: casters gain 2 cast frames per selected ACTIVE ability.
 function slotsFor(string $ent, string $race = 'humans'): array {
@@ -262,6 +268,7 @@ function regenManifest(string $assetsDir): void {
   $cursors = [];
   $tabs = [];
   $barskins = [];
+  $barovers = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
@@ -276,6 +283,8 @@ function regenManifest(string $assetsDir): void {
     if ($t) $tabs[$r] = $t;
     $bsf = barskinFileFor($assetsDir, $r);
     if ($bsf) $barskins[$r] = $bsf;
+    $bof = baroverFileFor($assetsDir, $r);
+    if ($bof) $barovers[$r] = $bof;
   }
   // GLOBAL ability/upgrade command-card icons
   $icons = [];
@@ -286,7 +295,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -583,6 +592,39 @@ if ($authed && $action === 'deletebarskin') {
     $msg = "Fundal meniu șters: $race";
   }
 }
+
+// per-race bottom-bar OVERLAY (decorations painted OVER the UI elements)
+if ($authed && $action === 'uploadbarover') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['barover']) || $_FILES['barover']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['barover']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['barover']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['barover']['tmp_name'];
+    if (!in_array($ext, BARSKIN_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', BARSKIN_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barover.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/barover.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Overlay meniu încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebarover') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barover.$e");
+    regenManifest($assetsDir);
+    $msg = "Overlay meniu șters: $race";
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -859,13 +901,37 @@ if ($authed && $action === 'deletebarskin') {
         </form>
         <?php endif; ?>
       </div>
+      <?php $baroverFile = baroverFileFor($assetsDir, $race); $hasBarover = $baroverFile !== null; ?>
+      <div class="slot" style="min-width:200px">
+        <span class="lbl" style="color:#ffd35c">Overlay meniu jos <?= $race ?> (peste elemente)</span>
+        <div class="thumb" style="width:160px;height:32px;background:#0a0e14">
+          <?php if ($hasBarover): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $baroverFile ?>?t=<?= filemtime("$assetsDir/$race/$baroverFile") ?>" alt="" style="max-width:158px;max-height:30px">
+          <?php else: ?><span class="empty">✦</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbarover">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBarover ? 'înlocuiește' : 'încarcă' ?><input type="file" name="barover" accept=".png,.webp,.jpg,.jpeg,image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBarover): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebarover">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi overlay-ul meniului?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
       <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
         Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.
         Cursorul înlocuiește săgeata mouse-ului în joc pentru această rasă (vârful = colțul stânga-sus), max 40px afișat.
         Butoanele UNITS / CLĂDIRI apar lângă grila de comenzi din joc și diferă pe rasă.
-        <b>Fundal meniu jos</b>: în joc apasă butonul 🎨 din bara de sus ca să descarci șablonul cu layout-ul
-        exact al meniului; pictează designul SUB elemente, exportă la aceeași mărime și încarcă-l aici (înlocuiește
-        forma curbată implicită pentru rasa asta).
+        <b>Meniu jos, două straturi</b> (descarcă șablonul cu butonul 🎨 din bara de sus a jocului, exportă la
+        aceeași mărime): <b>Fundal</b> = desenat ÎN SPATELE elementelor (înlocuiește forma curbată implicită);
+        <b>Overlay</b> = desenat PESTE elemente (rame/ornamente care trebuie să treacă peste căsuțe; lasă restul
+        transparent, e click-through). Ambele per rasă.
       </div>
     </div>
   </div>

@@ -23,6 +23,7 @@ const cursorUrls = new Map();  // race -> url of the uploaded custom mouse curso
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
 const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image (shop tab buttons)
 const barSkins = new Map();    // race -> url of the uploaded bottom-bar background design
+const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -121,9 +122,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           load(`${base}${race}/${file}?v=${man.v || 0}`, (img) => tabIcons.set(`${race}/${slot}`, img));
         }
       }
-      // per-race bottom-bar background design (just a URL for CSS)
+      // per-race bottom-bar background design + overlay (just URLs for CSS)
       for (const [race, file] of Object.entries(man.barskins || {})) {
         barSkins.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
+      }
+      for (const [race, file] of Object.entries(man.barovers || {})) {
+        barOverlays.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
       done();
     })
@@ -186,6 +190,11 @@ export function getTabIcon(race, slot) {
 // URL of a race's uploaded bottom-bar background design, or null.
 export function getBarSkin(race) {
   return barSkins.get(race) || null;
+}
+
+// URL of a race's uploaded bottom-bar overlay (drawn over the UI), or null.
+export function getBarOverlay(race) {
+  return barOverlays.get(race) || null;
 }
 
 export function getSprite(race, ent, anim, frame) {
