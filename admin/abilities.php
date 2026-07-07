@@ -68,10 +68,10 @@ $authed = !empty($_SESSION['auth']);
 <?php if (!$authed): ?>
   <p class="sub">Trebuie să fii logat ca admin. <a href="./">Mergi la /admin și loghează-te</a>, apoi revino aici.</p>
 <?php else: ?>
+  <?php $navActive = 'abilities'; include __DIR__ . '/nav.php'; ?>
   <div class="sub">Catalogul de abilități — comun ambelor rase. <b>Cine</b> le folosește se setează
     per unitate din <b>⚙ stats</b> (bifa „Caster" + selecția de abilități) în pagina de
     <a href="./">sprites</a>. Apasă <b>Salvează</b> — se scrie în <code>assets/balance.json</code>. ·
-    <a href="balance.php">⚙ Balance</a> · <a href="upgrades.php">🐗 Upgrades</a> ·
     <a href="../" target="_blank">Deschide jocul ↗</a></div>
   <div id="ab-app">Se încarcă…</div>
   <div class="bar">

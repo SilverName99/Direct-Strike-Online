@@ -47,10 +47,10 @@ $authed = !empty($_SESSION['auth']);
 <?php if (!$authed): ?>
   <p class="sub">Trebuie să fii logat ca admin. <a href="./">Mergi la /admin și loghează-te</a>, apoi revino aici.</p>
 <?php else: ?>
+  <?php $navActive = 'upgrades'; include __DIR__ . '/nav.php'; ?>
   <div class="sub">Catalogul de upgrades — comun ambelor rase. Fiecare upgrade alege <b>cărei unități</b> i se
     aplică; în meci se cumpără <b>o dată din Bază</b> (cost mai jos) și rămâne activ tot meciul. Apasă
     <b>Salvează</b> — se scrie în <code>assets/balance.json</code>. ·
-    <a href="./">Sprites</a> · <a href="balance.php">⚙ Balance</a> · <a href="abilities.php">✨ Abilități</a> ·
     <a href="../" target="_blank">Deschide jocul ↗</a></div>
   <div id="up-app">Se încarcă…</div>
   <div class="bar">

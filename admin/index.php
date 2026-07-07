@@ -653,15 +653,7 @@ if ($authed && $action === 'deletetab') {
   </div>
 <?php else: ?>
 
-  <div class="tabs">
-    <?php foreach (RACES as $r): ?>
-      <a href="?race=<?= $r ?>" class="<?= ($view !== 'icons' && $r === $race) ? 'active' : '' ?>"><?= $r === 'humans' ? '⚔ Humans' : '🪓 Orcs' ?></a>
-    <?php endforeach; ?>
-    <a href="?view=icons" class="<?= $view === 'icons' ? 'active' : '' ?>" style="margin-left:16px">🎨 Iconițe</a>
-    <a href="balance.php" style="margin-left:16px">⚙ Balance</a>
-    <a href="abilities.php" style="margin-left:4px">✨ Abilități</a>
-    <a href="upgrades.php" style="margin-left:4px">🐗 Upgrades</a>
-  </div>
+  <?php $navActive = $view === 'icons' ? 'icons' : $race; include __DIR__ . '/nav.php'; ?>
 
   <?php if ($view === 'icons'): ?>
   <?php // GLOBAL command-card icons: one per ability + upgrade (shared by both races) ?>
