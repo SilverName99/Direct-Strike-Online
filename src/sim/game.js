@@ -169,9 +169,13 @@ export class Game {
   isValidBuildPlacement(team, kind, x, y) {
     if (!CONFIG.BUILDINGS[kind]) return false;
     const ext = structureExtents(kind, this.bstat(team, kind));
-    const zone = CONFIG.CONSTRUCTION_ZONE[team];
-    if (x - ext.hw < zone.x0 || x + ext.hw > zone.x1) return false;
-    if (y - ext.hh < zone.y0 || y + ext.hh > zone.y1) return false;
+    // buildings may go in the base construction zone OR the small forward
+    // pocket around the mid turret; the whole box must fit inside one of them
+    const zones = [CONFIG.CONSTRUCTION_ZONE[team]];
+    if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zones.push(CONFIG.MID_BUILD_ZONE[team]);
+    const fits = zones.some((z) =>
+      x - ext.hw >= z.x0 && x + ext.hw <= z.x1 && y - ext.hh >= z.y0 && y + ext.hh <= z.y1);
+    if (!fits) return false;
     const gap = CONFIG.BUILD_GAP;
     for (const s of this.structures) {
       if (s.hp <= 0) continue;
@@ -197,7 +201,7 @@ export class Game {
         return { ok: false, reason: 'zone' };
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
-      this.templates[cmd.team].push({ type: cmd.unitId, x: cmd.x, y: cmd.y });
+      this.templates[cmd.team].push({ type: cmd.unitId, x: cmd.x, y: cmd.y, spawned: false });
       return { ok: true };
     }
 
@@ -215,7 +219,10 @@ export class Game {
       const tpl = this.templates[cmd.team][cmd.index];
       if (!tpl) return { ok: false, reason: 'unknown-template' };
       this.templates[cmd.team].splice(cmd.index, 1);
-      this.money[cmd.team] += Math.round(this.ustat(cmd.team, tpl.type).cost * CONFIG.SELL_REFUND);
+      // full refund for a unit that has never spawned yet (bought this wave and
+      // sold before it ever hit the field); the usual partial refund otherwise
+      const refund = tpl.spawned ? CONFIG.SELL_REFUND : 1;
+      this.money[cmd.team] += Math.round(this.ustat(cmd.team, tpl.type).cost * refund);
       return { ok: true };
     }
 

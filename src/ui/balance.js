@@ -19,7 +19,7 @@ export const UNIT_NUM_FIELDS = [
   ['cost', 'Cost'],
   ['tier', 'Tier (1-3)'],
   ['hp', 'HP'],
-  ['damage', 'Damage / Heal'],
+  ['damage', 'Damage'],
   ['period', 'Attack period (s)'],
   ['range', 'Range'],
   ['speed', 'Speed'],

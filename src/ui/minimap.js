@@ -54,7 +54,9 @@ export class Minimap {
     // base quadrants (construction + army zones)
     const tints = ['rgba(77, 166, 255, 0.18)', 'rgba(255, 85, 102, 0.18)'];
     for (const team of [0, 1]) {
-      for (const z of [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]]) {
+      const zonesMM = [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]];
+      if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zonesMM.push(CONFIG.MID_BUILD_ZONE[team]);
+      for (const z of zonesMM) {
         ctx.fillStyle = tints[team];
         ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
       }

@@ -130,8 +130,20 @@ export class AIController {
     if (!want || game.ustat(t, want).tier > game.tier[t]) want = this.pickComposition(game);
     if (!want) return;
 
-    const stats = game.ustat(t, want);
-    if (money < stats.cost) return; // save
+    let stats = game.ustat(t, want);
+    if (money < stats.cost) {
+      // The ideal pick is unaffordable right now (often because a unit was
+      // priced very high in the editor). Rather than saving forever and letting
+      // the army stall, fall back to the strongest unit we CAN afford so units
+      // keep flowing. Only truly save when nothing at all is affordable.
+      const affordable = UNIT_IDS
+        .map((id) => ({ id, s: game.ustat(t, id) }))
+        .filter(({ s }) => s.tier <= game.tier[t] && s.cost <= money)
+        .sort((a, b) => b.s.cost - a.s.cost)[0];
+      if (!affordable) return; // genuinely broke — wait for income
+      want = affordable.id;
+      stats = game.ustat(t, want);
+    }
     const { x, y } = this.pickPlacement(game, want);
     if (game.issueCommand({ type: 'buy', team: t, unitId: want, x, y }).ok) {
       this.purchases++;

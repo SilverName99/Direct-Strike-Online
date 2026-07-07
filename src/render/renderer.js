@@ -215,6 +215,18 @@ export class Renderer {
       ctx.textAlign = 'center';
       ctx.fillText('CONSTRUCTION', (cz.x0 + cz.x1) / 2, cz.y0 + 24);
       ctx.fillText('ARMY', (az.x0 + az.x1) / 2, az.y0 + 24);
+
+      // forward build pocket around the mid turret
+      const mz = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team];
+      if (mz) {
+        ctx.fillStyle = `${tints[team]} 0.09)`;
+        ctx.fillRect(mz.x0, mz.y0, mz.x1 - mz.x0, mz.y1 - mz.y0);
+        ctx.strokeStyle = `${tints[team]} 0.35)`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 8]);
+        ctx.strokeRect(mz.x0, mz.y0, mz.x1 - mz.x0, mz.y1 - mz.y0);
+        ctx.setLineDash([]);
+      }
     }
 
     // midline
@@ -250,7 +262,7 @@ export class Renderer {
   drawGrid(ctx, uiState) {
     if (!uiState.gridOn) return;
     let zone = null;
-    if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected);
+    if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected, uiState.mouseX, uiState.mouseY);
     else if (uiState.drag) zone = CONFIG.ARMY_ZONE[0];
     if (!zone) return;
     const step = CONFIG.GRID * (CONFIG.GRID_MAJOR || 4);
@@ -699,7 +711,7 @@ export class Renderer {
       const bs = isBuilding ? game.bstat(0, sel) : null;
       const cw = isBuilding ? bs.cw : uw;
       const ch = isBuilding ? bs.ch : uh;
-      const p = snapToZone(zoneFor(sel), px, py, cw, ch);
+      const p = snapToZone(zoneFor(sel, px, py), px, py, cw, ch);
       px = p.x;
       py = p.y;
     }

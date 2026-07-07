@@ -195,7 +195,7 @@ export class Input {
       const us = game.ustat(0, selected);
       cw = us.cw > 1 ? us.cw : 1; ch = us.ch > 1 ? us.ch : 1;
     }
-    return snapToZone(zoneFor(selected), p.x, p.y, cw, ch);
+    return snapToZone(zoneFor(selected, p.x, p.y), p.x, p.y, cw, ch);
   }
 
   // While dragging, keep the template pinned under the cursor (snapped by its

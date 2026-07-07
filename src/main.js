@@ -8,7 +8,7 @@ import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces, getMusicUrl } from './render/sprites.js';
+import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl } from './render/sprites.js';
 import { loadBalance, musicVolumeOf } from './ui/balance.js';
 
 const canvas = document.getElementById('game');
@@ -86,6 +86,12 @@ function stopMusic() {
   if (music) { music.pause(); music = null; }
 }
 
+// Apply the player race's uploaded custom mouse cursor (falls back to the
+// default arrow when none is uploaded for that race).
+function applyCursor(race) {
+  pointer.setCursorImage(getCursorUrl(race));
+}
+
 let playerRace = 'humans';
 for (const btn of document.querySelectorAll('.btn.race')) {
   btn.addEventListener('click', () => {
@@ -97,6 +103,7 @@ for (const btn of document.querySelectorAll('.btn.race')) {
       b.classList.toggle('selected', b === btn)
     );
     hud.buildShop(); // shop stats + art follow the chosen race
+    applyCursor(playerRace); // custom mouse for this race
   });
 }
 
@@ -116,6 +123,7 @@ function newGame(difficulty) {
   state = 'playing';
   hud.hideOverlay();
   startMusic(playerRace);
+  applyCursor(playerRace);
 }
 
 for (const btn of document.querySelectorAll('.btn.diff')) {

@@ -129,10 +129,20 @@ console.log('unit commands (army zone, tiers)');
   const t3 = game.issueCommand({ type: 'buy', team: 0, unitId: 'archon', x: 620, y: 700 });
   check('tier-3 unit still locked at tier 2', !t3.ok);
 
+  // never-spawned template sells for a full refund
+  const beforeFull = game.money[0];
+  const sellFull = game.issueCommand({ type: 'sellUnit', team: 0, index: 0 });
+  check('sellUnit refunds 100% before first spawn',
+    sellFull.ok && game.money[0] === beforeFull + UNITS.grunt.cost);
+
+  // once it has spawned, selling only gives the partial refund
+  game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 500, y: 700 });
+  game.templates[0][game.templates[0].length - 1].spawned = true;
+  const idxSpawned = game.templates[0].length - 1;
   const before = game.money[0];
-  const sell = game.issueCommand({ type: 'sellUnit', team: 0, index: 0 });
+  const sell = game.issueCommand({ type: 'sellUnit', team: 0, index: idxSpawned });
   const refund = Math.round(UNITS.grunt.cost * CONFIG.SELL_REFUND);
-  check('sellUnit refunds 75%', sell.ok && game.money[0] === before + refund);
+  check('sellUnit refunds 75% after spawn', sell.ok && game.money[0] === before + refund);
 
   const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 600, y: 500 });
   check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 600);
@@ -895,7 +905,9 @@ console.log('abilities (casters, auras, status effects)');
     game.templates[0].push({ type: 'wasp', x: 500, y: 300 }, { type: 'wasp', x: 500, y: 360 });
     game.templates[1].push({ type: 'grunt', x: 2600, y: 300 }); // can't hit air
     const ai = new AIController(1, 'normal', 7);
-    for (let i = 0; i < 9; i++) ai.update(game, 1);
+    // army management runs on the 3rd think; that's when the dead-weight sell
+    // fires (later thinks may rebuy front units via composition — not the point)
+    for (let i = 0; i < 3; i++) ai.update(game, 1);
     check('AI sells a unit that cannot hit an air-heavy enemy',
       !game.templates[1].some((tpl) => tpl.type === 'grunt'));
   }
@@ -912,6 +924,23 @@ console.log('abilities (casters, auras, status effects)');
     const crab = game.templates[1][0];
     check('AI moves misplaced artillery toward the back band',
       crab.x > zone.x0 + (zone.x1 - zone.x0) * 0.6, `x=${Math.round(crab.x)}`);
+  }
+
+  // A3: when the ideal unit pick is priced out of reach, the AI still fields
+  // the strongest AFFORDABLE unit instead of saving forever and stalling.
+  {
+    const { AIController } = await import('../src/sim/ai.js');
+    // every orc unit costs a fortune except a cheap grunt
+    const pricey = {};
+    for (const id of Object.keys(UNITS)) pricey[id] = { cost: 999999 };
+    pricey.grunt = { cost: 40 };
+    applyBalance({ races: { orcs: { units: pricey } } });
+    const game = new Game(11, { races: ['humans', 'orcs'] });
+    game.money[1] = 5000; // plenty to buy many cheap grunts, none of the pricey ones
+    const ai = new AIController(1, 'normal', 3);
+    for (let i = 0; i < 20; i++) ai.update(game, 1);
+    check('AI keeps buying affordable units when the ideal pick is priced out',
+      game.templates[1].length >= 3, `count=${game.templates[1].length}`);
   }
 
   resetAll(); // leave the shared balance pristine for any later tests

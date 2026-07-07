@@ -18,6 +18,7 @@ const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
 const musicUrls = new Map();   // race -> url of the uploaded background track
+const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -96,6 +97,10 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [race, file] of Object.entries(man.music || {})) {
         musicUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
+      // per-race custom mouse cursor image
+      for (const [race, file] of Object.entries(man.cursors || {})) {
+        cursorUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
@@ -137,6 +142,11 @@ export function getBackground(race) {
 // URL of the uploaded background-music track for a race, or null.
 export function getMusicUrl(race) {
   return musicUrls.get(race) || null;
+}
+
+// URL of the uploaded custom mouse-cursor image for a race, or null.
+export function getCursorUrl(race) {
+  return cursorUrls.get(race) || null;
 }
 
 export function getSprite(race, ent, anim, frame) {

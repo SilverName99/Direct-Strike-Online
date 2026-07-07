@@ -20,10 +20,31 @@ export function snapToZone(zone, x, y, cw = 1, ch = 1) {
   };
 }
 
-// The zone a placement kind belongs to for the local player (team 0).
-export function zoneFor(selected) {
+// All construction rectangles for a team: the base zone plus the small
+// forward pocket around the mid turret.
+export function buildZonesFor(team) {
+  const zones = [CONFIG.CONSTRUCTION_ZONE[team]];
+  if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zones.push(CONFIG.MID_BUILD_ZONE[team]);
+  return zones;
+}
+
+// The zone a placement kind belongs to for the local player (team 0). For
+// buildings, x/y (world cursor) picks the construction rect the cursor is in
+// (or nearest), so both the base zone and the mid pocket snap correctly.
+export function zoneFor(selected, x = null, y = null) {
   if (selected === 'wall' || selected === 'tower' || selected === 'generator') {
-    return CONFIG.CONSTRUCTION_ZONE[0];
+    const zones = buildZonesFor(0);
+    if (x == null || y == null) return zones[0];
+    for (const z of zones) {
+      if (x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1) return z;
+    }
+    let best = zones[0], bd = Infinity;
+    for (const z of zones) {
+      const cx = (z.x0 + z.x1) / 2, cy = (z.y0 + z.y1) / 2;
+      const d = (cx - x) ** 2 + (cy - y) ** 2;
+      if (d < bd) { bd = d; best = z; }
+    }
+    return best;
   }
   return CONFIG.ARMY_ZONE[0];
 }

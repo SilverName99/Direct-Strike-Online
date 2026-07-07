@@ -21,10 +21,11 @@ export class PointerManager {
 
     this.cursor = document.createElement('div');
     this.cursor.id = 'vcursor';
-    this.cursor.innerHTML =
+    this.defaultCursorSvg =
       '<svg width="22" height="22" viewBox="0 0 22 22">' +
       '<path d="M2 1 L2 17 L6.5 13 L9.5 20 L12.5 18.5 L9.5 12 L15 12 Z" ' +
       'fill="#f2f5fa" stroke="#0a0e14" stroke-width="1.5"/></svg>';
+    this.cursor.innerHTML = this.defaultCursorSvg;
     document.body.appendChild(this.cursor);
 
     document.addEventListener('pointerlockchange', () => {
@@ -114,6 +115,18 @@ export class PointerManager {
 
   moveCursor() {
     this.cursor.style.transform = `translate(${this.vx}px, ${this.vy}px)`;
+  }
+
+  // Swap the virtual cursor art for a per-race uploaded image (hotspot at the
+  // top-left, like a normal cursor). Pass null/empty to restore the default
+  // arrow. The image is capped at 40px so a large upload stays usable.
+  setCursorImage(url) {
+    if (url) {
+      this.cursor.innerHTML =
+        `<img src="${url}" alt="" style="max-width:40px;max-height:40px;display:block;">`;
+    } else {
+      this.cursor.innerHTML = this.defaultCursorSvg;
+    }
   }
 
   route(type, real) {

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.36';
+export const VERSION = 'v9.37';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -14,7 +14,7 @@ export const CONFIG = {
 
   // Battlefield (simulation units) — larger than the screen; an RTS
   // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
-  FIELD_W: 3200,
+  FIELD_W: 3600,
   FIELD_H: 1440,
 
   // Each side's quadrant is a real base, split in two grid-aligned parts:
@@ -26,22 +26,30 @@ export const CONFIG = {
   SIZES: {},            // entity id -> visual scale multiplier (default 1)
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
-  GRID_MAJOR: 4,        // draw a grid line every N cells (the fine cell still snaps)
+  GRID_MAJOR: 2,        // draw a grid line every N cells (the fine cell still snaps)
+  // Construction (base) zone: 9 × 24 cells, same height as the army strip so
+  // the whole base reads as one 24-cell-tall block.
   CONSTRUCTION_ZONE: [
-    { x0: 60, x1: 420, y0: 80, y1: 1360 },    // team 0 (left)
-    { x0: 2780, x1: 3140, y0: 80, y1: 1360 }, // team 1 (right)
+    { x0: 60, x1: 420, y0: 240, y1: 1200 },    // team 0 (left)
+    { x0: 3180, x1: 3540, y0: 240, y1: 1200 }, // team 1 (right)
   ],
   // Army formation strip: exactly 16 × 24 cells (of GRID px), centered
   // vertically; major grid lines land every GRID_MAJOR cells.
   ARMY_ZONE: [
     { x0: 440, x1: 1080, y0: 240, y1: 1200 },
-    { x0: 2120, x1: 2760, y0: 240, y1: 1200 },
+    { x0: 2520, x1: 3160, y0: 240, y1: 1200 },
+  ],
+  // Small forward construction pocket around each team's starting turret, so
+  // you can build defenses out by the mid turret too (5 × 10 cells).
+  MID_BUILD_ZONE: [
+    { x0: 1080, x1: 1280, y0: 520, y1: 920 },
+    { x0: 2320, x1: 2520, y0: 520, y1: 920 },
   ],
 
   // Main base: the win objective, back-center of the construction zone.
   // HP by tier; upgrading unlocks unit tiers and heals +1000.
   MAIN: {
-    x: [140, 3060],
+    x: [200, 3400],
     y: 720,
     radius: 50,
     hp: [4000, 5000, 6000],
@@ -52,7 +60,7 @@ export const CONFIG = {
   TIER_MAX: 3,
 
   // Starting defensive turret (pre-placed, not buildable, dies for good)
-  TURRET_X: [1180, 2020],
+  TURRET_X: [1180, 2420],
   TURRET: {
     hp: 700,
     radius: 24,

@@ -93,10 +93,18 @@ const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 const MUSIC_MAX_BYTES = 12582912; // 12 MB (background music tracks)
 const MUSIC_EXTS = ['mp3', 'ogg', 'm4a', 'mp4'];
+const CURSOR_MAX_BYTES = 1048576; // 1 MB (a mouse cursor image is small)
+const CURSOR_EXTS = ['png', 'gif', 'cur', 'webp'];
 
 // The uploaded background-music file for a race (music.<ext>), or null.
 function musicFileFor(string $assetsDir, string $race): ?string {
   foreach (MUSIC_EXTS as $e) if (is_file("$assetsDir/$race/music.$e")) return "music.$e";
+  return null;
+}
+
+// The uploaded custom-cursor file for a race (cursor.<ext>), or null.
+function cursorFileFor(string $assetsDir, string $race): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/cursor.$e")) return "cursor.$e";
   return null;
 }
 
@@ -192,15 +200,18 @@ function regenManifest(string $assetsDir): void {
   }
   $backgrounds = [];
   $music = [];
+  $cursors = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
     if ($mf) $music[$r] = $mf;
+    $cf = cursorFileFor($assetsDir, $r);
+    if ($cf) $cursors[$r] = $cf;
   }
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -361,6 +372,39 @@ if ($authed && $action === 'deletemusic') {
     $msg = "Muzică ștearsă: $race";
   }
 }
+
+// per-race custom mouse cursor (shown in-game, hotspot at the top-left)
+if ($authed && $action === 'uploadcursor') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['cursor']) || $_FILES['cursor']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['cursor']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['cursor']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['cursor']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/cursor.$e"); // one cursor per race
+      if (move_uploaded_file($tmp, "$assetsDir/$race/cursor.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Cursor încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletecursor') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/cursor.$e");
+    regenManifest($assetsDir);
+    $msg = "Cursor șters: $race";
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -486,9 +530,10 @@ if ($authed && $action === 'deletemusic') {
   <?php
     $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile);
     $musicFile = musicFileFor($assetsDir, $race); $hasMusic = $musicFile !== null;
+    $cursorFile = cursorFileFor($assetsDir, $race); $hasCursor = $cursorFile !== null;
   ?>
   <div class="ent" id="background">
-    <div class="title"><b>Background</b><span><?= $hasBg ? 'setat' : 'niciunul' ?> · muzică: <?= $hasMusic ? 'setată' : 'niciuna' ?></span></div>
+    <div class="title"><b>Background</b><span><?= $hasBg ? 'setat' : 'niciunul' ?> · muzică: <?= $hasMusic ? 'setată' : 'niciuna' ?> · cursor: <?= $hasCursor ? 'setat' : 'niciunul' ?></span></div>
     <div class="slots">
       <div class="slot">
         <span class="lbl" style="color:#ffd35c">Jumătatea <?= $race ?></span>
@@ -539,8 +584,31 @@ if ($authed && $action === 'deletemusic') {
           <span id="music-vol-status" style="color:#7c8ba1;margin-left:6px"></span>
         </div>
       </div>
+      <div class="slot" style="min-width:200px">
+        <span class="lbl" style="color:#ffd35c">Cursor mouse <?= $race ?></span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasCursor): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $cursorFile ?>?t=<?= filemtime("$assetsDir/$race/$cursorFile") ?>" alt="" style="max-width:40px;max-height:40px">
+          <?php else: ?><span class="empty">↖</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadcursor">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasCursor ? 'înlocuiește' : 'încarcă' ?><input type="file" name="cursor" accept=".png,.gif,.cur,.webp,image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasCursor): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletecursor">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi cursor-ul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
       <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
         Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.
+        Cursorul înlocuiește săgeata mouse-ului în joc pentru această rasă (vârful = colțul stânga-sus), max 40px afișat.
       </div>
     </div>
   </div>

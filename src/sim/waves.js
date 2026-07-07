@@ -9,6 +9,7 @@ export function spawnWave(game) {
       const jx = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       const jy = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       spawnUnit(game, team, tpl.type, tpl.x + jx, tpl.y + jy);
+      tpl.spawned = true; // once spawned, selling only gives the partial refund
     }
   }
   game.events.push({ type: 'wave', n: game.waveCount });
