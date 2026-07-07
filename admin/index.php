@@ -21,6 +21,10 @@ const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall'];
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image
 const ARMED_BUILDINGS = ['turret', 'tower'];
+// upgrades of kind 'mount' (see src/upgrades.js) transform a unit into an
+// on-foot form, so ONLY these grant the extra "foot-" sprite set. Other
+// upgrade kinds (e.g. 'ground' = Attack ground units) need no new sprites.
+const DISMOUNT_UPGRADES = ['dashmount'];
 // ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
 // — every aura is now cast (a "Cast X" frame, then the zone persists for its
 // duration); projectile abilities also get a per-caster projectile image slot
@@ -82,7 +86,8 @@ function unitHasDash(string $race, string $ent): bool {
 function unitHasDismount(string $race, string $ent): bool {
   $ups = dsBalance()['upgrades'] ?? [];
   if (!is_array($ups)) return false;
-  foreach ($ups as $up) {
+  foreach ($ups as $id => $up) {
+    if (!in_array($id, DISMOUNT_UPGRADES, true)) continue; // only mount upgrades add foot sprites
     if (!is_array($up) || ($up['unit'] ?? '') !== $ent) continue;
     $upRace = $up['race'] ?? '';
     if ($upRace === '' || $upRace === $race) return true;
