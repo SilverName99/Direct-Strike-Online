@@ -675,15 +675,8 @@ if ($authed && $action === 'deletecursor') {
   <h2>Unități — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(▲▼ reordonează — ordinea apare la fel în shop-ul din joc)</span></h2>
   <?php foreach (orderedUnits($race) as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
 
-  <h2>Clădiri — <?= $race ?> <span style="text-transform:none">(zidurile rămân desenate de joc)</span></h2>
+  <h2>Clădiri — <?= $race ?></h2>
   <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'building'); ?>
-
-  <div class="ent" id="wall">
-    <div class="title"><b>wall</b><span>fără imagini</span>
-      <button type="button" class="stat-gear" data-ent="wall" data-kind="building" title="Editează statistici">⚙ stats</button>
-    </div>
-    <div class="slots"><span style="color:#7c8ba1;font-size:12px;padding-top:20px">Zidul e desenat de joc — doar statistici.</span></div>
-  </div>
 
   <div class="hint">
     • <b>⚙ stats</b> pe fiecare unitate/clădire editează caracteristicile ei (cost, HP, damage…).
