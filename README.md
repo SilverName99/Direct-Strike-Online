@@ -87,8 +87,9 @@ Balansul se editează din panoul de admin (`https://site-ul-tau/admin/`):
 - **⚙ Balance** (tab separat): reguli generale (bani, venit — în **aur per 20 secunde**, interval wave,
   cap-uri, refund-uri, costuri de tier), **colorarea echipelor** („ale mele albastre / inamic roșu",
   „doar inamicul roșu" sau „fără colorare") și **barele de viață** („mereu vizibile" sau „doar când sunt
-  lovite"). **„Extra gold every 20s past middle"**: venit suplimentar cât timp ai unități trecute de
-  mijlocul hărții (0 = dezactivat).
+  lovite"). **„Extra gold every 20s past middle"**: mijlocul e un **punct de control** —
+  prima unitate care trece îl capturează, iar bonusul rămâne al tău (chiar dacă unitatea moare) până când
+  adversarul trece la rândul lui și ți-l fură (0 = dezactivat; label-ul de venit arată „+mid" cât îl deții).
 - **Turnul de mijloc (⚙ stats la turret, per rasă)** are în plus **Regen viață (HP/s)** și **Gold pentru
   inamic la distrugere** (bounty — cine îl dărâmă primește suma turnului dărâmat). Cap-ul de generatoare
   („Max buildable") și **cooldown-ul de construire** („Cooldown construire (s)" — câte secunde aștepți

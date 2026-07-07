@@ -35,6 +35,8 @@ export class Game {
 
     this.templates = [[], []]; // per team: {type, x, y}
     this.buildReadyAt = [{}, {}]; // per team: building kind -> game.time it can be built again
+    this.midOwner = null;      // control point: last team to push a unit past midfield
+    this.midWas = [false, false]; // had units past mid last tick (crossing edge-detect)
     this.entities = [];
     this.projectiles = [];
     this.structures = [];
@@ -95,10 +97,23 @@ export class Game {
     return this.entities.some((e) => (team === 0 ? e.x > mid : e.x < mid));
   }
 
-  // Aggression reward: extra gold (configured per 20s) while past midfield.
+  // Aggression reward: the middle is a CONTROL POINT. Crossing it captures it
+  // once; the owner keeps the extra income until the OTHER team pushes a unit
+  // past the middle and steals it.
   midBonusPerTick(team) {
-    if (!CONFIG.MID_INCOME || !this.midHeld(team)) return 0;
+    if (!CONFIG.MID_INCOME || this.midOwner !== team) return 0;
     return Math.round(CONFIG.MID_INCOME * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
+  }
+
+  // Capture on the crossing EDGE: a team that newly gets units past midfield
+  // takes ownership; ownership then persists (even with no units there) until
+  // the enemy crosses in turn.
+  updateMidControl() {
+    for (const t of [0, 1]) {
+      const has = this.midHeld(t);
+      if (has && !this.midWas[t] && this.midOwner !== t) this.midOwner = t;
+      this.midWas[t] = has;
+    }
   }
 
   incomePerSecond(team) {
@@ -303,6 +318,7 @@ export class Game {
     updateMovement(this, dt);
     updateProjectiles(this, dt);
     this.removeDead();
+    this.updateMidControl();
 
     // Destroyed structures are gone for good; losing the main base loses
     // the game.

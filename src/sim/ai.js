@@ -6,7 +6,9 @@
 // units via the counter/composition brain, filtered by unlocked tier.
 
 import { CONFIG } from '../config.js';
-import { UNIT_CATEGORIES } from '../units.js';
+import { UNIT_CATEGORIES, UNIT_IDS } from '../units.js';
+import { UPGRADE_IDS } from '../upgrades.js';
+import { resolvedUpgrade } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 
 const CATEGORY_TARGETS = { front: 0.35, ranged: 0.3, special: 0.2, support: 0.15 };
@@ -50,11 +52,26 @@ export class AIController {
     const money = game.money[t];
 
     // 1. Economy first: rush 2 generators, grow to 5 as the game develops.
+    // While the generator build-cooldown runs, don't stall — spend elsewhere.
     const gens = game.countKind(t, 'generator');
     const wantGens = game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : 5;
-    if (gens < wantGens) {
+    if (gens < wantGens && game.buildCdLeft(t, 'generator') === 0) {
       if (money >= game.bstat(t, 'generator').cost) this.tryBuild(game, 'generator');
       return; // save for economy
+    }
+
+    // 1.5 Upgrades configured for our race: grab them once the army exists.
+    if (game.waveCount >= 2) {
+      for (const id of UPGRADE_IDS) {
+        if (game.upgrades[t].has(id)) continue;
+        const up = resolvedUpgrade(id);
+        if (!up || !up.unit || (up.race && up.race !== game.races[t])) continue;
+        // only worth buying if we actually field that unit
+        if (!game.templates[t].some((tpl) => tpl.type === up.unit)) continue;
+        if (money >= (up.params.cost || 0) + 150) {
+          if (game.issueCommand({ type: 'buyUpgrade', team: t, id }).ok) return;
+        }
+      }
     }
 
     // 2. Tier up at sensible timings.
@@ -149,25 +166,52 @@ export class AIController {
     return pts;
   }
 
+  // Counter picks read the RESOLVED stats (per-race, admin-tuned), so the AI
+  // adapts to fully custom rosters: anti-air vs fliers, piercing vs armored,
+  // splash vs cheap swarms — whatever units happen to carry those traits.
   pickCounter(game) {
-    const enemy = game.templates[1 - this.team];
+    const t = this.team;
+    const et = 1 - t;
+    const enemy = game.templates[et];
     if (enemy.length === 0) return null;
 
-    const et = 1 - this.team;
     let total = 0;
-    const cost = {};
+    let air = 0;
+    let armored = 0;
+    let swarm = 0;
     for (const tpl of enemy) {
-      const c = game.ustat(et, tpl.type).cost;
-      total += c;
-      cost[tpl.type] = (cost[tpl.type] || 0) + c;
+      const s = game.ustat(et, tpl.type);
+      total += s.cost;
+      if (s.isAir) air += s.cost;
+      if (s.armor === 'armored') armored += s.cost;
+      if (!s.isAir && s.cost <= 80) swarm += s.cost;
     }
-    const share = (ids) => ids.reduce((s, id) => s + (cost[id] || 0), 0) / total;
+    if (total === 0) return null;
 
-    if (share(['wasp']) > 0.15)
-      return game.money[this.team] >= game.ustat(this.team, 'archon').cost ? 'archon' : 'slinger';
-    if (share(['bruiser', 'crab']) > 0.3) return 'lancer';
-    if (share(['grunt', 'dasher']) > 0.4) return 'crab';
-    if ((cost.crab || cost.mender || cost.lancer) && this.rng() < 0.5) return 'dasher';
+    // strongest own unit matching a predicate that we can afford now (falls
+    // back to the cheapest match so the AI still saves toward it)
+    const bestOwn = (pred) => {
+      const pool = UNIT_IDS
+        .map((id) => ({ id, s: game.ustat(t, id) }))
+        .filter(({ s }) => s.tier <= game.tier[t] && pred(s));
+      if (pool.length === 0) return null;
+      pool.sort((a, b) => b.s.cost - a.s.cost);
+      const affordable = pool.find(({ s }) => s.cost <= game.money[t]);
+      return (affordable || pool[pool.length - 1]).id;
+    };
+
+    if (air / total > 0.15) {
+      const aa = bestOwn((s) => s.targetsAir);
+      if (aa) return aa;
+    }
+    if (armored / total > 0.3) {
+      const pierce = bestOwn((s) => s.dmgType === 'piercing');
+      if (pierce) return pierce;
+    }
+    if (swarm / total > 0.4) {
+      const splash = bestOwn((s) => (s.splash || 0) > 0);
+      if (splash) return splash;
+    }
     return null;
   }
 

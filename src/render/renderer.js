@@ -401,14 +401,16 @@ export class Renderer {
       }
       ctx.restore();
 
-      // HP bar (main always; others when damaged)
+      // HP bar (main always; others when damaged) — sits above the VISUAL
+      // height (radius × Size %), so an enlarged sprite can't cover its bar
       if (s.kind === 'main' || s.hp < s.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
+        const vr = r * Math.max(1, sizeOf(raceOf(s.team), s.kind));
         const w = s.kind === 'main' ? 110 : r * 3;
         const ratio = Math.max(0, s.hp / s.maxHp);
         ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(s.x - w / 2, s.y - r - (s.kind === 'main' ? 26 : 14), w, s.kind === 'main' ? 8 : 5);
+        ctx.fillRect(s.x - w / 2, s.y - vr - (s.kind === 'main' ? 26 : 14), w, s.kind === 'main' ? 8 : 5);
         ctx.fillStyle = color;
-        ctx.fillRect(s.x - w / 2, s.y - r - (s.kind === 'main' ? 26 : 14), w * ratio, s.kind === 'main' ? 8 : 5);
+        ctx.fillRect(s.x - w / 2, s.y - vr - (s.kind === 'main' ? 26 : 14), w * ratio, s.kind === 'main' ? 8 : 5);
       }
     }
   }
