@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.41';
+export const VERSION = 'v9.42';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -15,7 +15,10 @@ export const CONFIG = {
   // Battlefield (simulation units) — larger than the screen; an RTS
   // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
   FIELD_W: 3600,
-  FIELD_H: 1440,
+  // Height is kept close to the actual play content (a 20-cell-tall band plus
+  // a 2-cell margin top/bottom) so the camera's fit-zoom doesn't leave big
+  // empty margins — a taller field would just read as "zoomed out".
+  FIELD_H: 960,
 
   // Each side's quadrant is a real base, split in two grid-aligned parts:
   //   [construction zone: main base + buildings][army zone: unit formation]
@@ -30,27 +33,27 @@ export const CONFIG = {
   // Construction (base) zone: 9 × 20 cells, same height as the army strip so
   // the whole base reads as one 20-cell-tall block.
   CONSTRUCTION_ZONE: [
-    { x0: 60, x1: 420, y0: 320, y1: 1120 },    // team 0 (left)
-    { x0: 3180, x1: 3540, y0: 320, y1: 1120 }, // team 1 (right)
+    { x0: 60, x1: 420, y0: 80, y1: 880 },    // team 0 (left)
+    { x0: 3180, x1: 3540, y0: 80, y1: 880 }, // team 1 (right)
   ],
   // Army formation strip: exactly 12 × 20 cells (of GRID px), centered
   // vertically; major grid lines land every GRID_MAJOR cells.
   ARMY_ZONE: [
-    { x0: 440, x1: 920, y0: 320, y1: 1120 },
-    { x0: 2680, x1: 3160, y0: 320, y1: 1120 },
+    { x0: 440, x1: 920, y0: 80, y1: 880 },
+    { x0: 2680, x1: 3160, y0: 80, y1: 880 },
   ],
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
   MID_BUILD_ZONE: [
-    { x0: 1220, x1: 1420, y0: 520, y1: 920 },
-    { x0: 2180, x1: 2380, y0: 520, y1: 920 },
+    { x0: 1220, x1: 1420, y0: 280, y1: 680 },
+    { x0: 2180, x1: 2380, y0: 280, y1: 680 },
   ],
 
   // Main base: the win objective, back-center of the construction zone.
   // HP by tier; upgrading unlocks unit tiers and heals +1000.
   MAIN: {
     x: [200, 3400],
-    y: 720,
+    y: 480,
     radius: 50,
     hp: [4000, 5000, 6000],
     idleSpeed: 2, // idle frame flips per second (higher = faster idle 1↔2)

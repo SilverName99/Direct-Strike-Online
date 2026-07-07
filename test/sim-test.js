@@ -157,8 +157,8 @@ console.log('buildings');
   game.money[0] = 5000;
 
   const base = game.incomePerTick(0);
-  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 400 });
-  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 500 });
+  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 400 });
+  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 500 });
   check('generators build in construction zone', g1.ok && g2.ok);
   // income amounts are per 20s; each tick pays the proportional slice
   const tickShare = CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW;
@@ -167,7 +167,7 @@ console.log('buildings');
     game.incomePerTick(0) === base + Math.round(2 * CONFIG.BUILDINGS.generator.income * tickShare)
   );
 
-  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 165, y: 405 });
+  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 105, y: 405 });
   check('overlapping build rejected', !overlap.ok);
   const badZone = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 500, y: 700 });
   check('building in army zone rejected', !badZone.ok);
@@ -897,16 +897,16 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({ races: { humans: { buildings: { generator: { buildCd: 10 } } } } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
     game.money[0] = 5000;
-    const b1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 400 });
-    const b2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 500 });
+    const b1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 400 });
+    const b2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 500 });
     check('first generator builds', b1.ok);
     check('second generator blocked by build cooldown', !b2.ok && b2.reason === 'cooldown');
     run(game, 10.1);
-    const b3 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 160, y: 500 });
+    const b3 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 500 });
     check('cooldown over -> generator builds again', b3.ok, JSON.stringify(b3));
     // walls are unaffected (no buildCd on them)
-    const w = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 260, y: 400 });
-    const w2 = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 260, y: 500 });
+    const w = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 260, y: 200 });
+    const w2 = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 260, y: 300 });
     check('other buildings have no cooldown', w.ok && w2.ok);
   }
 
