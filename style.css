@@ -138,20 +138,27 @@ html, body {
   align-items: flex-end;
   gap: 10px;
   padding: 8px 12px;
-  background: var(--panel);
+  background: rgba(16, 21, 30, 0.92);
   border: 1px solid var(--border);
   border-bottom: none;
   border-radius: 12px 12px 0 0;
-  height: 152px;
-  /* not full-width: 15% breathing room on each side */
+  height: 184px;
+  /* an overlay ON TOP of the map: the 15% side gaps show the battlefield */
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 70%;
-  margin: 0 auto;
+  min-width: 900px;
+  max-width: 1400px;
+  z-index: 6;
+  backdrop-filter: blur(3px);
 }
 
 #bb-map {
   align-self: stretch;
-  width: 280px;
-  flex: 0 0 280px;
+  width: 250px;
+  flex: 0 0 250px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -178,7 +185,8 @@ html, body {
 
 #bb-details {
   flex: 1;
-  min-width: 200px;
+  min-width: 170px;
+  max-width: 330px;
   height: 124px;
   background: #10151d;
   border: 1px solid var(--border);
@@ -206,21 +214,21 @@ html, body {
 #bb-details .d-chip { border: 1px solid var(--border); border-radius: 20px; padding: 0 8px;
   font-size: 10px; background: #0a0e14; }
 
-/* 3x3 command grid + hover popup */
+/* 3x3 command grid (big slots — allowed to eat into the details width) */
 #bb-grid-wrap { position: relative; flex: 0 0 auto; }
 #bb-grid {
   display: grid;
-  grid-template-columns: repeat(3, 40px);
-  grid-template-rows: repeat(3, 40px);
-  gap: 2px;
+  grid-template-columns: repeat(3, 54px);
+  grid-template-rows: repeat(3, 54px);
+  gap: 3px;
 }
 .slot {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 54px;
+  height: 54px;
   background: var(--panel-2);
   border: 1.5px solid var(--border);
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -228,7 +236,7 @@ html, body {
   overflow: hidden;
 }
 .slot.empty { background: #10151d; border-color: #1d2431; cursor: default; }
-.slot canvas { width: 34px; height: 34px; pointer-events: none; }
+.slot canvas { width: 46px; height: 46px; pointer-events: none; }
 .slot:hover:not(.empty), .slot.hover:not(.empty) { border-color: #3d4c66; }
 .slot.selected { border-color: var(--blue); box-shadow: 0 0 8px rgba(77, 166, 255, 0.4); }
 .slot.disabled { opacity: 0.38; cursor: not-allowed; }
@@ -237,14 +245,14 @@ html, body {
 .slot.off { opacity: 0.55; }
 .slot.owned-upg { border-color: #ffb35c; }
 .slot.sell { border-color: #7a2a33; }
-.slot .s-cost { position: absolute; bottom: 0; right: 2px; font-size: 8.5px; color: var(--gold);
+.slot .s-cost { position: absolute; bottom: 1px; right: 3px; font-size: 10px; color: var(--gold);
   font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
-.slot .s-key { position: absolute; top: 0; left: 3px; font-size: 8.5px; color: var(--dim);
+.slot .s-key { position: absolute; top: 1px; left: 4px; font-size: 10px; color: var(--dim);
   text-shadow: 0 1px 2px #000; pointer-events: none; }
-.slot .s-lock { position: absolute; top: 0; right: 2px; font-size: 8.5px; color: var(--gold);
+.slot .s-lock { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold);
   font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
 .slot .s-cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.55); font-size: 11px; color: var(--gold); font-weight: 700; pointer-events: none; }
+  background: rgba(0,0,0,0.55); font-size: 14px; color: var(--gold); font-weight: 700; pointer-events: none; }
 
 /* hover popup: right above the grid (wider than it so the text breathes) */
 #bb-popup {

@@ -318,7 +318,7 @@ export class BottomBar {
       if (!data) continue;
       // icon
       const cv = document.createElement('canvas');
-      cv.width = 34; cv.height = 34;
+      cv.width = 46; cv.height = 46;
       slot.el.appendChild(cv);
       this.drawSlotIcon(cv.getContext('2d'), data, game);
       // overlays
@@ -402,52 +402,52 @@ export class BottomBar {
   }
 
   drawSlotIcon(ctx, data, game) {
-    ctx.clearRect(0, 0, 34, 34);
+    ctx.clearRect(0, 0, 46, 46);
     if (data.kind === 'unit' || data.kind === 'building') {
       ctx.save();
-      ctx.translate(17, 18);
-      if (drawThumb(ctx, data.id, 0, 30)) { ctx.restore(); return; }
+      ctx.translate(23, 24);
+      if (drawThumb(ctx, data.id, 0, 42)) { ctx.restore(); return; }
       ctx.restore();
       if (data.kind === 'unit' && hasCharacter(data.id)) {
         ctx.save();
-        ctx.translate(17, 18);
+        ctx.translate(23, 24);
         const u = statsUnit(raceOf(0), data.id);
-        drawCharacter(ctx, data.id, 'idle', 0, 0, Math.min(1.2, 28 / (u.radius * 2.8 + 4)));
+        drawCharacter(ctx, data.id, 'idle', 0, 0, Math.min(1.6, 38 / (u.radius * 2.8 + 4)));
         ctx.restore();
         return;
       }
       ctx.save();
-      ctx.translate(17, 17);
+      ctx.translate(23, 23);
       if (data.kind === 'building') {
         ctx.fillStyle = '#2d3a4f';
-        ctx.fillRect(-11, -11, 22, 22);
+        ctx.fillRect(-15, -15, 30, 30);
         ctx.strokeStyle = TEAM_COLORS[0];
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-11, -11, 22, 22);
-        if (data.id === 'tower') { ctx.fillStyle = TEAM_COLORS[0]; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); ctx.fill(); }
-        if (data.id === 'generator') { ctx.fillStyle = '#ffd35c'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); }
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(-15, -15, 30, 30);
+        if (data.id === 'tower') { ctx.fillStyle = TEAM_COLORS[0]; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); }
+        if (data.id === 'generator') { ctx.fillStyle = '#ffd35c'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); }
       } else {
         const u = statsUnit(raceOf(0), data.id);
         ctx.fillStyle = TEAM_COLORS[0];
-        if (u.shape === 'ring') { ctx.strokeStyle = TEAM_COLORS[0]; ctx.lineWidth = 3; drawShape(ctx, 'ring', 12); ctx.stroke(); }
-        else { drawShape(ctx, u.shape, 12); ctx.fill(); }
+        if (u.shape === 'ring') { ctx.strokeStyle = TEAM_COLORS[0]; ctx.lineWidth = 3.5; drawShape(ctx, 'ring', 16); ctx.stroke(); }
+        else { drawShape(ctx, u.shape, 16); ctx.fill(); }
       }
       ctx.restore();
       return;
     }
     if (data.kind === 'upgradeBase') {
       ctx.fillStyle = '#ffd35c';
-      ctx.font = 'bold 22px sans-serif';
+      ctx.font = 'bold 30px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('▲', 17, 18);
+      ctx.fillText('▲', 23, 24);
       return;
     }
     if (data.kind === 'ability' || data.kind === 'upgrade' || data.kind === 'buyUpgrade') {
       const img = getUiIcon(`${data.kind === 'ability' ? 'ability' : 'upgrade'}-${data.id}`);
       if (img) {
-        const s = Math.min(34 / img.width, 34 / img.height);
-        ctx.drawImage(img, (34 - img.width * s) / 2, (34 - img.height * s) / 2, img.width * s, img.height * s);
+        const s = Math.min(46 / img.width, 46 / img.height);
+        ctx.drawImage(img, (46 - img.width * s) / 2, (46 - img.height * s) / 2, img.width * s, img.height * s);
         return;
       }
       // fallback: colored disc + initial (ability) / boar glyph (upgrade)
@@ -455,26 +455,26 @@ export class BottomBar {
         const ab = resolvedAbility(data.id);
         ctx.fillStyle = (ab && ab.color) || '#8fa3c0';
         ctx.beginPath();
-        ctx.arc(17, 17, 13, 0, Math.PI * 2);
+        ctx.arc(23, 23, 18, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#0a0e14';
-        ctx.font = 'bold 15px sans-serif';
+        ctx.font = 'bold 20px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(((ab && ab.name) || data.id)[0].toUpperCase(), 17, 18);
+        ctx.fillText(((ab && ab.name) || data.id)[0].toUpperCase(), 23, 24);
       } else {
-        ctx.font = '20px sans-serif';
+        ctx.font = '27px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('🐗', 17, 18);
+        ctx.fillText('🐗', 23, 24);
       }
       return;
     }
     if (data.kind === 'sell') {
-      ctx.font = '18px sans-serif';
+      ctx.font = '25px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('💰', 17, 18);
+      ctx.fillText('💰', 23, 24);
     }
   }
 
