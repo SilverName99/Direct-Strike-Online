@@ -741,7 +741,7 @@ console.log('abilities (casters, auras, status effects)');
   {
     applyBalance({ races: { humans: { units: { grunt: { cw: 2, ch: 2 } } } } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
-    const x0 = CONFIG.ARMY_ZONE[0].x0 + 40, y0 = 300; // 2x2 box fits the army zone
+    const x0 = CONFIG.ARMY_ZONE[0].x0 + 40, y0 = 400; // 2x2 box fits the army zone
     const r1 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: x0, y: y0 });
     check('2x2 unit placed', r1.ok, JSON.stringify(r1));
     const r2 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: x0 + 50, y: y0 });

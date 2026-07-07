@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.40';
+export const VERSION = 'v9.41';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -27,17 +27,17 @@ export const CONFIG = {
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
   GRID_MAJOR: 2,        // draw a grid line every N cells (the fine cell still snaps)
-  // Construction (base) zone: 9 × 24 cells, same height as the army strip so
-  // the whole base reads as one 24-cell-tall block.
+  // Construction (base) zone: 9 × 20 cells, same height as the army strip so
+  // the whole base reads as one 20-cell-tall block.
   CONSTRUCTION_ZONE: [
-    { x0: 60, x1: 420, y0: 240, y1: 1200 },    // team 0 (left)
-    { x0: 3180, x1: 3540, y0: 240, y1: 1200 }, // team 1 (right)
+    { x0: 60, x1: 420, y0: 320, y1: 1120 },    // team 0 (left)
+    { x0: 3180, x1: 3540, y0: 320, y1: 1120 }, // team 1 (right)
   ],
-  // Army formation strip: exactly 16 × 24 cells (of GRID px), centered
+  // Army formation strip: exactly 12 × 20 cells (of GRID px), centered
   // vertically; major grid lines land every GRID_MAJOR cells.
   ARMY_ZONE: [
-    { x0: 440, x1: 1080, y0: 240, y1: 1200 },
-    { x0: 2520, x1: 3160, y0: 240, y1: 1200 },
+    { x0: 440, x1: 920, y0: 320, y1: 1120 },
+    { x0: 2680, x1: 3160, y0: 320, y1: 1120 },
   ],
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
