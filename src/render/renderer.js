@@ -170,6 +170,12 @@ export class Renderer {
       x1: cam.x + cam.viewW(),
       y1: cam.y + cam.viewH(),
     };
+    // full clear first: with bottom overscroll the viewport can extend past
+    // the field, and that strip would smear stale pixels otherwise
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0a0e14';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
     ctx.save();
     ctx.setTransform(z, 0, 0, z, -cam.x * z, -cam.y * z);
 

@@ -35,7 +35,10 @@ export class Camera {
   clamp() {
     this.zoom = Math.min(Math.max(this.zoom, this.minZoom()), this.maxZoom());
     this.x = Math.min(Math.max(this.x, 0), CONFIG.FIELD_W - this.viewW());
-    this.y = Math.min(Math.max(this.y, 0), CONFIG.FIELD_H - this.viewH());
+    // downward the camera may overshoot the world by BOTTOM_PAD, so the map's
+    // bottom edge can be scrolled up above the overlay UI bar
+    const pad = CONFIG.CAMERA.BOTTOM_PAD || 0;
+    this.y = Math.min(Math.max(this.y, 0), CONFIG.FIELD_H - this.viewH() + pad);
   }
 
   // px/py are CSS pixels relative to the canvas element.

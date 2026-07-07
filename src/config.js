@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.48';
+export const VERSION = 'v9.49';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -125,6 +125,8 @@ export const CONFIG = {
     ZOOM_MAX: 4,       // max zoom = fit-the-map zoom × this (close enough to enjoy the characters)
     ZOOM_STEP: 1.15,   // wheel notch multiplier
     START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
+    BOTTOM_PAD: 260,   // extra world units the camera may scroll BELOW the map
+                       // (so the bottom of the world can rise above the UI bar)
   },
 
   // AI difficulty knobs

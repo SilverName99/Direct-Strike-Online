@@ -51,6 +51,8 @@ export class BottomBar {
     this.lastInspectKey = null;
     this.sig = null;             // grid rebuild signature
 
+    this.bar = document.getElementById('bottombar');
+    this.bgPath = document.querySelector('#bb-bg path');
     this.portrait = document.getElementById('portrait');
     this.details = document.getElementById('bb-details');
     this.grid = document.getElementById('bb-grid');
@@ -97,6 +99,46 @@ export class BottomBar {
       });
     }
     this.refreshTabs();
+
+    // the curved one-piece background needs real layout sizes
+    requestAnimationFrame(() => this.buildTrayBg());
+    window.addEventListener('resize', () => this.buildTrayBg());
+  }
+
+  // Draw the bar's background as ONE silhouette: a low tray whose top edge
+  // hugs the portrait/details panels, curving up with concave fillets around
+  // the taller pods (minimap, command grid, tabs) and over their rounded
+  // tops — instead of a straight edge cut behind them.
+  buildTrayBg() {
+    if (!this.bar || !this.bgPath) return;
+    const bar = this.bar.getBoundingClientRect();
+    if (!bar.width) return;
+    const svg = document.getElementById('bb-bg');
+    svg.setAttribute('viewBox', `0 0 ${bar.width} ${bar.height}`);
+    const trayTop = bar.height - 140; // tray hugs the 124px panels + padding
+    const pods = ['bb-map', 'bb-grid-wrap', 'bb-tabs']
+      .map((id) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x0: r.left - bar.left, x1: r.right - bar.left, y: r.top - bar.top };
+      })
+      .filter((p) => p && p.y < trayTop - 4)
+      .sort((a, b) => a.x0 - b.x0);
+    const R = 14; // tray outer corner radius
+    const r = 10; // pod top corner radius
+    const f = 7;  // concave fillet where a pod meets the tray edge
+    const H = bar.height;
+    const W = bar.width;
+    let d = `M0,${H} L0,${trayTop + R} Q0,${trayTop} ${R},${trayTop}`;
+    for (const p of pods) {
+      d += ` L${p.x0 - f},${trayTop} Q${p.x0},${trayTop} ${p.x0},${trayTop - f}`;
+      d += ` L${p.x0},${p.y + r} Q${p.x0},${p.y} ${p.x0 + r},${p.y}`;
+      d += ` L${p.x1 - r},${p.y} Q${p.x1},${p.y} ${p.x1},${p.y + r}`;
+      d += ` L${p.x1},${trayTop - f} Q${p.x1},${trayTop} ${p.x1 + f},${trayTop}`;
+    }
+    d += ` L${W - R},${trayTop} Q${W},${trayTop} ${W},${trayTop + R} L${W},${H} Z`;
+    this.bgPath.setAttribute('d', d);
   }
 
   refreshTabs() {
@@ -124,6 +166,7 @@ export class BottomBar {
   refresh() {
     this.sig = null;
     this.refreshTabs();
+    this.buildTrayBg();
   }
 
   // ------------------------------------------------------------------ frame
