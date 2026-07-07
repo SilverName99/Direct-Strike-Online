@@ -222,7 +222,18 @@ html, body {
   justify-content: center;
   overflow: hidden;
 }
+#bb-portrait { position: relative; }
 #bb-portrait canvas { width: 112px; height: 112px; }
+/* per-unit idle clip, laid over the portrait canvas; shown only when present */
+#bb-portrait-vid {
+  display: none;
+  position: absolute;
+  width: 112px; height: 112px;
+  object-fit: contain;
+  pointer-events: none;
+}
+#bb-portrait.has-vid canvas { visibility: hidden; }
+#bb-portrait.has-vid #bb-portrait-vid { display: block; }
 
 #bb-details {
   width: 280px;

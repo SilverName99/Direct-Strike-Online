@@ -25,6 +25,7 @@ const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image
 const baseUpgIcons = new Map(); // race -> Image (base tier-upgrade slot icon, per race)
 const barSkins = new Map();    // race -> url of the uploaded bottom-bar background design
 const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
+const portraitVideos = new Map(); // `${race}/${ent}` -> url of the idle portrait clip (mp4/webm)
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -134,6 +135,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [race, file] of Object.entries(man.barovers || {})) {
         barOverlays.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
+      // per-unit idle portrait clip (mp4/webm) — just URLs for a <video> element
+      for (const [race, ents] of Object.entries(man.portraitvids || {})) {
+        for (const [ent, file] of Object.entries(ents)) {
+          portraitVideos.set(`${race}/${ent}`, `${base}${race}/${ent}/${file}?v=${man.v || 0}`);
+        }
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
@@ -205,6 +212,11 @@ export function getBarSkin(race) {
 // URL of a race's uploaded bottom-bar overlay (drawn over the UI), or null.
 export function getBarOverlay(race) {
   return barOverlays.get(race) || null;
+}
+
+// URL of a unit's uploaded idle portrait clip (mp4/webm), or null.
+export function getPortraitVideoUrl(race, ent) {
+  return portraitVideos.get(`${race}/${ent}`) || null;
 }
 
 export function getSprite(race, ent, anim, frame) {

@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
-import { raceOf, getSprite, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay } from '../render/sprites.js';
+import { raceOf, getSprite, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -54,6 +54,9 @@ export class BottomBar {
     this.bar = document.getElementById('bottombar');
     this.bgPath = document.querySelector('#bb-bg path');
     this.portrait = document.getElementById('portrait');
+    this.portraitBox = document.getElementById('bb-portrait');
+    this.portraitVid = document.getElementById('bb-portrait-vid');
+    this.portraitVidSrc = null;   // currently loaded clip URL (avoid reloading each frame)
     this.details = document.getElementById('bb-details');
     this.grid = document.getElementById('bb-grid');
     this.popup = document.getElementById('bb-popup');
@@ -295,10 +298,15 @@ export class BottomBar {
     const ctx = this.portrait.getContext('2d');
     ctx.clearRect(0, 0, 112, 112);
     if (!info || !game) {
+      this.setPortraitVideo(null);
       this.details.innerHTML = '<div class="bb-empty">Selectează o unitate sau o clădire.</div>';
       return;
     }
-    this.drawPortrait(ctx, game, info);
+    // an uploaded idle clip (mp4/webm) takes over the portrait box; otherwise
+    // fall back to the sprite/vector portrait drawn on the canvas
+    const vid = getPortraitVideoUrl(raceOf(info.team), info.type);
+    this.setPortraitVideo(vid);
+    if (!vid) this.drawPortrait(ctx, game, info);
 
     const own = info.team === 0;
     const isStruct = info.kind === 'structure';
@@ -367,6 +375,25 @@ export class BottomBar {
       ${manaBar}
       <div class="d-stats">${rows.map((r) => `<span>${r}</span>`).join('')}</div>
       <div class="d-status">${chips}</div>`;
+  }
+
+  // Show/hide the looping idle clip over the portrait canvas. Only reloads the
+  // <video> when the clip URL actually changes (selection switched units).
+  setPortraitVideo(url) {
+    if (!this.portraitVid || !this.portraitBox) return;
+    if (url === this.portraitVidSrc) return;
+    this.portraitVidSrc = url;
+    if (url) {
+      this.portraitVid.src = url;
+      this.portraitBox.classList.add('has-vid');
+      const p = this.portraitVid.play();
+      if (p && p.catch) p.catch(() => {});
+    } else {
+      this.portraitBox.classList.remove('has-vid');
+      this.portraitVid.pause();
+      this.portraitVid.removeAttribute('src');
+      this.portraitVid.load();
+    }
   }
 
   drawPortrait(ctx, game, info) {

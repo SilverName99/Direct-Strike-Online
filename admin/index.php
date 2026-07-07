@@ -123,6 +123,8 @@ const MAX_BYTES = 1572864; // 1.5 MB
 const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
 const MUSIC_MAX_BYTES = 12582912; // 12 MB (background music tracks)
 const MUSIC_EXTS = ['mp3', 'ogg', 'm4a', 'mp4'];
+const PORTRAIT_VID_MAX_BYTES = 12582912; // 12 MB (per-unit idle portrait clip)
+const PORTRAIT_VID_EXTS = ['mp4', 'webm']; // looping video shown in the portrait box
 const CURSOR_MAX_BYTES = 1048576; // 1 MB (a mouse cursor image is small)
 const CURSOR_EXTS = ['png', 'gif', 'cur', 'webp'];
 const BARSKIN_EXTS = ['png', 'webp', 'jpg', 'jpeg']; // bottom-bar background design
@@ -130,6 +132,12 @@ const BARSKIN_EXTS = ['png', 'webp', 'jpg', 'jpeg']; // bottom-bar background de
 // The uploaded background-music file for a race (music.<ext>), or null.
 function musicFileFor(string $assetsDir, string $race): ?string {
   foreach (MUSIC_EXTS as $e) if (is_file("$assetsDir/$race/music.$e")) return "music.$e";
+  return null;
+}
+
+// A unit's uploaded idle portrait clip (<ent>/portrait.<ext>), or null.
+function portraitVidFileFor(string $assetsDir, string $race, string $ent): ?string {
+  foreach (PORTRAIT_VID_EXTS as $e) if (is_file("$assetsDir/$race/$ent/portrait.$e")) return "portrait.$e";
   return null;
 }
 
@@ -276,10 +284,17 @@ function regenManifest(string $assetsDir): void {
   $barskins = [];
   $barovers = [];
   $baseupg = [];
+  $portraitvids = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
     if ($mf) $music[$r] = $mf;
+    $pv = [];
+    foreach (UNIT_LIST as $ent) {
+      $vf = portraitVidFileFor($assetsDir, $r, $ent);
+      if ($vf) $pv[$ent] = $vf;
+    }
+    if ($pv) $portraitvids[$r] = $pv;
     $cf = cursorFileFor($assetsDir, $r);
     if ($cf) $cursors[$r] = $cf;
     $t = [];
@@ -304,7 +319,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -463,6 +478,41 @@ if ($authed && $action === 'deletemusic') {
     foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/$race/music.$e");
     regenManifest($assetsDir);
     $msg = "Muzică ștearsă: $race";
+  }
+}
+
+// per-unit idle portrait clip (mp4/webm) — loops in the portrait box in-game
+if ($authed && $action === 'uploadportraitvid') {
+  $ent = $_POST['entity'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($ent, UNIT_LIST, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['video']) || $_FILES['video']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['video']['size'] > PORTRAIT_VID_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['video']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['video']['tmp_name'];
+    if (!in_array($ext, PORTRAIT_VID_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere video: ' . implode(', ', PORTRAIT_VID_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race/$ent", 0755, true);
+      foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/$ent/portrait.$e"); // one clip per unit
+      if (move_uploaded_file($tmp, "$assetsDir/$race/$ent/portrait.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Animație portret încărcată: $race · $ent";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteportraitvid') {
+  $ent = $_POST['entity'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($ent, UNIT_LIST, true)) {
+    foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/$ent/portrait.$e");
+    regenManifest($assetsDir);
+    $msg = "Animație portret ștearsă: $race · $ent";
   }
 }
 
@@ -720,8 +770,18 @@ if ($authed && $action === 'deletebarover') {
     .ent {
       background: #161c26; border: 1px solid #2a3446; border-radius: 12px;
       padding: 14px 16px; margin-bottom: 12px;
-      display: flex; gap: 16px; align-items: flex-start;
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;
     }
+    .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
+    .portraitvid .lbl { font-size: 10px; color: #b58fff; text-transform: uppercase; letter-spacing: 1px; }
+    .portraitvid .pv-row { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+    .portraitvid video { border: 1px solid #2a3446; border-radius: 6px; background: #0a0e14; }
+    .portraitvid .pv-empty {
+      width: 96px; height: 96px; border: 1px dashed #3d4c66; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center; color: #3d4c66; font-size: 11px;
+    }
+    .portraitvid input[type=file] { display: none; }
+    .portraitvid .pick { color: #b58fff; font-size: 12px; cursor: pointer; text-decoration: underline; }
     .ent .title { width: 110px; padding-top: 22px; }
     .ent .title b { font-size: 14px; color: #4da6ff; text-transform: capitalize; display: block; }
     .ent .title span { font-size: 11px; color: #7c8ba1; }
@@ -1055,6 +1115,37 @@ if ($authed && $action === 'deletebarover') {
         </div>
         <?php endforeach; ?>
       </div>
+      <?php if ($kind === 'unit'):
+        $vidFile = portraitVidFileFor($assetsDir, $race, $ent);
+        $hasVid = $vidFile !== null;
+      ?>
+      <div class="portraitvid">
+        <span class="lbl">Animație portret (mp4/webm) — apare lângă statusuri, în locul thumbnail-ului</span>
+        <div class="pv-row">
+          <?php if ($hasVid): ?>
+            <video src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $vidFile ?>?t=<?= filemtime("$assetsDir/$race/$ent/$vidFile") ?>" width="96" height="96" autoplay loop muted playsinline></video>
+          <?php else: ?>
+            <div class="pv-empty">fără animație</div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadportraitvid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <label class="pick"><?= $hasVid ? 'înlocuiește' : 'încarcă' ?><input type="file" name="video" accept="video/mp4,video/webm" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($hasVid): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="deleteportraitvid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi animația portret?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
     </div>
   <?php } ?>
 
