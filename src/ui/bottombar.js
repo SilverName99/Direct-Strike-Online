@@ -521,11 +521,10 @@ export class BottomBar {
 
   buildingItems() {
     const race = raceOf(0);
-    const items = BUILDING_CARDS.map((b) => ({
+    // the base tier upgrade now lives on the Main Base selection, not here
+    return BUILDING_CARDS.map((b) => ({
       kind: 'building', id: b.id, cost: statsBuilding(race, b.id).cost, hotkey: b.hotkey,
     }));
-    items.push({ kind: 'upgradeBase', id: 'upgrade', hotkey: '0' });
-    return items;
   }
 
   inspectItems(game, info) {
@@ -536,7 +535,8 @@ export class BottomBar {
     const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
 
     // your own Main Base: the upgrades shop lives HERE (no more modal) —
-    // unowned = click to buy, owned = click to activate/deactivate
+    // unowned = click to buy, owned = click to activate/deactivate — plus the
+    // tier upgrade (advance the base to the next tier) after the upgrades
     if (own && isStruct && info.type === 'main') {
       const race = raceOf(0);
       for (const id of UPGRADE_IDS) {
@@ -545,6 +545,7 @@ export class BottomBar {
           items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0 });
         }
       }
+      items.push({ kind: 'upgradeBase', id: 'upgrade' });
       return items;
     }
 

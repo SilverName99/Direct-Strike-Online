@@ -187,6 +187,10 @@ html, body {
 #bottombar.skinned .slot, #bottombar.overlaid .slot,
 #bottombar.skinned .slot.empty, #bottombar.overlaid .slot.empty,
 #bottombar.skinned .bb-tab, #bottombar.overlaid .bb-tab { background: transparent; }
+/* nudge the command grid + tab buttons 5px right so they line up with a custom
+   design's painted frames (transform keeps layout/silhouette in sync) */
+#bottombar.skinned #bb-grid-wrap, #bottombar.overlaid #bb-grid-wrap,
+#bottombar.skinned #bb-tabs, #bottombar.overlaid #bb-tabs { transform: translateX(5px); }
 
 #bb-map {
   /* sits IN the tray, level with the portrait — no raised pod on the left */
