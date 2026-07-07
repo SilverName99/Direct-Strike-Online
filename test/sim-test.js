@@ -892,6 +892,25 @@ console.log('abilities (casters, auras, status effects)');
     check('enemy crossing steals the middle', game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
   }
 
+  // Real-match scenario: both sides keep armies on their OWN half. Those must
+  // NOT block the crossing edge-detect. (The old bug: midHeld didn't filter by
+  // team, so any unit on a half counted — the enemy could never steal because
+  // the player's home units kept midHeld(1) permanently true.)
+  {
+    applyBalance({ general: { MID_INCOME: 100 } });
+    const game = new Game(4, { races: ['humans', 'orcs'] });
+    const mid = CONFIG.FIELD_W / 2;
+    const h = spawnUnit(game, 0, 'grunt', 700, 300); h.hp = h.maxHp = 1e6;   // home army, own half
+    const e = spawnUnit(game, 1, 'grunt', 2900, 300); e.hp = e.maxHp = 1e6;  // home army, own half
+    const s0 = spawnUnit(game, 0, 'grunt', mid + 60, 500); s0.hp = s0.maxHp = 1e6; // player crosses
+    game.update(DT); game.drainEvents();
+    check('player captures mid despite both home armies', game.midBonusPerTick(0) > 0);
+    const s1 = spawnUnit(game, 1, 'grunt', mid - 60, 520); s1.hp = s1.maxHp = 1e6; // enemy crosses
+    game.update(DT); game.drainEvents();
+    check('enemy steals mid despite both home armies',
+      game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
+  }
+
   // Generator build cooldown: after building one, the next must wait buildCd s
   {
     applyBalance({ races: { humans: { buildings: { generator: { buildCd: 10 } } } } });

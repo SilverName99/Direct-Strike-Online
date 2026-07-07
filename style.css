@@ -191,6 +191,9 @@ html, body {
    design's painted frames (transform keeps layout/silhouette in sync) */
 #bottombar.skinned #bb-grid-wrap, #bottombar.overlaid #bb-grid-wrap,
 #bottombar.skinned #bb-tabs, #bottombar.overlaid #bb-tabs { transform: translateX(5px); }
+/* the Orcs bar design has a thicker top rail — push the details/status content
+   down a touch so the name/bars clear the frame (Orcs only) */
+#bottombar.race-orcs #bb-details { padding-top: 26px; }
 
 #bb-map {
   /* sits IN the tray, level with the portrait — no raised pod on the left */

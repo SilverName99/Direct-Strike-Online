@@ -112,10 +112,14 @@ export class Game {
     return Math.max(0, (this.buildReadyAt[team][kind] || 0) - this.time);
   }
 
-  // "Holding the middle": true while this team has a unit past midfield.
+  // "Holding the middle": true while THIS team has one of its OWN units past
+  // midfield. (Must filter by team — otherwise the enemy's units sitting on
+  // their own half keep midHeld(enemy) permanently true, so the crossing
+  // edge-detect never fires and the middle can never be stolen.)
   midHeld(team) {
     const mid = CONFIG.FIELD_W / 2;
-    return this.entities.some((e) => (team === 0 ? e.x > mid : e.x < mid));
+    return this.entities.some((e) =>
+      e.team === team && e.hp > 0 && (team === 0 ? e.x > mid : e.x < mid));
   }
 
   // Aggression reward: the middle is a CONTROL POINT. Crossing it captures it

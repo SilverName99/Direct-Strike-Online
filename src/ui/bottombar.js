@@ -202,6 +202,9 @@ export class BottomBar {
     const overEl = document.getElementById('bb-over');
     if (overEl) overEl.style.backgroundImage = over ? `url("${over}")` : '';
     this.bar.classList.toggle('overlaid', !!over);
+    // race tag so a per-race design can nudge details/status for its own frame
+    this.bar.classList.toggle('race-orcs', raceOf(0) === 'orcs');
+    this.bar.classList.toggle('race-humans', raceOf(0) === 'humans');
   }
 
 
