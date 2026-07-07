@@ -214,9 +214,13 @@ export class BottomBar {
     const W = Math.round(bar.width);
     const H = Math.round(bar.height);
     if (!W || !H) return;
-    const s = 2; // export at 2× for crisp guides
+    // Export at 3× the bar's CSS size: the game stretches the uploaded art to
+    // 100%×100% of the bar (~W×H CSS px), so a source at 3× stays crisp even on
+    // 2×–3× high-DPI screens. Design/export at the FULL canvas px below.
+    const s = 3;
+    const PW = W * s, PH = H * s;
     const cv = document.createElement('canvas');
-    cv.width = W * s; cv.height = H * s;
+    cv.width = PW; cv.height = PH;
     const ctx = cv.getContext('2d');
     ctx.scale(s, s);
     // checkerboard so transparent areas are visible while editing
@@ -263,11 +267,11 @@ export class BottomBar {
     ctx.fillStyle = 'rgba(255,211,92,0.95)';
     ctx.font = 'bold 12px sans-serif';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`Direct Strike — șablon meniu jos · ${W}×${H}px · pictează SUB elemente, exportă la aceeași mărime`, 8, H - 6);
+    ctx.fillText(`Direct Strike — șablon meniu jos · exportă la EXACT ${PW}×${PH}px (nu redimensiona) · pictează SUB elemente`, 8, H - 6);
 
     const a = document.createElement('a');
     a.href = cv.toDataURL('image/png');
-    a.download = `ds-bara-jos-${W}x${H}.png`;
+    a.download = `ds-bara-jos-${PW}x${PH}.png`;
     a.click();
   }
 
