@@ -46,7 +46,7 @@ const UPGRADE_INFO = [
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
-  $keys = [];
+  $keys = ['baseupgrade' => 'Upgrade Bază (tier)'];
   foreach (ABILITY_INFO as $id => $_) $keys["ability-$id"] = ABILITY_INFO[$id][0];
   foreach (UPGRADE_INFO as $id => $name) $keys["upgrade-$id"] = $name;
   return $keys;

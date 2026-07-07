@@ -611,6 +611,12 @@ export class BottomBar {
       return;
     }
     if (data.kind === 'upgradeBase') {
+      const img = getUiIcon('baseupgrade');
+      if (img) {
+        const sc = Math.min(46 / img.width, 46 / img.height);
+        ctx.drawImage(img, (46 - img.width * sc) / 2, (46 - img.height * sc) / 2, img.width * sc, img.height * sc);
+        return;
+      }
       ctx.fillStyle = '#ffd35c';
       ctx.font = 'bold 30px sans-serif';
       ctx.textAlign = 'center';
