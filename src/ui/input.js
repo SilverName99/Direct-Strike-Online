@@ -99,12 +99,11 @@ export class Input {
       // click a LIVE unit (either team) -> inspect it
       const ent = hitTestEntity(game, raw.x, raw.y);
       if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
-      // click a structure (either team) -> inspect; your own Main Base also
-      // opens the upgrades shop
+      // click a structure (either team) -> inspect it; your own Main Base
+      // shows its upgrades in the command grid
       const st = hitTestStructure(game, raw.x, raw.y);
       if (st) {
         this.uiState.inspect = { kind: 'structure', id: st.id };
-        if (st.kind === 'main' && st.team === 0 && this.onBaseClick) this.onBaseClick();
         return;
       }
       // clicked empty ground -> clear the selection

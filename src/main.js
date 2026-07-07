@@ -39,9 +39,8 @@ let state = 'menu'; // 'menu' | 'playing' | 'over'
 const input = new Input(canvas, renderer, camera, uiState, () =>
   state === 'playing' ? game : null
 );
-// clicking your own Main Base opens the upgrades shop
-input.onBaseClick = () => { if (state === 'playing' && game) hud.openUpgrades(game); };
-// WC3-style selection panel (click units/templates/structures to inspect)
+// WC3-style selection panel (click units/templates/structures to inspect;
+// your own Main Base shows its upgrades right in the command grid)
 const bottombar = new BottomBar(
   uiState,
   () => (state === 'playing' ? game : null),

@@ -139,14 +139,19 @@ html, body {
   gap: 10px;
   padding: 8px 12px;
   background: var(--panel);
-  border-top: 1px solid var(--border);
-  height: 184px;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  height: 152px;
+  /* not full-width: 15% breathing room on each side */
+  width: 70%;
+  margin: 0 auto;
 }
 
 #bb-map {
   align-self: stretch;
-  width: 306px;
-  flex: 0 0 306px;
+  width: 280px;
+  flex: 0 0 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,12 +206,12 @@ html, body {
 #bb-details .d-chip { border: 1px solid var(--border); border-radius: 20px; padding: 0 8px;
   font-size: 10px; background: #0a0e14; }
 
-/* 4x4 command grid + hover popup */
+/* 3x3 command grid + hover popup */
 #bb-grid-wrap { position: relative; flex: 0 0 auto; }
 #bb-grid {
   display: grid;
-  grid-template-columns: repeat(4, 40px);
-  grid-template-rows: repeat(4, 40px);
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: repeat(3, 40px);
   gap: 2px;
 }
 .slot {
@@ -241,13 +246,13 @@ html, body {
 .slot .s-cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.55); font-size: 11px; color: var(--gold); font-weight: 700; pointer-events: none; }
 
-/* hover popup: the whole grid's width (4 slots), 2 rows tall, right above it */
+/* hover popup: right above the grid (wider than it so the text breathes) */
 #bb-popup {
   display: none;
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 0;
-  width: 100%;
+  right: 0;
+  width: 300px;
   min-height: 82px;
   background: #0a0e14;
   border: 1px solid var(--border);

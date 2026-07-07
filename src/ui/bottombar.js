@@ -60,9 +60,9 @@ export class BottomBar {
       buildings: document.getElementById('tab-buildings'),
     };
 
-    // 16 fixed slots
+    // 9 fixed slots (3x3)
     this.slots = [];
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 9; i++) {
       const el = document.createElement('div');
       el.className = 'slot empty';
       el.dataset.i = i;
@@ -309,7 +309,7 @@ export class BottomBar {
         ? this.buildingItems()
         : this.unitItems();
 
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 9; i++) {
       const slot = this.slots[i];
       const data = items[i] || null;
       slot.data = data;
@@ -363,6 +363,19 @@ export class BottomBar {
     const own = info.team === 0;
     const isStruct = info.kind === 'structure';
     const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
+
+    // your own Main Base: the upgrades shop lives HERE (no more modal) —
+    // unowned = click to buy, owned = click to activate/deactivate
+    if (own && isStruct && info.type === 'main') {
+      const race = raceOf(0);
+      for (const id of UPGRADE_IDS) {
+        const up = resolvedUpgrade(id);
+        if (up && up.unit && (!up.race || up.race === race)) {
+          items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0 });
+        }
+      }
+      return items;
+    }
 
     if (!isStruct && stats.caster && stats.abilities) {
       for (const aid of stats.abilities) {
@@ -430,8 +443,8 @@ export class BottomBar {
       ctx.fillText('▲', 17, 18);
       return;
     }
-    if (data.kind === 'ability' || data.kind === 'upgrade') {
-      const img = getUiIcon(`${data.kind}-${data.id}`);
+    if (data.kind === 'ability' || data.kind === 'upgrade' || data.kind === 'buyUpgrade') {
+      const img = getUiIcon(`${data.kind === 'ability' ? 'ability' : 'upgrade'}-${data.id}`);
       if (img) {
         const s = Math.min(34 / img.width, 34 / img.height);
         ctx.drawImage(img, (34 - img.width * s) / 2, (34 - img.height * s) / 2, img.width * s, img.height * s);
@@ -513,6 +526,14 @@ export class BottomBar {
         } else {
           el.classList.add('disabled');
         }
+      } else if (d.kind === 'buyUpgrade' && game) {
+        const owned = game.upgrades[0].has(d.id);
+        if (owned) {
+          el.classList.add('owned-upg');
+          el.classList.add(game.upgradeOff[0].has(d.id) ? 'off' : 'on');
+        } else if (game.money[0] < d.cost) {
+          el.classList.add('disabled');
+        }
       } else if (d.kind === 'sell') {
         el.classList.add('sell');
       }
@@ -561,6 +582,15 @@ export class BottomBar {
     if (d.kind === 'upgrade' && d.own && game.upgrades[0].has(d.id)) {
       const on = game.upgradeOff[0].has(d.id);
       game.issueCommand({ type: 'toggleUpgrade', team: 0, id: d.id, on });
+      return;
+    }
+    if (d.kind === 'buyUpgrade') {
+      if (game.upgrades[0].has(d.id)) {
+        const on = game.upgradeOff[0].has(d.id); // owned -> toggle
+        game.issueCommand({ type: 'toggleUpgrade', team: 0, id: d.id, on });
+      } else {
+        game.issueCommand({ type: 'buyUpgrade', team: 0, id: d.id });
+      }
       return;
     }
     if (d.kind === 'sell') {
@@ -631,15 +661,22 @@ export class BottomBar {
         <div class="p-dim">${bits.join(' · ')}</div>
         ${d.own ? '<div class="p-dim">Click: pornește/oprește pentru TOATE unitățile de acest tip.</div>' : ''}`;
     }
-    if (d.kind === 'upgrade') {
+    if (d.kind === 'upgrade' || d.kind === 'buyUpgrade') {
       const up = resolvedUpgrade(d.id);
       if (!up) return '';
-      const owned = game && game.upgrades[d.team].has(d.id);
-      const off = owned && game.upgradeOff[d.team].has(d.id);
-      const state = owned ? (off ? 'DEZACTIVAT' : 'ACTIV') : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
+      const team = d.team || 0;
+      const owned = game && game.upgrades[team].has(d.id);
+      const off = owned && game.upgradeOff[team].has(d.id);
+      const uname = (statsUnit(up.race || race, up.unit) || {}).name || up.unit;
+      const state = owned
+        ? (off ? 'DEZACTIVAT' : 'ACTIV')
+        : d.kind === 'buyUpgrade'
+          ? `◆ ${up.params.cost || 0} — click pentru a cumpăra`
+          : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
       return `<div class="p-title">🐗 ${up.name} — ${state}</div>
         <div>${up.desc || ''}</div>
-        ${owned && d.own ? '<div class="p-dim">Click: activează/dezactivează.</div>' : ''}`;
+        <div class="p-dim">Unitate: ${uname}</div>
+        ${owned && (d.own || d.kind === 'buyUpgrade') ? '<div class="p-dim">Click: activează/dezactivează.</div>' : ''}`;
     }
     if (d.kind === 'sell') {
       return `<div class="p-title">Vinde — ◆ ${d.cost}${d.full ? ' (100%, nespawnat)' : ''}</div>
