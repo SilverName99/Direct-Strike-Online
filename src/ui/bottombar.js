@@ -181,8 +181,27 @@ export class BottomBar {
     this.buildTrayBg();
   }
 
+  // While a shop item is held for placement, if the cursor sits over the bar
+  // fade it to near-transparent and make it click-through, so you can drop the
+  // unit/building on the spot the bar was covering. (winX/winY track the real
+  // cursor, and the virtual one under pointer lock via bubbled synthetic moves.)
+  updatePlacingFade() {
+    if (!this.bar) return;
+    let fade = false;
+    if (this.uiState.selected) {
+      const x = this.uiState.winX;
+      const y = this.uiState.winY;
+      if (x != null && y != null) {
+        const r = this.bar.getBoundingClientRect();
+        fade = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+      }
+    }
+    this.bar.classList.toggle('placing', fade);
+  }
+
   // ------------------------------------------------------------------ frame
   update(game) {
+    this.updatePlacingFade();
     const info = this.resolveInspect(game);
 
     // a NEW selection flips the grid to its command card; losing the

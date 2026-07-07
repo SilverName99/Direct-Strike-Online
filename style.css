@@ -151,6 +151,10 @@ html, body {
   width: fit-content;
   z-index: 6;
 }
+/* while placing a unit/building over the bar: fade out + let clicks through */
+#bottombar { transition: opacity 0.12s; }
+#bottombar.placing { opacity: 0.1; pointer-events: none; }
+
 #bb-bg {
   position: absolute;
   inset: 0;
