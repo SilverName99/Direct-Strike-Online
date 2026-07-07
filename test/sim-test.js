@@ -871,25 +871,27 @@ console.log('abilities (casters, auras, status effects)');
     check('other race turret (regen 0) does not regenerate', t1.hp === t1.maxHp - 300);
   }
 
-  // Mid-field income: the middle is a CONTROL POINT — crossing captures it,
-  // the owner keeps the bonus until the enemy crosses and steals it
+  // Mid-field income: the middle is a CONTROL POINT — crossing captures it, but
+  // you hold the bonus only while you KEEP a unit past the middle
   {
     applyBalance({ general: { MID_INCOME: 100 } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
     check('nobody crossed yet -> no mid bonus', game.midBonusPerTick(0) === 0 && game.midBonusPerTick(1) === 0);
     const scout = spawnUnit(game, 0, 'grunt', CONFIG.FIELD_W / 2 + 50, 300); // crosses
+    scout.hp = scout.maxHp = 1e6;
     game.update(DT); game.drainEvents();
     check('crossing captures the middle (per-20s slice)',
       game.midBonusPerTick(0) === Math.round(100 * CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
     check('enemy does not share the bonus', game.midBonusPerTick(1) === 0);
-    // owner keeps it even after its unit dies (until the enemy crosses)
+    // losing your last unit past mid drops the bonus — no enemy crossing needed
     scout.hp = 0;
     game.update(DT); game.drainEvents();
-    check('bonus persists after the crossing unit dies', game.midBonusPerTick(0) > 0);
-    // the enemy crossing steals control
-    spawnUnit(game, 1, 'grunt', CONFIG.FIELD_W / 2 - 50, 300);
+    check('bonus lost when the last unit past mid dies', game.midBonusPerTick(0) === 0);
+    // the enemy then takes control by crossing with a unit of his own
+    const foe = spawnUnit(game, 1, 'grunt', CONFIG.FIELD_W / 2 - 50, 300);
+    foe.hp = foe.maxHp = 1e6;
     game.update(DT); game.drainEvents();
-    check('enemy crossing steals the middle', game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
+    check('enemy crossing takes the middle', game.midBonusPerTick(1) > 0 && game.midBonusPerTick(0) === 0);
   }
 
   // Real-match scenario: both sides keep armies on their OWN half. Those must

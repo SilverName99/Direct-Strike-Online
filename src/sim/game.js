@@ -122,23 +122,26 @@ export class Game {
       e.team === team && e.hp > 0 && (team === 0 ? e.x > mid : e.x < mid));
   }
 
-  // Aggression reward: the middle is a CONTROL POINT. Crossing it captures it
-  // once; the owner keeps the extra income until the OTHER team pushes a unit
-  // past the middle and steals it.
+  // Aggression reward: the middle is a CONTROL POINT. Crossing it captures it;
+  // you hold the extra income only while you KEEP a unit past the middle. Lose
+  // every unit there (killed or retreated) and the bonus drops — the enemy
+  // takes it by killing off your push or by crossing with a unit of his own.
   midBonusPerTick(team) {
     if (!CONFIG.MID_INCOME || this.midOwner !== team) return 0;
     return Math.round(CONFIG.MID_INCOME * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
   }
 
-  // Capture on the crossing EDGE: a team that newly gets units past midfield
-  // takes ownership; ownership then persists (even with no units there) until
-  // the enemy crosses in turn.
+  // Capture on the crossing EDGE, hold by PRESENCE: a team that newly gets a
+  // unit past midfield takes ownership; the moment the owner has no unit left
+  // past the middle, ownership is released (so the enemy no longer needs to
+  // cross — clearing your push is enough to strip the bonus).
   updateMidControl() {
     for (const t of [0, 1]) {
       const has = this.midHeld(t);
-      if (has && !this.midWas[t] && this.midOwner !== t) this.midOwner = t;
+      if (has && !this.midWas[t]) this.midOwner = t;
       this.midWas[t] = has;
     }
+    if (this.midOwner !== null && !this.midHeld(this.midOwner)) this.midOwner = null;
   }
 
   incomePerSecond(team) {
