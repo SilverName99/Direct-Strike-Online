@@ -125,6 +125,7 @@ const MUSIC_MAX_BYTES = 12582912; // 12 MB (background music tracks)
 const MUSIC_EXTS = ['mp3', 'ogg', 'm4a', 'mp4'];
 const CURSOR_MAX_BYTES = 1048576; // 1 MB (a mouse cursor image is small)
 const CURSOR_EXTS = ['png', 'gif', 'cur', 'webp'];
+const BARSKIN_EXTS = ['png', 'webp', 'jpg', 'jpeg']; // bottom-bar background design
 
 // The uploaded background-music file for a race (music.<ext>), or null.
 function musicFileFor(string $assetsDir, string $race): ?string {
@@ -147,6 +148,12 @@ function iconFileFor(string $assetsDir, string $key): ?string {
 // A race's shop tab-button file (tab-<slot>.<ext>), or null.
 function tabFileFor(string $assetsDir, string $race, string $slot): ?string {
   foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/tab-$slot.$e")) return "tab-$slot.$e";
+  return null;
+}
+
+// A race's uploaded bottom-bar background design (barskin.<ext>), or null.
+function barskinFileFor(string $assetsDir, string $race): ?string {
+  foreach (BARSKIN_EXTS as $e) if (is_file("$assetsDir/$race/barskin.$e")) return "barskin.$e";
   return null;
 }
 
@@ -254,6 +261,7 @@ function regenManifest(string $assetsDir): void {
   $music = [];
   $cursors = [];
   $tabs = [];
+  $barskins = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
@@ -266,6 +274,8 @@ function regenManifest(string $assetsDir): void {
       if ($tf) $t[$slot] = $tf;
     }
     if ($t) $tabs[$r] = $t;
+    $bsf = barskinFileFor($assetsDir, $r);
+    if ($bsf) $barskins[$r] = $bsf;
   }
   // GLOBAL ability/upgrade command-card icons
   $icons = [];
@@ -276,7 +286,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -540,6 +550,39 @@ if ($authed && $action === 'deletetab') {
     $msg = "Buton șters: $slot ($race)";
   }
 }
+
+// per-race bottom-bar background design (the "skin" painted over the template)
+if ($authed && $action === 'uploadbarskin') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['barskin']) || $_FILES['barskin']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['barskin']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['barskin']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['barskin']['tmp_name'];
+    if (!in_array($ext, BARSKIN_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', BARSKIN_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barskin.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/barskin.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Fundal meniu încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebarskin') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barskin.$e");
+    regenManifest($assetsDir);
+    $msg = "Fundal meniu șters: $race";
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ro">
@@ -793,10 +836,36 @@ if ($authed && $action === 'deletetab') {
         <?php endif; ?>
       </div>
       <?php endforeach; ?>
+      <?php $barskinFile = barskinFileFor($assetsDir, $race); $hasBarskin = $barskinFile !== null; ?>
+      <div class="slot" style="min-width:200px">
+        <span class="lbl" style="color:#ffd35c">Fundal meniu jos <?= $race ?></span>
+        <div class="thumb" style="width:160px;height:32px;background:#0a0e14">
+          <?php if ($hasBarskin): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $barskinFile ?>?t=<?= filemtime("$assetsDir/$race/$barskinFile") ?>" alt="" style="max-width:158px;max-height:30px">
+          <?php else: ?><span class="empty">▭</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbarskin">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBarskin ? 'înlocuiește' : 'încarcă' ?><input type="file" name="barskin" accept=".png,.webp,.jpg,.jpeg,image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBarskin): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebarskin">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi fundalul meniului?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
       <div style="color:#7c8ba1;font-size:12px;padding-top:22px;max-width:360px">
         Imaginea apare pe toată jumătatea acestei rase în joc (fundal). PNG, recomandat orizontal (ex. 1600×1440), max 5 MB.
         Cursorul înlocuiește săgeata mouse-ului în joc pentru această rasă (vârful = colțul stânga-sus), max 40px afișat.
         Butoanele UNITS / CLĂDIRI apar lângă grila de comenzi din joc și diferă pe rasă.
+        <b>Fundal meniu jos</b>: în joc apasă butonul 🎨 din bara de sus ca să descarci șablonul cu layout-ul
+        exact al meniului; pictează designul SUB elemente, exportă la aceeași mărime și încarcă-l aici (înlocuiește
+        forma curbată implicită pentru rasa asta).
       </div>
     </div>
   </div>

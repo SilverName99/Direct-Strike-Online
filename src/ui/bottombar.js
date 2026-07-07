@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
-import { raceOf, getSprite, getUiIcon, getTabIcon } from '../render/sprites.js';
+import { raceOf, getSprite, getUiIcon, getTabIcon, getBarSkin } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -179,6 +179,90 @@ export class BottomBar {
     this.sig = null;
     this.refreshTabs();
     this.buildTrayBg();
+    this.applyBarSkin();
+  }
+
+  // Per-race uploaded bar background ("skin"): when present it fills the whole
+  // bar and the default curved silhouette is hidden (the design already carries
+  // its own shape — the user painted it over the downloaded template).
+  applyBarSkin() {
+    if (!this.bar) return;
+    const url = getBarSkin(raceOf(0));
+    if (url) {
+      this.bar.style.backgroundImage = `url("${url}")`;
+      this.bar.style.backgroundSize = '100% 100%';
+      this.bar.classList.add('skinned');
+    } else {
+      this.bar.style.backgroundImage = '';
+      this.bar.classList.remove('skinned');
+    }
+  }
+
+  // Download a PNG guide of the bar's EXACT live layout: the curved silhouette
+  // plus a labeled dashed box for every zone (map, portrait, details, the nine
+  // command slots, the two tab buttons). The user paints their design under the
+  // elements and re-exports at the same size, then uploads it per race in admin.
+  downloadTemplate() {
+    if (!this.bar) return;
+    const bar = this.bar.getBoundingClientRect();
+    const W = Math.round(bar.width);
+    const H = Math.round(bar.height);
+    if (!W || !H) return;
+    const s = 2; // export at 2× for crisp guides
+    const cv = document.createElement('canvas');
+    cv.width = W * s; cv.height = H * s;
+    const ctx = cv.getContext('2d');
+    ctx.scale(s, s);
+    // checkerboard so transparent areas are visible while editing
+    ctx.fillStyle = '#20262f';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#252c36';
+    for (let y = 0; y < H; y += 16) for (let x = 0; x < W; x += 16) {
+      if (((x / 16) + (y / 16)) % 2 === 0) ctx.fillRect(x, y, 16, 16);
+    }
+    // the silhouette guide (fill + outline)
+    const d = this.bgPath && this.bgPath.getAttribute('d');
+    if (d) {
+      const path = new Path2D(d);
+      ctx.fillStyle = 'rgba(16,21,30,0.55)';
+      ctx.fill(path);
+      ctx.strokeStyle = 'rgba(190,210,235,0.95)';
+      ctx.lineWidth = 2;
+      ctx.stroke(path);
+    }
+    // labeled zone boxes
+    const box = (el, label) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left - bar.left, y = r.top - bar.top;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(120,200,255,0.95)';
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x + 0.5, y + 0.5, r.width - 1, r.height - 1);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(150,215,255,0.95)';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillText(label, x + 4, y + 3);
+      ctx.restore();
+    };
+    box(document.getElementById('bb-map'), 'HARTĂ');
+    box(document.getElementById('bb-portrait'), 'PORTRET');
+    box(document.getElementById('bb-details'), 'DETALII');
+    this.slots.forEach((sl, i) => box(sl.el, `#${i + 1}`));
+    box(this.tabBtns.units, 'UNITS');
+    box(this.tabBtns.buildings, 'CLĂDIRI');
+    // caption
+    ctx.fillStyle = 'rgba(255,211,92,0.95)';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`Direct Strike — șablon meniu jos · ${W}×${H}px · pictează SUB elemente, exportă la aceeași mărime`, 8, H - 6);
+
+    const a = document.createElement('a');
+    a.href = cv.toDataURL('image/png');
+    a.download = `ds-bara-jos-${W}x${H}.png`;
+    a.click();
   }
 
   // While a shop item is held for placement, if the cursor sits over the bar

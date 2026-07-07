@@ -152,8 +152,10 @@ html, body {
   z-index: 6;
 }
 /* while placing a unit/building over the bar: fade out + let clicks through */
-#bottombar { transition: opacity 0.12s; }
+#bottombar { transition: opacity 0.12s; background-repeat: no-repeat; }
 #bottombar.placing { opacity: 0.1; pointer-events: none; }
+/* a per-race uploaded bar design replaces the default curved silhouette */
+#bottombar.skinned #bb-bg { display: none; }
 
 #bb-bg {
   position: absolute;

@@ -71,6 +71,10 @@ document.getElementById('grid-btn').addEventListener('click', () => {
   document.getElementById('grid-btn').classList.toggle('off', !uiState.gridOn);
   toast(uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
 });
+document.getElementById('tpl-btn').addEventListener('click', () => {
+  bottombar.downloadTemplate();
+  toast('Șablon descărcat — pictează designul sub elemente și încarcă-l în /admin');
+});
 document.addEventListener('keydown', (e) => {
   if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
