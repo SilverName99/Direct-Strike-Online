@@ -18,12 +18,29 @@ export function updateMovement(game, dt) {
     // toward the enemy base.
     const target = u.targetId != null ? game.byId.get(u.targetId) : null;
     if (target && target.hp > 0) {
-      const dx = target.x - u.x;
-      const dy = target.y - u.y;
-      const d = Math.sqrt(dx * dx + dy * dy) || 1;
-      const step = speed * dt;
-      u.x += (dx / d) * step;
-      u.y += (dy / d) * step;
+      let gx = target.x;
+      let gy = target.y;
+      // Structures (they have .kind; units have .type) are big and static:
+      // aiming at the CENTER queues everyone on one line and they stack in
+      // ugly overlapping rows. Instead each unit walks to its own stable spot
+      // on the ring around the building (id-hashed fan of ±~85° toward its
+      // side), so attackers surround the perimeter.
+      if (target.kind) {
+        const ring = (target.radius || Math.max(target.hw || 0, target.hh || 0)) + u.radius + 4;
+        const h = ((u.id * 2654435761) >>> 0) / 4294967296; // deterministic per-unit
+        const side = u.team === 0 ? Math.PI : 0; // approach from our half
+        const ang = side + (h - 0.5) * 3.0;
+        gx = target.x + Math.cos(ang) * ring;
+        gy = target.y + Math.sin(ang) * ring;
+      }
+      const dx = gx - u.x;
+      const dy = gy - u.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > 1) {
+        const step = Math.min(speed * dt, d);
+        u.x += (dx / d) * step;
+        u.y += (dy / d) * step;
+      }
       continue;
     }
 

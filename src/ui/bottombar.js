@@ -78,13 +78,15 @@ export class BottomBar {
       const slot = this.slots[Number(el.dataset.i)];
       if (slot && slot.data) this.clickSlot(slot.data, el);
     });
-    // hover -> wide popup above the grid
-    this.grid.addEventListener('mousemove', (e) => {
-      const el = e.target.closest('.slot');
+    // hover -> wide popup above the grid. Listen at DOCUMENT level: under
+    // pointer lock the grid never receives 'mouseleave' (only synthetic
+    // mousemoves routed to whatever is under the virtual cursor), so a
+    // grid-local listener would leave the popup stuck open forever.
+    document.addEventListener('mousemove', (e) => {
+      const el = e.target && e.target.closest ? e.target.closest('#bb-grid .slot') : null;
       const slot = el ? this.slots[Number(el.dataset.i)] : null;
       this.hover(slot && slot.data ? slot.data : null);
     });
-    this.grid.addEventListener('mouseleave', () => this.hover(null));
 
     for (const [tab, btn] of Object.entries(this.tabBtns)) {
       btn.addEventListener('mousedown', (e) => {
@@ -303,6 +305,7 @@ export class BottomBar {
 
   // --------------------------------------------------------------- the grid
   rebuildGrid(game, info) {
+    this.hover(null); // the hovered slot may no longer exist / changed meaning
     const items = this.mode === 'inspect'
       ? this.inspectItems(game, info)
       : this.mode === 'buildings'

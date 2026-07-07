@@ -138,33 +138,33 @@ html, body {
   align-items: flex-end;
   gap: 10px;
   padding: 8px 12px;
+  /* the low "tray": its top edge hugs the portrait/details panels, while the
+     taller pods (map, grid, tabs) rise above it with their own backgrounds */
   background: rgba(16, 21, 30, 0.92);
   border: 1px solid var(--border);
   border-bottom: none;
-  border-radius: 12px 12px 0 0;
-  height: 184px;
-  /* an overlay ON TOP of the map: the 15% side gaps show the battlefield */
+  border-radius: 14px 14px 0 0;
+  height: 140px;
+  /* an overlay ON TOP of the map, centered, exactly as wide as its content */
   position: fixed;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 70%;
-  min-width: 900px;
-  max-width: 1400px;
+  width: fit-content;
   z-index: 6;
   backdrop-filter: blur(3px);
 }
 
 #bb-map {
-  align-self: stretch;
+  height: 182px;
   width: 250px;
   flex: 0 0 250px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0e14;
+  background: rgba(10, 14, 20, 0.95);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
 }
 #minimap { cursor: pointer; display: block; }
@@ -184,9 +184,8 @@ html, body {
 #bb-portrait canvas { width: 112px; height: 112px; }
 
 #bb-details {
-  flex: 1;
-  min-width: 170px;
-  max-width: 330px;
+  width: 280px;
+  flex: 0 0 280px;
   height: 124px;
   background: #10151d;
   border: 1px solid var(--border);
@@ -214,8 +213,15 @@ html, body {
 #bb-details .d-chip { border: 1px solid var(--border); border-radius: 20px; padding: 0 8px;
   font-size: 10px; background: #0a0e14; }
 
-/* 3x3 command grid (big slots — allowed to eat into the details width) */
-#bb-grid-wrap { position: relative; flex: 0 0 auto; }
+/* 3x3 command grid (big slots), a tall pod rising above the tray */
+#bb-grid-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  background: rgba(16, 21, 30, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+}
 #bb-grid {
   display: grid;
   grid-template-columns: repeat(3, 54px);
@@ -276,8 +282,17 @@ html, body {
 #bb-popup .p-title { color: var(--gold); font-weight: 700; font-size: 12px; }
 #bb-popup .p-dim { color: var(--dim); }
 
-/* UNITS / CLĂDIRI tab buttons */
-#bb-tabs { display: flex; flex-direction: column; gap: 6px; align-self: stretch; justify-content: center; }
+/* UNITS / CLĂDIRI tab buttons — a tall pod like the grid */
+#bb-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 182px;
+  background: rgba(16, 21, 30, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+}
 .bb-tab {
   width: 84px;
   flex: 1;

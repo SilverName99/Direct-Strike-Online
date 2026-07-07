@@ -1064,6 +1064,25 @@ console.log('abilities (casters, auras, status effects)');
     check('toggling an unowned upgrade rejected', !notOwned.ok);
   }
 
+  // Attackers FAN OUT around a targeted structure instead of queueing on its
+  // center line: after closing in on the enemy main, the pack must spread
+  // vertically (units both above and below the base's center).
+  {
+    applyBalance({});
+    const game = new Game(3, { races: ['humans', 'orcs'] });
+    const main = game.mainOf(1);
+    for (let i = 0; i < 8; i++) {
+      const g = spawnUnit(game, 0, 'grunt', main.x - 220, main.y - 28 + i * 8);
+      g.hp = g.maxHp = 100000; // survive the base's neighborhood
+    }
+    run(game, 6);
+    const ys = game.entities.filter((u) => u.team === 0).map((u) => u.y - main.y);
+    const above = ys.filter((y) => y < -35).length;
+    const below = ys.filter((y) => y > 35).length;
+    check('attackers surround the base (some above, some below)',
+      above >= 1 && below >= 1, `ys=${ys.map((y) => Math.round(y)).join(',')}`);
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 
