@@ -12,16 +12,22 @@ export class Camera {
     this.zoom = 1;
   }
 
-  // Smallest zoom that still fills the canvas with map (no out-of-world view).
-  minZoom() {
+  // Zoom that exactly fills the canvas with map (no out-of-world view).
+  fitZoom() {
     return Math.max(
       this.canvas.width / CONFIG.FIELD_W,
       this.canvas.height / CONFIG.FIELD_H
     );
   }
 
+  // Smallest zoom: the fit zoom relaxed by ZOOM_OUT (<1 permits zooming out
+  // past the fit — off-world margins render dark).
+  minZoom() {
+    return this.fitZoom() * (CONFIG.CAMERA.ZOOM_OUT || 1);
+  }
+
   maxZoom() {
-    return this.minZoom() * CONFIG.CAMERA.ZOOM_MAX;
+    return this.fitZoom() * CONFIG.CAMERA.ZOOM_MAX;
   }
 
   viewW() {
@@ -34,11 +40,17 @@ export class Camera {
 
   clamp() {
     this.zoom = Math.min(Math.max(this.zoom, this.minZoom()), this.maxZoom());
-    this.x = Math.min(Math.max(this.x, 0), CONFIG.FIELD_W - this.viewW());
+    // when zoomed out past the fit, the view is larger than the world on an
+    // axis — center the world on that axis instead of clamping to its edges
+    const vw = this.viewW();
+    const vh = this.viewH();
+    if (vw >= CONFIG.FIELD_W) this.x = (CONFIG.FIELD_W - vw) / 2;
+    else this.x = Math.min(Math.max(this.x, 0), CONFIG.FIELD_W - vw);
     // downward the camera may overshoot the world by BOTTOM_PAD, so the map's
     // bottom edge can be scrolled up above the overlay UI bar
     const pad = CONFIG.CAMERA.BOTTOM_PAD || 0;
-    this.y = Math.min(Math.max(this.y, 0), CONFIG.FIELD_H - this.viewH() + pad);
+    if (vh >= CONFIG.FIELD_H + pad) this.y = (CONFIG.FIELD_H - vh) / 2;
+    else this.y = Math.min(Math.max(this.y, 0), CONFIG.FIELD_H - vh + pad);
   }
 
   // px/py are CSS pixels relative to the canvas element.
@@ -83,7 +95,7 @@ export class Camera {
   }
 
   reset(startWx, startWy) {
-    this.zoom = this.minZoom() * CONFIG.CAMERA.START_ZOOM;
+    this.zoom = this.fitZoom() * CONFIG.CAMERA.START_ZOOM;
     this.clamp();
     this.centerOn(startWx, startWy);
   }
