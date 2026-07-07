@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.52';
+export const VERSION = 'v9.53';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -15,10 +15,9 @@ export const CONFIG = {
   // Battlefield (simulation units) — larger than the screen; an RTS
   // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
   FIELD_W: 3600,
-  // The playable band (zones y80-880) hugs the top; below it the world extends
-  // an extra ~240 units as a scenic APRON — real map (the uploaded per-race
-  // background covers it), scrollable, but with no gameplay content.
-  FIELD_H: 1200,
+  // Height hugs the play content (a 20-cell band + 2-cell margins): the
+  // camera's fit-zoom fills the screen with map and the UI bar overlays it.
+  FIELD_H: 960,
 
   // Each side's quadrant is a real base, split in two grid-aligned parts:
   //   [construction zone: main base + buildings][army zone: unit formation]
@@ -125,10 +124,8 @@ export const CONFIG = {
     ZOOM_MAX: 4,       // max zoom = fit-the-map zoom × this (close enough to enjoy the characters)
     ZOOM_STEP: 1.15,   // wheel notch multiplier
     START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
-    BOTTOM_PAD: 260,   // extra world units the camera may scroll BELOW the map
-                       // (so the bottom of the world can rise above the UI bar)
-    ZOOM_OUT: 0.6,     // min zoom = fit-zoom × this (<1 lets you zoom out past
-                       // the fit, showing dark off-world margins)
+    // (no BOTTOM_PAD / ZOOM_OUT: the camera never leaves the map — max
+    // zoom-out is exactly the fit, and there is no extra space below)
   },
 
   // AI difficulty knobs
