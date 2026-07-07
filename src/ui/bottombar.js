@@ -19,7 +19,6 @@ import {
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
 import { raceOf, getSprite, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay } from '../render/sprites.js';
-import { downloadBarTemplate } from './bartemplate.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -205,10 +204,6 @@ export class BottomBar {
     this.bar.classList.toggle('overlaid', !!over);
   }
 
-  // Download the bar design guide (shared with the admin page).
-  downloadTemplate() {
-    downloadBarTemplate();
-  }
 
   // While a shop item is held for placement, if the cursor sits over the bar
   // fade it to near-transparent and make it click-through, so you can drop the
