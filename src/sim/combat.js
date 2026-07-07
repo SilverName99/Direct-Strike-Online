@@ -21,7 +21,12 @@ export function effStats(u, stats) {
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
     const base = game.ustat(u.team, u.type);
-    const stats = effStats(u, base);
+    let stats = effStats(u, base);
+    // "Attack ground units" upgrade: grants a (normally air-only) unit the
+    // ability to hit ground once its owner has bought the upgrade for its type.
+    if (stats.targetsGround === false && groundUpgradeFor(game, u)) {
+      stats = { ...stats, targetsGround: true };
+    }
     u.cooldown = Math.max(0, u.cooldown - dt);
     // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
     // intruder and dismount on arrival — takes over from normal combat.
@@ -238,6 +243,16 @@ function mountUpgradeFor(game, u) {
   return null;
 }
 
+// True if this team owns an "Attack ground units" (kind 'ground') upgrade that
+// targets u's type — grants ground attack to an otherwise air-only unit.
+function groundUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'ground' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return true;
+  }
+  return false;
+}
+
 // An enemy Ranged, non-flying unit within `radius`.
 function isRangedFoe(game, u, e, radius) {
   if (e.hp <= 0 || e.team === u.team || e.isAir) return false;
@@ -336,7 +351,8 @@ function isValidTarget(u, stats, target, maxDist) {
 }
 
 function canHit(stats, target) {
-  return !target.isAir || !!stats.targetsAir;
+  if (target.isAir) return !!stats.targetsAir;
+  return stats.targetsGround !== false; // default: can hit ground
 }
 
 // Distance minus the target's radius, so melee can strike large bodies/bases.

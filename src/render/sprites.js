@@ -4,7 +4,7 @@
 // wherever an image is missing, so partial uploads are always safe.
 //
 // Slots per unit:     thumb, idle×2, walk×2, attack×2, die×1
-// Slots per building: thumb, idle×2   (main, turret, tower, generator)
+// Slots per building: thumb, idle×2   (main, turret, tower, generator, wall)
 //
 // Art is authored facing RIGHT on transparency, "blue-team" colored; the
 // red-team variant is generated here with a hue blend (grays stay gray).

@@ -308,11 +308,11 @@ export class Renderer {
         ctx.globalAlpha = 1;
       }
 
-      // uploaded building art (all kinds except walls); mirror for team 1.
+      // uploaded building art (every kind, walls included); mirror for team 1.
       // The sprite helper sizes itself (footprint buildings contain-fit their
       // cw×ch box; main/turret use their radius) and applies the size setting.
       let spriteDrawn = false;
-      if (s.kind !== 'wall') {
+      {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
         if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
@@ -395,7 +395,7 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(0, 0, Math.min(hw, hh) * 0.55, 0, Math.PI * 2);
         ctx.fill();
-      } else if (s.kind === 'wall') {
+      } else if (!spriteDrawn && s.kind === 'wall') {
         ctx.fillStyle = dark;
         ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
         ctx.strokeStyle = color;

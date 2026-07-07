@@ -26,6 +26,16 @@ export const UPGRADES = {
       dmSize: 100,     // on-foot visual size (%), independent of the mounted size
     },
   },
+  groundattack: {
+    name: 'Attack ground units',
+    desc: 'Grants a chosen unit the ability to also hit GROUND targets (for an otherwise air-only flyer such as a Giant Eagle). Bought once from the base; permanent for the match.',
+    kind: 'ground',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains ground attack (set in admin)
+    params: {
+      cost: 200, // gold to buy from the base
+    },
+  },
 };
 
 export const UPGRADE_IDS = Object.keys(UPGRADES);

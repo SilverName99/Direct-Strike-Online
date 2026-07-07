@@ -584,6 +584,33 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // "Attack ground units" upgrade: a unit with "Can hit ground" OFF (air-only)
+  // cannot damage ground troops until the upgrade is bought for its type.
+  {
+    // both grunts air-only, so neither can hit ground by default
+    const cfg = { races: {
+      humans: { units: { grunt: { targetsGround: false } } },
+      orcs: { units: { grunt: { targetsGround: false } } },
+    } };
+    // control: no upgrade -> the human grunt can't touch a ground enemy
+    applyBalance(cfg);
+    const g0 = new Game(9, { races: ['humans', 'orcs'] });
+    spawnUnit(g0, 0, 'grunt', 600, 300);
+    const tgt0 = spawnUnit(g0, 1, 'grunt', 650, 300); tgt0.hp = tgt0.maxHp = 100000;
+    run(g0, 4);
+    check('air-only unit cannot damage ground without the upgrade', tgt0.hp === tgt0.maxHp);
+
+    // with the upgrade bought for that unit type, it now hits ground
+    applyBalance({ ...cfg, upgrades: { groundattack: { race: 'humans', unit: 'grunt', params: { cost: 100 } } } });
+    const g1 = new Game(9, { races: ['humans', 'orcs'] });
+    const buy = g1.issueCommand({ type: 'buyUpgrade', team: 0, id: 'groundattack' });
+    spawnUnit(g1, 0, 'grunt', 600, 300);
+    const tgt1 = spawnUnit(g1, 1, 'grunt', 650, 300); tgt1.hp = tgt1.maxHp = 100000;
+    run(g1, 4);
+    check('Attack ground upgrade lets the unit damage ground', buy.ok && tgt1.hp < tgt1.maxHp);
+    applyBalance({});
+  }
+
   // A RANGED mounted rider must charge all the way IN and fight on foot at its
   // dismounted range — no dismount-at-mounted-range, no ranged shots on foot
   {
@@ -904,12 +931,31 @@ console.log('abilities (casters, auras, status effects)');
     const game = new Game(5, { races: ['humans', 'orcs'] });
     game.templates[0].push({ type: 'wasp', x: 500, y: 300 }, { type: 'wasp', x: 500, y: 360 });
     game.templates[1].push({ type: 'grunt', x: 2600, y: 300 }); // can't hit air
+    game.money[1] = 1000; // enough (even after early generators) to rebuild the anti-air unit
     const ai = new AIController(1, 'normal', 7);
     // army management runs on the 3rd think; that's when the dead-weight sell
     // fires (later thinks may rebuy front units via composition — not the point)
     for (let i = 0; i < 3; i++) ai.update(game, 1);
     check('AI sells a unit that cannot hit an air-heavy enemy',
       !game.templates[1].some((tpl) => tpl.type === 'grunt'));
+  }
+
+  // A2 economy discipline: the AI does NOT sell dead weight it cannot afford to
+  // replace (refund + cash < anti-air cost) — churning would just bleed gold.
+  {
+    const { AIController } = await import('../src/sim/ai.js');
+    applyBalance({ races: {
+      humans: { units: { wasp: { isAir: true } } },
+      orcs: { units: { slinger: { ranged: true, targetsAir: true, cost: 500 } } },
+    } });
+    const game = new Game(5, { races: ['humans', 'orcs'] });
+    game.templates[0].push({ type: 'wasp', x: 500, y: 300 }, { type: 'wasp', x: 500, y: 360 });
+    game.templates[1].push({ type: 'grunt', x: 2600, y: 300 });
+    game.money[1] = 0; // broke: can't afford the 500-gold anti-air unit even after a refund
+    const ai = new AIController(1, 'normal', 7);
+    for (let i = 0; i < 6; i++) ai.update(game, 1);
+    check('AI keeps dead weight it cannot afford to replace (no wasteful sell)',
+      game.templates[1].some((tpl) => tpl.type === 'grunt'));
   }
 
   // AI army management: moves an out-of-position unit back into its role band

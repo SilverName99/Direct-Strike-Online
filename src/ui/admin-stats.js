@@ -195,6 +195,12 @@ function fieldsFor(ent, kind) {
       group: R, label: 'Can hit air', type: 'check', value: !!u.targetsAir,
       apply: (v) => { u.targetsAir = !!v; },
     });
+    // ground attack (on by default) — turn OFF for an air-only unit; the
+    // "Attack ground units" upgrade can grant it back in-game
+    out.push({
+      group: R, label: 'Can hit ground', type: 'check', value: u.targetsGround !== false,
+      apply: (v) => { u.targetsGround = !!v; },
+    });
     out.push({
       group: R, label: 'Proiectil (%)', type: 'num', cls: 'ranged-field', disabled: !u.ranged,
       value: Math.round((u.projSize || 1) * 100),

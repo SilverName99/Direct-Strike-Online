@@ -126,6 +126,7 @@ function baseUnits() {
       // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
       ranged: false, projectile: false,
       isAir: false, targetsAir: false,
+      targetsGround: true, // can attack ground units (default on; turn off for air-only)
       splash: 0,
       projSpeed: ps, projectileSpeed: ps,
       bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
@@ -205,7 +206,7 @@ function raceUnitsSnapshot(race) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed,
       ranged: !!u.ranged, projSpeed: u.projSpeed, splash: u.splash,
-      isAir: !!u.isAir, targetsAir: !!u.targetsAir,
+      isAir: !!u.isAir, targetsAir: !!u.targetsAir, targetsGround: u.targetsGround !== false,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
@@ -334,6 +335,7 @@ function applyRaceUnits(race, unitsData) {
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
     if (typeof vals.isAir === 'boolean') u.isAir = vals.isAir;
     if (typeof vals.targetsAir === 'boolean') u.targetsAir = vals.targetsAir;
+    if (typeof vals.targetsGround === 'boolean') u.targetsGround = vals.targetsGround;
     if (typeof vals.ranged === 'boolean') u.ranged = vals.ranged;
     else if (vals.rangedCaster && vals.caster) u.ranged = true; // legacy (pre-general Ranged)
     if (num(vals.projSpeed) !== undefined) u.projSpeed = clamp(vals.projSpeed, 20, 4000);
@@ -409,7 +411,7 @@ export function resetRaceUnit(race, id) {
   const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
   resolvedUnits[race][id] = {
     ...u, size: 1, projSize: 1, cw: 1, ch: 1, animSpeed: 5,
-    ranged: false, projectile: false, isAir: false, targetsAir: false, splash: 0,
+    ranged: false, projectile: false, isAir: false, targetsAir: false, targetsGround: true, splash: 0,
     projSpeed: ps, projectileSpeed: ps,
     bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
     dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,

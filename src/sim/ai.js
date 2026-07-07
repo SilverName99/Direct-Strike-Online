@@ -40,6 +40,7 @@ export class AIController {
     this.wallsPlanned = false;
     this.wallQueue = [];
     this.manageTick = 0; // army-management cadence (sell / rearrange)
+    this.nextSellAt = 0; // game.time before which we won't sell again (anti-churn)
   }
 
   update(game, dt) {
@@ -168,28 +169,43 @@ export class AIController {
       if (s.isAir) eair += s.cost;
     }
 
+    // Selling only refunds part of the cost, so churning units bleeds the
+    // economy. Two guards keep it disciplined: an anti-churn cooldown (no more
+    // than one sell every ~12s) and a "the trade must pay off" rule — never
+    // sell unless the refund actually lets us rebuild the replacement now.
+    const canSellNow = game.time >= this.nextSellAt;
+    const cheapestAA = UNIT_IDS
+      .map((id) => game.ustat(t, id))
+      .filter((s) => s.tier <= game.tier[t] && s.targetsAir)
+      .reduce((m, s) => Math.min(m, s.cost), Infinity);
+
     // A) Dead weight: the enemy is mostly AIR and this unit can never touch
-    // air — sell it (one per pass) and rebuy something useful later. Only if
-    // we actually have an anti-air option to rebuild with.
-    if (etotal > 0 && eair / etotal > 0.5) {
-      const haveAA = UNIT_IDS.some((id) => {
-        const s = game.ustat(t, id);
-        return s.tier <= game.tier[t] && s.targetsAir;
-      });
-      if (haveAA) {
-        const idx = tpls.findIndex((tpl) => !game.ustat(t, tpl.type).targetsAir);
-        if (idx !== -1 && game.issueCommand({ type: 'sellUnit', team: t, index: idx }).ok) return true;
+    // air. Sell it ONLY if the refund plus our cash can immediately fund an
+    // anti-air unit — otherwise a useless body still blocks better than an
+    // empty slot and wasted gold.
+    if (canSellNow && etotal > 0 && eair / etotal > 0.5 && cheapestAA !== Infinity) {
+      const idx = tpls.findIndex((tpl) => !game.ustat(t, tpl.type).targetsAir);
+      if (idx !== -1) {
+        const refund = Math.round(game.ustat(t, tpls[idx].type).cost * CONFIG.SELL_REFUND);
+        if (game.money[t] + refund >= cheapestAA &&
+            game.issueCommand({ type: 'sellUnit', team: t, index: idx }).ok) {
+          this.nextSellAt = game.time + 12;
+          return true;
+        }
       }
     }
 
     // B) At the template cap with money to spare: sell the cheapest unit so a
-    // stronger buy can replace it.
-    if (tpls.length >= CONFIG.MAX_TEMPLATES && game.money[t] > 400) {
+    // stronger buy can replace it (still rate-limited).
+    if (canSellNow && tpls.length >= CONFIG.MAX_TEMPLATES && game.money[t] > 400) {
       let cheap = 0;
       for (let i = 1; i < tpls.length; i++) {
         if (game.ustat(t, tpls[i].type).cost < game.ustat(t, tpls[cheap].type).cost) cheap = i;
       }
-      if (game.issueCommand({ type: 'sellUnit', team: t, index: cheap }).ok) return true;
+      if (game.issueCommand({ type: 'sellUnit', team: t, index: cheap }).ok) {
+        this.nextSellAt = game.time + 12;
+        return true;
+      }
     }
 
     // C) Rearrange: move the unit farthest outside its role band back into it.

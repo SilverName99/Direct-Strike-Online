@@ -5,7 +5,7 @@
 //
 // Art is organized per RACE. Each unit has: a shop thumbnail, plus
 // idle×2, walk×2, attack×2 and die×1 frames. Buildings (main base,
-// turret, tower, generator — walls stay vector) have: thumbnail + idle×2.
+// turret, tower, generator, wall) have: thumbnail + idle×2.
 // The game picks uploads up automatically and falls back to the built-in
 // vector art wherever an image is missing.
 
@@ -16,7 +16,7 @@ define('DS_ADMIN', 1);
 
 const RACES = ['humans', 'orcs'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
-const BUILDING_LIST = ['main', 'turret', 'tower', 'generator'];
+const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall'];
 // ranged units (projectile:true in units.js) can upload a projectile image
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image
