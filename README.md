@@ -18,7 +18,8 @@ Fiecare jucător are o adevărată bază:
 - **Baza principală** (spatele zonei) e obiectivul: cine o pierde, pierde meciul. **Upgrade-ul ei**
   (tasta `0`) deblochează tier-ele de unități: T1 Grunt/Slinger/Dasher → T2 Bruiser/Lancer/Mender/Wasp
   → T3 Siege Crab/Archon (+1000 HP bazei la fiecare tier).
-- **Armata:** cumpără unități (`1`–`9`) și așază-le în fâșia de armată. `Shift`+click plasează mai
+- **Armata:** cumpără unități (`1`–`9`) și așază-le pe tabla de formație — **16×24 de celule**, cu
+  liniile grid-ului trasate din 4 în 4 pătrățele (plasarea sare pe celula mică). `Shift`+click plasează mai
   multe; drag le repoziționezi; click-dreapta le vinde la 75%. La fiecare **20s**, formația spawnează
   și mărșăluiește singură spre Baza principală inamică.
 - **Plasarea sare pe grid** (comutare cu `G` sau butonul ▦). Unitățile zburătoare trec peste ziduri —

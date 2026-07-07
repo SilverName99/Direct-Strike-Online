@@ -244,26 +244,31 @@ export class Renderer {
     ctx.restore();
   }
 
-  // Placement grid over the relevant zone while placing or dragging.
+  // Placement grid over the relevant zone while placing or dragging. Only the
+  // MAJOR lines (every GRID_MAJOR cells) are drawn — placement still snaps to
+  // the fine cell, whose green highlight travels with the cursor.
   drawGrid(ctx, uiState) {
     if (!uiState.gridOn) return;
     let zone = null;
     if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected);
     else if (uiState.drag) zone = CONFIG.ARMY_ZONE[0];
     if (!zone) return;
-    const g = CONFIG.GRID;
+    const step = CONFIG.GRID * (CONFIG.GRID_MAJOR || 4);
     ctx.save();
-    ctx.strokeStyle = 'rgba(219, 228, 240, 0.10)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(219, 228, 240, 0.14)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (let x = zone.x0; x <= zone.x1 + 0.5; x += g) {
+    for (let x = zone.x0; x <= zone.x1 + 0.5; x += step) {
       ctx.moveTo(x, zone.y0);
       ctx.lineTo(x, zone.y1);
     }
-    for (let y = zone.y0; y <= zone.y1 + 0.5; y += g) {
+    for (let y = zone.y0; y <= zone.y1 + 0.5; y += step) {
       ctx.moveTo(zone.x0, y);
       ctx.lineTo(zone.x1, y);
     }
+    // close the far edges even when the zone isn't a multiple of the major step
+    ctx.moveTo(zone.x1, zone.y0); ctx.lineTo(zone.x1, zone.y1);
+    ctx.moveTo(zone.x0, zone.y1); ctx.lineTo(zone.x1, zone.y1);
     ctx.stroke();
     ctx.restore();
   }

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.35';
+export const VERSION = 'v9.36';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -26,13 +26,16 @@ export const CONFIG = {
   SIZES: {},            // entity id -> visual scale multiplier (default 1)
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
+  GRID_MAJOR: 4,        // draw a grid line every N cells (the fine cell still snaps)
   CONSTRUCTION_ZONE: [
     { x0: 60, x1: 420, y0: 80, y1: 1360 },    // team 0 (left)
     { x0: 2780, x1: 3140, y0: 80, y1: 1360 }, // team 1 (right)
   ],
+  // Army formation strip: exactly 16 × 24 cells (of GRID px), centered
+  // vertically; major grid lines land every GRID_MAJOR cells.
   ARMY_ZONE: [
-    { x0: 440, x1: 680, y0: 80, y1: 1360 },
-    { x0: 2520, x1: 2760, y0: 80, y1: 1360 },
+    { x0: 440, x1: 1080, y0: 240, y1: 1200 },
+    { x0: 2120, x1: 2760, y0: 240, y1: 1200 },
   ],
 
   // Main base: the win objective, back-center of the construction zone.
