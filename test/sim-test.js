@@ -1135,6 +1135,28 @@ console.log('abilities (casters, auras, status effects)');
     run(g2, 1);
     check('acid upgrade toggled off -> no acid projectile fired',
       g2.projectiles.every((p) => !p.acid));
+
+    // acid corrodes FLIERS too (ordinary splash is ground-only, acid is not)
+    applyBalance({
+      races: {
+        humans: { units: { grunt: { targetsAir: true } } }, // spitter can aim up
+        orcs: { units: { grunt: { isAir: true } } },
+      },
+      upgrades: { acidspit: { race: 'humans', unit: 'grunt', params: {
+        cost: 100, range: 300, damage: 20, splashRadius: 120,
+        dotDamage: 25, dotDuration: 3, projectileSpeed: 400,
+      } } },
+    });
+    const g3 = new Game(9, { races: ['humans', 'orcs'] });
+    g3.issueCommand({ type: 'buyUpgrade', team: 0, id: 'acidspit' });
+    spawnUnit(g3, 0, 'grunt', 600, 400);           // human spitter (ground)
+    const flyer = spawnUnit(g3, 1, 'grunt', 720, 400); // orc flier
+    flyer.hp = flyer.maxHp = 100000;
+    run(g3, 2);
+    check('acid spit damages a flying enemy', flyer.hp < flyer.maxHp,
+      `dropped ${Math.round(flyer.maxHp - flyer.hp)}`);
+    check('acid leaves a DoT on the flier',
+      !!flyer.effects && flyer.effects.some((e) => e.kind === 'acid' && e.until > g3.time));
     applyBalance({});
   }
 

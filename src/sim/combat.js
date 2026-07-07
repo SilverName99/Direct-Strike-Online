@@ -446,7 +446,9 @@ function impact(game, p, target) {
   if (p.splash > 0) {
     game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, acid: !!p.acid });
     for (const e of game.entities) {
-      if (e.team === p.team || e.isAir) continue; // splash is ground-only
+      if (e.team === p.team) continue;
+      // ordinary splash is ground-only; acid, however, corrodes fliers too
+      if (e.isAir && !p.acid) continue;
       const dx = e.x - p.tx;
       const dy = e.y - p.ty;
       if (dx * dx + dy * dy <= p.splash * p.splash) {
