@@ -181,6 +181,13 @@ html, body {
 }
 #bottombar.overlaid #bb-over { display: block; }
 
+/* with a custom bar design present, drop the default dark-blue fills so the
+   uploaded art shows through the command slots and the UNITS/CLĂDIRI buttons.
+   Borders + state highlights (selected / active / on / locked) stay intact. */
+#bottombar.skinned .slot, #bottombar.overlaid .slot,
+#bottombar.skinned .slot.empty, #bottombar.overlaid .slot.empty,
+#bottombar.skinned .bb-tab, #bottombar.overlaid .bb-tab { background: transparent; }
+
 #bb-map {
   /* sits IN the tray, level with the portrait — no raised pod on the left */
   height: 124px;
