@@ -164,8 +164,8 @@ html, body {
 
 #bb-map {
   height: 182px;
-  width: 250px;
-  flex: 0 0 250px;
+  width: 380px;
+  flex: 0 0 380px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -116,7 +116,7 @@ export class BottomBar {
     const svg = document.getElementById('bb-bg');
     svg.setAttribute('viewBox', `0 0 ${bar.width} ${bar.height}`);
     const trayTop = bar.height - 140; // tray hugs the 124px panels + padding
-    const pods = ['bb-map', 'bb-grid-wrap', 'bb-tabs']
+    const raw = ['bb-map', 'bb-grid-wrap', 'bb-tabs']
       .map((id) => {
         const el = document.getElementById(id);
         if (!el) return null;
@@ -125,6 +125,18 @@ export class BottomBar {
       })
       .filter((p) => p && p.y < trayTop - 4)
       .sort((a, b) => a.x0 - b.x0);
+    // neighbouring pods (e.g. the command grid and the UNITS/CLĂDIRI buttons)
+    // merge into ONE raised block — no curve dipping between them
+    const pods = [];
+    for (const p of raw) {
+      const prev = pods[pods.length - 1];
+      if (prev && p.x0 - prev.x1 < 24) {
+        prev.x1 = p.x1;
+        prev.y = Math.min(prev.y, p.y);
+      } else {
+        pods.push({ ...p });
+      }
+    }
     const R = 14; // tray outer corner radius
     const r = 10; // pod top corner radius
     const f = 7;  // concave fillet where a pod meets the tray edge
