@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.39';
+export const VERSION = 'v9.40';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -42,8 +42,8 @@ export const CONFIG = {
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
   MID_BUILD_ZONE: [
-    { x0: 1300, x1: 1500, y0: 520, y1: 920 },
-    { x0: 2100, x1: 2300, y0: 520, y1: 920 },
+    { x0: 1220, x1: 1420, y0: 520, y1: 920 },
+    { x0: 2180, x1: 2380, y0: 520, y1: 920 },
   ],
 
   // Main base: the win objective, back-center of the construction zone.
@@ -60,7 +60,7 @@ export const CONFIG = {
   TIER_MAX: 3,
 
   // Starting defensive turret (pre-placed, not buildable, dies for good)
-  TURRET_X: [1400, 2200],
+  TURRET_X: [1320, 2280],
   TURRET: {
     hp: 700,
     radius: 24,
