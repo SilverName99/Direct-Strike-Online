@@ -223,10 +223,12 @@ export class Renderer {
     ctx.fillStyle = '#0e141d';
     ctx.fillRect(0, 0, CONFIG.FIELD_W, CONFIG.FIELD_H);
 
-    // per-race background on each side's half of the field
+    // per-race background on each side's half of the field; the enemy (right)
+    // half is MIRRORED so both maps read the same way — base at the outer edge,
+    // the neutral seam meeting in the middle
     const mid = CONFIG.FIELD_W / 2;
-    this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid);
-    this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid);
+    this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid, false);
+    this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid, true);
 
     // per-team base quadrant: construction zone (back) + army zone (front)
     const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
@@ -274,7 +276,9 @@ export class Renderer {
   }
 
   // Cover-fit a background image into a half of the field, clipped to it.
-  drawBackgroundHalf(ctx, img, rx, rw) {
+  // `flip` mirrors it horizontally (the enemy half) so both maps face the
+  // same way relative to the middle.
+  drawBackgroundHalf(ctx, img, rx, rw, flip = false) {
     if (!img) return;
     const rh = CONFIG.FIELD_H;
     const s = Math.max(rw / img.width, rh / img.height);
@@ -285,7 +289,16 @@ export class Renderer {
     ctx.rect(rx, 0, rw, rh);
     ctx.clip();
     ctx.globalAlpha = 0.85;
-    ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    if (flip) {
+      // mirror about the half's center: local x grows leftward from the outer
+      // edge, so the image's left side (the base) lands on the outer edge and
+      // its right side (the neutral seam) meets the middle
+      ctx.translate(rx + rw, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    } else {
+      ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    }
     ctx.restore();
   }
 
