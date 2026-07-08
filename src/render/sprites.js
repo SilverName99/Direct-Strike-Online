@@ -135,10 +135,16 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [race, file] of Object.entries(man.barovers || {})) {
         barOverlays.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
-      // per-unit idle portrait clip (mp4/webm) — just URLs for a <video> element
+      // per-unit idle portrait clips (mp4/webm) — just URLs for a <video>
+      // element. Value is {base, foot, beast} per form (legacy: a plain string
+      // = the base form only).
       for (const [race, ents] of Object.entries(man.portraitvids || {})) {
-        for (const [ent, file] of Object.entries(ents)) {
-          portraitVideos.set(`${race}/${ent}`, `${base}${race}/${ent}/${file}?v=${man.v || 0}`);
+        for (const [ent, val] of Object.entries(ents)) {
+          const forms = typeof val === 'string' ? { base: val } : (val || {});
+          for (const [form, file] of Object.entries(forms)) {
+            const key = form === 'base' ? `${race}/${ent}` : `${race}/${ent}/${form}`;
+            portraitVideos.set(key, `${base}${race}/${ent}/${file}?v=${man.v || 0}`);
+          }
         }
       }
       done();
@@ -215,7 +221,13 @@ export function getBarOverlay(race) {
 }
 
 // URL of a unit's uploaded idle portrait clip (mp4/webm), or null.
-export function getPortraitVideoUrl(race, ent) {
+// `form`: 'base' (whole unit) | 'foot' (rider on foot) | 'beast' (split
+// mount); a missing form falls back to the base clip.
+export function getPortraitVideoUrl(race, ent, form = 'base') {
+  if (form !== 'base') {
+    const v = portraitVideos.get(`${race}/${ent}/${form}`);
+    if (v) return v;
+  }
   return portraitVideos.get(`${race}/${ent}`) || null;
 }
 

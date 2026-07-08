@@ -303,8 +303,11 @@ export class BottomBar {
       return;
     }
     // an uploaded idle clip (mp4/webm) takes over the portrait box; otherwise
-    // fall back to the sprite/vector portrait drawn on the canvas
-    const vid = getPortraitVideoUrl(raceOf(info.team), info.type);
+    // fall back to the sprite/vector portrait drawn on the canvas. A split
+    // rider (on foot) / beast plays its OWN clip when one was uploaded.
+    const form = info.kind === 'entity' && info.u.beast ? 'beast'
+      : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
+    const vid = getPortraitVideoUrl(raceOf(info.team), info.type, form);
     this.setPortraitVideo(vid);
     if (!vid) this.drawPortrait(ctx, game, info);
 
@@ -399,7 +402,11 @@ export class BottomBar {
   drawPortrait(ctx, game, info) {
     const race = raceOf(info.team);
     const frame = Math.floor(performance.now() / 500) % 2;
-    const entry = getSprite(race, info.type, 'idle', frame) || getSprite(race, info.type, 'idle', 0);
+    // a split beast / rider on foot shows its own idle sprite when uploaded
+    const formAnim = info.kind === 'entity' && info.u.beast ? 'beast-idle'
+      : info.kind === 'entity' && info.u.dismounted ? 'foot-idle' : null;
+    const entry = (formAnim && (getSprite(race, info.type, formAnim, frame) || getSprite(race, info.type, formAnim, 0)))
+      || getSprite(race, info.type, 'idle', frame) || getSprite(race, info.type, 'idle', 0);
     if (entry && entry.img) {
       const img = entry.img;
       const s = Math.min(102 / img.width, 102 / img.height);
