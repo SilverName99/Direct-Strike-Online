@@ -422,6 +422,7 @@ function trySplit(game, u) {
   u.ovRanged = !!p.dmRanged;
   u.ovSize = (p.dmSize != null ? p.dmSize : 100) / 100;
   u.radius = Math.max(5, (bs.radius || 10) * u.ovSize);
+  u.footprint = false; u.hw = u.hh = u.radius; // on-foot/beast bodies are round
   u.windup = 0; u.cooldown = 0;
 
   // the beast lands beside the rider and fights on its own
@@ -433,6 +434,7 @@ function trySplit(game, u) {
   b.ovRanged = false; // the beast bites in melee
   b.ovSize = (p.beastSize != null ? p.beastSize : 100) / 100;
   b.radius = Math.max(5, (bs.radius || 10) * b.ovSize);
+  b.footprint = false; b.hw = b.hh = b.radius;
 
   game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
   return true; // consumed this tick — both fight with their own stats next tick
@@ -490,6 +492,7 @@ function mountCharge(game, u) {
     // would stop the orc far from its target no matter how small dmRange is.
     const bs = game.ustat(u.team, u.type);
     u.radius = Math.max(5, (bs.radius || 10) * u.ovSize);
+  u.footprint = false; u.hw = u.hh = u.radius; // on-foot/beast bodies are round
     u.windup = 0; u.cooldown = 0;
     game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
     return true; // skip combat this tick — next tick fights with on-foot stats

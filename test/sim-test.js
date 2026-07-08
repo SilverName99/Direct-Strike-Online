@@ -1417,6 +1417,33 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // Rectangular (2x1) units keep their formation: placed flush on the grid they
+  // don't shove each other on spawn; when they DO overlap they part along the
+  // SHORT axis, not the long one.
+  {
+    applyBalance({ races: { humans: { units: { grunt: { cw: 2, ch: 1, speed: 0 } } } } });
+    // two 2x1 units stacked one cell apart (hh=20 each -> flush, no overlap)
+    const game = new Game(15, { races: ['humans', 'orcs'] });
+    const a = spawnUnit(game, 0, 'grunt', 600, 400);
+    const b = spawnUnit(game, 0, 'grunt', 600, 440); // exactly one 40px cell below
+    const ax0 = a.x, ay0 = a.y, bx0 = b.x, by0 = b.y;
+    run(game, 1);
+    check('2x1 units placed flush stay put (no self-shoving)',
+      Math.abs(a.x - ax0) < 0.5 && Math.abs(a.y - ay0) < 0.5 &&
+      Math.abs(b.x - bx0) < 0.5 && Math.abs(b.y - by0) < 0.5,
+      `a moved (${(a.x - ax0).toFixed(1)},${(a.y - ay0).toFixed(1)}) b (${(b.x - bx0).toFixed(1)},${(b.y - by0).toFixed(1)})`);
+
+    // overlapping vertically -> they separate on Y, and barely on X (short axis)
+    const g2 = new Game(15, { races: ['humans', 'orcs'] });
+    const c = spawnUnit(g2, 0, 'grunt', 600, 400);
+    const d = spawnUnit(g2, 0, 'grunt', 604, 415); // heavy vertical overlap, tiny x offset
+    run(g2, 2);
+    check('overlapping 2x1 units part along the SHORT (vertical) axis',
+      Math.abs(d.y - c.y) > Math.abs(d.x - c.x),
+      `dx=${(d.x - c.x).toFixed(1)} dy=${(d.y - c.y).toFixed(1)}`);
+    applyBalance({});
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 

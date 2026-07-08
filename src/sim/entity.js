@@ -5,8 +5,16 @@ export function spawnUnit(game, team, type, x, y) {
   // A footprint bigger than 1x1 (grid cells) makes the unit physically larger:
   // its collision/separation radius grows to span the cells. 1x1 keeps the
   // unit's own base radius (backwards-compatible with every existing unit).
-  const cells = Math.max(s.cw || 1, s.ch || 1);
+  const cw = s.cw || 1;
+  const ch = s.ch || 1;
+  const cells = Math.max(cw, ch);
   const radius = cells > 1 ? (cells * CONFIG.GRID) / 2 : s.radius;
+  // Per-axis half-extents so a rectangular unit (e.g. 2x1) separates as a
+  // RECTANGLE, not a circle of its longest side — otherwise a column of wide
+  // units thinks it overlaps vertically and shoves itself out of formation.
+  const footprint = cw > 1 || ch > 1;
+  const hw = footprint ? (cw * CONFIG.GRID) / 2 : s.radius;
+  const hh = footprint ? (ch * CONFIG.GRID) / 2 : s.radius;
   const e = {
     id: game.nextId++,
     team, type,
@@ -42,6 +50,7 @@ export function spawnUnit(game, team, type, x, y) {
     targetId: null,
     state: 'march',
     radius,
+    footprint, hw, hh, // rectangular separation for multi-cell units
     armor: s.armor,
     isAir: !!s.isAir,
   };

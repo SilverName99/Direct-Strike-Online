@@ -123,6 +123,9 @@ function separate(game) {
     for (let j = i + 1; j < ents.length; j++) {
       const b = ents[j];
       if (a.isAir !== b.isAir) continue; // air passes over ground
+      // rectangular units (2x1 etc.) separate as boxes so a neat formation
+      // stays put instead of the wide bodies shoving apart on their long axis
+      if (a.footprint || b.footprint) { separateBox(a, b); continue; }
       const minD = a.radius + b.radius;
       let dx = b.x - a.x;
       let dy = b.y - a.y;
@@ -141,6 +144,28 @@ function separate(game) {
       a.x -= nx * push; a.y -= ny * push;
       b.x += nx * push; b.y += ny * push;
     }
+  }
+}
+
+// AABB separation: push the pair apart along the axis of SMALLEST overlap
+// (splitting the push), using each unit's half-extents. Units placed flush on
+// the grid have zero overlap and never move.
+function separateBox(a, b) {
+  const ex = (a.hw || a.radius) + (b.hw || b.radius);
+  const ey = (a.hh || a.radius) + (b.hh || b.radius);
+  let dx = b.x - a.x;
+  let dy = b.y - a.y;
+  const px = ex - Math.abs(dx); // x-overlap (>0 => overlapping)
+  const py = ey - Math.abs(dy); // y-overlap
+  if (px <= 0 || py <= 0) return;
+  if (px < py) {
+    if (dx === 0) dx = a.id < b.id ? 1 : -1;
+    const push = Math.min(px / 2, 2) * (dx < 0 ? -1 : 1);
+    a.x -= push; b.x += push;
+  } else {
+    if (dy === 0) dy = a.id < b.id ? 1 : -1;
+    const push = Math.min(py / 2, 2) * (dy < 0 ? -1 : 1);
+    a.y -= push; b.y += push;
   }
 }
 
