@@ -949,6 +949,10 @@ if ($authed && $action === 'deletebarover') {
           <button class="mini danger" onclick="return confirm('Ștergi background-ul?')">șterge</button>
         </form>
         <?php endif; ?>
+        <button type="button" id="dl-map-template" class="pick" style="cursor:pointer;margin-top:8px">⬇ Șablon zone (PNG)</button>
+        <div style="color:#7c8ba1;font-size:11px;max-width:170px;margin-top:6px;line-height:1.5">
+          Arată unde cad baza, zona de unități și turela — pictează decorul aliniat, exportă la <b>3600×1920</b>.
+        </div>
       </div>
       <div class="slot" style="min-width:240px">
         <span class="lbl" style="color:#ffd35c">Muzică <?= $race ?> (mp3, loop)</span>
@@ -1106,7 +1110,9 @@ if ($authed && $action === 'deletebarover') {
   </div>
   <script type="module">
     import { downloadBarTemplate } from '../src/ui/bartemplate.js?v=<?= time() ?>';
+    import { downloadMapTemplate } from '../src/ui/maptemplate.js?v=<?= time() ?>';
     document.getElementById('dl-bar-template')?.addEventListener('click', () => downloadBarTemplate());
+    document.getElementById('dl-map-template')?.addEventListener('click', () => downloadMapTemplate());
   </script>
 
   <div class="quicknav">
