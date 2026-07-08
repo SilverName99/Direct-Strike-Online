@@ -1475,6 +1475,19 @@ console.log('abilities (casters, auras, status effects)');
     const u3 = spawnUnit(g3, 0, 'grunt', mid, 400);
     g3.update(DT); g3.drainEvents();
     check('no middle variants -> no terrain effect', !g3.middle && moveSpeedMult(u3, g3.time) === 1);
+
+    // mana-regen variant: tops up a caster's mana while on the band
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 0 } } } } });
+    const g4 = new Game(31, { races: ['humans', 'orcs'],
+      middles: [{ slot: 0, kind: 'manaregen', amount: 30, band: 150, air: false }] });
+    const caster = spawnUnit(g4, 0, 'mender', mid + 20, 400); caster.mana = 0;
+    for (let t = 0; t < 1; t += DT) { g4.update(DT); g4.drainEvents(); }
+    check('mana-regen middle tops up a caster on the band', caster.mana > 25 && caster.mana <= 100,
+      `mana=${caster.mana.toFixed(1)} (~30/s for 1s)`);
+    const away = spawnUnit(g4, 0, 'mender', mid + 400, 400); away.mana = 0;
+    g4.update(DT); g4.drainEvents();
+    check('mana-regen does nothing off the band', away.mana === 0);
+    applyBalance({});
   }
 
   resetAll(); // leave the shared balance pristine for any later tests

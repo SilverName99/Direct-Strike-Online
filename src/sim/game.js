@@ -155,19 +155,22 @@ export class Game {
   // Middle terrain effect: units standing on the central band (|x - mid| <=
   // band) get the chosen variant's debuff, refreshed each tick so it fades a
   // beat after they step off. Ground-only unless the variant flags `air`.
-  applyMiddleTerrain() {
+  applyMiddleTerrain(dt) {
     const m = this.middle;
     if (!m || m.kind === 'none' || !(m.amount > 0) || !(m.band > 0)) return;
-    // use an INVISIBLE terrain-slow kind: it slows for real but shows no frost
-    // status VFX/chip (the terrain itself makes the cause obvious)
-    const kind = m.kind === 'atkslow' ? 'terrainatkslow' : 'terrainslow';
     const mid = CONFIG.FIELD_W / 2;
+    // slows use an INVISIBLE terrain kind (no frost VFX/status chip); mana regen
+    // just tops up mana each tick for casters standing on the band
+    const kind = m.kind === 'atkslow' ? 'terrainatkslow' : m.kind === 'moveslow' ? 'terrainslow' : null;
     const until = this.time + 0.25;
     for (const u of this.entities) {
       if (u.hp <= 0) continue;
       if (u.isAir && !m.air) continue;
       if (Math.abs(u.x - mid) > m.band) continue;
-      applyEffect(u, kind, m.amount, until, this.time);
+      if (kind) applyEffect(u, kind, m.amount, until, this.time);
+      else if (m.kind === 'manaregen' && u.manaMax > 0) {
+        u.mana = Math.min(u.manaMax, u.mana + m.amount * dt);
+      }
     }
   }
 
@@ -393,7 +396,7 @@ export class Game {
       e.prevY = e.y;
     }
 
-    this.applyMiddleTerrain(); // terrain debuff refreshed before combat/movement read it
+    this.applyMiddleTerrain(dt); // terrain effect refreshed before combat/movement read it
     updateAbilities(this, dt); // auras/status effects first, combat reads them
     updateCombat(this, dt);
     updateMovement(this, dt);

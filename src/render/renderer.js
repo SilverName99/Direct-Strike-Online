@@ -131,16 +131,13 @@ export class Renderer {
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
   }
 
-  // Attack frame driven by the unit's real attack rhythm: exactly ONE
-  // Attack 1 -> Attack 2 cycle per attack period (Attack period governs the
-  // time between attacks, so the animation matches it — no separate speed
-  // knob). While winding up, the frames follow the swing precisely: raise on
-  // the first half, release on the strike. Offset per unit so a pack doesn't
-  // animate in perfect lockstep. Also used for the acid/spell frames.
-  attackFrame(u, rstats) {
-    if (u.windup > 0 && u.windupMax > 0) return u.windup > u.windupMax * 0.5 ? 0 : 1;
-    const per = Math.max(0.2, rstats.period || 0.8);
-    return Math.floor((this.now * 2) / per + u.id) % 2;
+  // Attack frame driven purely by the swing state, so it's perfectly synced and
+  // never flickers: Attack 1 while winding up (raising / aiming), Attack 2 once
+  // the hit/shot has fired (until the next swing). Exactly one Attack 1 ->
+  // Attack 2 cycle per attack, matching the Attack period. (An earlier free-run
+  // clock added stray flips during the between-shots cooldown — that's gone.)
+  attackFrame(u) {
+    return u.windup > 0 ? 0 : 1;
   }
 
   // Which way a character should face: its live target while fighting, its
@@ -658,13 +655,13 @@ export class Renderer {
             // Acid Spit upgrade: cycle the two "Acid" attack frames in step
             // with the unit's real attack period (one 1<->2 cycle per swing)
             anim = 'acid';
-            frame = this.attackFrame(u, rstats);
+            frame = this.attackFrame(u);
           } else {
             // fighting: cycle Attack 1 <-> Attack 2 for as long as the unit
             // stays engaged, at the unit's OWN attack cadence — one full
             // cycle per swing, not the (fast) walk-flip clock
             anim = 'attack';
-            frame = this.attackFrame(u, rstats);
+            frame = this.attackFrame(u);
           }
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk

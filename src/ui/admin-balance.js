@@ -10,6 +10,7 @@ const MIDDLE_KIND_LABELS = {
   none: 'Fără efect',
   moveslow: 'Încetinește mișcarea',
   atkslow: 'Încetinește atacul',
+  manaregen: 'Regenerează mana',
 };
 
 const TINT_LABELS = {
@@ -43,7 +44,7 @@ function render() {
     html += `<div class="fields" style="margin-bottom:8px;align-items:center">
       <label class="fld" style="min-width:220px"><span>Varianta ${i + 1} — efect</span>
         <select data-scope="middle" data-id="${i}" data-field="kind" style="width:auto;flex:1">${kOpts}</select></label>
-      ${numField('middle', i, 'amount', 'Intensitate (%)', m.amount)}
+      ${numField('middle', i, 'amount', 'Intensitate (% sau mană/s)', m.amount)}
       ${numField('middle', i, 'band', 'Lățime zonă (± unități)', m.band)}
       <label class="fld"><span>Afectează și zburătorii</span>
         <input type="checkbox" data-scope="middle" data-id="${i}" data-field="air" ${m.air ? 'checked' : ''}></label>

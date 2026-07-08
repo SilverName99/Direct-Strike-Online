@@ -55,7 +55,7 @@ export const TURRET_FIELDS = [
   ['regen', 'Regen viață (HP/s)'], ['bounty', 'Gold pentru inamic la distrugere'],
 ];
 export const TINT_MODES = ['team', 'enemy', 'none'];
-export const MIDDLE_KINDS = ['none', 'moveslow', 'atkslow'];
+export const MIDDLE_KINDS = ['none', 'moveslow', 'atkslow', 'manaregen'];
 
 // Resolved middle-terrain effect for a strip variant (slot index 0-2), or null.
 export function middleConfig(i) {
