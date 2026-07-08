@@ -538,14 +538,9 @@ export class Renderer {
           ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
           ctx.strokeStyle = TEAM_COLORS[team];
           ctx.lineWidth = 1.5;
-        } else if (hot) {
-          ctx.globalAlpha = 0.9;
-          ctx.strokeStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.strokeStyle = TEAM_COLORS[team];
         }
+        // (no white hover ring — hovering only brightens the unit below; the
+        // only ring shown is the green dashed selection ring in drawInspect)
         if (hasCharacter(tpl.type, team)) {
           // ghost character breathing in the build zone
           ctx.globalAlpha = hot ? 0.95 : 0.5;
