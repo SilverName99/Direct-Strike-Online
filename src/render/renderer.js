@@ -114,7 +114,21 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
+    this.swingHold = new Map();  // unit id -> last time seen mid-swing (windup)
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
+  }
+
+  // True while a unit's strike should be drawn: during the wind-up AND for a
+  // short linger after the hit lands (windup hits 0 exactly on the strike
+  // tick, so without the linger the release pose would vanish the same
+  // instant the axe/projectile leaves).
+  swinging(u) {
+    if (u.windup > 0) {
+      this.swingHold.set(u.id, this.now);
+      return true;
+    }
+    const t = this.swingHold.get(u.id);
+    return t !== undefined && this.now - t < 0.35;
   }
 
   // Which way a character should face: its live target while fighting, its
@@ -164,6 +178,7 @@ export class Renderer {
     const z = cam.zoom;
     this.now = performance.now() / 1000; // render clock for 2-frame anims
     if (this.attackHold.size > 4000) this.attackHold.clear(); // bound the map
+    if (this.swingHold.size > 4000) this.swingHold.clear();
     this.view = {
       x0: cam.x,
       y0: cam.y,
@@ -594,8 +609,9 @@ export class Renderer {
             anim = castAnimOf(u.type, u.team, u.castAbility) || (prep ? 'prepare' : 'attack');
           }
           frame = 0;
-        } else if (attacking && (isCaster || u.windup > 0)) {
-          // the attack pose plays only DURING the swing (wind-up -> release);
+        } else if (attacking && (isCaster || this.swinging(u))) {
+          // the attack pose plays DURING the swing (wind-up -> release) and
+          // lingers ~0.35s past the strike so the release actually reads;
           // between swings (waiting on cooldown) the unit returns to idle —
           // otherwise it looks frozen mid-attack for most of each period
           if (isCaster) {
