@@ -182,8 +182,12 @@ function updateFighter(game, u, stats, dt) {
     target = null;
     u.targetId = null;
   }
-  if (!target) {
-    target = acquireTarget(game, u, stats);
+  // Focus discipline: once ENGAGED (target inside attack range) stay on that
+  // target; while still approaching, always chase the NEAREST enemy instead —
+  // otherwise a unit walks past closer foes toward the first thing it saw.
+  if (!target || effDist(u, target) > atkRange(u, stats) + 14) {
+    const nearest = acquireTarget(game, u, stats);
+    if (nearest) target = nearest;
     u.targetId = target ? target.id : null;
   }
 
