@@ -8,6 +8,17 @@ import { resolvedAbility } from '../ui/balance.js';
 import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
+
+// The unit's on-screen body radius: its physical radius scaled by how big it is
+// actually DRAWN (unit Size %, or the on-foot / beast override size). Used for
+// both the selection ring and click hit-testing, so a bigger unit gets a bigger
+// clickable circle. Never smaller than the physical radius (stays selectable).
+export function visualRadiusOf(u) {
+  const scale = (u.dismounted || u.beast) && u.ovSize != null
+    ? u.ovSize
+    : sizeOf(raceOf(u.team), u.type);
+  return (u.radius || 10) * Math.max(1, scale || 1);
+}
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
 
 // Draws a unit shape centered at (0,0) in a pre-transformed context.
@@ -99,7 +110,8 @@ export function hitTestTemplate(game, team, x, y) {
   const tpls = game.templates[team];
   for (let i = tpls.length - 1; i >= 0; i--) {
     const tpl = tpls[i];
-    const r = UNITS[tpl.type].radius + 6;
+    // scale the pick radius by the template's drawn Size, like a live unit
+    const r = UNITS[tpl.type].radius * Math.max(1, sizeOf(raceOf(team), tpl.type) || 1) + 6;
     const dx = tpl.x - x;
     const dy = tpl.y - y;
     if (dx * dx + dy * dy <= r * r) return i;
@@ -317,7 +329,7 @@ export class Renderer {
       const tpl = game.templates[0][sel.index];
       if (tpl) {
         const us = game.ustat(0, tpl.type);
-        const r = Math.max(14, (us.radius || 10) + 8);
+        const r = Math.max(14, (us.radius || 10) * Math.max(1, sizeOf(raceOf(0), tpl.type) || 1) + 8);
         ctx.beginPath();
         ctx.arc(tpl.x, tpl.y, r, 0, Math.PI * 2);
         ctx.stroke();
@@ -326,7 +338,7 @@ export class Renderer {
       const u = game.byId.get(sel.id);
       if (u && u.hp > 0) {
         ctx.beginPath();
-        ctx.arc(u.x, u.y, (u.radius || 10) + 8, 0, Math.PI * 2);
+        ctx.arc(u.x, u.y, visualRadiusOf(u) + 8, 0, Math.PI * 2);
         ctx.stroke();
       }
     } else if (sel.kind === 'structure') {

@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
-import { hitTestTemplate } from '../render/renderer.js';
+import { hitTestTemplate, visualRadiusOf } from '../render/renderer.js';
 import { snapToZone, zoneFor } from './grid.js';
 import { toast } from './pointer.js';
 
@@ -272,7 +272,9 @@ function hitTestEntity(game, x, y) {
     if (u.hp <= 0) continue;
     const dx = u.x - x;
     const dy = u.y - y;
-    const d = Math.sqrt(dx * dx + dy * dy) - (u.radius || 10);
+    // hit distance measured to the DRAWN body edge, so bigger units are easier
+    // to click (matches the selection ring)
+    const d = Math.sqrt(dx * dx + dy * dy) - visualRadiusOf(u);
     if (d <= 8 && d < bestD) { bestD = d; best = u; }
   }
   return best;
