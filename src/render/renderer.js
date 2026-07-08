@@ -213,7 +213,7 @@ export class Renderer {
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
-    this.drawInspect(ctx, game, uiState);
+    this.drawInspect(ctx, game, uiState, alpha);
     this.drawGhost(ctx, game, uiState);
 
     ctx.restore();
@@ -320,7 +320,7 @@ export class Renderer {
 
   // Selection ring for the inspect panel: a WC3-style circle (units/templates)
   // or box (structures) around whatever is selected for inspection.
-  drawInspect(ctx, game, uiState) {
+  drawInspect(ctx, game, uiState, alpha = 1) {
     const sel = uiState.inspect;
     if (!sel) return;
     ctx.save();
@@ -339,8 +339,12 @@ export class Renderer {
     } else if (sel.kind === 'entity') {
       const u = game.byId.get(sel.id);
       if (u && u.hp > 0) {
+        // interpolate like the sprite (prevX/prevY + alpha) so the ring rides
+        // with the smoothly-moving body instead of snapping at the sim rate
+        const x = u.prevX + (u.x - u.prevX) * alpha;
+        const y = u.prevY + (u.y - u.prevY) * alpha;
         ctx.beginPath();
-        ctx.arc(u.x, u.y, visualRadiusOf(u) + 8, 0, Math.PI * 2);
+        ctx.arc(x, y, visualRadiusOf(u) + 8, 0, Math.PI * 2);
         ctx.stroke();
       }
     } else if (sel.kind === 'structure') {
