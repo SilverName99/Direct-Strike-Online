@@ -26,6 +26,16 @@ export const UPGRADES = {
       dmSize: 100,     // on-foot visual size (%), independent of the mounted size
     },
   },
+  focusbuilding: {
+    name: 'Focus building',
+    desc: 'The unit ignores enemy troops entirely and attacks only STRUCTURES (walls, towers, the base) — a dedicated siege breaker (e.g. a Siege Cannon). Bought once from the base; permanent for the match.',
+    kind: 'focusbuild',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type becomes buildings-only (set in admin)
+    params: {
+      cost: 200, // gold to buy from the base
+    },
+  },
   groundattack: {
     name: 'Attack ground units',
     desc: 'Grants a chosen unit the ability to also hit GROUND targets (for an otherwise air-only flyer such as a Giant Eagle). Bought once from the base; permanent for the match.',

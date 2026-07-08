@@ -30,6 +30,11 @@ export function updateCombat(game, dt) {
     if (stats.targetsGround === false && groundUpgradeFor(game, u)) {
       stats = { ...stats, targetsGround: true };
     }
+    // "Focus building" upgrade: the unit ignores enemy troops and only ever
+    // targets structures (a siege breaker).
+    if (focusBuildUpgradeFor(game, u)) {
+      stats = { ...stats, buildingsOnly: true };
+    }
     // "Acid Spit" upgrade: the basic attack becomes a ranged acid projectile
     // that bursts for splash damage and leaves a damage-over-time acid pool.
     const acid = !u.dismounted ? acidUpgradeFor(game, u) : null;
@@ -303,6 +308,17 @@ function mountUpgradeFor(game, u) {
   return null;
 }
 
+// True if this team owns an active "Focus building" (kind 'focusbuild')
+// upgrade for u's type — the unit then attacks only structures.
+function focusBuildUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue; // owned but toggled off
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'focusbuild' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return true;
+  }
+  return false;
+}
+
 // True if this team owns an "Attack ground units" (kind 'ground') upgrade that
 // targets u's type — grants ground attack to an otherwise air-only unit.
 function groundUpgradeFor(game, u) {
@@ -496,13 +512,16 @@ function acquireTarget(game, u, stats) {
   const aggro = aggroRange(stats);
   let best = null;
   let bestD = Infinity;
-  for (const e of game.entities) {
-    if (e.team === u.team) continue;
-    if (!canHit(stats, e)) continue;
-    const d = effDist(u, e);
-    if (d < bestD) {
-      bestD = d;
-      best = e;
+  // "Focus building": skip enemy troops entirely, only structures count
+  if (!stats.buildingsOnly) {
+    for (const e of game.entities) {
+      if (e.team === u.team) continue;
+      if (!canHit(stats, e)) continue;
+      const d = effDist(u, e);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
     }
   }
   for (const s of game.enemyStructures(u.team)) {
@@ -516,6 +535,7 @@ function acquireTarget(game, u, stats) {
 }
 
 function isValidTarget(u, stats, target, maxDist) {
+  if (stats.buildingsOnly && !target.isStructure) return false; // Focus building
   return target.hp > 0 && canHit(stats, target) && effDist(u, target) <= maxDist;
 }
 

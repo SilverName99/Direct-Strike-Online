@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController } from '../src/sim/ai.js';
-import { spawnUnit } from '../src/sim/entity.js';
+import { spawnUnit, makeStructure } from '../src/sim/entity.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 
@@ -1347,6 +1347,36 @@ console.log('abilities (casters, auras, status effects)');
     g2.update(DT); g2.drainEvents();
     check('toggled off -> no split even with an enemy close',
       lone.dismounted === false && g2.entities.every((e) => !e.beast));
+    applyBalance({});
+  }
+
+  // "Focus building" upgrade: the unit ignores enemy troops and only ever
+  // attacks structures.
+  {
+    applyBalance({
+      races: { humans: { units: { grunt: { range: 40 } } } },
+      upgrades: { focusbuilding: { race: 'humans', unit: 'grunt', params: { cost: 100 } } },
+    });
+    const game = new Game(13, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'focusbuilding' });
+    const cannon = spawnUnit(game, 0, 'grunt', 900, 480);
+    const foe = spawnUnit(game, 1, 'grunt', 940, 480); foe.hp = foe.maxHp = 100000; // right next to it
+    const wall = makeStructure(game, 1, 'wall', 1100, 480); wall.hp = wall.maxHp = 100000;
+    run(game, 3);
+    check('focus building: ignores the adjacent enemy unit', foe.hp === foe.maxHp);
+    check('focus building: marched to and attacked the structure', wall.hp < wall.maxHp,
+      `wall dropped ${Math.round(wall.maxHp - wall.hp)}`);
+    const t = game.byId.get(cannon.targetId);
+    check('focus building: current target is a structure', !!t && !!t.isStructure);
+
+    // toggled off -> attacks the nearby unit again
+    const g2 = new Game(13, { races: ['humans', 'orcs'] });
+    g2.issueCommand({ type: 'buyUpgrade', team: 0, id: 'focusbuilding' });
+    g2.issueCommand({ type: 'toggleUpgrade', team: 0, id: 'focusbuilding', on: false });
+    spawnUnit(g2, 0, 'grunt', 900, 480);
+    const foe2 = spawnUnit(g2, 1, 'grunt', 940, 480); foe2.hp = foe2.maxHp = 100000;
+    run(g2, 3);
+    check('focus building toggled off -> hits the unit again', foe2.hp < foe2.maxHp);
     applyBalance({});
   }
 

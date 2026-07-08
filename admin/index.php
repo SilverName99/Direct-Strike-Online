@@ -48,6 +48,7 @@ const UPGRADE_INFO = [
   'acidspit' => 'Acid Spit',
   'aoedamage' => 'AoE Damage',
   'splitmount' => 'Landing Split: beast & rider',
+  'focusbuilding' => 'Focus building',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
