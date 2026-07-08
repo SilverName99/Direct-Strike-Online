@@ -1198,6 +1198,103 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // "AoE Damage" upgrade: the thrown projectile bursts and damages every enemy
+  // in the splash radius (air included); toggled off it is single-target again.
+  {
+    // thrower = ranged grunt; enemies get speed 0 so positions stay fixed
+    applyBalance({
+      races: {
+        humans: { units: { grunt: { ranged: true, range: 220, targetsAir: true } } },
+        orcs: { units: { grunt: { speed: 0 } } },
+      },
+      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: { cost: 100, splashRadius: 100 } } },
+    });
+    const game = new Game(11, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'aoedamage' });
+    spawnUnit(game, 0, 'grunt', 600, 400);
+    const a = spawnUnit(game, 1, 'grunt', 760, 400); a.hp = a.maxHp = 100000; // primary target
+    const b = spawnUnit(game, 1, 'grunt', 800, 430); b.hp = b.maxHp = 100000; // only splash reaches it
+    run(game, 2);
+    check('AoE axe damages both clumped enemies', a.hp < a.maxHp && b.hp < b.maxHp,
+      `a=${Math.round(a.maxHp - a.hp)} b=${Math.round(b.maxHp - b.hp)}`);
+
+    // toggled off -> single target: the neighbour stays untouched
+    const g2 = new Game(11, { races: ['humans', 'orcs'] });
+    g2.issueCommand({ type: 'buyUpgrade', team: 0, id: 'aoedamage' });
+    g2.issueCommand({ type: 'toggleUpgrade', team: 0, id: 'aoedamage', on: false });
+    spawnUnit(g2, 0, 'grunt', 600, 400);
+    const a2 = spawnUnit(g2, 1, 'grunt', 760, 400); a2.hp = a2.maxHp = 100000;
+    const b2 = spawnUnit(g2, 1, 'grunt', 800, 430); b2.hp = b2.maxHp = 100000;
+    run(g2, 2);
+    check('AoE toggled off -> only the primary target is hit', a2.hp < a2.maxHp && b2.hp === b2.maxHp);
+
+    // the burst reaches FLIERS too (ordinary splash would be ground-only)
+    applyBalance({
+      races: {
+        humans: { units: { grunt: { ranged: true, range: 220, targetsAir: true } } },
+        orcs: { units: { grunt: { speed: 0, isAir: true } } },
+      },
+      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: { cost: 100, splashRadius: 100 } } },
+    });
+    const g3 = new Game(11, { races: ['humans', 'orcs'] });
+    g3.issueCommand({ type: 'buyUpgrade', team: 0, id: 'aoedamage' });
+    spawnUnit(g3, 0, 'grunt', 600, 400);
+    const fa = spawnUnit(g3, 1, 'grunt', 760, 400); fa.hp = fa.maxHp = 100000;
+    const fb = spawnUnit(g3, 1, 'grunt', 800, 430); fb.hp = fb.maxHp = 100000;
+    run(g3, 2);
+    check('AoE burst damages the second FLIER too', fa.hp < fa.maxHp && fb.hp < fb.maxHp,
+      `fa=${Math.round(fa.maxHp - fa.hp)} fb=${Math.round(fb.maxHp - fb.hp)}`);
+    applyBalance({});
+  }
+
+  // "Landing Split" upgrade: an enemy inside the trigger radius makes the
+  // flyer land and split into TWO units — the rider on foot (still ranged)
+  // and a melee beast with its own HP. Both fight on.
+  {
+    applyBalance({
+      upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: {
+        cost: 100, radius: 200,
+        dmDamage: 20, dmRange: 150, dmPeriod: 0.8, dmSpeed: 80, dmSize: 100, dmRanged: 1,
+        beastHp: 300, beastDamage: 25, beastRange: 30, beastPeriod: 0.7, beastSpeed: 100, beastSize: 100,
+      } } },
+    });
+    const { effStats } = await import('../src/sim/combat.js');
+    const game = new Game(12, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
+    const rider = spawnUnit(game, 1, 'wasp', 900, 400);
+    const foe = spawnUnit(game, 0, 'grunt', 780, 400); foe.hp = foe.maxHp = 100000;
+    const before = game.entities.length;
+    game.update(DT); game.drainEvents();
+    check('split: the rider lands (dismounted, no longer air)',
+      rider.dismounted === true && rider.isAir === false);
+    const beast = game.entities.find((e) => e.beast);
+    check('split: a beast unit spawned for the same team',
+      game.entities.length === before + 1 && !!beast && beast.team === 1 && !beast.isAir);
+    check('split: the beast has its own HP from the upgrade', !!beast && beast.maxHp === 300);
+    const rs = effStats(rider, game.ustat(1, 'wasp'));
+    const bs = effStats(beast, game.ustat(1, 'wasp'));
+    check('split: rider keeps a RANGED attack with on-foot numbers',
+      rs.ranged === true && rs.damage === 20 && rs.range === 150);
+    check('split: beast fights in MELEE with its own numbers',
+      bs.ranged === false && bs.damage === 25 && bs.range === 30);
+    run(game, 3);
+    check('split: the pair actually hurts the enemy', foe.hp < foe.maxHp,
+      `dropped ${Math.round(foe.maxHp - foe.hp)}`);
+
+    // no enemy nearby -> stays whole; toggled off -> never splits
+    const g2 = new Game(12, { races: ['humans', 'orcs'] });
+    g2.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
+    const lone = spawnUnit(g2, 1, 'wasp', 3000, 400);
+    g2.update(DT); g2.drainEvents();
+    check('no enemy in radius -> no split', lone.dismounted === false && g2.entities.every((e) => !e.beast));
+    g2.issueCommand({ type: 'toggleUpgrade', team: 1, id: 'splitmount', on: false });
+    spawnUnit(g2, 0, 'grunt', 2900, 400);
+    g2.update(DT); g2.drainEvents();
+    check('toggled off -> no split even with an enemy close',
+      lone.dismounted === false && g2.entities.every((e) => !e.beast));
+    applyBalance({});
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 

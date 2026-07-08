@@ -86,6 +86,11 @@ export function hasFootAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `foot-${anim}`);
 }
 
+// True when a split-off mount has an uploaded beast ("beast-<anim>") sprite.
+export function hasBeastAnim(type, team, anim) {
+  return hasSpriteAnim(raceOf(team), type, `beast-${anim}`);
+}
+
 // Uploaded projectile image for a unit type, contain-fit into a targetH
 // square (caller rotates the context toward travel). False -> caller draws
 // the default dot.

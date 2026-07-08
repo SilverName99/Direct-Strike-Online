@@ -2,7 +2,7 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { hasDeathAnim, hasFootAnim, drawCharacter, sizeOf } from './characters.js';
+import { hasDeathAnim, hasFootAnim, hasBeastAnim, drawCharacter, sizeOf } from './characters.js';
 import { raceOf } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
@@ -31,8 +31,8 @@ export class Effects {
         case 'death':
           if (hasDeathAnim(e.unitType, e.team)) {
             // character units play their die animation, then fade; a dismounted
-            // unit uses its on-foot "foot-die" frame
-            this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, footScale: e.footScale });
+            // unit uses its on-foot "foot-die" frame, a split mount "beast-die"
+            this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, footScale: e.footScale });
             this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);
           } else {
             this.burst(e.x, e.y, 8, TEAM_COLORS[e.team], 120, 0.45, 3);
@@ -128,8 +128,9 @@ export class Effects {
       ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
-      const anim = c.dismounted && hasFootAnim(c.type, c.team, 'die') ? 'foot-die' : 'die';
-      const scale = c.dismounted && c.footScale != null ? c.footScale : sizeOf(raceOf(c.team), c.type);
+      const anim = c.beast && hasBeastAnim(c.type, c.team, 'die') ? 'beast-die'
+        : c.dismounted && hasFootAnim(c.type, c.team, 'die') ? 'foot-die' : 'die';
+      const scale = (c.dismounted || c.beast) && c.footScale != null ? c.footScale : sizeOf(raceOf(c.team), c.type);
       drawCharacter(ctx, c.type, anim, frame, c.team, scale);
       ctx.restore();
     }

@@ -7,10 +7,10 @@ export function updateMovement(game, dt) {
     if (u.state !== 'march') continue;
     const stats = game.ustat(u.team, u.type);
     // dashing units close the gap at their charge speed (basic dash or mount);
-    // dismounted units move at their on-foot override speed
+    // dismounted riders / split beasts move at their override speed
     let base;
     if (u.dashing) base = u.dashVel || stats.dashSpeed || stats.speed;
-    else if (u.dismounted && u.ovSpeed != null) base = u.ovSpeed;
+    else if ((u.dismounted || u.beast) && u.ovSpeed != null) base = u.ovSpeed;
     else base = stats.speed;
     const speed = base * moveSpeedMult(u, game.time); // frost slows
 

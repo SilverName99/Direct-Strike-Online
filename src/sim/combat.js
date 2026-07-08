@@ -1,20 +1,23 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
-import { spawnProjectile } from './entity.js';
+import { spawnProjectile, spawnUnit } from './entity.js';
 import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
 import { resolvedUpgrade } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
-// damage/range/period/speed (and no projectile/splash).
+// damage/range/period/speed (and no projectile/splash — unless the override
+// says the rider stays ranged, e.g. the Landing Split's axe thrower). A split
+// beast uses the same override block with its own melee numbers.
 export function effStats(u, stats) {
-  if (!u.dismounted) return stats;
+  if (!u.dismounted && !u.beast) return stats;
+  const ranged = !!u.ovRanged;
   return {
     ...stats,
     damage: u.ovDamage != null ? u.ovDamage : stats.damage,
     range: u.ovRange != null ? u.ovRange : stats.range,
     period: u.ovPeriod != null ? u.ovPeriod : stats.period,
     speed: u.ovSpeed != null ? u.ovSpeed : stats.speed,
-    projectile: false, ranged: false, splash: 0,
+    projectile: ranged, ranged, splash: 0,
   };
 }
 
@@ -43,10 +46,26 @@ export function updateCombat(game, dt) {
     } else if (u.acidAttacker) {
       u.acidAttacker = false;
     }
+    // "AoE Damage" upgrade: the unit's thrown projectile bursts on impact and
+    // damages every enemy — air included — in the splash radius. Applies to
+    // any of its ranged forms (mounted, or a split rider still throwing).
+    if (!acid && stats.projectile) {
+      const aoe = aoeUpgradeFor(game, u);
+      if (aoe) {
+        stats = {
+          ...stats,
+          splash: Math.max(stats.splash || 0, aoe.params.splashRadius || 0),
+          splashAir: true,
+        };
+      }
+    }
     u.cooldown = Math.max(0, u.cooldown - dt);
+    // "Landing Split" upgrade: an enemy close by makes the flyer land and
+    // split into rider + beast — consumes this tick.
+    if (!u.dismounted && !u.beast && trySplit(game, u)) continue;
     // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
     // intruder and dismount on arrival — takes over from normal combat.
-    if (!u.dismounted && mountCharge(game, u)) continue;
+    if (!u.dismounted && !u.beast && mountCharge(game, u)) continue;
     // A caster is defined by its active abilities and runs the prepare ->
     // release FSM before (and instead of) its basic action, whether it is a
     // healer or a fighter. It only falls through to the basic attack/heal
@@ -289,6 +308,67 @@ function acidUpgradeFor(game, u) {
   return null;
 }
 
+// The active "AoE Damage" (kind 'aoe') upgrade transforming u's type, else null.
+function aoeUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue;
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'aoe' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+  }
+  return null;
+}
+
+// The active "Landing Split" (kind 'split') upgrade for u's type, else null.
+function splitUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue;
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'split' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+  }
+  return null;
+}
+
+// ---- "Landing Split" upgrade ------------------------------------------------
+// While still whole (mounted/airborne): the first enemy inside the trigger
+// radius makes the flyer LAND and split into TWO units for the rest of this
+// life — `u` becomes the rider on foot (dismounted overrides + "foot-"
+// sprites) and a fresh beast entity (the mount) spawns beside it with its own
+// HP and melee stats ("beast-" sprites). Returns true on the split tick.
+function trySplit(game, u) {
+  const up = splitUpgradeFor(game, u);
+  if (!up) return false;
+  const p = up.params;
+  let near = false;
+  for (const e of game.entities) {
+    if (e.team !== u.team && e.hp > 0 && effDist(u, e) <= p.radius) { near = true; break; }
+  }
+  if (!near) return false;
+
+  const bs = game.ustat(u.team, u.type);
+  // the rider lands and fights on foot from now on
+  u.dismounted = true;
+  u.isAir = false;
+  u.dashing = false;
+  u.ovDamage = p.dmDamage; u.ovRange = p.dmRange; u.ovPeriod = p.dmPeriod; u.ovSpeed = p.dmSpeed;
+  u.ovRanged = !!p.dmRanged;
+  u.ovSize = (p.dmSize != null ? p.dmSize : 100) / 100;
+  u.radius = Math.max(5, (bs.radius || 10) * u.ovSize);
+  u.windup = 0; u.cooldown = 0;
+
+  // the beast lands beside the rider and fights on its own
+  const b = spawnUnit(game, u.team, u.type, u.x, u.y + 26);
+  b.beast = true;
+  b.isAir = false;
+  b.hp = b.maxHp = Math.max(1, p.beastHp || bs.hp);
+  b.ovDamage = p.beastDamage; b.ovRange = p.beastRange; b.ovPeriod = p.beastPeriod; b.ovSpeed = p.beastSpeed;
+  b.ovRanged = false; // the beast bites in melee
+  b.ovSize = (p.beastSize != null ? p.beastSize : 100) / 100;
+  b.radius = Math.max(5, (bs.radius || 10) * b.ovSize);
+
+  game.events.push({ type: 'dismount', x: u.x, y: u.y, team: u.team });
+  return true; // consumed this tick — both fight with their own stats next tick
+}
+
 // An enemy Ranged, non-flying unit within `radius`.
 function isRangedFoe(game, u, e, radius) {
   if (e.hp <= 0 || e.team === u.team || e.isAir) return false;
@@ -410,7 +490,8 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
       radius: target.radius,
       unitType: target.type || null,
       dismounted: !!target.dismounted, // corpse uses the on-foot "foot-die" sprite
-      footScale: target.dismounted ? (target.ovSize || 1) : null,
+      beast: !!target.beast,           // split mount corpse -> "beast-die" sprite
+      footScale: (target.dismounted || target.beast) ? (target.ovSize || 1) : null,
     });
   }
 }
@@ -447,8 +528,9 @@ function impact(game, p, target) {
     game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, acid: !!p.acid });
     for (const e of game.entities) {
       if (e.team === p.team) continue;
-      // ordinary splash is ground-only; acid, however, corrodes fliers too
-      if (e.isAir && !p.acid) continue;
+      // ordinary splash is ground-only; acid corrodes fliers, and the AoE
+      // upgrade's burst (splashAir) reaches them too
+      if (e.isAir && !p.acid && !p.splashAir) continue;
       const dx = e.x - p.tx;
       const dy = e.y - p.ty;
       if (dx * dx + dy * dy <= p.splash * p.splash) {

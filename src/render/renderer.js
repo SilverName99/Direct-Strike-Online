@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
 import { getBackground, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -548,7 +548,7 @@ export class Renderer {
       const color = TEAM_COLORS[u.team];
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
-      const vScale = u.dismounted && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
+      const vScale = (u.dismounted || u.beast) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
 
       if (u.isAir) {
         // soft shadow under flyers
@@ -621,6 +621,10 @@ export class Renderer {
         // uploaded, else keep the mounted sprite/puppet (which always exists)
         if (u.dismounted && !anim.startsWith('foot-') && hasFootAnim(u.type, u.team, anim)) {
           anim = `foot-${anim}`;
+        }
+        // split-off mount: same idea with the "Bestie" sprite set
+        if (u.beast && !anim.startsWith('beast-') && hasBeastAnim(u.type, u.team, anim)) {
+          anim = `beast-${anim}`;
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
       } else {

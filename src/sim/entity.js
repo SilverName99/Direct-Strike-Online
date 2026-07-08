@@ -28,10 +28,14 @@ export function spawnUnit(game, team, type, x, y) {
     dashReadyAt: 0,   // game.time when the next dash is allowed (cooldown)
     dashVel: 0,       // effective charge speed while dashing (set by combat)
     // "Dashing & Fleeing mount" upgrade: charge a ranged intruder, then fight
-    // on foot with dismounted stat overrides for the rest of this life
+    // on foot with dismounted stat overrides for the rest of this life.
+    // "Landing Split" reuses the same overrides for the landed rider, and
+    // marks the spawned mount with `beast` (its own ov* stats + beast sprites).
     mountTargetId: null,
     dismounted: false,
+    beast: false,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
+    ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,
     targetId: null,
@@ -103,6 +107,7 @@ export function spawnProjectile(game, source, stats, target) {
     damage: stats.damage,
     dmgType: stats.dmgType,
     splash: stats.splash || 0,
+    splashAir: !!stats.splashAir, // AoE upgrade: the burst hits fliers too
     acid: stats.acid || null, // {dot, dur} -> damage-over-time on impact (Acid Spit)
     // "Bounce": on impact the projectile ricochets to the next nearby enemy
     // (up to bounceLeft more hops), dealing bounceDamage (bouncePower% of the

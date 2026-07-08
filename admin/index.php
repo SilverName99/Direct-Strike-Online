@@ -27,6 +27,9 @@ const ARMED_BUILDINGS = ['turret', 'tower'];
 const DISMOUNT_UPGRADES = ['dashmount'];
 // upgrades of kind 'acid' (Acid Spit) — grant two extra "acid" attack frames
 const ACID_UPGRADES = ['acidspit'];
+// upgrades of kind 'split' (Landing Split) — the unit splits into rider +
+// beast, so it gets BOTH the "foot-" (rider on foot) and "beast-" sprite sets
+const SPLIT_UPGRADES = ['splitmount'];
 // ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
 // — every aura is now cast (a "Cast X" frame, then the zone persists for its
 // duration); projectile abilities also get a per-caster projectile image slot
@@ -43,6 +46,8 @@ const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
   'groundattack' => 'Attack ground units',
   'acidspit' => 'Acid Spit',
+  'aoedamage' => 'AoE Damage',
+  'splitmount' => 'Landing Split: beast & rider',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
@@ -106,6 +111,10 @@ function unitHasDismount(string $race, string $ent): bool {
 // True when this race's unit is targeted by an "Acid Spit" upgrade.
 function unitHasAcid(string $race, string $ent): bool {
   return unitHasUpgradeKind($race, $ent, ACID_UPGRADES);
+}
+// True when this race's unit is targeted by a "Landing Split" upgrade.
+function unitHasSplit(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, SPLIT_UPGRADES);
 }
 // Shared: is $ent (this race) the target of any upgrade whose id is in $ids?
 function unitHasUpgradeKind(string $race, string $ent, array $ids): bool {
@@ -206,8 +215,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   $slots['die_0'] = 'Die';
   // a unit dashes if its own Dash toggle is on OR a mount upgrade makes it charge
   if (unitHasDash($race, $ent) || unitHasDismount($race, $ent)) $slots['dash_0'] = 'Dash';
-  // on-foot (dismounted) sprite set for units transformed by a mount upgrade
-  if (unitHasDismount($race, $ent)) {
+  // on-foot (dismounted) sprite set: a mount upgrade puts the rider on foot,
+  // and the Landing Split's rider fights on foot too
+  if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) {
     $slots['foot-idle_0'] = 'Pe jos: Idle 1';
     $slots['foot-idle_1'] = 'Pe jos: Idle 2';
     $slots['foot-walk_0'] = 'Pe jos: Walk 1';
@@ -215,6 +225,16 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['foot-attack_0'] = 'Pe jos: Attack 1';
     $slots['foot-attack_1'] = 'Pe jos: Attack 2';
     $slots['foot-die_0'] = 'Pe jos: Die';
+  }
+  // "Landing Split": the mount becomes its own unit — a full beast sprite set
+  if (unitHasSplit($race, $ent)) {
+    $slots['beast-idle_0'] = 'Bestie: Idle 1';
+    $slots['beast-idle_1'] = 'Bestie: Idle 2';
+    $slots['beast-walk_0'] = 'Bestie: Walk 1';
+    $slots['beast-walk_1'] = 'Bestie: Walk 2';
+    $slots['beast-attack_0'] = 'Bestie: Attack 1';
+    $slots['beast-attack_1'] = 'Bestie: Attack 2';
+    $slots['beast-die_0'] = 'Bestie: Die';
   }
   // "Acid Spit" upgrade: two extra frames for the acid attack animation, plus
   // a dedicated acid projectile image

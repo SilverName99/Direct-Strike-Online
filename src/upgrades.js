@@ -36,6 +36,42 @@ export const UPGRADES = {
       cost: 200, // gold to buy from the base
     },
   },
+  aoedamage: {
+    name: 'AoE Damage',
+    desc: 'The unit\'s thrown weapon (e.g. a Griffin Rider\'s axe) bursts on impact: instead of hurting a single target it deals its damage to EVERY enemy — ground and air — caught in the splash radius. Bought once from the base; permanent for the match.',
+    kind: 'aoe',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the splash attack (set in admin)
+    params: {
+      cost: 250,        // gold to buy from the base
+      splashRadius: 80, // radius of the burst around the struck target
+    },
+  },
+  splitmount: {
+    name: 'Landing Split: beast & rider',
+    desc: 'A flying rider LANDS when an enemy comes near — and the one unit splits into TWO: the rider fights on foot (with the on-foot numbers below, still throwing if "rider stays ranged" is 1) and the mount becomes a separate melee beast with its own HP. Both fight until they die (e.g. a Griffin Rider). Needs the extra "Pe jos" (rider) and "Bestie" (mount) sprite sets on the unit.',
+    kind: 'split',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type splits on landing (set in admin)
+    params: {
+      cost: 400,       // gold to buy from the base
+      radius: 240,     // an enemy this close triggers the landing + split
+      // the rider on foot (uses the unit's "Pe jos" sprite set)
+      dmDamage: 18,    // on-foot damage
+      dmRange: 160,    // on-foot attack range
+      dmPeriod: 1.0,   // on-foot attack period (s)
+      dmSpeed: 90,     // on-foot move speed
+      dmSize: 100,     // on-foot visual size (%)
+      dmRanged: 1,     // 1 = the rider keeps its ranged (thrown) attack, 0 = melee
+      // the beast (the mount), spawned beside the rider as its own unit
+      beastHp: 220,
+      beastDamage: 16,
+      beastRange: 30,
+      beastPeriod: 0.9,
+      beastSpeed: 120,
+      beastSize: 100,  // beast visual size (%)
+    },
+  },
   acidspit: {
     name: 'Acid Spit',
     desc: 'The rider\'s dragon spits acid instead of its basic attack: a ranged projectile that bursts for SPLASH damage and leaves acid that deals damage over time to everyone caught in the blast (e.g. a Wyvern Rider). Bought once from the base; permanent for the match. Needs two extra "Acid" attack sprites on the unit.',
@@ -72,4 +108,11 @@ export const UPGRADE_PARAM_LABELS = {
   splashRadius: 'Rază splash',
   dotDamage: 'Damage over time (pe secundă)',
   dotDuration: 'Durată acid (s)',
+  dmRanged: 'Călărețul rămâne ranged (1/0)',
+  beastHp: 'HP bestie',
+  beastDamage: 'Damage bestie',
+  beastRange: 'Rază atac bestie',
+  beastPeriod: 'Perioadă atac bestie (s)',
+  beastSpeed: 'Viteză bestie',
+  beastSize: 'Mărime bestie (Size %)',
 };
