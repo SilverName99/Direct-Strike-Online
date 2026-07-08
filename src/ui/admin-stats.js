@@ -132,15 +132,12 @@ function fieldsFor(ent, kind) {
       group: G, label: 'Înălțime (celule)', type: 'num', value: u.ch || 1,
       apply: (v) => { u.ch = clamp(Math.round(v), 1, 20); },
     });
-    // idle/walk frame flip rate (flips per second)
+    // idle/walk frame flip rate (flips per second). Attack animation is NOT
+    // set here — it follows the unit's Attack period (one Attack 1<->2 cycle
+    // per attack), so it stays in sync with how often the unit actually hits.
     out.push({
-      group: G, label: 'Viteză animație mers (flip/s)', type: 'num', value: u.animSpeed ?? 5,
+      group: G, label: 'Viteză animație mers/idle (flip/s)', type: 'num', value: u.animSpeed ?? 5,
       apply: (v) => { u.animSpeed = clamp(v, 0.2, 30); },
-    });
-    // attack frame flip rate — independent of walk; also drives spell/acid frames
-    out.push({
-      group: G, label: 'Viteză animație atac + spell (flip/s)', type: 'num', value: u.attackAnimSpeed ?? 5,
-      apply: (v) => { u.attackAnimSpeed = clamp(v, 0.2, 30); },
     });
 
     // Flying: the unit passes over walls/structures and can only be hit by

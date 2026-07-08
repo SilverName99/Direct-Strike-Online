@@ -121,8 +121,7 @@ function baseUnits() {
     t[id] = {
       ...u, size: 1, projSize: 1,
       cw: 1, ch: 1,        // footprint in grid cells (drives the unit's physical size)
-      animSpeed: 5,        // idle/walk frame flips per second
-      attackAnimSpeed: 5,  // attack (and spell) frame flips per second — independent of walk
+      animSpeed: 5,        // idle/walk frame flips per second (attack anim follows the Attack period)
       // Blank default: every special behavior is OFF; build any unit up from a
       // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
       ranged: false, projectile: false,
@@ -206,7 +205,7 @@ function raceUnitsSnapshot(race) {
   const out = {};
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
     out[id] = {
-      name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed, attackAnimSpeed: u.attackAnimSpeed,
+      name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed,
       ranged: !!u.ranged, projSpeed: u.projSpeed, splash: u.splash,
       heal: !!u.heal,
       isAir: !!u.isAir, targetsAir: !!u.targetsAir, targetsGround: u.targetsGround !== false,
@@ -333,7 +332,6 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.cw) !== undefined) u.cw = Math.round(clamp(vals.cw, 1, 20));
     if (num(vals.ch) !== undefined) u.ch = Math.round(clamp(vals.ch, 1, 20));
     if (num(vals.animSpeed) !== undefined) u.animSpeed = clamp(vals.animSpeed, 0.2, 30);
-    if (num(vals.attackAnimSpeed) !== undefined) u.attackAnimSpeed = clamp(vals.attackAnimSpeed, 0.2, 30);
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
@@ -415,7 +413,7 @@ export function resetRaceUnit(race, id) {
   const u = UNITS[id];
   const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
   resolvedUnits[race][id] = {
-    ...u, size: 1, projSize: 1, cw: 1, ch: 1, animSpeed: 5, attackAnimSpeed: 5,
+    ...u, size: 1, projSize: 1, cw: 1, ch: 1, animSpeed: 5,
     ranged: false, projectile: false, heal: false, isAir: false, targetsAir: false, targetsGround: true, splash: 0,
     projSpeed: ps, projectileSpeed: ps,
     bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
