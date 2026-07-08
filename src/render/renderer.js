@@ -117,14 +117,13 @@ export class Renderer {
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
   }
 
-  // Attack frame in step with the unit's real swing rhythm: one full
-  // Attack 1 -> Attack 2 cycle per attack period (offset per unit so a pack
-  // doesn't strike in perfect unison). The wind-up, when present, drives the
-  // frames exactly: raise on the first half, release on the second.
+  // Attack frame cycling Attack 1 <-> Attack 2 at the unit's OWN attack flip
+  // rate (attackAnimSpeed, flips/sec — independent of walk), offset per unit so
+  // a pack doesn't strike in perfect unison. Also used for the acid/spell
+  // frames so "attack speed" governs those too.
   attackFrame(u, rstats) {
-    if (u.windup > 0 && u.windupMax > 0) return u.windup > u.windupMax * 0.5 ? 0 : 1;
-    const per = Math.max(0.2, rstats.period || 0.8);
-    return Math.floor((this.now * 2) / per + u.id) % 2;
+    const fps = rstats.attackAnimSpeed || rstats.animSpeed || 5;
+    return (Math.floor(this.now * fps) + u.id) % 2;
   }
 
   // Which way a character should face: its live target while fighting, its
