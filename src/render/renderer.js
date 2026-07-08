@@ -114,21 +114,7 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
-    this.swingHold = new Map();  // unit id -> last time seen mid-swing (windup)
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
-  }
-
-  // True while a unit's strike should be drawn: during the wind-up AND for a
-  // short linger after the hit lands (windup hits 0 exactly on the strike
-  // tick, so without the linger the release pose would vanish the same
-  // instant the axe/projectile leaves).
-  swinging(u) {
-    if (u.windup > 0) {
-      this.swingHold.set(u.id, this.now);
-      return true;
-    }
-    const t = this.swingHold.get(u.id);
-    return t !== undefined && this.now - t < 0.35;
   }
 
   // Which way a character should face: its live target while fighting, its
@@ -178,7 +164,6 @@ export class Renderer {
     const z = cam.zoom;
     this.now = performance.now() / 1000; // render clock for 2-frame anims
     if (this.attackHold.size > 4000) this.attackHold.clear(); // bound the map
-    if (this.swingHold.size > 4000) this.swingHold.clear();
     this.view = {
       x0: cam.x,
       y0: cam.y,
@@ -609,28 +594,22 @@ export class Renderer {
             anim = castAnimOf(u.type, u.team, u.castAbility) || (prep ? 'prepare' : 'attack');
           }
           frame = 0;
-        } else if (attacking && (isCaster || this.swinging(u))) {
-          // the attack pose plays DURING the swing (wind-up -> release) and
-          // lingers ~0.35s past the strike so the release actually reads;
-          // between swings (waiting on cooldown) the unit returns to idle —
-          // otherwise it looks frozen mid-attack for most of each period
+        } else if (attacking) {
           if (isCaster) {
             // non-caster-ability fighter path (out of mana / auto-attacking):
             // shared "prepare" during the wind-up, one "attack" release frame
             anim = u.windup > 0 && prep ? 'prepare' : 'attack';
             frame = 0;
           } else if (u.acidAttacker && hasAcidAnim(u.type, u.team)) {
-            // Acid Spit upgrade: play the uploaded 2-frame "Acid" attack
+            // Acid Spit upgrade: cycle the two "Acid" attack frames
             anim = 'acid';
-            frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
+            frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
           } else {
+            // fighting: keep cycling Attack 1 <-> Attack 2 (same clock as the
+            // walk/idle flip) for as long as the unit stays engaged
             anim = 'attack';
-            frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
+            frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
           }
-        } else if (attacking) {
-          // engaged but between swings: breathe in place
-          anim = 'idle';
-          frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk
           anim = hasDashAnim(u.type, u.team) ? 'dash' : 'walk';

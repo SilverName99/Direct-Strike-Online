@@ -274,7 +274,9 @@ function updateHealer(game, u, stats) {
   const someoneAhead = game.entities.some(
     (e) => e.team === u.team && e !== u && (e.x - u.x) * dir > 0
   );
-  u.state = best || someoneAhead ? 'march' : 'attack'; // 'attack' with no cooldown use = hold position
+  // hold position, but as 'hold' (not 'attack') so the renderer shows a calm
+  // idle instead of a healer frozen mid-heal pose
+  u.state = best || someoneAhead ? 'march' : 'hold';
 }
 
 // ---- "Dashing & Fleeing mount" upgrade -------------------------------------
