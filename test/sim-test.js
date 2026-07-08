@@ -1488,6 +1488,13 @@ console.log('abilities (casters, auras, status effects)');
     g4.update(DT); g4.drainEvents();
     check('mana-regen does nothing off the band', away.mana === 0);
     applyBalance({});
+
+    // an "empty" middle entry (slot -1) draws a plain middle: no strip, no effect
+    const g5 = new Game(31, { races: ['humans', 'orcs'], middles: [{ slot: -1, kind: 'none' }] });
+    const u5 = spawnUnit(g5, 0, 'grunt', mid, 400);
+    g5.update(DT); g5.drainEvents();
+    check('empty middle -> no image slot, no effect',
+      g5.middleSlot === -1 && moveSpeedMult(u5, g5.time) === 1);
   }
 
   resetAll(); // leave the shared balance pristine for any later tests

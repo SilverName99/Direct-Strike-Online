@@ -121,9 +121,11 @@ function newGame(difficulty) {
   const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
   setTeamRaces([playerRace, aiRace]);
   bottombar.refresh(); // shop reflects the player race at match start
-  // middle-of-map terrain: the available uploaded variants + their effects; the
-  // sim picks one at random (seeded) and applies its debuff
+  // middle-of-map terrain: the available uploaded variants + their effects,
+  // plus N "empty" entries so some matches roll a plain middle; the sim picks
+  // one at random (seeded) and applies its effect
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
+  for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
   game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult], middles });
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
   effects.reset();

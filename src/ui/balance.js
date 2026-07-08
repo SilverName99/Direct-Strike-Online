@@ -252,6 +252,7 @@ function snapshot() {
   return {
     general,
     middles: CONFIG.MIDDLES.map((m) => ({ ...m })),
+    middleEmpty: CONFIG.MIDDLE_EMPTY,
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
@@ -290,6 +291,7 @@ export function applyBalance(data) {
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
 
   // ---- middle-of-map terrain effects (per strip variant) ----
+  CONFIG.MIDDLE_EMPTY = num(data.middleEmpty) !== undefined ? clamp(data.middleEmpty, 0, 20) : DEFAULTS.middleEmpty;
   CONFIG.MIDDLES = DEFAULTS.middles.map((m) => ({ ...m })); // reset to code defaults
   if (Array.isArray(data.middles)) {
     data.middles.forEach((m, i) => {

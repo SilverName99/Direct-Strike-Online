@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.98';
+export const VERSION = 'v9.99';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -34,6 +34,10 @@ export const CONFIG = {
     { kind: 'none', amount: 0, band: 200, air: false },
     { kind: 'none', amount: 0, band: 200, air: false },
   ],
+  // How many "empty" (no strip, no effect) entries join the random draw
+  // alongside the uploaded variants. 0 = a middle is always shown; e.g. 2
+  // uploaded + 1 empty = 1-in-3 chance of a plain middle.
+  MIDDLE_EMPTY: 0,
 
   // Cosmetic overrides set from the admin balance editor:
   SIZES: {},            // entity id -> visual scale multiplier (default 1)

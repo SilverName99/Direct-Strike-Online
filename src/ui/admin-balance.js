@@ -38,7 +38,8 @@ function render() {
   html += '</div></div>';
   // middle-of-map terrain effects, one per uploaded strip variant (slots 1-3)
   html += `<div class="group"><h3>Mijloc hartă — efect pe teren</h3>
-    <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Fiecare variantă de mijloc (1-3, încărcate în <a href="./?view=icons" style="color:#4da6ff">Iconițe</a>) poate da un debuff unităților de pe banda din centru. Ordinea = varianta 1/2/3.</p>`;
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Fiecare variantă de mijloc (1-3, încărcate în <a href="./?view=icons" style="color:#4da6ff">Iconițe</a>) poate da un efect unităților de pe banda din centru. Ordinea = varianta 1/2/3. La fiecare meci se alege una la întâmplare dintre cele încărcate.</p>
+    <div class="fields" style="margin-bottom:10px">${numField('middleEmpty', '', '', 'Variante GOALE în tragere (0 = mereu un mijloc)', CONFIG.MIDDLE_EMPTY)}</div>`;
   (CONFIG.MIDDLES || []).forEach((m, i) => {
     const kOpts = MIDDLE_KINDS.map((k) => `<option value="${k}" ${k === m.kind ? 'selected' : ''}>${MIDDLE_KIND_LABELS[k]}</option>`).join('');
     html += `<div class="fields" style="margin-bottom:8px;align-items:center">
@@ -76,6 +77,7 @@ function collect() {
     const { scope, id, field } = el.dataset;
     if (scope === 'tint') { CONFIG.TEAM_TINT = el.value; continue; }
     if (scope === 'healthbar') { CONFIG.HEALTHBAR_ALWAYS = el.value === '1'; continue; }
+    if (scope === 'middleEmpty') { if (isFinite(Number(el.value))) CONFIG.MIDDLE_EMPTY = Math.max(0, Math.round(Number(el.value))); continue; }
     if (scope === 'middle') {
       const m = CONFIG.MIDDLES[Number(id)];
       if (!m) continue;
