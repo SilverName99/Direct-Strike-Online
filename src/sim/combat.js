@@ -183,12 +183,20 @@ function updateFighter(game, u, stats, dt) {
     u.targetId = null;
   }
   // Focus discipline: once ENGAGED (target inside attack range) stay on that
-  // target; while still approaching, always chase the NEAREST enemy instead —
-  // otherwise a unit walks past closer foes toward the first thing it saw.
-  if (!target || effDist(u, target) > atkRange(u, stats) + 14) {
-    const nearest = acquireTarget(game, u, stats);
-    if (nearest) target = nearest;
+  // target; while approaching, chase the nearest enemy — but with hysteresis:
+  // switch only for a CLEARLY closer foe, and never mid-swing. Without the
+  // margin, two foes at near-equal distance (constantly shoved around by the
+  // separation pass) swap "nearest" every tick — the unit trembles between
+  // them and every wind-up is cancelled before the projectile ever leaves.
+  if (!target) {
+    target = acquireTarget(game, u, stats);
     u.targetId = target ? target.id : null;
+  } else if (u.windup <= 0 && effDist(u, target) > atkRange(u, stats) + 14) {
+    const nearest = acquireTarget(game, u, stats);
+    if (nearest && nearest !== target && effDist(u, nearest) < effDist(u, target) - 24) {
+      target = nearest;
+      u.targetId = target.id;
+    }
   }
 
   // Hysteresis: once engaged, stay engaged until clearly out of range —
