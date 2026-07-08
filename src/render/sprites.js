@@ -18,7 +18,9 @@ const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
-let middleImg = null;          // GLOBAL middle-of-map strip (shared, not per race)
+const middleImgs = [];         // GLOBAL middle-of-map strip variants (shared, not per race)
+let chosenMiddle = null;       // the variant picked for the current match
+let middleChosen = false;      // whether a variant is locked in for this match
 const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
@@ -118,10 +120,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const race of Object.keys(man.backgrounds || {})) {
         load(`${base}${race}/background.png?v=${man.v || 0}`, (img) => backgrounds.set(race, img));
       }
-      // GLOBAL middle-of-map strip (drawn over the seam, shared by both sides)
-      if (man.middle) {
-        load(`${base}${man.middle}?v=${man.v || 0}`, (img) => { middleImg = img; });
-      }
+      // GLOBAL middle-of-map strip variants (drawn over the seam; one random
+      // variant is chosen per match)
+      const midList = Array.isArray(man.middle) ? man.middle : (man.middle ? [man.middle] : []);
+      midList.forEach((file, i) => {
+        load(`${base}${file}?v=${man.v || 0}`, (img) => { middleImgs[i] = img; });
+      });
       // per-race background music (played in-game, looping)
       for (const [race, file] of Object.entries(man.music || {})) {
         musicUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
@@ -201,9 +205,24 @@ export function getBackground(race) {
   return backgrounds.get(race) || null;
 }
 
-// The GLOBAL middle-of-map strip image (shared, not per race), or null.
+// Start a new match: forget the locked-in middle variant so the next draw
+// picks a fresh random one (call from newGame). Render-side only.
+export function pickMatchMiddle() {
+  middleChosen = false;
+  chosenMiddle = null;
+}
+
+// The GLOBAL middle-of-map strip for the current match, or null. Locks a random
+// variant on first use and keeps it until the next match (pickMatchMiddle).
 export function getMiddleStrip() {
-  return middleImg;
+  if (!middleChosen) {
+    const avail = middleImgs.filter(Boolean);
+    if (avail.length) {
+      chosenMiddle = avail[Math.floor(Math.random() * avail.length)];
+      middleChosen = true;
+    }
+  }
+  return chosenMiddle;
 }
 
 // URL of the uploaded background-music track for a race, or null.

@@ -174,10 +174,14 @@ function iconFileFor(string $assetsDir, string $key): ?string {
   return null;
 }
 
-// The GLOBAL middle-of-map strip (assets/units/middle.png) — shared, not per
-// race; drawn over the seam so the center blends. Null if none.
-function middleFileFor(string $assetsDir): ?string {
-  return is_file("$assetsDir/middle.png") ? 'middle.png' : null;
+// A GLOBAL middle-of-map strip variant (assets/units/middle-<n>.png, n=1..3) —
+// shared, not per race; drawn over the seam so the center blends. One is picked
+// at random each match. Slot 1 falls back to the legacy middle.png. Null if none.
+const MIDDLE_SLOTS = [1, 2, 3];
+function middleFileFor(string $assetsDir, int $n): ?string {
+  if (is_file("$assetsDir/middle-$n.png")) return "middle-$n.png";
+  if ($n === 1 && is_file("$assetsDir/middle.png")) return 'middle.png'; // legacy single upload
+  return null;
 }
 
 // A race's shop tab-button file (tab-<slot>.<ext>), or null.
@@ -361,7 +365,11 @@ function regenManifest(string $assetsDir): void {
     $if = iconFileFor($assetsDir, $key);
     if ($if) $icons[$key] = $if;
   }
-  $middle = middleFileFor($assetsDir); // GLOBAL middle-of-map strip
+  $middle = []; // GLOBAL middle-of-map strip variants (random one per match)
+  foreach (MIDDLE_SLOTS as $n) {
+    $mf = middleFileFor($assetsDir, $n);
+    if ($mf) $middle[] = $mf;
+  }
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
@@ -636,10 +644,11 @@ if ($authed && $action === 'deleteicon') {
   }
 }
 
-// GLOBAL middle-of-map strip (shared, not per race) — assets/units/middle.png
+// GLOBAL middle-of-map strip variants (shared, not per race) — middle-<n>.png
 if ($authed && $action === 'uploadmiddle') {
-  if (!checkCsrf()) {
-    $err = 'Sesiune expirată — reîncearcă.';
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (!checkCsrf() || !in_array($slot, MIDDLE_SLOTS, true)) {
+    $err = 'Cerere invalidă.';
   } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
     $err = 'Upload eșuat — fișier lipsă sau prea mare.';
   } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
@@ -649,19 +658,22 @@ if ($authed && $action === 'uploadmiddle') {
     $magic = (string)file_get_contents($tmp, false, null, 0, 8);
     if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
       $err = 'Doar fișiere PNG.';
-    } elseif (move_uploaded_file($tmp, "$assetsDir/middle.png")) {
+    } elseif (move_uploaded_file($tmp, "$assetsDir/middle-$slot.png")) {
+      if ($slot === 1) @unlink("$assetsDir/middle.png"); // drop legacy single upload
       regenManifest($assetsDir);
-      $msg = 'Mijloc hartă încărcat.';
+      $msg = "Mijloc hartă $slot încărcat.";
     } else {
       $err = 'Nu pot salva fișierul.';
     }
   }
 }
 if ($authed && $action === 'deletemiddle') {
-  if (checkCsrf()) {
-    @unlink("$assetsDir/middle.png");
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (checkCsrf() && in_array($slot, MIDDLE_SLOTS, true)) {
+    @unlink("$assetsDir/middle-$slot.png");
+    if ($slot === 1) @unlink("$assetsDir/middle.png");
     regenManifest($assetsDir);
-    $msg = 'Mijloc hartă șters.';
+    $msg = "Mijloc hartă $slot șters.";
   }
 }
 
@@ -954,36 +966,39 @@ if ($authed && $action === 'deletebarover') {
       <?php endforeach; ?>
     </div>
   </div>
-  <?php $midFile = middleFileFor($assetsDir); $hasMid = $midFile !== null; ?>
   <div class="ent" id="map-middle">
-    <div class="title"><b>Mijloc hartă</b><span>global — banda de la mijloc, acoperă cusătura dintre cele două jumătăți</span></div>
+    <div class="title"><b>Mijloc hartă</b><span>global — 3 variante; una aleasă la întâmplare la începutul fiecărui meci</span></div>
     <div class="slots">
+      <?php foreach (MIDDLE_SLOTS as $n): $midFile = middleFileFor($assetsDir, $n); $hasMid = $midFile !== null; ?>
       <div class="slot">
-        <span class="lbl" style="color:#ffd35c">Bandă mijloc (PNG, ex. 400×1920)</span>
+        <span class="lbl" style="color:#ffd35c">Varianta <?= $n ?></span>
         <div class="thumb" style="width:60px;height:180px;background:#0a0e14">
           <?php if ($hasMid): ?>
-            <img src="<?= $assetsUrl ?>/middle.png?t=<?= filemtime("$assetsDir/middle.png") ?>" alt="" style="width:100%;height:100%;object-fit:cover">
+            <img src="<?= $assetsUrl ?>/<?= $midFile ?>?t=<?= filemtime("$assetsDir/$midFile") ?>" alt="" style="width:100%;height:100%;object-fit:cover">
           <?php else: ?><span class="empty">+</span><?php endif; ?>
         </div>
         <form method="post" enctype="multipart/form-data">
           <input type="hidden" name="action" value="uploadmiddle">
           <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
           <label class="pick"><?= $hasMid ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
         </form>
         <?php if ($hasMid): ?>
         <form method="post">
           <input type="hidden" name="action" value="deletemiddle">
           <input type="hidden" name="csrf" value="<?= $csrf ?>">
-          <button class="mini danger" onclick="return confirm('Ștergi mijlocul hărții?')">șterge</button>
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi varianta <?= $n ?>?')">șterge</button>
         </form>
         <?php endif; ?>
       </div>
+      <?php endforeach; ?>
       <div class="slot" style="max-width:280px">
         <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
-          Imagine verticală, înaltă (ex. <b>400×1920</b>). Se desenează centrat pe linia de mijloc,
-          peste ambele jumătăți — lățimea benzii în joc = <b>lățimea PNG-ului ÷ 2</b> (400 → ~200 unități).
-          Ține-o neutră (pământ bătătorit) ca să lege lin humans↔orcs. Marginile transparente se topesc
-          frumos în cele două hărți.
+          PNG vertical, înalt (ex. <b>400×1920</b>). Se desenează centrat pe linia de mijloc, peste ambele
+          jumătăți — lățimea benzii în joc = <b>lățimea PNG-ului ÷ 2</b> (400 → ~200 unități). Ține-o
+          neutră, cu <b>marginile stânga/dreapta transparente (fade)</b> ca să se topească în cele două
+          hărți. Încarcă 1–3 variante; jocul alege una random la fiecare meci.
         </div>
       </div>
     </div>
