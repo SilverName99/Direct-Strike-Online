@@ -38,13 +38,14 @@ export const UPGRADES = {
   },
   aoedamage: {
     name: 'AoE Damage',
-    desc: 'The unit\'s thrown weapon (e.g. a Griffin Rider\'s axe) bursts on impact: instead of hurting a single target it deals its damage to EVERY enemy — ground and air — caught in the splash radius. Bought once from the base; permanent for the match.',
+    desc: 'The unit\'s thrown weapon (e.g. a Griffin Rider\'s axe) bursts on impact: the struck target takes full damage, and every OTHER enemy on the SAME plane (air target -> air units only, ground target -> ground units only) caught in the splash radius takes a percentage of it. Bought once from the base; permanent for the match.',
     kind: 'aoe',
     race: '',   // which race's unit this targets
     unit: '',   // which unit type gains the splash attack (set in admin)
     params: {
       cost: 250,        // gold to buy from the base
       splashRadius: 80, // radius of the burst around the struck target
+      splashPower: 60,  // % of the damage dealt to the OTHERS in the radius
     },
   },
   splitmount: {
@@ -112,6 +113,7 @@ export const UPGRADE_PARAM_LABELS = {
   dotDuration: 'Durată acid (s)',
   dmRanged: 'Călărețul rămâne ranged (1/0)',
   dashDamage: 'Damage la impact (dash)',
+  splashPower: 'Putere splash (% din damage)',
   beastHp: 'HP bestie',
   beastDamage: 'Damage bestie',
   beastRange: 'Rază atac bestie',

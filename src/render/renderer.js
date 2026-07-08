@@ -594,7 +594,10 @@ export class Renderer {
             anim = castAnimOf(u.type, u.team, u.castAbility) || (prep ? 'prepare' : 'attack');
           }
           frame = 0;
-        } else if (attacking) {
+        } else if (attacking && (isCaster || u.windup > 0)) {
+          // the attack pose plays only DURING the swing (wind-up -> release);
+          // between swings (waiting on cooldown) the unit returns to idle —
+          // otherwise it looks frozen mid-attack for most of each period
           if (isCaster) {
             // non-caster-ability fighter path (out of mana / auto-attacking):
             // shared "prepare" during the wind-up, one "attack" release frame
@@ -608,6 +611,10 @@ export class Renderer {
             anim = 'attack';
             frame = u.windupMax > 0 && u.windup > u.windupMax * 0.5 ? 0 : 1;
           }
+        } else if (attacking) {
+          // engaged but between swings: breathe in place
+          anim = 'idle';
+          frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk
           anim = hasDashAnim(u.type, u.team) ? 'dash' : 'walk';

@@ -46,16 +46,17 @@ export function updateCombat(game, dt) {
     } else if (u.acidAttacker) {
       u.acidAttacker = false;
     }
-    // "AoE Damage" upgrade: the unit's thrown projectile bursts on impact and
-    // damages every enemy — air included — in the splash radius. Applies to
-    // any of its ranged forms (mounted, or a split rider still throwing).
+    // "AoE Damage" upgrade: the unit's thrown projectile bursts on impact —
+    // the struck target takes full damage, everyone else on the SAME plane
+    // (air/ground) in the radius takes splashPower% of it. Applies to any of
+    // its ranged forms (mounted, or a split rider still throwing).
     if (!acid && stats.projectile) {
       const aoe = aoeUpgradeFor(game, u);
       if (aoe) {
         stats = {
           ...stats,
           splash: Math.max(stats.splash || 0, aoe.params.splashRadius || 0),
-          splashAir: true,
+          aoe: { power: (aoe.params.splashPower != null ? aoe.params.splashPower : 100) / 100 },
         };
       }
     }
@@ -566,23 +567,33 @@ function impact(game, p, target) {
     game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, acid: !!p.acid });
     for (const e of game.entities) {
       if (e.team === p.team) continue;
-      // ordinary splash is ground-only; acid corrodes fliers, and the AoE
-      // upgrade's burst (splashAir) reaches them too
-      if (e.isAir && !p.acid && !p.splashAir) continue;
+      if (p.aoe) {
+        // AoE upgrade: the burst stays on the struck target's plane —
+        // hit an air unit -> air-only splash, hit a ground unit -> ground-only
+        if (e.isAir !== p.targetAir) continue;
+      } else if (e.isAir && !p.acid) {
+        continue; // ordinary splash is ground-only; acid corrodes fliers too
+      }
       const dx = e.x - p.tx;
       const dy = e.y - p.ty;
       if (dx * dx + dy * dy <= p.splash * p.splash) {
-        applyDamage(game, e, p.damage, p.dmgType);
+        // AoE: the struck target takes FULL damage, bystanders splashPower%
+        const dmg = p.aoe && e.id !== p.targetId ? p.damage * p.aoe.power : p.damage;
+        applyDamage(game, e, dmg, p.dmgType);
         // acid pool: everyone caught keeps taking damage over time
         if (p.acid) applyEffect(e, 'acid', p.acid.dot, game.time + p.acid.dur, game.time);
       }
     }
-    // splash also chips enemy structures caught in the blast
-    for (const s of game.enemyStructures(p.team)) {
-      const sdx = s.x - p.tx;
-      const sdy = s.y - p.ty;
-      if (Math.sqrt(sdx * sdx + sdy * sdy) <= p.splash + s.radius) {
-        applyDamage(game, s, p.damage, p.dmgType);
+    // splash also chips enemy structures caught in the blast (an AoE burst on
+    // the AIR plane never touches buildings)
+    if (!p.aoe || !p.targetAir) {
+      for (const s of game.enemyStructures(p.team)) {
+        const sdx = s.x - p.tx;
+        const sdy = s.y - p.ty;
+        if (Math.sqrt(sdx * sdx + sdy * sdy) <= p.splash + s.radius) {
+          const dmg = p.aoe && s.id !== p.targetId ? p.damage * p.aoe.power : p.damage;
+          applyDamage(game, s, dmg, p.dmgType);
+        }
       }
     }
   } else if (target && target.hp > 0) {

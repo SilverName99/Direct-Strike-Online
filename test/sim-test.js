@@ -1198,16 +1198,17 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
-  // "AoE Damage" upgrade: the thrown projectile bursts and damages every enemy
-  // in the splash radius (air included); toggled off it is single-target again.
+  // "AoE Damage" upgrade: the struck target takes full damage, bystanders on
+  // the SAME plane take splashPower% of it; the burst never crosses planes.
   {
     // thrower = ranged grunt; enemies get speed 0 so positions stay fixed
+    const AOE = { cost: 100, splashRadius: 100, splashPower: 50 };
     applyBalance({
       races: {
         humans: { units: { grunt: { ranged: true, range: 220, targetsAir: true } } },
         orcs: { units: { grunt: { speed: 0 } } },
       },
-      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: { cost: 100, splashRadius: 100 } } },
+      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: AOE } },
     });
     const game = new Game(11, { races: ['humans', 'orcs'] });
     game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'aoedamage' });
@@ -1217,6 +1218,9 @@ console.log('abilities (casters, auras, status effects)');
     run(game, 2);
     check('AoE axe damages both clumped enemies', a.hp < a.maxHp && b.hp < b.maxHp,
       `a=${Math.round(a.maxHp - a.hp)} b=${Math.round(b.maxHp - b.hp)}`);
+    check('AoE bystander takes exactly splashPower% of the target\'s damage',
+      Math.abs((b.maxHp - b.hp) - 0.5 * (a.maxHp - a.hp)) < 0.001,
+      `a=${a.maxHp - a.hp} b=${b.maxHp - b.hp}`);
 
     // toggled off -> single target: the neighbour stays untouched
     const g2 = new Game(11, { races: ['humans', 'orcs'] });
@@ -1228,22 +1232,43 @@ console.log('abilities (casters, auras, status effects)');
     run(g2, 2);
     check('AoE toggled off -> only the primary target is hit', a2.hp < a2.maxHp && b2.hp === b2.maxHp);
 
-    // the burst reaches FLIERS too (ordinary splash would be ground-only)
+    // hit an AIR target -> the burst damages ONLY air units around it
     applyBalance({
       races: {
         humans: { units: { grunt: { ranged: true, range: 220, targetsAir: true } } },
-        orcs: { units: { grunt: { speed: 0, isAir: true } } },
+        orcs: { units: { grunt: { speed: 0, isAir: true }, bruiser: { speed: 0 } } },
       },
-      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: { cost: 100, splashRadius: 100 } } },
+      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: AOE } },
     });
     const g3 = new Game(11, { races: ['humans', 'orcs'] });
     g3.issueCommand({ type: 'buyUpgrade', team: 0, id: 'aoedamage' });
     spawnUnit(g3, 0, 'grunt', 600, 400);
-    const fa = spawnUnit(g3, 1, 'grunt', 760, 400); fa.hp = fa.maxHp = 100000;
-    const fb = spawnUnit(g3, 1, 'grunt', 800, 430); fb.hp = fb.maxHp = 100000;
+    const fa = spawnUnit(g3, 1, 'grunt', 760, 400); fa.hp = fa.maxHp = 100000;   // air, primary
+    const fb = spawnUnit(g3, 1, 'grunt', 800, 430); fb.hp = fb.maxHp = 100000;   // air bystander
+    const gnd = spawnUnit(g3, 1, 'bruiser', 790, 400); gnd.hp = gnd.maxHp = 100000; // ground, in radius
     run(g3, 2);
-    check('AoE burst damages the second FLIER too', fa.hp < fa.maxHp && fb.hp < fb.maxHp,
+    check('AoE on an AIR target splashes the other flier',
+      fa.hp < fa.maxHp && fb.hp < fb.maxHp,
       `fa=${Math.round(fa.maxHp - fa.hp)} fb=${Math.round(fb.maxHp - fb.hp)}`);
+    check('AoE on an AIR target leaves GROUND units untouched', gnd.hp === gnd.maxHp);
+
+    // hit a GROUND target -> the burst leaves air units untouched
+    applyBalance({
+      races: {
+        humans: { units: { grunt: { ranged: true, range: 220 } } }, // ground-only thrower
+        orcs: { units: { grunt: { speed: 0, isAir: true }, bruiser: { speed: 0 } } },
+      },
+      upgrades: { aoedamage: { race: 'humans', unit: 'grunt', params: AOE } },
+    });
+    const g4 = new Game(11, { races: ['humans', 'orcs'] });
+    g4.issueCommand({ type: 'buyUpgrade', team: 0, id: 'aoedamage' });
+    spawnUnit(g4, 0, 'grunt', 600, 400);
+    const ga = spawnUnit(g4, 1, 'bruiser', 760, 400); ga.hp = ga.maxHp = 100000;  // ground, primary
+    const air = spawnUnit(g4, 1, 'grunt', 790, 420); air.hp = air.maxHp = 100000; // air, in radius
+    run(g4, 2);
+    check('AoE on a GROUND target damages it but not the flier above',
+      ga.hp < ga.maxHp && air.hp === air.maxHp,
+      `ga=${Math.round(ga.maxHp - ga.hp)} air=${Math.round(air.maxHp - air.hp)}`);
     applyBalance({});
   }
 

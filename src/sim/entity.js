@@ -108,7 +108,10 @@ export function spawnProjectile(game, source, stats, target) {
     damage: stats.damage,
     dmgType: stats.dmgType,
     splash: stats.splash || 0,
-    splashAir: !!stats.splashAir, // AoE upgrade: the burst hits fliers too
+    // AoE upgrade: {power} -> full damage on the struck target, power% on the
+    // others in the radius, and the burst stays on the target's air/ground plane
+    aoe: stats.aoe || null,
+    targetAir: !!target.isAir, // the struck plane (fixed at launch)
     acid: stats.acid || null, // {dot, dur} -> damage-over-time on impact (Acid Spit)
     // "Bounce": on impact the projectile ricochets to the next nearby enemy
     // (up to bounceLeft more hops), dealing bounceDamage (bouncePower% of the
