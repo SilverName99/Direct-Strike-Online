@@ -224,8 +224,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['attack_1'] = 'Attack 2';
   }
   $slots['die_0'] = 'Die';
-  // a unit dashes if its own Dash toggle is on OR a mount upgrade makes it charge
-  if (unitHasDash($race, $ent) || unitHasDismount($race, $ent)) $slots['dash_0'] = 'Dash';
+  // a unit dashes if its own Dash toggle is on OR a mount/split upgrade makes
+  // it charge/dive
+  if (unitHasDash($race, $ent) || unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) $slots['dash_0'] = 'Dash';
   // on-foot (dismounted) sprite set: a mount upgrade puts the rider on foot,
   // and the Landing Split's rider fights on foot too
   if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) {

@@ -32,6 +32,7 @@ export function spawnUnit(game, team, type, x, y) {
     // "Landing Split" reuses the same overrides for the landed rider, and
     // marks the spawned mount with `beast` (its own ov* stats + beast sprites).
     mountTargetId: null,
+    splitTargetId: null, // "Landing Split": the ground unit being dived at
     dismounted: false,
     beast: false,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,

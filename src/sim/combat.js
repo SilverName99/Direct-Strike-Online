@@ -60,8 +60,9 @@ export function updateCombat(game, dt) {
       }
     }
     u.cooldown = Math.max(0, u.cooldown - dt);
-    // "Landing Split" upgrade: an enemy close by makes the flyer land and
-    // split into rider + beast — consumes this tick.
+    // "Landing Split" upgrade: a ground enemy close by makes the flyer dive
+    // into it (dash damage on impact) and split into rider + beast — takes
+    // over from normal combat while diving.
     if (!u.dismounted && !u.beast && trySplit(game, u)) continue;
     // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
     // intruder and dismount on arrival — takes over from normal combat.
@@ -329,26 +330,63 @@ function splitUpgradeFor(game, u) {
 }
 
 // ---- "Landing Split" upgrade ------------------------------------------------
-// While still whole (mounted/airborne): the first enemy inside the trigger
-// radius makes the flyer LAND and split into TWO units for the rest of this
-// life — `u` becomes the rider on foot (dismounted overrides + "foot-"
-// sprites) and a fresh beast entity (the mount) spawns beside it with its own
-// HP and melee stats ("beast-" sprites). Returns true on the split tick.
+// A GROUND enemy unit within `radius`, alive.
+function isGroundFoe(game, u, e, radius) {
+  if (e.hp <= 0 || e.team === u.team || e.isAir) return false;
+  return effDist(u, e) <= radius;
+}
+function findGroundIntruder(game, u, radius) {
+  let best = null;
+  let bestD = Infinity;
+  for (const e of game.entities) {
+    if (!isGroundFoe(game, u, e, radius)) continue;
+    const d = effDist(u, e);
+    if (d < bestD) { bestD = d; best = e; }
+  }
+  return best;
+}
+
+// While still whole (mounted/airborne): the first GROUND enemy inside the
+// trigger radius makes the flyer DIVE at it (dash — shows the "Dash" frame);
+// on impact it deals the one-off dash damage to that ground unit, LANDS and
+// splits into TWO units for the rest of this life — `u` becomes the rider on
+// foot (dismounted overrides + "foot-" sprites) and a fresh beast entity (the
+// mount) spawns beside it with its own HP and melee stats ("beast-" sprites).
+// Returns true while diving and on the split tick, so normal combat is
+// skipped.
 function trySplit(game, u) {
   const up = splitUpgradeFor(game, u);
-  if (!up) return false;
+  if (!up) { u.splitTargetId = null; return false; }
   const p = up.params;
-  let near = false;
-  for (const e of game.entities) {
-    if (e.team !== u.team && e.hp > 0 && effDist(u, e) <= p.radius) { near = true; break; }
+  let target = u.splitTargetId != null ? game.byId.get(u.splitTargetId) : null;
+  if (target && !isGroundFoe(game, u, target, p.radius)) target = null;
+  if (!target) target = findGroundIntruder(game, u, p.radius);
+  if (!target) { u.splitTargetId = null; u.dashing = false; return false; }
+
+  u.splitTargetId = target.id;
+  u.targetId = target.id;
+  // arrival = physical contact with the dived unit (the impact is a body slam,
+  // regardless of how far the rider can throw)
+  const arriveR = (u.radius || 0) + 4 + 14;
+  if (effDist(u, target) > arriveR) {
+    // still diving in
+    u.dashing = true;
+    u.dashVel = p.dashSpeed;
+    u.state = 'march';
+    u.windup = 0;
+    return true;
   }
-  if (!near) return false;
+
+  // impact: the dash damage lands on the ground unit that triggered the dive
+  applyDamage(game, target, p.dashDamage || 0, game.ustat(u.team, u.type).dmgType);
+  game.events.push({ type: 'dash', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
 
   const bs = game.ustat(u.team, u.type);
   // the rider lands and fights on foot from now on
   u.dismounted = true;
   u.isAir = false;
   u.dashing = false;
+  u.splitTargetId = null;
   u.ovDamage = p.dmDamage; u.ovRange = p.dmRange; u.ovPeriod = p.dmPeriod; u.ovSpeed = p.dmSpeed;
   u.ovRanged = !!p.dmRanged;
   u.ovSize = (p.dmSize != null ? p.dmSize : 100) / 100;

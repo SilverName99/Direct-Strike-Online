@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController } from '../src/sim/ai.js';
 import { spawnUnit } from '../src/sim/entity.js';
-import { UNITS } from '../src/units.js';
+import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 
 const DT = CONFIG.FIXED_DT;
@@ -1247,25 +1247,28 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
-  // "Landing Split" upgrade: an enemy inside the trigger radius makes the
-  // flyer land and split into TWO units — the rider on foot (still ranged)
-  // and a melee beast with its own HP. Both fight on.
+  // "Landing Split" upgrade: a GROUND enemy inside the trigger radius makes
+  // the flyer DIVE into it (dash damage on impact, ground-only trigger), then
+  // it splits into TWO units — the rider on foot (still ranged) and a melee
+  // beast with its own HP. Both fight on.
   {
-    applyBalance({
-      upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: {
-        cost: 100, radius: 200,
-        dmDamage: 20, dmRange: 150, dmPeriod: 0.8, dmSpeed: 80, dmSize: 100, dmRanged: 1,
-        beastHp: 300, beastDamage: 25, beastRange: 30, beastPeriod: 0.7, beastSpeed: 100, beastSize: 100,
-      } } },
-    });
     const { effStats } = await import('../src/sim/combat.js');
+    const P = {
+      cost: 100, radius: 200, dashSpeed: 700, dashDamage: 50,
+      dmDamage: 20, dmRange: 150, dmPeriod: 0.8, dmSpeed: 80, dmSize: 100, dmRanged: 1,
+      beastHp: 300, beastDamage: 25, beastRange: 30, beastPeriod: 0.7, beastSpeed: 100, beastSize: 100,
+    };
+    applyBalance({ upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: P } } });
     const game = new Game(12, { races: ['humans', 'orcs'] });
     game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
     const rider = spawnUnit(game, 1, 'wasp', 900, 400);
     const foe = spawnUnit(game, 0, 'grunt', 780, 400); foe.hp = foe.maxHp = 100000;
     const before = game.entities.length;
     game.update(DT); game.drainEvents();
-    check('split: the rider lands (dismounted, no longer air)',
+    check('split: the flyer DIVES first (dashing, no instant split)',
+      rider.dashing === true && rider.dismounted === false);
+    run(game, 1); // enough to close the gap at dashSpeed and land
+    check('split: after the dive the rider lands (dismounted, no longer air)',
       rider.dismounted === true && rider.isAir === false);
     const beast = game.entities.find((e) => e.beast);
     check('split: a beast unit spawned for the same team',
@@ -1277,11 +1280,38 @@ console.log('abilities (casters, auras, status effects)');
       rs.ranged === true && rs.damage === 20 && rs.range === 150);
     check('split: beast fights in MELEE with its own numbers',
       bs.ranged === false && bs.damage === 25 && bs.range === 30);
-    run(game, 3);
+    run(game, 2);
     check('split: the pair actually hurts the enemy', foe.hp < foe.maxHp,
       `dropped ${Math.round(foe.maxHp - foe.hp)}`);
 
+    // the impact deals EXACTLY the dash damage (attack damage zeroed out)
+    applyBalance({ upgrades: { splitmount: { race: 'orcs', unit: 'wasp',
+      params: { ...P, dmDamage: 0, beastDamage: 0, dmRanged: 0 } } } });
+    const gd = new Game(12, { races: ['humans', 'orcs'] });
+    gd.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
+    spawnUnit(gd, 1, 'wasp', 900, 400);
+    const foeD = spawnUnit(gd, 0, 'grunt', 780, 400); foeD.hp = foeD.maxHp = 100000;
+    run(gd, 2);
+    const expected = 50 * DAMAGE_MATRIX.normal.light;
+    check('split: the dive lands the one-off dash damage on the ground unit',
+      Math.abs((foeD.maxHp - foeD.hp) - expected) < 0.001,
+      `dropped ${foeD.maxHp - foeD.hp}, expected ${expected}`);
+
+    // ONLY a ground unit triggers the dive: an air enemy leaves it whole
+    applyBalance({
+      races: { humans: { units: { grunt: { isAir: true } } } },
+      upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: P } },
+    });
+    const ga = new Game(12, { races: ['humans', 'orcs'] });
+    ga.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
+    const riderA = spawnUnit(ga, 1, 'wasp', 900, 400);
+    spawnUnit(ga, 0, 'grunt', 780, 400); // flying enemy
+    run(ga, 1);
+    check('split: an AIR enemy does not trigger the dive/split',
+      riderA.dismounted === false && ga.entities.every((e) => !e.beast));
+
     // no enemy nearby -> stays whole; toggled off -> never splits
+    applyBalance({ upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: P } } });
     const g2 = new Game(12, { races: ['humans', 'orcs'] });
     g2.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
     const lone = spawnUnit(g2, 1, 'wasp', 3000, 400);

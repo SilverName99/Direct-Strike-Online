@@ -49,13 +49,15 @@ export const UPGRADES = {
   },
   splitmount: {
     name: 'Landing Split: beast & rider',
-    desc: 'A flying rider LANDS when an enemy comes near — and the one unit splits into TWO: the rider fights on foot (with the on-foot numbers below, still throwing if "rider stays ranged" is 1) and the mount becomes a separate melee beast with its own HP. Both fight until they die (e.g. a Griffin Rider). Needs the extra "Pe jos" (rider) and "Bestie" (mount) sprite sets on the unit.',
+    desc: 'When a GROUND enemy enters the trigger radius, the flying rider DASHES into it (dealing the dash damage on impact — ground only) and the one unit splits into TWO: the rider fights on foot (with the on-foot numbers below, still throwing if "rider stays ranged" is 1) and the mount becomes a separate melee beast with its own HP. Both fight until they die (e.g. a Griffin Rider). Needs the extra "Dash", "Pe jos" (rider) and "Bestie" (mount) sprites on the unit.',
     kind: 'split',
     race: '',   // which race's unit this targets
     unit: '',   // which unit type splits on landing (set in admin)
     params: {
       cost: 400,       // gold to buy from the base
-      radius: 240,     // an enemy this close triggers the landing + split
+      radius: 240,     // a GROUND enemy this close triggers the dive
+      dashSpeed: 700,  // dive speed toward the trigger
+      dashDamage: 40,  // one-off impact damage on the dived ground unit
       // the rider on foot (uses the unit's "Pe jos" sprite set)
       dmDamage: 18,    // on-foot damage
       dmRange: 160,    // on-foot attack range
@@ -109,6 +111,7 @@ export const UPGRADE_PARAM_LABELS = {
   dotDamage: 'Damage over time (pe secundă)',
   dotDuration: 'Durată acid (s)',
   dmRanged: 'Călărețul rămâne ranged (1/0)',
+  dashDamage: 'Damage la impact (dash)',
   beastHp: 'HP bestie',
   beastDamage: 'Damage bestie',
   beastRange: 'Rază atac bestie',
