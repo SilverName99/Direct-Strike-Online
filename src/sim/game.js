@@ -158,13 +158,16 @@ export class Game {
   applyMiddleTerrain() {
     const m = this.middle;
     if (!m || m.kind === 'none' || !(m.amount > 0) || !(m.band > 0)) return;
+    // use an INVISIBLE terrain-slow kind: it slows for real but shows no frost
+    // status VFX/chip (the terrain itself makes the cause obvious)
+    const kind = m.kind === 'atkslow' ? 'terrainatkslow' : 'terrainslow';
     const mid = CONFIG.FIELD_W / 2;
     const until = this.time + 0.25;
     for (const u of this.entities) {
       if (u.hp <= 0) continue;
       if (u.isAir && !m.air) continue;
       if (Math.abs(u.x - mid) > m.band) continue;
-      applyEffect(u, m.kind, m.amount, until, this.time);
+      applyEffect(u, kind, m.amount, until, this.time);
     }
   }
 

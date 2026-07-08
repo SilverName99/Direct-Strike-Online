@@ -62,16 +62,18 @@ function hasEffect(u, kind, time) {
   return !!u.effects && u.effects.some((e) => e.kind === kind && e.until > time);
 }
 
-// Attack-period multiplier for a unit (slow lengthens, haste shortens).
+// Attack-period multiplier for a unit (slow lengthens, haste shortens). The
+// 'terrainatkslow' source is the invisible middle-terrain slow (no status VFX).
 export function attackPeriodMult(u, time) {
-  const slow = effectVal(u, 'atkslow', time);
+  const slow = Math.max(effectVal(u, 'atkslow', time), effectVal(u, 'terrainatkslow', time));
   const haste = effectVal(u, 'haste', time);
   return (1 + slow / 100) * Math.max(0.25, 1 - haste / 100);
 }
 
-// Movement-speed multiplier.
+// Movement-speed multiplier. 'terrainslow' is the invisible middle-terrain slow.
 export function moveSpeedMult(u, time) {
-  return Math.max(0.2, 1 - effectVal(u, 'moveslow', time) / 100);
+  const slow = Math.max(effectVal(u, 'moveslow', time), effectVal(u, 'terrainslow', time));
+  return Math.max(0.2, 1 - slow / 100);
 }
 
 const DEBUFFS = ['atkslow', 'moveslow'];
