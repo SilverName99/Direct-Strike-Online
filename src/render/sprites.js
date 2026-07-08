@@ -62,6 +62,17 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
               thumbs.set(`${race}/${ent}`, entryFor(img));
             });
           }
+          // per-form thumbnails: the rider on foot / the split-off beast
+          if (slots['foot-thumb']) {
+            load(`${base}${race}/${ent}/foot-thumb.png?v=${man.v || 0}`, (img) => {
+              thumbs.set(`${race}/${ent}/foot`, entryFor(img));
+            });
+          }
+          if (slots['beast-thumb']) {
+            load(`${base}${race}/${ent}/beast-thumb.png?v=${man.v || 0}`, (img) => {
+              thumbs.set(`${race}/${ent}/beast`, entryFor(img));
+            });
+          }
           if (slots.projectile) {
             load(`${base}${race}/${ent}/projectile.png?v=${man.v || 0}`, (img) => {
               projectiles.set(`${race}/${ent}`, entryFor(img));
@@ -257,7 +268,13 @@ export function hasSpriteAnim(race, ent, anim) {
   return getSprite(race, ent, anim, 0) != null;
 }
 
-export function getThumb(race, ent) {
+// `form`: 'base' (whole unit) | 'foot' (rider on foot) | 'beast' (split
+// mount); a missing form falls back to the base thumbnail.
+export function getThumb(race, ent, form = 'base') {
+  if (form !== 'base') {
+    const t = thumbs.get(`${race}/${ent}/${form}`);
+    if (t) return t;
+  }
   return thumbs.get(`${race}/${ent}`) || null;
 }
 

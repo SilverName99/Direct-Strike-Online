@@ -120,8 +120,9 @@ export function drawAbilityProjectileSprite(ctx, ability, type, team, targetH) {
 }
 
 // Uploaded shop thumbnail (units or buildings). False -> caller falls back.
-export function drawThumb(ctx, ent, team = 0, targetH = 34) {
-  const t = getThumb(raceOf(team), ent);
+// `form` picks the on-foot rider / beast thumbnail (fallback: the base one).
+export function drawThumb(ctx, ent, team = 0, targetH = 34, form = 'base') {
+  const t = getThumb(raceOf(team), ent, form);
   if (!t) return false;
   drawSprite(ctx, t, targetH, team);
   return true;

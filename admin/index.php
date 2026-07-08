@@ -230,6 +230,7 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   // on-foot (dismounted) sprite set: a mount upgrade puts the rider on foot,
   // and the Landing Split's rider fights on foot too
   if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) {
+    $slots['foot-thumb'] = 'Pe jos: Thumb';
     $slots['foot-idle_0'] = 'Pe jos: Idle 1';
     $slots['foot-idle_1'] = 'Pe jos: Idle 2';
     $slots['foot-walk_0'] = 'Pe jos: Walk 1';
@@ -240,6 +241,7 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   }
   // "Landing Split": the mount becomes its own unit — a full beast sprite set
   if (unitHasSplit($race, $ent)) {
+    $slots['beast-thumb'] = 'Bestie: Thumb';
     $slots['beast-idle_0'] = 'Bestie: Idle 1';
     $slots['beast-idle_1'] = 'Bestie: Idle 2';
     $slots['beast-walk_0'] = 'Bestie: Walk 1';
@@ -292,7 +294,7 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb' || $slot === 'projectile' || $slot === 'acidproj' || str_starts_with($slot, 'abilityproj-')) {
+        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'projectile' || $slot === 'acidproj' || str_starts_with($slot, 'abilityproj-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);
@@ -1127,7 +1129,7 @@ if ($authed && $action === 'deletebarover') {
           $file = "$assetsDir/$race/$ent/$slot.png";
           $has = is_file($file);
         ?>
-        <div class="slot <?= $slot === 'thumb' ? 'thumbslot' : '' ?>">
+        <div class="slot <?= in_array($slot, ['thumb', 'foot-thumb', 'beast-thumb'], true) ? 'thumbslot' : '' ?>">
           <span class="lbl"><?= $label ?></span>
           <div class="thumb">
             <?php if ($has): ?>

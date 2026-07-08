@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
-import { raceOf, getSprite, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl } from '../render/sprites.js';
+import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -402,11 +402,20 @@ export class BottomBar {
   drawPortrait(ctx, game, info) {
     const race = raceOf(info.team);
     const frame = Math.floor(performance.now() / 500) % 2;
-    // a split beast / rider on foot shows its own idle sprite when uploaded
-    const formAnim = info.kind === 'entity' && info.u.beast ? 'beast-idle'
-      : info.kind === 'entity' && info.u.dismounted ? 'foot-idle' : null;
-    const entry = (formAnim && (getSprite(race, info.type, formAnim, frame) || getSprite(race, info.type, formAnim, 0)))
-      || getSprite(race, info.type, 'idle', frame) || getSprite(race, info.type, 'idle', 0);
+    // a split beast / rider on foot shows its own art: form idle sprite, then
+    // form thumbnail, then the whole unit's idle sprite / thumb, then vectors
+    const form = info.kind === 'entity' && info.u.beast ? 'beast'
+      : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
+    let entry = null;
+    if (form !== 'base') {
+      const fa = `${form}-idle`;
+      entry = getSprite(race, info.type, fa, frame) || getSprite(race, info.type, fa, 0);
+      if (!entry) {
+        const ft = getThumb(race, info.type, form);
+        if (ft && ft !== getThumb(race, info.type)) entry = ft; // the form's OWN thumb only
+      }
+    }
+    entry = entry || getSprite(race, info.type, 'idle', frame) || getSprite(race, info.type, 'idle', 0);
     if (entry && entry.img) {
       const img = entry.img;
       const s = Math.min(102 / img.width, 102 / img.height);
@@ -415,7 +424,7 @@ export class BottomBar {
     }
     ctx.save();
     ctx.translate(56, 58);
-    if (drawThumb(ctx, info.type, info.team, 96)) { ctx.restore(); return; }
+    if (drawThumb(ctx, info.type, info.team, 96, form)) { ctx.restore(); return; }
     ctx.restore();
     if (info.kind !== 'structure' && hasCharacter(info.type)) {
       ctx.save();
