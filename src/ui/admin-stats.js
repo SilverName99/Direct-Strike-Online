@@ -144,6 +144,12 @@ function fieldsFor(ent, kind) {
       group: F, label: 'Zburător (aerian)', type: 'check', value: !!u.isAir,
       apply: (v) => { u.isAir = !!v; },
     });
+    // Healer: instead of attacking enemies, this unit heals the most-wounded
+    // nearby ally (its "damage" becomes heal-per-hit). Off = normal fighter.
+    out.push({
+      group: F, label: 'Vindecător (heal aliați)', type: 'check', value: !!u.heal,
+      apply: (v) => { u.heal = !!v; },
+    });
     // Combat numbers + select fields (armor / damage type)
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ group: F, f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });

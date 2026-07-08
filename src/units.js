@@ -50,7 +50,7 @@ export const UNITS = {
   mender: {
     name: 'Mender', shape: 'cross', radius: 10,
     tier: 2, cost: 150, hp: 80, armor: 'light',
-    damage: 15, period: 1.0, range: 140, speed: 60,
+    damage: 15, period: 1.0, dmgType: 'normal', range: 140, speed: 60,
     heal: true,
     role: 'Support healer',
     tip: 'Heals the most wounded nearby ally. Protect it.',

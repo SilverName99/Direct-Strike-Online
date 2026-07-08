@@ -125,6 +125,7 @@ function baseUnits() {
       // Blank default: every special behavior is OFF; build any unit up from a
       // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
       ranged: false, projectile: false,
+      heal: false,         // healer behavior is opt-in (admin toggle), like every other special
       isAir: false, targetsAir: false,
       targetsGround: true, // can attack ground units (default on; turn off for air-only)
       splash: 0,
@@ -206,6 +207,7 @@ function raceUnitsSnapshot(race) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed,
       ranged: !!u.ranged, projSpeed: u.projSpeed, splash: u.splash,
+      heal: !!u.heal,
       isAir: !!u.isAir, targetsAir: !!u.targetsAir, targetsGround: u.targetsGround !== false,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
@@ -331,6 +333,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.ch) !== undefined) u.ch = Math.round(clamp(vals.ch, 1, 20));
     if (num(vals.animSpeed) !== undefined) u.animSpeed = clamp(vals.animSpeed, 0.2, 30);
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
+    if (typeof vals.heal === 'boolean') u.heal = vals.heal;
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
     if (typeof vals.isAir === 'boolean') u.isAir = vals.isAir;

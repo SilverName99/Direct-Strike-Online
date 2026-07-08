@@ -532,7 +532,10 @@ function effDist(a, b) {
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {
-  const mult = DAMAGE_MATRIX[dmgType][target.armor];
+  // tolerate a unit with no configured damage type (e.g. one flipped from
+  // healer to fighter in the admin) — fall back to plain 'normal' damage
+  const row = DAMAGE_MATRIX[dmgType] || DAMAGE_MATRIX.normal;
+  const mult = row[target.armor];
   target.hp -= damage * mult;
   if (!silent) game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
