@@ -9,8 +9,8 @@ import { Hud } from './ui/hud.js';
 import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl, pickMatchMiddle } from './render/sprites.js';
-import { loadBalance, musicVolumeOf } from './ui/balance.js';
+import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl, availableMiddleSlots } from './render/sprites.js';
+import { loadBalance, musicVolumeOf, middleConfig } from './ui/balance.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -120,9 +120,11 @@ function newGame(difficulty) {
   // race is a render-side art choice: the AI plays the other one
   const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
   setTeamRaces([playerRace, aiRace]);
-  pickMatchMiddle(); // fresh random middle-strip variant for this match
   bottombar.refresh(); // shop reflects the player race at match start
-  game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult] });
+  // middle-of-map terrain: the available uploaded variants + their effects; the
+  // sim picks one at random (seeded) and applies its debuff
+  const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
+  game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult], middles });
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
   effects.reset();
   uiState.selected = null;

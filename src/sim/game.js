@@ -11,7 +11,7 @@ import { mulberry32 } from './rng.js';
 import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
 import { updateMovement } from './movement.js';
-import { updateAbilities } from './abilities.js';
+import { updateAbilities, applyEffect } from './abilities.js';
 import { spawnWave } from './waves.js';
 
 export class Game {
@@ -41,6 +41,16 @@ export class Game {
     this.templates = [[], []]; // per team: {type, x, y}
     this.buildReadyAt = [{}, {}]; // per team: building kind -> game.time it can be built again
     this.midOwner = null;      // control point: team currently holding the middle
+    // Middle-of-map terrain: pick one uploaded variant (with its effect) at
+    // random from the seeded RNG so it is deterministic. options.middles is a
+    // list of { slot, kind, amount, band, air } for the AVAILABLE variants.
+    this.middle = null;
+    this.middleSlot = -1; // which image slot the renderer should draw
+    if (Array.isArray(options.middles) && options.middles.length) {
+      const pick = options.middles[Math.floor(this.rng() * options.middles.length)];
+      this.middle = pick;
+      this.middleSlot = pick.slot;
+    }
     this.entities = [];
     this.projectiles = [];
     this.structures = [];
@@ -140,6 +150,22 @@ export class Game {
     const p1 = this.midHeld(1);
     if (p0 && !p1) this.midOwner = 0;
     else if (p1 && !p0) this.midOwner = 1;
+  }
+
+  // Middle terrain effect: units standing on the central band (|x - mid| <=
+  // band) get the chosen variant's debuff, refreshed each tick so it fades a
+  // beat after they step off. Ground-only unless the variant flags `air`.
+  applyMiddleTerrain() {
+    const m = this.middle;
+    if (!m || m.kind === 'none' || !(m.amount > 0) || !(m.band > 0)) return;
+    const mid = CONFIG.FIELD_W / 2;
+    const until = this.time + 0.25;
+    for (const u of this.entities) {
+      if (u.hp <= 0) continue;
+      if (u.isAir && !m.air) continue;
+      if (Math.abs(u.x - mid) > m.band) continue;
+      applyEffect(u, m.kind, m.amount, until, this.time);
+    }
   }
 
   incomePerSecond(team) {
@@ -364,6 +390,7 @@ export class Game {
       e.prevY = e.y;
     }
 
+    this.applyMiddleTerrain(); // terrain debuff refreshed before combat/movement read it
     updateAbilities(this, dt); // auras/status effects first, combat reads them
     updateCombat(this, dt);
     updateMovement(this, dt);

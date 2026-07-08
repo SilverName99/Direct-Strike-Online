@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v9.95';
+export const VERSION = 'v9.96';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -23,6 +23,17 @@ export const CONFIG = {
   //   [construction zone: main base + buildings][army zone: unit formation]
   // then the open field, the starting turret, and midfield.
   GRID: 40, // placement cell size (UI snapping; zones are multiples of it)
+
+  // Middle-of-map terrain effect, one entry per uploaded strip variant (slots
+  // 1-3). A random variant is picked (seeded) each match; units standing on
+  // the central band get its debuff. kind: 'none' | 'moveslow' | 'atkslow';
+  // amount = %, band = half-width in sim units of the affected zone, air =
+  // also affects fliers (else ground-only).
+  MIDDLES: [
+    { kind: 'none', amount: 0, band: 200, air: false },
+    { kind: 'none', amount: 0, band: 200, air: false },
+    { kind: 'none', amount: 0, band: 200, air: false },
+  ],
 
   // Cosmetic overrides set from the admin balance editor:
   SIZES: {},            // entity id -> visual scale multiplier (default 1)

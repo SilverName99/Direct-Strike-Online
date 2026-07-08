@@ -4,7 +4,13 @@
 // page. Saves to the server; the game applies assets/balance.json at boot.
 
 import { CONFIG } from '../config.js';
-import { GENERAL_FIELDS, TINT_MODES, loadBalance, saveBalance, resetAll } from './balance.js';
+import { GENERAL_FIELDS, TINT_MODES, MIDDLE_KINDS, loadBalance, saveBalance, resetAll } from './balance.js';
+
+const MIDDLE_KIND_LABELS = {
+  none: 'Fără efect',
+  moveslow: 'Încetinește mișcarea',
+  atkslow: 'Încetinește atacul',
+};
 
 const TINT_LABELS = {
   team: 'Ale mele albastre / inamic roșu',
@@ -29,6 +35,21 @@ function render() {
   html += numField('tier', '2', '', 'Tier 2 cost', CONFIG.TIER_COSTS[2]);
   html += numField('tier', '3', '', 'Tier 3 cost', CONFIG.TIER_COSTS[3]);
   html += '</div></div>';
+  // middle-of-map terrain effects, one per uploaded strip variant (slots 1-3)
+  html += `<div class="group"><h3>Mijloc hartă — efect pe teren</h3>
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Fiecare variantă de mijloc (1-3, încărcate în <a href="./?view=icons" style="color:#4da6ff">Iconițe</a>) poate da un debuff unităților de pe banda din centru. Ordinea = varianta 1/2/3.</p>`;
+  (CONFIG.MIDDLES || []).forEach((m, i) => {
+    const kOpts = MIDDLE_KINDS.map((k) => `<option value="${k}" ${k === m.kind ? 'selected' : ''}>${MIDDLE_KIND_LABELS[k]}</option>`).join('');
+    html += `<div class="fields" style="margin-bottom:8px;align-items:center">
+      <label class="fld" style="min-width:220px"><span>Varianta ${i + 1} — efect</span>
+        <select data-scope="middle" data-id="${i}" data-field="kind" style="width:auto;flex:1">${kOpts}</select></label>
+      ${numField('middle', i, 'amount', 'Intensitate (%)', m.amount)}
+      ${numField('middle', i, 'band', 'Lățime zonă (± unități)', m.band)}
+      <label class="fld"><span>Afectează și zburătorii</span>
+        <input type="checkbox" data-scope="middle" data-id="${i}" data-field="air" ${m.air ? 'checked' : ''}></label>
+    </div>`;
+  });
+  html += '</div>';
   // team-coloring mode for uploaded sprites
   const opts = TINT_MODES
     .map((m) => `<option value="${m}" ${m === CONFIG.TEAM_TINT ? 'selected' : ''}>${TINT_LABELS[m]}</option>`)
@@ -54,6 +75,14 @@ function collect() {
     const { scope, id, field } = el.dataset;
     if (scope === 'tint') { CONFIG.TEAM_TINT = el.value; continue; }
     if (scope === 'healthbar') { CONFIG.HEALTHBAR_ALWAYS = el.value === '1'; continue; }
+    if (scope === 'middle') {
+      const m = CONFIG.MIDDLES[Number(id)];
+      if (!m) continue;
+      if (field === 'kind') m.kind = el.value;
+      else if (field === 'air') m.air = el.checked;
+      else if (isFinite(Number(el.value))) m[field] = Number(el.value);
+      continue;
+    }
     const raw = Number(el.value);
     if (!isFinite(raw)) continue;
     if (scope === 'general') CONFIG[field] = raw;

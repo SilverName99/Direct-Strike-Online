@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleStrip, raceOf } from './sprites.js';
+import { getBackground, getMiddleImage, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -205,7 +205,7 @@ export class Renderer {
     ctx.save();
     ctx.setTransform(z, 0, 0, z, -cam.x * z, -cam.y * z);
 
-    this.drawField(ctx);
+    this.drawField(ctx, game);
     this.drawGrid(ctx, uiState);
     this.drawTemplates(ctx, game, uiState);
     this.drawStructures(ctx, game);
@@ -219,7 +219,7 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawField(ctx) {
+  drawField(ctx, game) {
     ctx.fillStyle = '#0e141d';
     ctx.fillRect(0, 0, CONFIG.FIELD_W, CONFIG.FIELD_H);
 
@@ -229,8 +229,8 @@ export class Renderer {
     const mid = CONFIG.FIELD_W / 2;
     this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid, false);
     this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid, true);
-    // GLOBAL neutral strip over the seam so the center reads continuously
-    this.drawMiddleStrip(ctx, getMiddleStrip(), mid);
+    // GLOBAL neutral strip over the seam (the variant the sim picked this match)
+    this.drawMiddleStrip(ctx, getMiddleImage(game.middleSlot != null ? game.middleSlot : -1), mid);
 
     // per-team base quadrant: construction zone (back) + army zone (front)
     const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];

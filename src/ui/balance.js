@@ -55,6 +55,12 @@ export const TURRET_FIELDS = [
   ['regen', 'Regen viață (HP/s)'], ['bounty', 'Gold pentru inamic la distrugere'],
 ];
 export const TINT_MODES = ['team', 'enemy', 'none'];
+export const MIDDLE_KINDS = ['none', 'moveslow', 'atkslow'];
+
+// Resolved middle-terrain effect for a strip variant (slot index 0-2), or null.
+export function middleConfig(i) {
+  return (CONFIG.MIDDLES && CONFIG.MIDDLES[i]) || null;
+}
 export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator'];
 export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall'];
 
@@ -245,6 +251,7 @@ function snapshot() {
   for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { race: up.race || '', unit: up.unit || '', params: { ...up.params } };
   return {
     general,
+    middles: CONFIG.MIDDLES.map((m) => ({ ...m })),
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
@@ -281,6 +288,19 @@ export function applyBalance(data) {
   }
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
+
+  // ---- middle-of-map terrain effects (per strip variant) ----
+  CONFIG.MIDDLES = DEFAULTS.middles.map((m) => ({ ...m })); // reset to code defaults
+  if (Array.isArray(data.middles)) {
+    data.middles.forEach((m, i) => {
+      const dst = CONFIG.MIDDLES[i];
+      if (!dst || !m || typeof m !== 'object') return;
+      if (MIDDLE_KINDS.includes(m.kind)) dst.kind = m.kind;
+      if (num(m.amount) !== undefined) dst.amount = clamp(m.amount, 0, 100);
+      if (num(m.band) !== undefined) dst.band = clamp(m.band, 0, 4000);
+      if (typeof m.air === 'boolean') dst.air = m.air;
+    });
+  }
 
   // ---- global: ability params (only known abilities / numeric params) ----
   if (data.abilities && typeof data.abilities === 'object') {

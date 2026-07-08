@@ -18,9 +18,7 @@ const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
-const middleImgs = [];         // GLOBAL middle-of-map strip variants (shared, not per race)
-let chosenMiddle = null;       // the variant picked for the current match
-let middleChosen = false;      // whether a variant is locked in for this match
+const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
 const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
@@ -205,24 +203,17 @@ export function getBackground(race) {
   return backgrounds.get(race) || null;
 }
 
-// Start a new match: forget the locked-in middle variant so the next draw
-// picks a fresh random one (call from newGame). Render-side only.
-export function pickMatchMiddle() {
-  middleChosen = false;
-  chosenMiddle = null;
+// Slot indices (0-based) that currently have a loaded middle-strip image. The
+// sim picks which one is active (deterministically) from this list.
+export function availableMiddleSlots() {
+  const out = [];
+  middleImgs.forEach((img, i) => { if (img) out.push(i); });
+  return out;
 }
 
-// The GLOBAL middle-of-map strip for the current match, or null. Locks a random
-// variant on first use and keeps it until the next match (pickMatchMiddle).
-export function getMiddleStrip() {
-  if (!middleChosen) {
-    const avail = middleImgs.filter(Boolean);
-    if (avail.length) {
-      chosenMiddle = avail[Math.floor(Math.random() * avail.length)];
-      middleChosen = true;
-    }
-  }
-  return chosenMiddle;
+// The loaded middle-strip image for a slot index, or null.
+export function getMiddleImage(i) {
+  return (i >= 0 && middleImgs[i]) || null;
 }
 
 // URL of the uploaded background-music track for a race, or null.

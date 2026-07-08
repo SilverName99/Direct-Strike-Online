@@ -1444,6 +1444,37 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // Middle-of-map terrain: the picked variant debuffs units on the central
+  // band (ground only unless `air`), and nothing outside the band.
+  {
+    const { effectVal } = await import('../src/sim/abilities.js');
+    const mid = CONFIG.FIELD_W / 2;
+    // one variant: -40% move speed, band ±150, ground only
+    const middles = [{ slot: 0, kind: 'moveslow', amount: 40, band: 150, air: false }];
+    const game = new Game(31, { races: ['humans', 'orcs'], middles });
+    check('a middle variant is picked deterministically', game.middle && game.middle.slot === 0);
+    const on = spawnUnit(game, 0, 'grunt', mid + 40, 400);   // on the band
+    const off = spawnUnit(game, 0, 'grunt', mid + 400, 400); // well outside
+    const flyer = spawnUnit(game, 0, 'wasp', mid - 20, 500); flyer.isAir = true; // on the band but airborne
+    game.update(DT); game.drainEvents();
+    check('unit on the middle band gets the debuff', effectVal(on, 'moveslow', game.time) === 40);
+    check('unit outside the band is unaffected', effectVal(off, 'moveslow', game.time) === 0);
+    check('flier unaffected when air flag is off', effectVal(flyer, 'moveslow', game.time) === 0);
+
+    // air flag on -> fliers over the band are affected too
+    const g2 = new Game(31, { races: ['humans', 'orcs'],
+      middles: [{ slot: 0, kind: 'moveslow', amount: 25, band: 150, air: true }] });
+    const f2 = spawnUnit(g2, 0, 'wasp', mid + 10, 500); f2.isAir = true;
+    g2.update(DT); g2.drainEvents();
+    check('flier affected when air flag is on', effectVal(f2, 'moveslow', g2.time) === 25);
+
+    // no variants uploaded -> no middle, no effect
+    const g3 = new Game(31, { races: ['humans', 'orcs'], middles: [] });
+    const u3 = spawnUnit(g3, 0, 'grunt', mid, 400);
+    g3.update(DT); g3.drainEvents();
+    check('no middle variants -> no terrain effect', !g3.middle && effectVal(u3, 'moveslow', g3.time) === 0);
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 
