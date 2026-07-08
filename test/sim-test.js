@@ -1380,6 +1380,43 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
   }
 
+  // Special "damage vs buildings": always applies (no upgrade needed), and only
+  // to structures — enemy units still take the normal damage.
+  {
+    const M = DAMAGE_MATRIX.normal;
+    // melee unit, normal damage 10, building damage 100 — NO upgrade bought
+    applyBalance({ races: { humans: { units: { grunt: { damage: 10, dmgType: 'normal', buildingDamage: 100 } } } } });
+    const game = new Game(14, { races: ['humans', 'orcs'] });
+    const u = spawnUnit(game, 0, 'grunt', 1090, 480);
+    const wall = makeStructure(game, 1, 'wall', 1120, 480); wall.hp = wall.maxHp = 1e6;
+    run(game, 1.2);
+    const perHit = 100 * M.structure;
+    check('building damage applies with NO upgrade, only vs structures',
+      wall.hp < wall.maxHp && Math.abs((wall.maxHp - wall.hp) % perHit) < 0.001,
+      `wall dropped ${wall.maxHp - wall.hp}, per hit ${perHit}`);
+
+    // vs a UNIT it deals the normal damage, not the building damage
+    const g2 = new Game(14, { races: ['humans', 'orcs'] });
+    spawnUnit(g2, 0, 'grunt', 1090, 480);
+    const foe = spawnUnit(g2, 1, 'grunt', 1120, 480); foe.hp = foe.maxHp = 1e6;
+    run(g2, 1.2);
+    const dropped = foe.maxHp - foe.hp;
+    check('building damage does NOT affect units (normal damage used)',
+      dropped > 0 && dropped % (10 * M.light) < 0.001 && dropped < 100,
+      `unit dropped ${dropped}`);
+
+    // ranged: the projectile carries the building damage too
+    applyBalance({ races: { humans: { units: { grunt: { ranged: true, range: 200, projSpeed: 600, damage: 5, dmgType: 'normal', buildingDamage: 80 } } } } });
+    const g3 = new Game(14, { races: ['humans', 'orcs'] });
+    spawnUnit(g3, 0, 'grunt', 950, 480);
+    const wall3 = makeStructure(g3, 1, 'wall', 1080, 480); wall3.hp = wall3.maxHp = 1e6;
+    run(g3, 1.5);
+    check('ranged building damage: projectile hits the wall for the building value',
+      wall3.hp < wall3.maxHp && (wall3.maxHp - wall3.hp) % (80 * M.structure) < 0.001,
+      `wall dropped ${wall3.maxHp - wall3.hp}, per hit ${80 * M.structure}`);
+    applyBalance({});
+  }
+
   resetAll(); // leave the shared balance pristine for any later tests
 }
 

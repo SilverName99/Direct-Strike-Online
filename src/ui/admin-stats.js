@@ -152,6 +152,12 @@ function fieldsFor(ent, kind) {
       group: F, label: 'Vindecător (heal aliați)', type: 'check', value: !!u.heal,
       apply: (v) => { u.heal = !!v; },
     });
+    // Special damage vs structures (0 = same as the normal damage). Always
+    // applies — independent of the "Focus building" upgrade.
+    out.push({
+      group: F, label: 'Damage în clădiri (0 = ca normal)', type: 'num', value: Math.round(u.buildingDamage ?? 0),
+      apply: (v) => { u.buildingDamage = clamp(v, 0, 100000); },
+    });
     // Combat numbers + select fields (armor / damage type)
     for (const [f, label] of UNIT_NUM_FIELDS) {
       if (u[f] !== undefined) out.push({ group: F, f, label, value: u[f], type: 'num', apply: (v) => { u[f] = v; } });

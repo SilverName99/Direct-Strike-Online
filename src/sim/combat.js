@@ -241,7 +241,7 @@ function updateFighter(game, u, stats, dt) {
           spawnProjectile(game, u, stats, target);
           game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
         } else {
-          applyDamage(game, target, stats.damage, stats.dmgType);
+          applyDamage(game, target, dmgVsTarget(stats.damage, stats.buildingDamage, target), stats.dmgType);
         }
       }
     } else if (u.cooldown <= 0) {
@@ -544,6 +544,14 @@ function canHit(stats, target) {
   return stats.targetsGround !== false; // default: can hit ground
 }
 
+// The damage a unit deals to THIS target: a special "building damage" (when set
+// > 0) replaces the normal damage against structures; everyone else takes the
+// normal damage. Applies always — the "Focus building" upgrade only changes
+// WHO gets targeted, not this modifier.
+function dmgVsTarget(dmg, buildingDmg, target) {
+  return target.isStructure && buildingDmg > 0 ? buildingDmg : dmg;
+}
+
 // Distance minus the target's radius, so melee can strike large bodies/bases.
 function effDist(a, b) {
   const dx = a.x - b.x;
@@ -628,13 +636,14 @@ function impact(game, p, target) {
         const sdx = s.x - p.tx;
         const sdy = s.y - p.ty;
         if (Math.sqrt(sdx * sdx + sdy * sdy) <= p.splash + s.radius) {
-          const dmg = p.aoe && s.id !== p.targetId ? p.damage * p.aoe.power : p.damage;
+          const base = dmgVsTarget(p.damage, p.buildingDamage, s);
+          const dmg = p.aoe && s.id !== p.targetId ? base * p.aoe.power : base;
           applyDamage(game, s, dmg, p.dmgType);
         }
       }
     }
   } else if (target && target.hp > 0) {
-    applyDamage(game, target, p.damage, p.dmgType);
+    applyDamage(game, target, dmgVsTarget(p.damage, p.buildingDamage, target), p.dmgType);
     // a splash-less acid spit still leaves the damage-over-time on its target
     if (p.acid && !target.isStructure) {
       applyEffect(target, 'acid', p.acid.dot, game.time + p.acid.dur, game.time);

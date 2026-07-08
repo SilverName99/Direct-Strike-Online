@@ -126,6 +126,7 @@ function baseUnits() {
       // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
       ranged: false, projectile: false,
       heal: false,         // healer behavior is opt-in (admin toggle), like every other special
+      buildingDamage: 0,   // special damage vs structures (0 = use the normal damage); always applies
       isAir: false, targetsAir: false,
       targetsGround: true, // can attack ground units (default on; turn off for air-only)
       splash: 0,
@@ -207,7 +208,7 @@ function raceUnitsSnapshot(race) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed,
       ranged: !!u.ranged, projSpeed: u.projSpeed, splash: u.splash,
-      heal: !!u.heal,
+      heal: !!u.heal, buildingDamage: u.buildingDamage,
       isAir: !!u.isAir, targetsAir: !!u.targetsAir, targetsGround: u.targetsGround !== false,
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
@@ -334,6 +335,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.animSpeed) !== undefined) u.animSpeed = clamp(vals.animSpeed, 0.2, 30);
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
+    if (num(vals.buildingDamage) !== undefined) u.buildingDamage = clamp(vals.buildingDamage, 0, 100000);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;
     if (typeof vals.isAir === 'boolean') u.isAir = vals.isAir;
@@ -414,7 +416,7 @@ export function resetRaceUnit(race, id) {
   const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
   resolvedUnits[race][id] = {
     ...u, size: 1, projSize: 1, cw: 1, ch: 1, animSpeed: 5,
-    ranged: false, projectile: false, heal: false, isAir: false, targetsAir: false, targetsGround: true, splash: 0,
+    ranged: false, projectile: false, heal: false, buildingDamage: 0, isAir: false, targetsAir: false, targetsGround: true, splash: 0,
     projSpeed: ps, projectileSpeed: ps,
     bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
     dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,

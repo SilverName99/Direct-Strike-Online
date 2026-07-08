@@ -28,7 +28,7 @@ export const UPGRADES = {
   },
   focusbuilding: {
     name: 'Focus building',
-    desc: 'The unit ignores enemy troops entirely and attacks only STRUCTURES (walls, towers, the base) — a dedicated siege breaker (e.g. a Siege Cannon). Bought once from the base; permanent for the match.',
+    desc: 'The unit ignores enemy troops entirely and attacks only STRUCTURES (walls, towers, the base) — a dedicated siege breaker (e.g. a Siege Cannon). This upgrade ONLY changes targeting; the special damage vs buildings is a per-unit stat ("Damage în clădiri") that always applies, upgrade or not. Bought once from the base; permanent for the match.',
     kind: 'focusbuild',
     race: '',   // which race's unit this targets
     unit: '',   // which unit type becomes buildings-only (set in admin)

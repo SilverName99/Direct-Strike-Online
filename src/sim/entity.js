@@ -106,6 +106,7 @@ export function spawnProjectile(game, source, stats, target) {
     targetId: target.id,
     tx: target.x, ty: target.y,
     damage: stats.damage,
+    buildingDamage: stats.buildingDamage || 0, // special damage vs structures (0 = normal)
     dmgType: stats.dmgType,
     splash: stats.splash || 0,
     // AoE upgrade: {power} -> full damage on the struck target, power% on the
