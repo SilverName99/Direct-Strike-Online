@@ -50,6 +50,7 @@ export function spawnUnit(game, team, type, x, y) {
     targetId: null,
     state: 'march',
     radius,
+    baseRadius: s.radius, // the drawn-body radius (pre-footprint) — for the selection ring / click size
     footprint, hw, hh, // rectangular separation for multi-cell units
     armor: s.armor,
     isAir: !!s.isAir,

@@ -9,15 +9,17 @@ import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmu
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 
-// The unit's on-screen body radius: its physical radius scaled by how big it is
-// actually DRAWN (unit Size %, or the on-foot / beast override size). Used for
-// both the selection ring and click hit-testing, so a bigger unit gets a bigger
-// clickable circle. Never smaller than the physical radius (stays selectable).
+// The unit's on-screen body radius: its DRAWN-body radius scaled by the unit
+// Size % (or the on-foot / beast override size). Used for both the selection
+// ring and click hit-testing, so a bigger unit gets a bigger clickable circle.
+// Uses the base (sprite) radius, NOT the footprint-inflated collision radius —
+// a wide 2x1 unit's ring should match its sprite, not its 2-cell hitbox.
 export function visualRadiusOf(u) {
   const scale = (u.dismounted || u.beast) && u.ovSize != null
     ? u.ovSize
     : sizeOf(raceOf(u.team), u.type);
-  return (u.radius || 10) * Math.max(1, scale || 1);
+  const base = u.baseRadius || u.radius || 10;
+  return base * Math.max(1, scale || 1);
 }
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
 
