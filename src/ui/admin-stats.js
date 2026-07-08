@@ -152,6 +152,16 @@ function fieldsFor(ent, kind) {
       group: F, label: 'Vindecător (heal aliați)', type: 'check', value: !!u.heal,
       apply: (v) => { u.heal = !!v; },
     });
+    // Targeting: which planes this unit can hit. Apply to EVERY unit (melee
+    // too), so they live with the core combat flags, not the ranged section.
+    out.push({
+      group: F, label: 'Lovește aer', type: 'check', value: !!u.targetsAir,
+      apply: (v) => { u.targetsAir = !!v; },
+    });
+    out.push({
+      group: F, label: 'Lovește sol (implicit da)', type: 'check', value: u.targetsGround !== false,
+      apply: (v) => { u.targetsGround = !!v; },
+    });
     // Special damage vs structures (0 = same as the normal damage). Always
     // applies — independent of the "Focus building" upgrade.
     out.push({
@@ -203,17 +213,6 @@ function fieldsFor(ent, kind) {
     out.push({
       group: R, label: 'Ranged', type: 'check', cls: 'ranged-chk', value: !!u.ranged,
       apply: (v) => { u.ranged = !!v; },
-    });
-    // not every ranged troop can shoot flyers — this is the dedicated anti-air toggle
-    out.push({
-      group: R, label: 'Can hit air', type: 'check', value: !!u.targetsAir,
-      apply: (v) => { u.targetsAir = !!v; },
-    });
-    // ground attack (on by default) — turn OFF for an air-only unit; the
-    // "Attack ground units" upgrade can grant it back in-game
-    out.push({
-      group: R, label: 'Can hit ground', type: 'check', value: u.targetsGround !== false,
-      apply: (v) => { u.targetsGround = !!v; },
     });
     out.push({
       group: R, label: 'Proiectil (%)', type: 'num', cls: 'ranged-field', disabled: !u.ranged,
