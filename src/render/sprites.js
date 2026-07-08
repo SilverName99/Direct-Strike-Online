@@ -18,6 +18,7 @@ const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
+let middleImg = null;          // GLOBAL middle-of-map strip (shared, not per race)
 const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
@@ -117,6 +118,10 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const race of Object.keys(man.backgrounds || {})) {
         load(`${base}${race}/background.png?v=${man.v || 0}`, (img) => backgrounds.set(race, img));
       }
+      // GLOBAL middle-of-map strip (drawn over the seam, shared by both sides)
+      if (man.middle) {
+        load(`${base}${man.middle}?v=${man.v || 0}`, (img) => { middleImg = img; });
+      }
       // per-race background music (played in-game, looping)
       for (const [race, file] of Object.entries(man.music || {})) {
         musicUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
@@ -194,6 +199,11 @@ function pickImg(entry, team) {
 
 export function getBackground(race) {
   return backgrounds.get(race) || null;
+}
+
+// The GLOBAL middle-of-map strip image (shared, not per race), or null.
+export function getMiddleStrip() {
+  return middleImg;
 }
 
 // URL of the uploaded background-music track for a race, or null.

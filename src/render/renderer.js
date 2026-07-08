@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
-import { getBackground, raceOf } from './sprites.js';
+import { getBackground, getMiddleStrip, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -229,6 +229,8 @@ export class Renderer {
     const mid = CONFIG.FIELD_W / 2;
     this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid, false);
     this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid, true);
+    // GLOBAL neutral strip over the seam so the center reads continuously
+    this.drawMiddleStrip(ctx, getMiddleStrip(), mid);
 
     // per-team base quadrant: construction zone (back) + army zone (front)
     const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
@@ -299,6 +301,20 @@ export class Renderer {
     } else {
       ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
     }
+    ctx.restore();
+  }
+
+  // Global neutral strip centered on the field's midline, over both halves, so
+  // the seam blends. Fit to full field height; its drawn width follows the
+  // source aspect (a 400×1920 PNG -> ~200 sim units wide).
+  drawMiddleStrip(ctx, img, mid) {
+    if (!img) return;
+    const rh = CONFIG.FIELD_H;
+    const s = rh / img.height;
+    const dw = img.width * s;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(img, mid - dw / 2, 0, dw, rh);
     ctx.restore();
   }
 
