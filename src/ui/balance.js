@@ -214,7 +214,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay', 'campSize', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =

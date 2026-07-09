@@ -504,7 +504,7 @@ export class Renderer {
       if (!drawn) drawn = drawTowerSprite(ctx, s.team, tier, hw, hh, 'idle', 0);
       // the soldiers + fire are a SEPARATE sprite, off to the tower's own-base
       // side, nudged per-tower so several towers don't line up identically
-      this.drawCampfire(ctx, s, tier, hw, hh);
+      this.drawCampfire(ctx, s, tier, hw, hh, bs);
       return drawn;
     }
     const frame = (Math.floor(this.now * (bs.idleSpeed || 2)) + s.id) % 2;
@@ -515,8 +515,10 @@ export class Renderer {
   // context is already translated to the tower and mirrored for team 1, so a
   // negative local x sits on that team's own-base side (symmetric per side).
   // Only draws if the tier's "camp" soldier art was uploaded.
-  drawCampfire(ctx, s, tier, hw, hh) {
-    const frame = Math.floor(this.now * 3) % 2; // fire/soldier flicker
+  drawCampfire(ctx, s, tier, hw, hh, bs) {
+    const speed = bs.campSpeed || 3;
+    const frame = Math.floor(this.now * speed) % 2; // fire/soldier flicker
+    const scale = Math.max(0.1, Math.min(4, bs.campSize ?? 0.8));
     // stable pseudo-random nudge from the tower id (no per-frame jitter)
     const j = (s.id * 2654435761) >>> 0;
     const jx = (j & 63) / 63;          // 0..1
@@ -525,7 +527,7 @@ export class Renderer {
     const dy = hh * 0.35 + jy * hh * 0.35;       // a touch below center
     ctx.save();
     ctx.translate(dx, dy);
-    drawTowerSprite(ctx, s.team, tier, hw * 0.8, hh * 0.8, 'camp', frame);
+    drawTowerSprite(ctx, s.team, tier, hw * scale, hh * scale, 'camp', frame);
     ctx.restore();
   }
 

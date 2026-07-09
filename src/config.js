@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.15';
+export const VERSION = 'v10.16';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -117,6 +117,8 @@ export const CONFIG = {
       // After this many seconds without firing, the soldiers come down and
       // light a campfire at the tower's base (purely cosmetic).
       campfireDelay: 60,
+      campSize: 0.8,   // campfire-soldiers sprite scale (1 = as big as the tower box)
+      campSpeed: 3,    // campfire-soldiers frame flips per second
     },
     // income = extra gold every 20s (= +4/s each); buildCd = seconds you must
     // wait after building one before you can build the next (0 = none)

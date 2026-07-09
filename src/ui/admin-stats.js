@@ -341,6 +341,12 @@ function fieldsFor(ent, kind) {
       out.push({ group: S, f, label, value: b[f], type: 'num', apply: (v) => { b[f] = v; } });
     }
   }
+  // tower: campfire soldiers drawn beside the base while it idles long
+  if (ent === 'tower') {
+    const F = 'Foc de tabără';
+    out.push({ group: F, label: 'Mărime soldați (%)', type: 'num', value: Math.round((b.campSize ?? 0.8) * 100), apply: (v) => { b.campSize = clamp(v / 100, 0.1, 4); } });
+    out.push({ group: F, label: 'Viteză frame (flip/s)', type: 'num', value: b.campSpeed ?? 3, apply: (v) => { b.campSpeed = clamp(v, 0.2, 20); } });
+  }
   // gold mine: cosmetic workers shuttling to the base (need uploaded art)
   if (ent === 'generator') {
     const W = 'Muncitori';
