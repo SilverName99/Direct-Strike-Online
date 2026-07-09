@@ -357,6 +357,10 @@ export class Renderer {
         else if (tt < legT * 2 + pauseT) { from = s; to = base; frac = (tt - legT - pauseT) / legT; anim = 'worker-full'; }
         else { from = s; to = base; frac = 1; idle = true; }
 
+        // while it "loads/unloads", the worker steps INSIDE the mine/base and
+        // vanishes — nothing drawn, nothing to click, until it comes back out
+        if (idle) continue;
+
         const x = from.x + (to.x - from.x) * frac;
         const y = from.y + (to.y - from.y) * frac;
         // register a click target (centered on the drawn body)
@@ -364,11 +368,10 @@ export class Renderer {
         ctx.save();
         ctx.translate(x, y);
         if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
-        // PNG only on the map: walking = 2-frame shuffle, idle = a still frame.
-        // (mp4 clips are shown only in the portrait box on click, never here.)
-        const frame = idle ? 0 : Math.floor(now * 6 + w) % 2;
-        const walk = idle ? (hasFull ? 'worker-full' : 'worker-empty') : anim;
-        const entry = getSprite(race, 'generator', walk, frame) || getSprite(race, 'generator', walk, 0)
+        // PNG only on the map: a 2-frame walk cycle. (mp4 clips play only in
+        // the portrait box on click, never here.)
+        const frame = Math.floor(now * 6 + w) % 2;
+        const entry = getSprite(race, 'generator', anim, frame) || getSprite(race, 'generator', anim, 0)
           // fallbacks so a partial upload still shows something
           || getSprite(race, 'generator', 'worker-full', frame)
           || getSprite(race, 'generator', 'worker-empty', frame);
