@@ -602,12 +602,14 @@ export class Renderer {
       const vScale = (u.dismounted || u.beast) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
 
       if (u.isAir) {
-        // soft shadow under flyers
+        // soft shadow under flyers — scales with the unit's drawn Size so a
+        // bigger flyer casts a bigger shadow
+        const sr = stats.radius * Math.max(0.2, vScale);
         ctx.save();
         ctx.globalAlpha = 0.2;
         ctx.fillStyle = '#000';
         ctx.beginPath();
-        ctx.ellipse(x, y + stats.radius + 6, stats.radius * 0.9, stats.radius * 0.35, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y + sr + 6, sr * 0.9, sr * 0.35, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
