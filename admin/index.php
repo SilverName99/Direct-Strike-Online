@@ -223,6 +223,14 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots['attack_1'] = 'Attack 2';
       $slots['projectile'] = 'Proiectil';
     }
+    // the gold generator can show little workers shuttling gold to the base:
+    // 2 frames walking TO the mine (empty sack) + 2 walking back (full sack)
+    if ($ent === 'generator') {
+      $slots['worker-empty_0'] = 'Muncitor gol 1';
+      $slots['worker-empty_1'] = 'Muncitor gol 2';
+      $slots['worker-full_0'] = 'Muncitor plin 1';
+      $slots['worker-full_1'] = 'Muncitor plin 2';
+    }
     return $slots;
   }
   $caster = unitIsCaster($race, $ent);

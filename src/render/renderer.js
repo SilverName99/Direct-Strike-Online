@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleImage, raceOf } from './sprites.js';
+import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -206,6 +206,7 @@ export class Renderer {
     this.drawGrid(ctx, uiState);
     this.drawTemplates(ctx, game, uiState);
     this.drawStructures(ctx, game);
+    this.drawWorkers(ctx, game); // little miners shuttling gold to the base
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
@@ -313,6 +314,55 @@ export class Renderer {
     ctx.globalAlpha = 0.85;
     ctx.drawImage(img, mid - dw / 2, 0, dw, rh);
     ctx.restore();
+  }
+
+  // Ambient life: for every gold generator with uploaded "worker" sprites,
+  // little miners shuttle between the mine and the owning team's base — empty
+  // sacks on the way out, full sacks on the way back. Purely cosmetic (no sim
+  // state), driven by the render clock and offset per generator so they don't
+  // march in lockstep.
+  drawWorkers(ctx, game) {
+    const now = this.now;
+    const SPEED = 100;      // world units / second
+    const PER_MINE = 2;     // workers shuttling per generator
+    for (const s of game.structures) {
+      if (s.kind !== 'generator' || s.hp <= 0) continue;
+      if (!this.visible(s.x, s.y, 400)) continue;
+      const base = game.mainOf(s.team);
+      if (!base) continue;
+      const race = raceOf(s.team);
+      // opt-in: only if the mine has worker art uploaded
+      const hasEmpty = !!getSprite(race, 'generator', 'worker-empty', 0);
+      const hasFull = !!getSprite(race, 'generator', 'worker-full', 0);
+      if (!hasEmpty && !hasFull) continue;
+
+      const d = Math.hypot(s.x - base.x, s.y - base.y) || 1;
+      const legT = Math.max(0.6, d / SPEED); // seconds for one leg
+      const total = legT * 2;
+      for (let w = 0; w < PER_MINE; w++) {
+        const tt = (now + s.id * 2.7 + (w * total) / PER_MINE) % total;
+        const outbound = tt < legT;                 // base -> mine (empty)
+        const frac = outbound ? tt / legT : (tt - legT) / legT;
+        const from = outbound ? base : s;
+        const to = outbound ? s : base;
+        const anim = outbound ? 'worker-empty' : 'worker-full';
+        const frame = (Math.floor(now * 6 + w) % 2);
+        const entry = getSprite(race, 'generator', anim, frame)
+          || getSprite(race, 'generator', anim, 0)
+          || getSprite(race, 'generator', outbound ? 'worker-full' : 'worker-empty', frame);
+        if (!entry || !entry.img) continue;
+        const img = entry.img;
+        const x = from.x + (to.x - from.x) * frac;
+        const y = from.y + (to.y - from.y) * frac;
+        const h = 26;
+        const sc = h / img.height;
+        ctx.save();
+        ctx.translate(x, y);
+        if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
+        ctx.drawImage(img, (-img.width * sc) / 2, -h + 4, img.width * sc, h);
+        ctx.restore();
+      }
+    }
   }
 
   // Placement grid over the relevant zone while placing or dragging. Only the
