@@ -153,6 +153,14 @@ function mineVidFileFor(string $assetsDir, string $race, string $which): ?string
   return null;
 }
 
+// A per-tier tower CLIP (mp4/webm) shown in the portrait box when the tower is
+// selected: which ∈ {tier1,tier2,tier3} → <race>/tower/<which>.<ext>, or null.
+const TOWER_VID_WHICH = ['tier1', 'tier2', 'tier3'];
+function towerVidFileFor(string $assetsDir, string $race, string $which): ?string {
+  foreach (PORTRAIT_VID_EXTS as $e) if (is_file("$assetsDir/$race/tower/$which.$e")) return "$which.$e";
+  return null;
+}
+
 // A unit's uploaded idle portrait clip (<ent>/portrait<suffix>.<ext>), or
 // null. Suffix '' = the whole unit, '-foot' = the rider on foot (after a
 // dismount / split), '-beast' = the split-off mount.
@@ -367,6 +375,7 @@ function regenManifest(string $assetsDir): void {
   $baseupg = [];
   $portraitvids = [];
   $minevids = [];
+  $towervids = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
@@ -377,6 +386,12 @@ function regenManifest(string $assetsDir): void {
       if ($vf) $mv[$which] = $vf;
     }
     if ($mv) $minevids[$r] = (object)$mv;
+    $tv = [];
+    foreach (TOWER_VID_WHICH as $which) {
+      $vf = towerVidFileFor($assetsDir, $r, $which);
+      if ($vf) $tv[$which] = $vf;
+    }
+    if ($tv) $towervids[$r] = (object)$tv;
     $pv = [];
     foreach (UNIT_LIST as $ent) {
       $forms = [];
@@ -416,7 +431,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -651,6 +666,40 @@ if ($authed && $action === 'deleteminevid') {
     foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/generator/$which.$e");
     regenManifest($assetsDir);
     $msg = "Animație minieră ștearsă: $race · $which";
+  }
+}
+// per-tier tower clip (mp4/webm) shown in the portrait box: tier1|tier2|tier3
+if ($authed && $action === 'uploadtowervid') {
+  $which = $_POST['which'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($which, TOWER_VID_WHICH, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['video']) || $_FILES['video']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['video']['size'] > PORTRAIT_VID_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['video']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['video']['tmp_name'];
+    if (!in_array($ext, PORTRAIT_VID_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere video: ' . implode(', ', PORTRAIT_VID_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race/tower", 0755, true);
+      foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/tower/$which.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/tower/$which.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Animație turn încărcată: $race · $which";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletetowervid') {
+  $which = $_POST['which'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($which, TOWER_VID_WHICH, true)) {
+    foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/tower/$which.$e");
+    regenManifest($assetsDir);
+    $msg = "Animație turn ștearsă: $race · $which";
   }
 }
 
@@ -1387,6 +1436,39 @@ if ($authed && $action === 'deletebarover') {
           <?php if ($hasMv): ?>
           <form method="post">
             <input type="hidden" name="action" value="deleteminevid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi animația?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+      <?php if ($ent === 'tower'): ?>
+      <div class="portraitvid">
+        <?php foreach (['tier1' => 'Animație turn Tier 1 (mp4/webm)', 'tier2' => 'Animație turn Tier 2 (mp4/webm)', 'tier3' => 'Animație turn Tier 3 (mp4/webm)'] as $which => $label):
+          $tvf = towerVidFileFor($assetsDir, $race, $which);
+          $hasTv = $tvf !== null;
+        ?>
+        <span class="lbl"><?= $label ?></span>
+        <div class="pv-row">
+          <?php if ($hasTv): ?>
+            <video src="<?= $assetsUrl ?>/<?= $race ?>/tower/<?= $tvf ?>?t=<?= filemtime("$assetsDir/$race/tower/$tvf") ?>" width="96" height="96" autoplay loop muted playsinline></video>
+          <?php else: ?>
+            <div class="pv-empty">fără animație</div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadtowervid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <label class="pick"><?= $hasTv ? 'înlocuiește' : 'încarcă' ?><input type="file" name="video" accept="video/mp4,video/webm" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($hasTv): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="deletetowervid">
             <input type="hidden" name="csrf" value="<?= $csrf ?>">
             <input type="hidden" name="race" value="<?= $race ?>">
             <input type="hidden" name="which" value="<?= $which ?>">

@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade, towerStatForTier,
 } from './balance.js';
-import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl } from '../render/sprites.js';
+import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -335,7 +335,9 @@ export class BottomBar {
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     const vid = info.kind === 'structure' && info.type === 'generator'
       ? (getMineVideoUrl(raceOf(info.team), 'mineidle') || getPortraitVideoUrl(raceOf(info.team), info.type, form))
-      : getPortraitVideoUrl(raceOf(info.team), info.type, form);
+      : info.kind === 'structure' && info.type === 'tower'
+        ? (getTowerVideoUrl(raceOf(info.team), game.tier[info.team]) || getPortraitVideoUrl(raceOf(info.team), info.type, form))
+        : getPortraitVideoUrl(raceOf(info.team), info.type, form);
     this.setPortraitVideo(vid);
     if (!vid) this.drawPortrait(ctx, game, info);
 

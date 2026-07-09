@@ -28,6 +28,7 @@ const barSkins = new Map();    // race -> url of the uploaded bottom-bar backgro
 const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
 const portraitVideos = new Map(); // `${race}/${ent}` -> url of the idle portrait clip (mp4/webm)
 const mapVideoUrls = new Map();   // `${race}/${which}` -> url of a mine/worker idle clip (portrait box only)
+const towerVideoUrls = new Map(); // `${race}/tier{1..3}` -> url of a tower's per-tier portrait clip
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -173,6 +174,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           mapVideoUrls.set(`${race}/${which}`, `${base}${race}/generator/${file}?v=${man.v || 0}`);
         }
       }
+      // per-tier tower clips, shown in the portrait box when a tower is selected
+      for (const [race, kinds] of Object.entries(man.towervids || {})) {
+        for (const [which, file] of Object.entries(kinds || {})) {
+          towerVideoUrls.set(`${race}/${which}`, `${base}${race}/tower/${file}?v=${man.v || 0}`);
+        }
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
@@ -263,6 +270,17 @@ export function getBarOverlay(race) {
 // portrait box when the mine or a worker is selected. Null if none uploaded.
 export function getMineVideoUrl(race, which) {
   return mapVideoUrls.get(`${race}/${which}`) || null;
+}
+
+// URL of a tower's per-tier portrait clip for the given base tier (1..3),
+// falling back to the nearest lower tier that was uploaded. Null if none.
+export function getTowerVideoUrl(race, tier) {
+  const t = tier < 1 ? 1 : tier > 3 ? 3 : tier;
+  for (let k = t; k >= 1; k--) {
+    const u = towerVideoUrls.get(`${race}/tier${k}`);
+    if (u) return u;
+  }
+  return null;
 }
 
 // URL of a unit's uploaded idle portrait clip (mp4/webm), or null.
