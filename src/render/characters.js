@@ -184,8 +184,10 @@ function towerEntry(race, tier, anim, frame) {
     const e = getSprite(race, 'tower', `tier${k}-${anim}`, frame);
     if (e) return e;
   }
-  // legacy single-look tower art (pre-tier uploads): map camp/die onto idle
-  return getSprite(race, 'tower', anim === 'attack' ? 'attack' : 'idle', frame);
+  // legacy single-look tower art (pre-tier uploads) only covers idle/attack;
+  // camp / camptower / die have no legacy equivalent -> null when not uploaded
+  if (anim === 'idle' || anim === 'attack') return getSprite(race, 'tower', anim, frame);
+  return null;
 }
 
 // True once a race has at least one uploaded tier-tower idle frame (i.e. it
