@@ -54,6 +54,8 @@ export class AIController {
     this.wallQueue = [];
     this.manageTick = 0; // army-management cadence (sell / rearrange)
     this.nextSellAt = 0; // game.time before which we won't sell again (anti-churn)
+    this.aggro = false;  // "push the middle" posture: muster forward to grab mid
+    this.aggroReroll = 0; // game.time to re-decide the posture
   }
 
   update(game, dt) {
@@ -68,6 +70,16 @@ export class AIController {
   think(game) {
     const t = this.team;
     const money = game.money[t];
+
+    // Occasionally adopt a "push the middle" posture: muster the whole army on
+    // the front rows so it reaches (and holds) midfield sooner. Worth chasing
+    // mostly when holding the middle actually pays income; re-decided every
+    // ~20-40s so a match ebbs and flows instead of one fixed style.
+    if (game.time >= this.aggroReroll) {
+      const wantMid = CONFIG.MID_INCOME > 0 ? 0.45 : 0.2;
+      this.aggro = this.rng() < wantMid;
+      this.aggroReroll = game.time + 20 + this.rng() * 20;
+    }
 
     // 0. Army management every 3rd think: sell dead weight or fix the
     // formation — at most ONE action, so it looks deliberate, not spastic.
@@ -386,7 +398,10 @@ export class AIController {
 
   pickPlacement(game, unitId) {
     const zone = CONFIG.ARMY_ZONE[this.team];
-    const band = ROLE_BANDS[roleOf(game.ustat(this.team, unitId))];
+    // aggressive posture: muster EVERYTHING on the front rows (nearest the
+    // middle) so the army pushes for the mid income sooner; otherwise place by
+    // role (melee front, ranged mid, artillery/support back)
+    const band = this.aggro ? ROLE_BANDS.front : ROLE_BANDS[roleOf(game.ustat(this.team, unitId))];
     const frac = band[0] + this.rng() * (band[1] - band[0]);
     const depth = zone.x1 - zone.x0;
     // The edge facing the enemy: x0 for the right team, x1 for the left.
