@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.8';
+export const VERSION = 'v10.9';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -113,7 +113,13 @@ export const CONFIG = {
     },
     // income = extra gold every 20s (= +4/s each); buildCd = seconds you must
     // wait after building one before you can build the next (0 = none)
-    generator: { cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, buildCd: 0, idleSpeed: 2, name: 'Generator' },
+    generator: {
+      cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, buildCd: 0, idleSpeed: 2, name: 'Generator',
+      // cosmetic gold-miners shuttling to the base (need uploaded worker art):
+      workerSize: 1,     // visual scale (1 = 100%)
+      workerSpeed: 100,  // world units / second
+      workerCount: 2,    // how many shuttle per mine (0 = none)
+    },
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)

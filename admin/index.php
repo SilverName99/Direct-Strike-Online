@@ -230,6 +230,8 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots['worker-empty_1'] = 'Muncitor gol 2';
       $slots['worker-full_0'] = 'Muncitor plin 1';
       $slots['worker-full_1'] = 'Muncitor plin 2';
+      $slots['worker-idle_0'] = 'Muncitor idle 1';
+      $slots['worker-idle_1'] = 'Muncitor idle 2';
     }
     return $slots;
   }

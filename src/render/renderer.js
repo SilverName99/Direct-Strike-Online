@@ -323,38 +323,49 @@ export class Renderer {
   // march in lockstep.
   drawWorkers(ctx, game) {
     const now = this.now;
-    const SPEED = 100;      // world units / second
-    const PER_MINE = 2;     // workers shuttling per generator
+    const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     for (const s of game.structures) {
       if (s.kind !== 'generator' || s.hp <= 0) continue;
       if (!this.visible(s.x, s.y, 400)) continue;
       const base = game.mainOf(s.team);
       if (!base) continue;
       const race = raceOf(s.team);
-      // opt-in: only if the mine has worker art uploaded
+      // opt-in: only if the mine has walking worker art uploaded
       const hasEmpty = !!getSprite(race, 'generator', 'worker-empty', 0);
       const hasFull = !!getSprite(race, 'generator', 'worker-full', 0);
       if (!hasEmpty && !hasFull) continue;
+      const hasIdle = !!getSprite(race, 'generator', 'worker-idle', 0);
+
+      // configurable size / speed / count (⚙ stats on the Generator)
+      const gs = game.bstat(s.team, 'generator');
+      const count = cl(Math.round(gs.workerCount ?? 2), 0, 8);
+      if (count === 0) continue;
+      const speed = cl(gs.workerSpeed || 100, 10, 1000);
+      const scale = cl(gs.workerSize || 1, 0.2, 4);
 
       const d = Math.hypot(s.x - base.x, s.y - base.y) || 1;
-      const legT = Math.max(0.6, d / SPEED); // seconds for one leg
-      const total = legT * 2;
-      for (let w = 0; w < PER_MINE; w++) {
-        const tt = (now + s.id * 2.7 + (w * total) / PER_MINE) % total;
-        const outbound = tt < legT;                 // base -> mine (empty)
-        const frac = outbound ? tt / legT : (tt - legT) / legT;
-        const from = outbound ? base : s;
-        const to = outbound ? s : base;
-        const anim = outbound ? 'worker-empty' : 'worker-full';
-        const frame = (Math.floor(now * 6 + w) % 2);
-        const entry = getSprite(race, 'generator', anim, frame)
-          || getSprite(race, 'generator', anim, 0)
-          || getSprite(race, 'generator', outbound ? 'worker-full' : 'worker-empty', frame);
+      const legT = Math.max(0.6, d / speed);   // seconds for one leg
+      const pauseT = hasIdle ? 0.9 : 0;         // load/unload pause (needs idle art)
+      const total = legT * 2 + pauseT * 2;
+      for (let w = 0; w < count; w++) {
+        const tt = (now + s.id * 2.7 + (w * total) / count) % total;
+        // phases: out(empty) -> idle@mine -> back(full) -> idle@base
+        let from; let to; let frac; let anim; let idle = false;
+        if (tt < legT) { from = base; to = s; frac = tt / legT; anim = 'worker-empty'; }
+        else if (tt < legT + pauseT) { from = base; to = s; frac = 1; anim = 'worker-idle'; idle = true; }
+        else if (tt < legT * 2 + pauseT) { from = s; to = base; frac = (tt - legT - pauseT) / legT; anim = 'worker-full'; }
+        else { from = s; to = base; frac = 1; anim = 'worker-idle'; idle = true; }
+
+        const frame = Math.floor(now * (idle ? 3 : 6) + w) % 2;
+        const entry = getSprite(race, 'generator', anim, frame) || getSprite(race, 'generator', anim, 0)
+          // fallbacks so a partial upload still shows something
+          || getSprite(race, 'generator', 'worker-full', frame)
+          || getSprite(race, 'generator', 'worker-empty', frame);
         if (!entry || !entry.img) continue;
         const img = entry.img;
         const x = from.x + (to.x - from.x) * frac;
         const y = from.y + (to.y - from.y) * frac;
-        const h = 26;
+        const h = 26 * scale;
         const sc = h / img.height;
         ctx.save();
         ctx.translate(x, y);

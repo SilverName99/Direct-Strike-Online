@@ -341,6 +341,13 @@ function fieldsFor(ent, kind) {
       out.push({ group: S, f, label, value: b[f], type: 'num', apply: (v) => { b[f] = v; } });
     }
   }
+  // gold mine: cosmetic workers shuttling to the base (need uploaded art)
+  if (ent === 'generator') {
+    const W = 'Muncitori';
+    out.push({ group: W, label: 'Mărime (%)', type: 'num', value: Math.round((b.workerSize ?? 1) * 100), apply: (v) => { b.workerSize = clamp(v / 100, 0.2, 4); } });
+    out.push({ group: W, label: 'Viteză', type: 'num', value: b.workerSpeed ?? 100, apply: (v) => { b.workerSpeed = clamp(v, 10, 1000); } });
+    out.push({ group: W, label: 'Număr (0 = fără)', type: 'num', value: b.workerCount ?? 2, apply: (v) => { b.workerCount = clamp(Math.round(v), 0, 8); } });
+  }
   return out;
 }
 
