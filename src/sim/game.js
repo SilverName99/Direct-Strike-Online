@@ -33,7 +33,6 @@ export class Game {
     this.abilityOff = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` autocast disabled
     this.upgradeOff = [new Set(), new Set()]; // per team: upgrade id owned but deactivated
     this.incomeMult = options.incomeMult || [1, 1];
-    this.incomeTimer = 0;
 
     this.waveTimer = CONFIG.WAVE_INTERVAL;
     this.waveCount = 0;
@@ -369,12 +368,9 @@ export class Game {
     if (this.winner !== null) return;
     this.time += dt;
 
-    // Income
-    this.incomeTimer += dt;
-    while (this.incomeTimer >= CONFIG.INCOME_TICK) {
-      this.incomeTimer -= CONFIG.INCOME_TICK;
-      for (const t of [0, 1]) this.money[t] += this.incomePerTick(t) + this.midBonusPerTick(t);
-    }
+    // Income accrues smoothly EVERY tick (same total rate as the old 2s chunks)
+    // so gold climbs continuously instead of jumping and then sitting still.
+    for (const t of [0, 1]) this.money[t] += this.incomePerSecond(t) * dt;
 
     // Turret HP regen (per-race stat; 0 = off)
     for (const s of this.structures) {

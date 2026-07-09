@@ -956,7 +956,9 @@ console.log('abilities (casters, auras, status effects)');
     const before = game.money[0];
     t1.hp = 0;
     game.update(DT); game.drainEvents();
-    check('destroying the enemy turret pays its bounty', game.money[0] === before + 250, `money=${game.money[0]}`);
+    // income now accrues smoothly (a tiny fraction per tick), so allow for it
+    const gained = game.money[0] - before;
+    check('destroying the enemy turret pays its bounty', gained >= 250 && gained < 251, `money=${game.money[0]}`);
   }
 
   // AI army management: sells units that can't touch an air-heavy enemy
