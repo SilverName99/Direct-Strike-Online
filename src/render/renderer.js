@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
+import { getBackground, getMiddleImage, getSprite, getMineVideo, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -206,6 +206,7 @@ export class Renderer {
     this.drawGrid(ctx, uiState);
     this.drawTemplates(ctx, game, uiState);
     this.drawStructures(ctx, game);
+    this.drawMineVideos(ctx, game); // uploaded mp4 idle animation over the mine
     this.drawWorkers(ctx, game); // little miners shuttling gold to the base
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
@@ -334,7 +335,9 @@ export class Renderer {
       const hasEmpty = !!getSprite(race, 'generator', 'worker-empty', 0);
       const hasFull = !!getSprite(race, 'generator', 'worker-full', 0);
       if (!hasEmpty && !hasFull) continue;
-      const hasIdle = !!getSprite(race, 'generator', 'worker-idle', 0);
+      // idle at each end is animated by an uploaded mp4 clip (not PNG frames)
+      const idleVid = getMineVideo(race, 'workeridle');
+      const hasIdleVid = !!idleVid;
 
       // configurable size / speed / count (⚙ stats on the Generator)
       const gs = game.bstat(s.team, 'generator');
@@ -345,34 +348,67 @@ export class Renderer {
 
       const d = Math.hypot(s.x - base.x, s.y - base.y) || 1;
       const legT = Math.max(0.6, d / speed);   // seconds for one leg
-      const pauseT = hasIdle ? 0.9 : 0;         // load/unload pause (needs idle art)
+      const pauseT = hasIdleVid ? 0.9 : 0;      // load/unload pause (needs idle clip)
       const total = legT * 2 + pauseT * 2;
+      const h = 26 * scale;
       for (let w = 0; w < count; w++) {
         const tt = (now + s.id * 2.7 + (w * total) / count) % total;
         // phases: out(empty) -> idle@mine -> back(full) -> idle@base
         let from; let to; let frac; let anim; let idle = false;
         if (tt < legT) { from = base; to = s; frac = tt / legT; anim = 'worker-empty'; }
-        else if (tt < legT + pauseT) { from = base; to = s; frac = 1; anim = 'worker-idle'; idle = true; }
+        else if (tt < legT + pauseT) { from = base; to = s; frac = 1; idle = true; }
         else if (tt < legT * 2 + pauseT) { from = s; to = base; frac = (tt - legT - pauseT) / legT; anim = 'worker-full'; }
-        else { from = s; to = base; frac = 1; anim = 'worker-idle'; idle = true; }
+        else { from = s; to = base; frac = 1; idle = true; }
 
-        const frame = Math.floor(now * (idle ? 3 : 6) + w) % 2;
-        const entry = getSprite(race, 'generator', anim, frame) || getSprite(race, 'generator', anim, 0)
-          // fallbacks so a partial upload still shows something
-          || getSprite(race, 'generator', 'worker-full', frame)
-          || getSprite(race, 'generator', 'worker-empty', frame);
-        if (!entry || !entry.img) continue;
-        const img = entry.img;
         const x = from.x + (to.x - from.x) * frac;
         const y = from.y + (to.y - from.y) * frac;
-        const h = 26 * scale;
-        const sc = h / img.height;
         ctx.save();
         ctx.translate(x, y);
         if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
-        ctx.drawImage(img, (-img.width * sc) / 2, -h + 4, img.width * sc, h);
+        if (idle && idleVid && idleVid.readyState >= 2 && idleVid.videoWidth) {
+          const sc = h / idleVid.videoHeight;
+          ctx.drawImage(idleVid, (-idleVid.videoWidth * sc) / 2, -h + 4, idleVid.videoWidth * sc, h);
+        } else {
+          // walking (or idle before the clip is ready): a 2-frame shuffle
+          const frame = Math.floor(now * (idle ? 3 : 6) + w) % 2;
+          const walk = idle ? (hasFull ? 'worker-full' : 'worker-empty') : anim;
+          const entry = getSprite(race, 'generator', walk, frame) || getSprite(race, 'generator', walk, 0)
+            // fallbacks so a partial upload still shows something
+            || getSprite(race, 'generator', 'worker-full', frame)
+            || getSprite(race, 'generator', 'worker-empty', frame);
+          if (entry && entry.img) {
+            const img = entry.img;
+            const sc = h / img.height;
+            ctx.drawImage(img, (-img.width * sc) / 2, -h + 4, img.width * sc, h);
+          }
+        }
         ctx.restore();
       }
+    }
+  }
+
+  // Ambient life: a per-race gold-mine idle clip (uploaded mp4) played over the
+  // generator building. Purely cosmetic — a hidden looping muted <video> drawn
+  // onto the canvas each frame, sized to the generator's footprint (like its
+  // idle sprite) so it reads as the same structure, alive.
+  drawMineVideos(ctx, game) {
+    for (const s of game.structures) {
+      if (s.kind !== 'generator' || s.hp <= 0) continue;
+      if (!this.visible(s.x, s.y, s.radius + 320)) continue;
+      const race = raceOf(s.team);
+      const v = getMineVideo(race, 'mineidle');
+      if (!v || v.readyState < 2 || !v.videoWidth) continue;
+      const size = sizeOf(race, 'generator');
+      const hw = s.hw || s.radius;
+      const hh = s.hh || s.radius;
+      const sc = Math.min((2 * hw * size) / v.videoWidth, (2 * hh * size) / v.videoHeight);
+      const w = v.videoWidth * sc;
+      const h = v.videoHeight * sc;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      if (s.team === 1) ctx.scale(-1, 1);
+      ctx.drawImage(v, -w / 2, -h / 2, w, h);
+      ctx.restore();
     }
   }
 

@@ -27,6 +27,7 @@ const baseUpgIcons = new Map(); // race -> Image (base tier-upgrade slot icon, p
 const barSkins = new Map();    // race -> url of the uploaded bottom-bar background design
 const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
 const portraitVideos = new Map(); // `${race}/${ent}` -> url of the idle portrait clip (mp4/webm)
+const mapVideos = new Map();      // `${race}/${which}` -> HTMLVideoElement (mine/worker clips drawn on the map)
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -165,6 +166,18 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           }
         }
       }
+      // gold-mine / worker idle clips drawn ON the map: create looping muted
+      // <video> elements we can draw into the canvas each frame
+      for (const [race, kinds] of Object.entries(man.minevids || {})) {
+        for (const [which, file] of Object.entries(kinds || {})) {
+          const v = document.createElement('video');
+          v.src = `${base}${race}/generator/${file}?v=${man.v || 0}`;
+          v.loop = true; v.muted = true; v.autoplay = true;
+          v.setAttribute('playsinline', '');
+          const p = v.play(); if (p && p.catch) p.catch(() => {});
+          mapVideos.set(`${race}/${which}`, v);
+        }
+      }
       done();
     })
     .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
@@ -249,6 +262,12 @@ export function getBarSkin(race) {
 // URL of a race's uploaded bottom-bar overlay (drawn over the UI), or null.
 export function getBarOverlay(race) {
   return barOverlays.get(race) || null;
+}
+
+// A looping <video> for a gold-mine clip drawn on the map (which = 'mineidle'
+// or 'workeridle'), or null. Only draw it once it has frames (readyState >= 2).
+export function getMineVideo(race, which) {
+  return mapVideos.get(`${race}/${which}`) || null;
 }
 
 // URL of a unit's uploaded idle portrait clip (mp4/webm), or null.

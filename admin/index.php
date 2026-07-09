@@ -145,6 +145,14 @@ function musicFileFor(string $assetsDir, string $race): ?string {
   return null;
 }
 
+// A gold-mine idle CLIP (mp4/webm) played on the map: which ∈ {mineidle,
+// workeridle} → <race>/generator/<which>.<ext>, or null.
+const MINE_VID_WHICH = ['mineidle', 'workeridle'];
+function mineVidFileFor(string $assetsDir, string $race, string $which): ?string {
+  foreach (PORTRAIT_VID_EXTS as $e) if (is_file("$assetsDir/$race/generator/$which.$e")) return "$which.$e";
+  return null;
+}
+
 // A unit's uploaded idle portrait clip (<ent>/portrait<suffix>.<ext>), or
 // null. Suffix '' = the whole unit, '-foot' = the rider on foot (after a
 // dismount / split), '-beast' = the split-off mount.
@@ -230,8 +238,6 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots['worker-empty_1'] = 'Muncitor gol 2';
       $slots['worker-full_0'] = 'Muncitor plin 1';
       $slots['worker-full_1'] = 'Muncitor plin 2';
-      $slots['worker-idle_0'] = 'Muncitor idle 1';
-      $slots['worker-idle_1'] = 'Muncitor idle 2';
     }
     return $slots;
   }
@@ -341,10 +347,17 @@ function regenManifest(string $assetsDir): void {
   $barovers = [];
   $baseupg = [];
   $portraitvids = [];
+  $minevids = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
     $mf = musicFileFor($assetsDir, $r);
     if ($mf) $music[$r] = $mf;
+    $mv = [];
+    foreach (MINE_VID_WHICH as $which) {
+      $vf = mineVidFileFor($assetsDir, $r, $which);
+      if ($vf) $mv[$which] = $vf;
+    }
+    if ($mv) $minevids[$r] = (object)$mv;
     $pv = [];
     foreach (UNIT_LIST as $ent) {
       $forms = [];
@@ -384,7 +397,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -584,6 +597,41 @@ if ($authed && $action === 'deleteportraitvid') {
     foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/$ent/portrait$suffix.$e");
     regenManifest($assetsDir);
     $msg = "Animație portret ștearsă: $race · $ent" . ($suffix ? " ($suffix)" : '');
+  }
+}
+
+// gold-mine idle clip (mp4/webm) played on the map: mineidle | workeridle
+if ($authed && $action === 'uploadminevid') {
+  $which = $_POST['which'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($which, MINE_VID_WHICH, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['video']) || $_FILES['video']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['video']['size'] > PORTRAIT_VID_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['video']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['video']['tmp_name'];
+    if (!in_array($ext, PORTRAIT_VID_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere video: ' . implode(', ', PORTRAIT_VID_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race/generator", 0755, true);
+      foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/generator/$which.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/generator/$which.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Animație minieră încărcată: $race · $which";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteminevid') {
+  $which = $_POST['which'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($which, MINE_VID_WHICH, true)) {
+    foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/generator/$which.$e");
+    regenManifest($assetsDir);
+    $msg = "Animație minieră ștearsă: $race · $which";
   }
 }
 
@@ -1291,6 +1339,39 @@ if ($authed && $action === 'deletebarover') {
             <input type="hidden" name="entity" value="<?= $ent ?>">
             <input type="hidden" name="variant" value="<?= $suffix ?>">
             <button class="mini danger" onclick="return confirm('Ștergi animația portret?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+      <?php if ($ent === 'generator'): ?>
+      <div class="portraitvid">
+        <?php foreach (['mineidle' => 'Animație mină (mp4/webm)', 'workeridle' => 'Animație muncitor idle (mp4/webm)'] as $which => $label):
+          $mvf = mineVidFileFor($assetsDir, $race, $which);
+          $hasMv = $mvf !== null;
+        ?>
+        <span class="lbl"><?= $label ?></span>
+        <div class="pv-row">
+          <?php if ($hasMv): ?>
+            <video src="<?= $assetsUrl ?>/<?= $race ?>/generator/<?= $mvf ?>?t=<?= filemtime("$assetsDir/$race/generator/$mvf") ?>" width="96" height="96" autoplay loop muted playsinline></video>
+          <?php else: ?>
+            <div class="pv-empty">fără animație</div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadminevid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <label class="pick"><?= $hasMv ? 'înlocuiește' : 'încarcă' ?><input type="file" name="video" accept="video/mp4,video/webm" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($hasMv): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="deleteminevid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi animația?')">șterge</button>
           </form>
           <?php endif; ?>
         </div>
