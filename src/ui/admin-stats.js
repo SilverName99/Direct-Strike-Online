@@ -347,6 +347,7 @@ function fieldsFor(ent, kind) {
     out.push({ group: W, label: 'Mărime (%)', type: 'num', value: Math.round((b.workerSize ?? 1) * 100), apply: (v) => { b.workerSize = clamp(v / 100, 0.2, 4); } });
     out.push({ group: W, label: 'Viteză', type: 'num', value: b.workerSpeed ?? 100, apply: (v) => { b.workerSpeed = clamp(v, 10, 1000); } });
     out.push({ group: W, label: 'Număr (0 = fără)', type: 'num', value: b.workerCount ?? 2, apply: (v) => { b.workerCount = clamp(Math.round(v), 0, 8); } });
+    out.push({ group: W, label: 'Zăbovire la mină/bază (s)', type: 'num', value: b.workerPause ?? 1.5, apply: (v) => { b.workerPause = clamp(v, 0, 8); } });
   }
   return out;
 }

@@ -28,6 +28,7 @@ const barSkins = new Map();    // race -> url of the uploaded bottom-bar backgro
 const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
 const portraitVideos = new Map(); // `${race}/${ent}` -> url of the idle portrait clip (mp4/webm)
 const mapVideos = new Map();      // `${race}/${which}` -> HTMLVideoElement (mine/worker clips drawn on the map)
+const mapVideoUrls = new Map();   // `${race}/${which}` -> url (same clips, for the portrait box)
 let teamRaces = ['humans', 'humans'];
 
 export function setTeamRaces(races) {
@@ -170,12 +171,14 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       // <video> elements we can draw into the canvas each frame
       for (const [race, kinds] of Object.entries(man.minevids || {})) {
         for (const [which, file] of Object.entries(kinds || {})) {
+          const url = `${base}${race}/generator/${file}?v=${man.v || 0}`;
           const v = document.createElement('video');
-          v.src = `${base}${race}/generator/${file}?v=${man.v || 0}`;
+          v.src = url;
           v.loop = true; v.muted = true; v.autoplay = true;
           v.setAttribute('playsinline', '');
           const p = v.play(); if (p && p.catch) p.catch(() => {});
           mapVideos.set(`${race}/${which}`, v);
+          mapVideoUrls.set(`${race}/${which}`, url);
         }
       }
       done();
@@ -268,6 +271,12 @@ export function getBarOverlay(race) {
 // or 'workeridle'), or null. Only draw it once it has frames (readyState >= 2).
 export function getMineVideo(race, which) {
   return mapVideos.get(`${race}/${which}`) || null;
+}
+
+// URL of a gold-mine clip (which = 'mineidle' | 'workeridle'), for the
+// portrait box when the mine or a worker is selected. Null if none uploaded.
+export function getMineVideoUrl(race, which) {
+  return mapVideoUrls.get(`${race}/${which}`) || null;
 }
 
 // URL of a unit's uploaded idle portrait clip (mp4/webm), or null.

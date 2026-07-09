@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.10';
+export const VERSION = 'v10.11';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -119,6 +119,7 @@ export const CONFIG = {
       workerSize: 1,     // visual scale (1 = 100%)
       workerSpeed: 100,  // world units / second
       workerCount: 2,    // how many shuttle per mine (0 = none)
+      workerPause: 1.5,  // seconds a worker lingers (idle clip) at mine & at base
     },
   },
   SELL_BUILDING_REFUND: 0.6,

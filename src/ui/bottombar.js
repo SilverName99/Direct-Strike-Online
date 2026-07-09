@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade,
 } from './balance.js';
-import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl } from '../render/sprites.js';
+import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
@@ -274,6 +274,11 @@ export class BottomBar {
       if (!s || (s.hp <= 0 && s.kind !== 'main')) return null;
       return { kind: 'structure', team: s.team, type: s.kind, s };
     }
+    if (sel.kind === 'worker') {
+      const s = game.structures.find((st) => st.id === sel.structId);
+      if (!s || s.hp <= 0) return null;
+      return { kind: 'worker', team: s.team, type: 'generator', s, w: sel.w };
+    }
     return null;
   }
 
@@ -302,12 +307,35 @@ export class BottomBar {
       this.details.innerHTML = '<div class="bb-empty">Selectează o unitate sau o clădire.</div>';
       return;
     }
+    // a selected gold-miner: its own idle clip in the portrait, a short blurb
+    // in the details (workers are cosmetic — no sim stats to show)
+    if (info.kind === 'worker') {
+      const race = raceOf(info.team);
+      const vid = getMineVideoUrl(race, 'workeridle');
+      this.setPortraitVideo(vid);
+      if (!vid) {
+        const entry = getSprite(race, 'generator', 'worker-full', 0) || getSprite(race, 'generator', 'worker-empty', 0);
+        if (entry && entry.img) {
+          const im = entry.img; const s = 90 / Math.max(im.width, im.height);
+          ctx.drawImage(im, 56 - (im.width * s) / 2, 56 - (im.height * s) / 2, im.width * s, im.height * s);
+        }
+      }
+      const own = info.team === 0;
+      const inc = game.bstat(info.team, 'generator').income;
+      this.details.innerHTML = `
+        <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">Muncitor</span><span class="d-sub">Miner${own ? '' : ' · INAMIC'}</span></div>
+        <div class="d-stats"><span>⛏ cară aur la bază</span>${inc ? `<span>◆ +<b>${inc}</b> aur/20s</span>` : ''}</div>`;
+      return;
+    }
     // an uploaded idle clip (mp4/webm) takes over the portrait box; otherwise
     // fall back to the sprite/vector portrait drawn on the canvas. A split
-    // rider (on foot) / beast plays its OWN clip when one was uploaded.
+    // rider (on foot) / beast plays its OWN clip when one was uploaded. The
+    // gold mine plays its map clip (mineidle) in the portrait too.
     const form = info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
-    const vid = getPortraitVideoUrl(raceOf(info.team), info.type, form);
+    const vid = info.kind === 'structure' && info.type === 'generator'
+      ? (getMineVideoUrl(raceOf(info.team), 'mineidle') || getPortraitVideoUrl(raceOf(info.team), info.type, form))
+      : getPortraitVideoUrl(raceOf(info.team), info.type, form);
     this.setPortraitVideo(vid);
     if (!vid) this.drawPortrait(ctx, game, info);
 
@@ -507,7 +535,7 @@ export class BottomBar {
   }
 
   inspectItems(game, info) {
-    if (!info || !game) return [];
+    if (!info || !game || info.kind === 'worker') return [];
     const items = [];
     const own = info.team === 0;
     const isStruct = info.kind === 'structure';

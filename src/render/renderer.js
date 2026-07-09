@@ -325,6 +325,7 @@ export class Renderer {
   drawWorkers(ctx, game) {
     const now = this.now;
     const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    this.workerHits = []; // world-space click targets for the inspect panel
     for (const s of game.structures) {
       if (s.kind !== 'generator' || s.hp <= 0) continue;
       if (!this.visible(s.x, s.y, 400)) continue;
@@ -337,7 +338,6 @@ export class Renderer {
       if (!hasEmpty && !hasFull) continue;
       // idle at each end is animated by an uploaded mp4 clip (not PNG frames)
       const idleVid = getMineVideo(race, 'workeridle');
-      const hasIdleVid = !!idleVid;
 
       // configurable size / speed / count (⚙ stats on the Generator)
       const gs = game.bstat(s.team, 'generator');
@@ -348,7 +348,7 @@ export class Renderer {
 
       const d = Math.hypot(s.x - base.x, s.y - base.y) || 1;
       const legT = Math.max(0.6, d / speed);   // seconds for one leg
-      const pauseT = hasIdleVid ? 0.9 : 0;      // load/unload pause (needs idle clip)
+      const pauseT = cl(gs.workerPause ?? 1.5, 0, 8); // dwell at mine & at base
       const total = legT * 2 + pauseT * 2;
       const h = 26 * scale;
       for (let w = 0; w < count; w++) {
@@ -362,6 +362,8 @@ export class Renderer {
 
         const x = from.x + (to.x - from.x) * frac;
         const y = from.y + (to.y - from.y) * frac;
+        // register a click target (centered on the drawn body)
+        this.workerHits.push({ structId: s.id, w, team: s.team, x, y: y - h / 2 + 4, r: Math.max(14, h * 0.6) });
         ctx.save();
         ctx.translate(x, y);
         if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
@@ -385,6 +387,17 @@ export class Renderer {
         ctx.restore();
       }
     }
+  }
+
+  // Nearest shuttling worker under (x,y) in world space, from the last frame's
+  // recorded positions, or null. Used to make the little miners clickable.
+  hitTestWorker(x, y) {
+    let best = null; let bestD = Infinity;
+    for (const h of this.workerHits || []) {
+      const d = Math.hypot(h.x - x, h.y - y);
+      if (d <= h.r && d < bestD) { bestD = d; best = h; }
+    }
+    return best;
   }
 
   // Ambient life: a per-race gold-mine idle clip (uploaded mp4) played over the
@@ -476,6 +489,14 @@ export class Renderer {
         const hw = (s.hw || s.radius) + 6;
         const hh = (s.hh || s.radius) + 6;
         ctx.strokeRect(s.x - hw, s.y - hh, hw * 2, hh * 2);
+      }
+    } else if (sel.kind === 'worker') {
+      // ring the specific miner at its current (last-frame) position
+      const h = (this.workerHits || []).find((k) => k.structId === sel.structId && k.w === sel.w);
+      if (h) {
+        ctx.beginPath();
+        ctx.arc(h.x, h.y, h.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
       }
     }
     ctx.setLineDash([]);

@@ -106,6 +106,12 @@ export class Input {
         this.uiState.inspect = { kind: 'structure', id: st.id };
         return;
       }
+      // click a cosmetic gold-miner -> inspect it (shows its idle clip)
+      const wk = this.renderer.hitTestWorker(raw.x, raw.y);
+      if (wk) {
+        this.uiState.inspect = { kind: 'worker', structId: wk.structId, w: wk.w };
+        return;
+      }
       // clicked empty ground -> clear the selection
       this.uiState.inspect = null;
     });
