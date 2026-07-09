@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -206,6 +206,7 @@ export class Renderer {
     this.drawGrid(ctx, uiState);
     this.drawTemplates(ctx, game, uiState);
     this.drawStructures(ctx, game);
+    effects.drawStructureCorpses(ctx); // toppled towers crumble where they stood
     this.drawWorkers(ctx, game); // little miners shuttling gold to the base
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
@@ -474,6 +475,37 @@ export class Renderer {
     ctx.restore();
   }
 
+  // A 3-tier tower's frame, chosen by the owner's base tier and its activity:
+  // firing -> attack frames; a long lull with no target -> soldiers come down
+  // and light a campfire; otherwise the idle pulse. The idle timer is purely
+  // render-side (cosmetic) so it never touches the sim. Context is already
+  // translated to the tower and mirrored for team 1.
+  drawTower(ctx, game, s, hw, hh) {
+    const tier = game.tier[s.team];
+    const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
+    const firing = !!(tgt && tgt.hp > 0);
+    const bs = game.bstat(s.team, 'tower');
+
+    // track seconds since this tower last had a target (reset while firing)
+    this._towerIdle ||= new Map();
+    if (firing || !this._towerIdle.has(s.id)) this._towerIdle.set(s.id, this.now);
+    const idleFor = this.now - this._towerIdle.get(s.id);
+
+    if (firing) {
+      const period = bs.period || 1;
+      const sinceFire = period - s.cooldown; // 0 right after a shot
+      const frame = sinceFire >= 0 && sinceFire < 0.16 ? 1 : 0;
+      return drawTowerSprite(ctx, s.team, tier, hw, hh, 'attack', frame);
+    }
+    if (idleFor >= (bs.campfireDelay ?? 60)) {
+      const frame = Math.floor(this.now * 2) % 2; // slow campfire flicker
+      if (drawTowerSprite(ctx, s.team, tier, hw, hh, 'camp', frame)) return true;
+      // no campfire art uploaded -> fall through to the idle look
+    }
+    const frame = (Math.floor(this.now * (bs.idleSpeed || 2)) + s.id) % 2;
+    return drawTowerSprite(ctx, s.team, tier, hw, hh, 'idle', frame);
+  }
+
   drawStructures(ctx, game) {
     for (const s of game.structures) {
       if (!this.visible(s.x, s.y, s.radius + 320)) continue;
@@ -505,9 +537,13 @@ export class Renderer {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
         if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
+        // 3-tier tower art: idle / attack / campfire chosen by tier + activity
+        if (s.kind === 'tower' && hasTowerTierArt(s.team)) {
+          spriteDrawn = this.drawTower(ctx, game, s, hw, hh);
+        }
         // Armed buildings (turret/tower) show their attack animation while
         // engaged: "fire" frame right after each shot, "aim" frame otherwise.
-        if ((s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, s.team)) {
+        if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, s.team)) {
           const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
           if (tgt && tgt.hp > 0) {
             const period = game.bstat(s.team, s.kind).period || 1;

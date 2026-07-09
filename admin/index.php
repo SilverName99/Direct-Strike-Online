@@ -225,6 +225,22 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       // the base can be given an attack (⚙ stats) — allow a projectile image too
       return ['thumb' => 'Thumb', 'tier_0' => 'Tier 1', 'tier_1' => 'Tier 2', 'tier_2' => 'Tier 3', 'projectile' => 'Proiectil'];
     }
+    // the tower shows a distinct look per base tier (1/2/3): each tier has its
+    // own idle (2) + attack (2) + die (1) + campfire (2) frames
+    if ($ent === 'tower') {
+      $slots = ['thumb' => 'Thumb'];
+      foreach ([1, 2, 3] as $t) {
+        $slots["tier{$t}-idle_0"]   = "T$t Idle 1";
+        $slots["tier{$t}-idle_1"]   = "T$t Idle 2";
+        $slots["tier{$t}-attack_0"] = "T$t Attack 1";
+        $slots["tier{$t}-attack_1"] = "T$t Attack 2";
+        $slots["tier{$t}-die_0"]    = "T$t Die";
+        $slots["tier{$t}-camp_0"]   = "T$t Foc tabără 1";
+        $slots["tier{$t}-camp_1"]   = "T$t Foc tabără 2";
+      }
+      $slots['projectile'] = 'Proiectil';
+      return $slots;
+    }
     $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
     if (in_array($ent, ARMED_BUILDINGS, true)) {
       $slots['attack_0'] = 'Attack 1';

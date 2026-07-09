@@ -1,4 +1,5 @@
 import { CONFIG } from '../config.js';
+import { towerStatForTier } from '../ui/balance.js';
 
 export function spawnUnit(game, team, type, x, y) {
   const s = game.ustat(team, type);
@@ -73,8 +74,9 @@ export function structureExtents(kind, bs) {
   return { hw, hh, radius: Math.max(hw, hh) };
 }
 
-function structureHp(kind, bs) {
+function structureHp(kind, bs, tier) {
   if (kind === 'main') return bs.hp[0];
+  if (kind === 'tower') return towerStatForTier(bs, tier || 1).hp;
   return bs.hp;
 }
 
@@ -83,7 +85,7 @@ function structureHp(kind, bs) {
 // the building team's race.
 export function makeStructure(game, team, kind, x, y) {
   const bs = game.bstat(team, kind);
-  const hp = structureHp(kind, bs);
+  const hp = structureHp(kind, bs, (game.tier && game.tier[team]) || 1);
   const ext = structureExtents(kind, bs);
   const s = {
     id: game.nextId++,

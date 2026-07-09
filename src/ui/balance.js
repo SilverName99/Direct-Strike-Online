@@ -32,8 +32,11 @@ export const UNIT_SELECT_FIELDS = {
 export const BUILDING_FIELDS = {
   wall: [['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable']],
   tower: [
-    ['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable'],
-    ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],
+    ['cost', 'Cost'], ['cap', 'Max buildable'],
+    ['range', 'Range'], ['period', 'Attack period (s)'],
+    ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'],
+    ['damage', 'Damage Tier 1'], ['damage2', 'Damage Tier 2'], ['damage3', 'Damage Tier 3'],
+    ['campfireDelay', 'Secunde inactiv → foc de tabără'],
   ],
   generator: [
     ['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable'],
@@ -211,7 +214,17 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay'];
+
+// Effective tower HP / damage for a base tier (1..3). Towers scale with the
+// owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
+// hp3/damage3 (each falling back to the lower tier if unset).
+export function towerStatForTier(b, tier) {
+  const t = tier < 1 ? 1 : tier > 3 ? 3 : tier;
+  const hp = t >= 3 ? (b.hp3 ?? b.hp2 ?? b.hp) : t === 2 ? (b.hp2 ?? b.hp) : b.hp;
+  const damage = t >= 3 ? (b.damage3 ?? b.damage2 ?? b.damage) : t === 2 ? (b.damage2 ?? b.damage) : b.damage;
+  return { hp, damage };
+}
 
 function raceUnitsSnapshot(race) {
   const out = {};

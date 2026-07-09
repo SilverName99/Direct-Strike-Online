@@ -2,7 +2,7 @@ import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile, spawnUnit } from './entity.js';
 import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
-import { resolvedUpgrade } from '../ui/balance.js';
+import { resolvedUpgrade, towerStatForTier } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
 // damage/range/period/speed (and no projectile/splash — unless the override
@@ -98,7 +98,12 @@ export function updateCombat(game, dt) {
   for (const s of game.structures) {
     if (s.hp <= 0) continue;
     if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
-    else if (s.kind === 'tower') updateTurret(game, s, game.bstat(s.team, 'tower'), dt);
+    else if (s.kind === 'tower') {
+      // towers scale their HP/damage with the owner's base tier
+      const bs = game.bstat(s.team, 'tower');
+      const tier = towerStatForTier(bs, game.tier[s.team]);
+      updateTurret(game, s, { ...bs, hp: tier.hp, damage: tier.damage }, dt);
+    }
     // the main base only shoots if given an attack (damage > 0) in ⚙ stats
     else if (s.kind === 'main') {
       const ms = game.bstat(s.team, 'main');

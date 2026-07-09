@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.13';
+export const VERSION = 'v10.14';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -110,6 +110,13 @@ export const CONFIG = {
       cost: 200, hp: 350, cw: 1, ch: 1, cap: 6, idleSpeed: 2, name: 'Tower',
       range: 200, damage: 18, period: 0.9, dmgType: 'normal',
       projectileSpeed: 480, targetsAir: true,
+      // Towers scale with the OWNER's base tier (1..3). hp/damage are the tier-1
+      // values; hp2/damage2 = tier 2, hp3/damage3 = tier 3 (art per tier too).
+      hp2: 600, hp3: 950,
+      damage2: 30, damage3: 48,
+      // After this many seconds without firing, the soldiers come down and
+      // light a campfire at the tower's base (purely cosmetic).
+      campfireDelay: 60,
     },
     // income = extra gold every 20s (= +4/s each); buildCd = seconds you must
     // wait after building one before you can build the next (0 = none)

@@ -168,9 +168,51 @@ export function drawStructureSprite(ctx, kind, team, hw, hh, clock, idSeed = 0) 
 // on the cursor. False -> caller draws vector only.
 export function drawBuildingSprite(ctx, kind, team, hw, hh, frame = 0) {
   const race = raceOf(team);
-  const entry = getSprite(race, kind, 'idle', frame);
+  const entry = getSprite(race, kind, 'idle', frame)
+    || (kind === 'tower' ? getSprite(race, 'tower', 'tier1-idle', frame) : null);
   if (!entry) return false;
   drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
+  return true;
+}
+
+// ---- Towers: three tiers (weak → strong), each with its own idle / attack /
+// die / campfire art. A tier with no uploaded frame borrows the nearest lower
+// tier's, so a partial upload still draws. `anim` ∈ idle|attack|die|camp.
+function towerEntry(race, tier, anim, frame) {
+  const t = tier < 1 ? 1 : tier > 3 ? 3 : tier;
+  for (let k = t; k >= 1; k--) {
+    const e = getSprite(race, 'tower', `tier${k}-${anim}`, frame);
+    if (e) return e;
+  }
+  // legacy single-look tower art (pre-tier uploads): map camp/die onto idle
+  return getSprite(race, 'tower', anim === 'attack' ? 'attack' : 'idle', frame);
+}
+
+// True once a race has at least one uploaded tier-tower idle frame (i.e. it
+// opted into the 3-tier tower art; otherwise the old single-look path runs).
+export function hasTowerTierArt(team) {
+  const race = raceOf(team);
+  return !!(getSprite(race, 'tower', 'tier1-idle', 0)
+    || getSprite(race, 'tower', 'tier2-idle', 0)
+    || getSprite(race, 'tower', 'tier3-idle', 0));
+}
+
+// Draw a tower's frame for its base tier. `anim` ∈ idle|attack|camp. False ->
+// caller falls back.
+export function drawTowerSprite(ctx, team, tier, hw, hh, anim, frame) {
+  const race = raceOf(team);
+  const entry = towerEntry(race, tier, anim, frame);
+  if (!entry) return false;
+  drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team);
+  return true;
+}
+
+// The tower's per-tier "destroyed" frame, drawn as a fading rubble corpse.
+export function drawTowerDie(ctx, team, tier, hw, hh) {
+  const race = raceOf(team);
+  const entry = towerEntry(race, tier, 'die', 0);
+  if (!entry) return false;
+  drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team);
   return true;
 }
 

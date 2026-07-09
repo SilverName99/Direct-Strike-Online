@@ -4,7 +4,7 @@
 // is what makes lockstep multiplayer possible later.
 
 import { CONFIG, RACES } from '../config.js';
-import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility } from '../ui/balance.js';
+import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility, towerStatForTier } from '../ui/balance.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import { ABILITY_IDS } from '../abilities.js';
 import { mulberry32 } from './rng.js';
@@ -324,6 +324,15 @@ export class Game {
         main.maxHp = this.bstat(cmd.team, 'main').hp[this.tier[cmd.team] - 1];
         main.hp = Math.min(main.maxHp, main.hp + 1000);
       }
+      // towers scale with the base tier: raise their max HP and heal by the gain
+      const tbs = this.bstat(cmd.team, 'tower');
+      for (const s of this.structures) {
+        if (s.team !== cmd.team || s.kind !== 'tower' || s.hp <= 0) continue;
+        const nm = towerStatForTier(tbs, this.tier[cmd.team]).hp;
+        const gain = nm - s.maxHp;
+        s.maxHp = nm;
+        if (gain > 0) s.hp = Math.min(nm, s.hp + gain);
+      }
       this.events.push({ type: 'tierUp', team: cmd.team, tier: this.tier[cmd.team] });
       return { ok: true };
     }
@@ -409,7 +418,7 @@ export class Game {
 
   removeStructure(s, destroyed) {
     if (destroyed) {
-      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind });
+      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind, tier: this.tier[s.team], hw: s.hw, hh: s.hh });
       // destroying the mid-field turret pays its bounty (the DESTROYED turret's
       // per-race stat) to the other team
       if (s.kind === 'turret') {

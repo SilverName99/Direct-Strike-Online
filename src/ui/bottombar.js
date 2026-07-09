@@ -16,7 +16,7 @@ import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
-  resolvedAbility, resolvedUpgrade,
+  resolvedAbility, resolvedUpgrade, towerStatForTier,
 } from './balance.js';
 import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
@@ -347,7 +347,9 @@ export class BottomBar {
     if (isStruct) {
       sub = info.type === 'main'
         ? `Tier ${'I'.repeat(game.tier[info.team])}`
-        : `Clădire${stats.cost ? ` · ◆ ${stats.cost}` : ''}`;
+        : info.type === 'tower'
+          ? `Clădire · Tier ${'I'.repeat(Math.max(1, game.tier[info.team]))}${stats.cost ? ` · ◆ ${stats.cost}` : ''}`
+          : `Clădire${stats.cost ? ` · ◆ ${stats.cost}` : ''}`;
     } else {
       sub = `Tier ${stats.tier} · ◆ ${stats.cost}` +
         (info.kind === 'template' && !info.tpl.spawned ? ' · nou (100% la vânzare)' : '');
@@ -373,7 +375,11 @@ export class BottomBar {
       if (stats.targetsAir) rows.push('🎯 lovește aer');
       if (stats.targetsGround === false) rows.push('⛔ nu lovește sol');
     } else {
-      if (stats.damage) rows.push(`⚔ <b>${stats.damage}</b> · <b>${(stats.damage / Math.max(0.1, stats.period || 1)).toFixed(1)}</b> DPS`, `➹ <b>${stats.range}</b>`);
+      // towers scale their damage with the owner's base tier
+      const dmg = info.type === 'tower'
+        ? towerStatForTier(stats, game.tier[info.team]).damage
+        : stats.damage;
+      if (dmg) rows.push(`⚔ <b>${dmg}</b> · <b>${(dmg / Math.max(0.1, stats.period || 1)).toFixed(1)}</b> DPS`, `➹ <b>${stats.range}</b>`);
       if (stats.income) rows.push(`◆ +<b>${stats.income}</b> aur/20s`);
       if (info.type === 'main') rows.push('🏰 obiectivul principal');
     }

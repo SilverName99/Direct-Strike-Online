@@ -2,23 +2,26 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { hasDeathAnim, hasFootAnim, hasBeastAnim, drawCharacter, sizeOf } from './characters.js';
+import { hasDeathAnim, hasFootAnim, hasBeastAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
 import { raceOf } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
 
 const CORPSE_LIFE = 1.2;
+const STRUCT_CORPSE_LIFE = 1.6; // rubble lingers a touch longer than a body
 
 export class Effects {
   constructor() {
     this.particles = [];
     this.corpses = [];
+    this.structCorpses = []; // toppled towers showing their per-tier die frame
     this.rings = []; // expanding spell rings (dispell etc.)
   }
 
   reset() {
     this.particles = [];
     this.corpses = [];
+    this.structCorpses = [];
     this.rings = [];
   }
 
@@ -56,6 +59,10 @@ export class Effects {
         case 'structureDestroyed':
           this.burst(e.x, e.y, 26, '#ffb347', 240, 0.7, 4.5);
           this.burst(e.x, e.y, 12, TEAM_COLORS[e.team], 160, 0.9, 3);
+          // a toppled tower leaves its per-tier "die" frame crumbling in place
+          if (e.kind === 'tower') {
+            this.structCorpses.push({ team: e.team, tier: e.tier || 1, x: e.x, y: e.y, hw: e.hw || 20, hh: e.hh || 20, t: 0 });
+          }
           break;
         case 'heal':
           this.burst(e.x, e.y, 2, '#58d68d', 40, 0.5, 2, -40);
@@ -117,7 +124,23 @@ export class Effects {
     }
     this.particles = alive;
     this.corpses = this.corpses.filter((c) => (c.t += dt) < CORPSE_LIFE);
+    this.structCorpses = this.structCorpses.filter((c) => (c.t += dt) < STRUCT_CORPSE_LIFE);
     this.rings = this.rings.filter((r) => (r.life -= dt) > 0);
+  }
+
+  // Toppled towers: their per-tier "die" frame, fading out where they fell.
+  // Drawn at the structure layer (under units), mirrored for team 1 like the
+  // living building was.
+  drawStructureCorpses(ctx) {
+    for (const c of this.structCorpses) {
+      ctx.save();
+      ctx.globalAlpha = c.t < 0.8 ? 1 : Math.max(0, 1 - (c.t - 0.8) / (STRUCT_CORPSE_LIFE - 0.8));
+      ctx.translate(c.x, c.y);
+      if (c.team === 1) ctx.scale(-1, 1);
+      drawTowerDie(ctx, c.team, c.tier, c.hw, c.hh);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Drawn by the renderer beneath the living units.
