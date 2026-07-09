@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
-import { AIController } from '../src/sim/ai.js';
+import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure } from '../src/sim/entity.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
@@ -1495,6 +1495,21 @@ console.log('abilities (casters, auras, status effects)');
     g5.update(DT); g5.drainEvents();
     check('empty middle -> no image slot, no effect',
       g5.middleSlot === -1 && moveSpeedMult(u5, g5.time) === 1);
+  }
+
+  // AI composition categorizes by RESOLVED stats, not the slot id — so a
+  // renamed roster (e.g. the "archon" slot turned into a melee tank) is read
+  // correctly and the AI doesn't over-build "ranged".
+  {
+    check('melee stats -> front', categoryOf({ ranged: false, range: 30 }) === 'front');
+    check('ranged stats -> ranged', categoryOf({ ranged: true, range: 200 }) === 'ranged');
+    check('flier -> special', categoryOf({ ranged: true, isAir: true }) === 'special');
+    check('ranged splash -> special (artillery)', categoryOf({ ranged: true, splash: 60 }) === 'special');
+    check('healer -> support', categoryOf({ heal: true }) === 'support');
+    check('caster -> support', categoryOf({ caster: true, abilities: ['heal'] }) === 'support');
+    // the old "archon" (ranged) slot made into a melee tank now counts as front
+    check('renamed ranged slot, now melee -> front',
+      categoryOf({ ranged: false, range: 30, armor: 'armored' }) === 'front');
   }
 
   resetAll(); // leave the shared balance pristine for any later tests

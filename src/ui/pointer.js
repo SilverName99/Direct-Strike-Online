@@ -127,6 +127,31 @@ export class PointerManager {
     } else {
       this.cursor.innerHTML = this.defaultCursorSvg;
     }
+    // The virtual cursor only shows under pointer lock (fullscreen). When NOT
+    // fullscreen there is no lock, so drive the REAL OS cursor over the canvas
+    // with a CSS cursor built from the same image (downscaled to <=40px so any
+    // upload size works; hotspot top-left to match).
+    this.applyOsCursor(url);
+  }
+
+  applyOsCursor(url) {
+    if (!url) { this.canvas.style.cursor = 'crosshair'; return; }
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 40 / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * s));
+      const h = Math.max(1, Math.round(img.height * s));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      try {
+        this.canvas.style.cursor = `url("${c.toDataURL('image/png')}") 0 0, crosshair`;
+      } catch (e) {
+        this.canvas.style.cursor = `url("${url}") 0 0, crosshair`;
+      }
+    };
+    img.onerror = () => { this.canvas.style.cursor = `url("${url}") 0 0, crosshair`; };
+    img.src = url;
   }
 
   route(type, real) {

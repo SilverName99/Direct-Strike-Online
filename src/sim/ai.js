@@ -6,12 +6,25 @@
 // units via the counter/composition brain, filtered by unlocked tier.
 
 import { CONFIG } from '../config.js';
-import { UNIT_CATEGORIES, UNIT_IDS } from '../units.js';
+import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import { resolvedUpgrade } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 
-const CATEGORY_TARGETS = { front: 0.35, ranged: 0.3, special: 0.2, support: 0.15 };
+// Target army-cost share per role. Tuned toward a solid frontline so the AI
+// isn't a soft ranged blob that folds to a melee counter.
+const CATEGORY_TARGETS = { front: 0.45, ranged: 0.25, special: 0.15, support: 0.15 };
+
+// Composition category from RESOLVED stats (NOT the original slot id), so the
+// AI reads a fully custom/renamed roster correctly: a melee tank counts as
+// front even on the old "archon" (ranged) slot, a shooter as ranged, etc.
+export function categoryOf(s) {
+  if (!s) return 'front';
+  if (s.heal || (s.caster && s.abilities && s.abilities.length)) return 'support';
+  if (s.isAir || ((s.splash || 0) > 0 && s.ranged)) return 'special'; // fliers + artillery
+  if (s.ranged) return 'ranged';
+  return 'front'; // plain melee
+}
 
 // Placement bands: fraction of army-zone depth, measured from the edge
 // facing the enemy (0 = frontmost, 1 = backmost).
@@ -326,18 +339,21 @@ export class AIController {
     let total = 0;
     const catCost = { front: 0, ranged: 0, special: 0, support: 0 };
     for (const tpl of own) {
-      const c = game.ustat(this.team, tpl.type).cost;
-      total += c;
-      for (const [cat, ids] of Object.entries(UNIT_CATEGORIES)) {
-        if (ids.includes(tpl.type)) catCost[cat] += c;
-      }
+      const s = game.ustat(this.team, tpl.type);
+      total += s.cost;
+      catCost[categoryOf(s)] += s.cost;
     }
+
+    // unit ids whose RESOLVED stats fall in a category (within the unlocked tier)
+    const poolFor = (cat) => UNIT_IDS.filter((id) => {
+      const s = game.ustat(this.team, id);
+      return s.tier <= tier && categoryOf(s) === cat;
+    });
 
     let bestCat = null;
     let bestDeficit = -Infinity;
     for (const [cat, target] of Object.entries(CATEGORY_TARGETS)) {
-      const pool = UNIT_CATEGORIES[cat].filter((id) => game.ustat(this.team, id).tier <= tier);
-      if (pool.length === 0) continue;
+      if (poolFor(cat).length === 0) continue;
       const share = total > 0 ? catCost[cat] / total : 0;
       const deficit = target - share;
       if (deficit > bestDeficit) {
@@ -345,8 +361,9 @@ export class AIController {
         bestCat = cat;
       }
     }
-    if (!bestCat) return 'grunt';
-    const pool = UNIT_CATEGORIES[bestCat].filter((id) => game.ustat(this.team, id).tier <= tier);
+    const pool = bestCat ? poolFor(bestCat)
+      : UNIT_IDS.filter((id) => game.ustat(this.team, id).tier <= tier);
+    if (pool.length === 0) return 'grunt';
     return pool[Math.floor(this.rng() * pool.length)];
   }
 
