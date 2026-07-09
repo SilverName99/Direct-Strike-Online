@@ -158,10 +158,15 @@ export class AIController {
 
     let stats = game.ustat(t, want);
     if (money < stats.cost) {
-      // The ideal pick is unaffordable right now (often because a unit was
-      // priced very high in the editor). Rather than saving forever and letting
-      // the army stall, fall back to the strongest unit we CAN afford so units
-      // keep flowing. Only truly save when nothing at all is affordable.
+      // The ideal pick is unaffordable right now. SAVE toward it when income can
+      // cover the gap soon — otherwise an expensive-but-wanted unit (e.g. a 170g
+      // grunt the composition keeps asking for) would never be bought, because
+      // the AI would forever spend the money on cheaper affordable units first.
+      // Only fall back to the strongest affordable pick when the wanted unit is
+      // far out of reach, so the army doesn't stall on an absurdly-priced unit.
+      const income = Math.max(1, game.incomePerSecond(t));
+      const secondsToAfford = (stats.cost - money) / income;
+      if (secondsToAfford <= 15) return; // save up a few ticks, then buy it
       const affordable = UNIT_IDS
         .map((id) => ({ id, s: game.ustat(t, id) }))
         .filter(({ s }) => s.tier <= game.tier[t] && s.cost <= money)
