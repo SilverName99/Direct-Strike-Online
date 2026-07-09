@@ -139,8 +139,20 @@ export class AIController {
     }
 
     // 4. Units: counter pass then composition, within the unlocked tier.
+    // Guard a frontline: if melee "front" units are a thin slice of the army,
+    // skip the counter pass and let composition build one — otherwise the AI
+    // can spam a weak ranged counter that folds to a couple of melee units.
+    let frontCost = 0;
+    let armyCost = 0;
+    for (const tpl of game.templates[t]) {
+      const s = game.ustat(t, tpl.type);
+      armyCost += s.cost;
+      if (categoryOf(s) === 'front') frontCost += s.cost;
+    }
+    const frontThin = armyCost > 0 && frontCost / armyCost < 0.25;
+
     let want = null;
-    if (this.rng() < this.diff.counterChance) want = this.pickCounter(game);
+    if (!frontThin && this.rng() < this.diff.counterChance) want = this.pickCounter(game);
     if (!want || game.ustat(t, want).tier > game.tier[t]) want = this.pickComposition(game);
     if (!want) return;
 

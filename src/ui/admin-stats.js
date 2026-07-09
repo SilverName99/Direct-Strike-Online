@@ -329,6 +329,13 @@ function fieldsFor(ent, kind) {
     ['Tier 1 HP', 'Tier 2 HP', 'Tier 3 HP'].forEach((label, i) => {
       out.push({ group: S, f: `hp${i}`, label, value: b.hp[i], type: 'num', apply: (v) => { b.hp[i] = v; } });
     });
+    // optional base attack — 0 damage means the base doesn't shoot
+    out.push({ group: S, label: 'Damage (0 = fără atac)', type: 'num', value: b.damage ?? 0, apply: (v) => { b.damage = clamp(v, 0, 100000); } });
+    out.push({ group: S, label: 'Rază atac', type: 'num', value: b.range ?? 300, apply: (v) => { b.range = clamp(v, 0, 4000); } });
+    out.push({ group: S, label: 'Perioadă atac (s)', type: 'num', value: b.period ?? 1.5, apply: (v) => { b.period = clamp(v, 0.1, 60); } });
+    out.push({ group: S, label: 'Viteză proiectil', type: 'num', value: b.projectileSpeed ?? 500, apply: (v) => { b.projectileSpeed = clamp(v, 20, 4000); } });
+    out.push({ group: S, label: 'Tip damage', type: 'sel', opts: ['normal', 'piercing', 'explosive'], value: b.dmgType || 'normal', apply: (v) => { b.dmgType = v; } });
+    out.push({ group: S, label: 'Lovește aer', type: 'check', value: b.targetsAir !== false, apply: (v) => { b.targetsAir = !!v; } });
   } else if (BUILDING_FIELDS[ent]) {
     for (const [f, label] of BUILDING_FIELDS[ent]) {
       out.push({ group: S, f, label, value: b[f], type: 'num', apply: (v) => { b[f] = v; } });

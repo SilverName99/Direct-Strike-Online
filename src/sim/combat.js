@@ -99,21 +99,28 @@ export function updateCombat(game, dt) {
     if (s.hp <= 0) continue;
     if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
     else if (s.kind === 'tower') updateTurret(game, s, game.bstat(s.team, 'tower'), dt);
+    // the main base only shoots if given an attack (damage > 0) in ⚙ stats
+    else if (s.kind === 'main') {
+      const ms = game.bstat(s.team, 'main');
+      if (ms.damage > 0) updateTurret(game, s, ms, dt);
+    }
   }
 }
 
 function updateTurret(game, turret, stats, dt) {
   turret.cooldown = Math.max(0, turret.cooldown - dt);
+  // a structure with targetsAir:false can't shoot fliers (turret/tower default on)
+  const canTarget = (e) => !(e.isAir && stats.targetsAir === false);
 
   let target = game.byId.get(turret.targetId) || null;
-  if (target && !(target.hp > 0 && effDist(turret, target) <= stats.range)) {
+  if (target && !(target.hp > 0 && canTarget(target) && effDist(turret, target) <= stats.range)) {
     target = null;
     turret.targetId = null;
   }
   if (!target) {
     let bestD = Infinity;
     for (const e of game.entities) {
-      if (e.team === turret.team) continue;
+      if (e.team === turret.team || !canTarget(e)) continue;
       const d = effDist(turret, e);
       if (d < bestD) {
         bestD = d;

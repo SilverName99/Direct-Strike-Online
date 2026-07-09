@@ -214,7 +214,8 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   if (in_array($ent, BUILDING_LIST, true)) {
     // the main base shows a distinct image per upgrade tier (1/2/3)
     if ($ent === 'main') {
-      return ['thumb' => 'Thumb', 'tier_0' => 'Tier 1', 'tier_1' => 'Tier 2', 'tier_2' => 'Tier 3'];
+      // the base can be given an attack (⚙ stats) — allow a projectile image too
+      return ['thumb' => 'Thumb', 'tier_0' => 'Tier 1', 'tier_1' => 'Tier 2', 'tier_2' => 'Tier 3', 'projectile' => 'Proiectil'];
     }
     $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
     if (in_array($ent, ARMED_BUILDINGS, true)) {

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.1';
+export const VERSION = 'v10.2';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -72,6 +72,14 @@ export const CONFIG = {
     hp: [4000, 5000, 6000],
     idleSpeed: 2, // idle frame flips per second (higher = faster idle 1↔2)
     name: 'Base',
+    // Optional base attack (damage 0 = the base doesn't shoot). Same shape as
+    // the turret; set from ⚙ stats on the Base.
+    damage: 0,
+    range: 300,
+    period: 1.5,
+    dmgType: 'normal',
+    projectileSpeed: 500,
+    targetsAir: true,
   },
   TIER_COSTS: { 2: 400, 3: 900 },
   TIER_MAX: 3,

@@ -146,7 +146,12 @@ function baseUnits() {
 }
 function baseBuildings() {
   return {
-    main: { hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name, size: 1, projSize: 1 },
+    main: {
+      hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name,
+      damage: CONFIG.MAIN.damage, range: CONFIG.MAIN.range, period: CONFIG.MAIN.period,
+      dmgType: CONFIG.MAIN.dmgType, projectileSpeed: CONFIG.MAIN.projectileSpeed, targetsAir: CONFIG.MAIN.targetsAir,
+      size: 1, projSize: 1,
+    },
     turret: { ...CONFIG.TURRET, size: 1, projSize: 1 },
     wall: { ...CONFIG.BUILDINGS.wall, size: 1, projSize: 1 },
     tower: { ...CONFIG.BUILDINGS.tower, size: 1, projSize: 1 },
@@ -232,8 +237,11 @@ function raceBuildingsSnapshot(race) {
   for (const kind of BUILDING_ENTS) {
     const b = resolvedBuildings[race][kind];
     const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed, projSize: b.projSize };
-    if (kind === 'main') o.hp = [...b.hp];
-    else for (const f of BUILDING_SCALARS) if (b[f] !== undefined) o[f] = b[f];
+    if (kind === 'main') {
+      o.hp = [...b.hp];
+      for (const f of ['damage', 'range', 'period', 'projectileSpeed']) if (b[f] !== undefined) o[f] = b[f];
+      o.dmgType = b.dmgType; o.targetsAir = !!b.targetsAir;
+    } else for (const f of BUILDING_SCALARS) if (b[f] !== undefined) o[f] = b[f];
     if (b.cw !== undefined) { o.cw = b.cw; o.ch = b.ch; }
     out[kind] = o;
   }
@@ -402,6 +410,9 @@ function applyBuilding(b, kind, vals) {
   if (num(vals.projSize) !== undefined) b.projSize = clamp(vals.projSize, 0.1, 6);
   if (kind === 'main') {
     if (Array.isArray(vals.hp)) for (let i = 0; i < 3; i++) if (num(vals.hp[i]) !== undefined) b.hp[i] = vals.hp[i];
+    for (const f of ['damage', 'range', 'period', 'projectileSpeed']) if (num(vals[f]) !== undefined) b[f] = clamp(vals[f], 0, 100000);
+    if (['normal', 'piercing', 'explosive'].includes(vals.dmgType)) b.dmgType = vals.dmgType;
+    if (typeof vals.targetsAir === 'boolean') b.targetsAir = vals.targetsAir;
     return;
   }
   for (const f of BUILDING_SCALARS) if (b[f] !== undefined && num(vals[f]) !== undefined) b[f] = vals[f];
