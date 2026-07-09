@@ -56,6 +56,7 @@ export class AIController {
     this.nextSellAt = 0; // game.time before which we won't sell again (anti-churn)
     this.aggro = false;  // "push the middle" posture: muster forward to grab mid
     this.aggroReroll = 0; // game.time to re-decide the posture
+    this.intent = '—';   // human-readable current plan (debug overlay)
   }
 
   update(game, dt) {
@@ -93,7 +94,9 @@ export class AIController {
     const gens = game.countKind(t, 'generator');
     const wantGens = game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : 5;
     if (gens < wantGens && game.buildCdLeft(t, 'generator') === 0) {
-      if (money >= game.bstat(t, 'generator').cost) this.tryBuild(game, 'generator');
+      const gc = game.bstat(t, 'generator').cost;
+      this.intent = money >= gc ? '🏭 Generator (economie)' : `💰 economisește ${Math.ceil(gc)} → Generator`;
+      if (money >= gc) this.tryBuild(game, 'generator');
       return; // save for economy
     }
 
@@ -106,6 +109,7 @@ export class AIController {
         // only worth buying if we actually field that unit
         if (!game.templates[t].some((tpl) => tpl.type === up.unit)) continue;
         if (money >= (up.params.cost || 0) + 150) {
+          this.intent = `⬆ upgrade: ${up.name || id}`;
           if (game.issueCommand({ type: 'buyUpgrade', team: t, id }).ok) return;
         }
       }
@@ -119,9 +123,16 @@ export class AIController {
         (game.tier[t] === 2 && game.waveCount >= 7);
       if (due) {
         if (money >= upCost) {
+          this.intent = '🏰 Upgrade Bază (tier up)';
           if (game.issueCommand({ type: 'upgradeBase', team: t }).ok) return;
-        } else if (this.rng() < 0.7) {
-          return; // save toward the upgrade
+        } else {
+          // commit to saving for the tier when it's within reach of income, so
+          // the AI actually upgrades instead of forever dribbling gold on units
+          const income = Math.max(1, game.incomePerSecond(t));
+          if ((upCost - money) / income <= 20) {
+            this.intent = `💰 economisește ${Math.ceil(upCost)} → tier up`;
+            return; // save toward the upgrade
+          }
         }
       }
     }
@@ -136,8 +147,10 @@ export class AIController {
       );
     if (threatened && game.countKind(t, 'tower') < 3) {
       if (money >= game.bstat(t, 'tower').cost) {
+        this.intent = '🗼 Tower (apărare)';
         if (this.tryBuild(game, 'tower')) return;
       } else {
+        this.intent = '💰 economisește → Tower (apărare)';
         return; // save for the tower
       }
     }
@@ -178,17 +191,21 @@ export class AIController {
       // far out of reach, so the army doesn't stall on an absurdly-priced unit.
       const income = Math.max(1, game.incomePerSecond(t));
       const secondsToAfford = (stats.cost - money) / income;
-      if (secondsToAfford <= 15) return; // save up a few ticks, then buy it
+      if (secondsToAfford <= 15) {
+        this.intent = `💰 economisește ${Math.ceil(stats.cost)} → ${stats.name}${this.aggro ? ' (ofensiv)' : ''}`;
+        return; // save up a few ticks, then buy it
+      }
       const affordable = UNIT_IDS
         .map((id) => ({ id, s: game.ustat(t, id) }))
         .filter(({ s }) => s.tier <= game.tier[t] && s.cost <= money)
         .sort((a, b) => b.s.cost - a.s.cost)[0];
-      if (!affordable) return; // genuinely broke — wait for income
+      if (!affordable) { this.intent = '💰 fără bani — așteaptă venit'; return; } // genuinely broke
       want = affordable.id;
       stats = game.ustat(t, want);
     }
     const { x, y } = this.pickPlacement(game, want);
     if (game.issueCommand({ type: 'buy', team: t, unitId: want, x, y }).ok) {
+      this.intent = `⚔ ${stats.name}${this.aggro ? ' (ofensiv → mijloc)' : ''}`;
       this.purchases++;
     }
   }

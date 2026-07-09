@@ -74,7 +74,37 @@ document.getElementById('grid-btn').addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
   if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
+  if (e.key === 'g' || e.key === 'G') { // toggle the AI debug overlay
+    aiDebugOn = !aiDebugOn;
+    aiDebugEl.style.display = aiDebugOn ? 'block' : 'none';
+  }
 });
+
+// Dev overlay (press G): the AI's gold, income and what it's currently planning.
+let aiDebugOn = false;
+const aiDebugEl = document.createElement('div');
+aiDebugEl.id = 'ai-debug';
+aiDebugEl.style.cssText =
+  'position:fixed;top:8px;left:8px;z-index:9999;display:none;pointer-events:none;' +
+  'font:12px/1.5 ui-monospace,monospace;color:#ffe9a8;background:rgba(10,14,20,0.82);' +
+  'border:1px solid #3a4658;border-radius:8px;padding:8px 11px;max-width:280px;white-space:pre-wrap;';
+document.body.appendChild(aiDebugEl);
+
+function updateAiDebug() {
+  if (!aiDebugOn || !ai || !game || state !== 'playing') return;
+  const t = 1;
+  const gold = Math.floor(game.money[t]);
+  const inc = game.incomePerSecond(t).toFixed(1).replace(/\.0$/, '');
+  const army = game.templates[t].length;
+  const tier = 'I'.repeat(game.tier[t]);
+  const mid = game.midOwner === t ? ' · DEȚINE MIJLOCUL' : '';
+  aiDebugEl.textContent =
+    `🤖 AI (${game.races[t]})  [G ascunde]\n` +
+    `💰 gold: ${gold}   (+${inc}/s)\n` +
+    `🏰 tier ${tier} · armată ${army}${mid}\n` +
+    `postură: ${ai.aggro ? 'OFENSIV (împinge mijlocul)' : 'așezat'}\n` +
+    `plan: ${ai.intent}`;
+}
 
 // Per-race background music: uploaded from /admin (next to the background),
 // loops for the whole match at the admin-set volume. Started from the match
@@ -180,6 +210,7 @@ function frame(now) {
     effects.spawnFromEvents(events);
     effects.update(delta);
     hud.update(game, delta);
+    updateAiDebug();
 
     if (game.winner !== null) {
       state = 'over';
