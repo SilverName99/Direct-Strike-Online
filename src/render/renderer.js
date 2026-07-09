@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleImage, getSprite, getMineVideo, raceOf } from './sprites.js';
+import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -206,7 +206,6 @@ export class Renderer {
     this.drawGrid(ctx, uiState);
     this.drawTemplates(ctx, game, uiState);
     this.drawStructures(ctx, game);
-    this.drawMineVideos(ctx, game); // uploaded mp4 idle animation over the mine
     this.drawWorkers(ctx, game); // little miners shuttling gold to the base
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
@@ -336,8 +335,6 @@ export class Renderer {
       const hasEmpty = !!getSprite(race, 'generator', 'worker-empty', 0);
       const hasFull = !!getSprite(race, 'generator', 'worker-full', 0);
       if (!hasEmpty && !hasFull) continue;
-      // idle at each end is animated by an uploaded mp4 clip (not PNG frames)
-      const idleVid = getMineVideo(race, 'workeridle');
 
       // configurable size / speed / count (⚙ stats on the Generator)
       const gs = game.bstat(s.team, 'generator');
@@ -367,22 +364,18 @@ export class Renderer {
         ctx.save();
         ctx.translate(x, y);
         if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
-        if (idle && idleVid && idleVid.readyState >= 2 && idleVid.videoWidth) {
-          const sc = h / idleVid.videoHeight;
-          ctx.drawImage(idleVid, (-idleVid.videoWidth * sc) / 2, -h + 4, idleVid.videoWidth * sc, h);
-        } else {
-          // walking (or idle before the clip is ready): a 2-frame shuffle
-          const frame = Math.floor(now * (idle ? 3 : 6) + w) % 2;
-          const walk = idle ? (hasFull ? 'worker-full' : 'worker-empty') : anim;
-          const entry = getSprite(race, 'generator', walk, frame) || getSprite(race, 'generator', walk, 0)
-            // fallbacks so a partial upload still shows something
-            || getSprite(race, 'generator', 'worker-full', frame)
-            || getSprite(race, 'generator', 'worker-empty', frame);
-          if (entry && entry.img) {
-            const img = entry.img;
-            const sc = h / img.height;
-            ctx.drawImage(img, (-img.width * sc) / 2, -h + 4, img.width * sc, h);
-          }
+        // PNG only on the map: walking = 2-frame shuffle, idle = a still frame.
+        // (mp4 clips are shown only in the portrait box on click, never here.)
+        const frame = idle ? 0 : Math.floor(now * 6 + w) % 2;
+        const walk = idle ? (hasFull ? 'worker-full' : 'worker-empty') : anim;
+        const entry = getSprite(race, 'generator', walk, frame) || getSprite(race, 'generator', walk, 0)
+          // fallbacks so a partial upload still shows something
+          || getSprite(race, 'generator', 'worker-full', frame)
+          || getSprite(race, 'generator', 'worker-empty', frame);
+        if (entry && entry.img) {
+          const img = entry.img;
+          const sc = h / img.height;
+          ctx.drawImage(img, (-img.width * sc) / 2, -h + 4, img.width * sc, h);
         }
         ctx.restore();
       }
@@ -398,31 +391,6 @@ export class Renderer {
       if (d <= h.r && d < bestD) { bestD = d; best = h; }
     }
     return best;
-  }
-
-  // Ambient life: a per-race gold-mine idle clip (uploaded mp4) played over the
-  // generator building. Purely cosmetic — a hidden looping muted <video> drawn
-  // onto the canvas each frame, sized to the generator's footprint (like its
-  // idle sprite) so it reads as the same structure, alive.
-  drawMineVideos(ctx, game) {
-    for (const s of game.structures) {
-      if (s.kind !== 'generator' || s.hp <= 0) continue;
-      if (!this.visible(s.x, s.y, s.radius + 320)) continue;
-      const race = raceOf(s.team);
-      const v = getMineVideo(race, 'mineidle');
-      if (!v || v.readyState < 2 || !v.videoWidth) continue;
-      const size = sizeOf(race, 'generator');
-      const hw = s.hw || s.radius;
-      const hh = s.hh || s.radius;
-      const sc = Math.min((2 * hw * size) / v.videoWidth, (2 * hh * size) / v.videoHeight);
-      const w = v.videoWidth * sc;
-      const h = v.videoHeight * sc;
-      ctx.save();
-      ctx.translate(s.x, s.y);
-      if (s.team === 1) ctx.scale(-1, 1);
-      ctx.drawImage(v, -w / 2, -h / 2, w, h);
-      ctx.restore();
-    }
   }
 
   // Placement grid over the relevant zone while placing or dragging. Only the
