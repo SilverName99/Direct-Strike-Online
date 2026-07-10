@@ -494,7 +494,10 @@ export class Renderer {
     if (firing) {
       const period = bs.period || 1;
       const sinceFire = period - s.cooldown; // 0 right after a shot
-      const frame = sinceFire >= 0 && sinceFire < 0.16 ? 1 : 0;
+      // hold the "fire" frame for a clear beat (a fraction of the reload), so
+      // it reads as one swing per shot instead of a rapid flicker
+      const flash = Math.min(0.28, period * 0.45);
+      const frame = sinceFire >= 0 && sinceFire < flash ? 1 : 0;
       return drawTowerSprite(ctx, s.team, tier, hw, hh, 'attack', frame);
     }
     if (idleFor >= (bs.campfireDelay ?? 60)) {

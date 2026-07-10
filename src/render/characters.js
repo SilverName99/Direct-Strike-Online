@@ -199,22 +199,42 @@ export function hasTowerTierArt(team) {
     || getSprite(race, 'tower', 'tier3-idle', 0));
 }
 
-// Draw a tower's frame for its base tier. `anim` ∈ idle|attack|camp. False ->
+// One shared scale for ALL of a tier's tower-BODY frames, taken from that
+// tier's idle 1 frame. Every body frame (idle / attack / camptower / die) draws
+// at this exact scale and centered, so switching frames only swaps the artwork
+// — the tower never resizes or "teleports" (as it did when each frame was
+// contain-fit to the footprint on its own). Null if there's no idle reference.
+function towerBodyScale(race, tier, hw, hh) {
+  const ref = towerEntry(race, tier, 'idle', 0);
+  if (!ref) return null;
+  const size = sizeOf(race, 'tower');
+  return Math.min((2 * hw * size) / ref.img.width, (2 * hh * size) / ref.img.height);
+}
+
+// Draw a tower frame for its base tier. `anim` ∈ idle|attack|camptower|camp.
+// Body frames share the tier scale (above); the campfire SOLDIERS ('camp') are
+// a separate small sprite, so they fit the box the caller passes. False -> the
 // caller falls back.
 export function drawTowerSprite(ctx, team, tier, hw, hh, anim, frame) {
   const race = raceOf(team);
   const entry = towerEntry(race, tier, anim, frame);
   if (!entry) return false;
-  drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team);
+  if (anim === 'camp') { drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team); return true; }
+  const s = towerBodyScale(race, tier, hw, hh);
+  if (s != null) drawSpriteScaled(ctx, entry, s, team);
+  else drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team);
   return true;
 }
 
-// The tower's per-tier "destroyed" frame, drawn as a fading rubble corpse.
+// The tower's per-tier "destroyed" frame, drawn as a fading rubble corpse (at
+// the same shared tier scale so it lands where the tower stood).
 export function drawTowerDie(ctx, team, tier, hw, hh) {
   const race = raceOf(team);
   const entry = towerEntry(race, tier, 'die', 0);
   if (!entry) return false;
-  drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team);
+  const s = towerBodyScale(race, tier, hw, hh);
+  if (s != null) drawSpriteScaled(ctx, entry, s, team);
+  else drawBuildingScaled(ctx, race, 'tower', entry, hw, hh, team);
   return true;
 }
 
