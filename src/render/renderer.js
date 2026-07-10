@@ -537,7 +537,10 @@ export class Renderer {
   }
 
   drawStructures(ctx, game) {
-    for (const s of game.structures) {
+    // draw the mid turret LAST so it always sits above any towers / campfires
+    // built right next to it (stable sort keeps every other order intact)
+    const ordered = [...game.structures].sort((a, b) => (a.kind === 'turret' ? 1 : 0) - (b.kind === 'turret' ? 1 : 0));
+    for (const s of ordered) {
       if (!this.visible(s.x, s.y, s.radius + 320)) continue;
       const color = TEAM_COLORS[s.team];
       const dark = TEAM_COLORS_DARK[s.team];

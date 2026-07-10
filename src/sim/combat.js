@@ -99,10 +99,12 @@ export function updateCombat(game, dt) {
     if (s.hp <= 0) continue;
     if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
     else if (s.kind === 'tower') {
-      // towers scale their HP/damage with the owner's base tier
+      // towers scale their HP/damage with the owner's base tier, and loose one
+      // arrow per tier (tier 2 -> 2 arrows, tier 3 -> 3)
       const bs = game.bstat(s.team, 'tower');
-      const tier = towerStatForTier(bs, game.tier[s.team]);
-      updateTurret(game, s, { ...bs, hp: tier.hp, damage: tier.damage }, dt);
+      const tn = Math.max(1, Math.min(3, game.tier[s.team]));
+      const st = towerStatForTier(bs, tn);
+      updateTurret(game, s, { ...bs, hp: st.hp, damage: st.damage }, dt, tn);
     }
     // the main base only shoots if given an attack (damage > 0) in ⚙ stats
     else if (s.kind === 'main') {
@@ -112,7 +114,22 @@ export function updateCombat(game, dt) {
   }
 }
 
-function updateTurret(game, turret, stats, dt) {
+// The `shots` nearest enemies to the turret that are in range and targetable,
+// closest first (used by multi-arrow towers).
+function nearestEnemies(game, turret, stats, canTarget, n) {
+  const cands = [];
+  for (const e of game.entities) {
+    if (e.team === turret.team || e.hp <= 0 || !canTarget(e)) continue;
+    const d = effDist(turret, e);
+    if (d <= stats.range) cands.push({ e, d });
+  }
+  cands.sort((a, b) => a.d - b.d);
+  const out = [];
+  for (let i = 0; i < Math.min(n, cands.length); i++) out.push(cands[i].e);
+  return out;
+}
+
+function updateTurret(game, turret, stats, dt, shots = 1) {
   turret.cooldown = Math.max(0, turret.cooldown - dt);
   // a structure with targetsAir:false can't shoot fliers (turret/tower default on)
   const canTarget = (e) => !(e.isAir && stats.targetsAir === false);
@@ -138,8 +155,17 @@ function updateTurret(game, turret, stats, dt) {
 
   if (turret.cooldown <= 0) {
     turret.cooldown = Math.max(0.1, stats.period); // floored: a 0 config must not wedge/machine-gun
-    spawnProjectile(game, turret, stats, target);
-    game.events.push({ type: 'shot', x: turret.x, y: turret.y, tx: target.x, ty: target.y, team: turret.team });
+    // one arrow per shot; multi-shot towers spread across the nearest enemies
+    // (extra arrows round-robin back onto them when fewer enemies are in range)
+    const n = Math.max(1, shots);
+    const list = n > 1 ? nearestEnemies(game, turret, stats, canTarget, n) : null;
+    const targets = list && list.length ? list : [target];
+    for (let i = 0; i < n; i++) {
+      const tg = targets[i % targets.length];
+      if (!tg || tg.hp <= 0) continue;
+      spawnProjectile(game, turret, stats, tg);
+      game.events.push({ type: 'shot', x: turret.x, y: turret.y, tx: tg.x, ty: tg.y, team: turret.team });
+    }
   }
 }
 
