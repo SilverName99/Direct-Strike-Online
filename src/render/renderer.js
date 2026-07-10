@@ -521,7 +521,9 @@ export class Renderer {
   drawCampfire(ctx, s, tier, hw, hh, bs) {
     const speed = bs.campSpeed || 3;
     const frame = Math.floor(this.now * speed) % 2; // fire/soldier flicker
-    const scale = Math.max(0.1, Math.min(4, bs.campSize ?? 0.8));
+    // per-tier soldier size (falls back to the tier-1 value)
+    const cs = tier >= 3 ? (bs.campSize3 ?? bs.campSize) : tier === 2 ? (bs.campSize2 ?? bs.campSize) : bs.campSize;
+    const scale = Math.max(0.1, Math.min(4, cs ?? 0.8));
     // stable pseudo-random nudge from the tower id (no per-frame jitter)
     const j = (s.id * 2654435761) >>> 0;
     const jx = (j & 63) / 63;          // 0..1
