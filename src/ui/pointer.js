@@ -77,13 +77,20 @@ export class PointerManager {
     });
 
     const opts = { capture: true, passive: false };
+    this._routeScheduled = false;
+    this._lastMove = null;
     document.addEventListener('mousemove', (e) => {
       if (!this.locked || !e.isTrusted) return;
       e.stopPropagation();
       this.vx = clamp(this.vx + e.movementX, 0, window.innerWidth - 1);
       this.vy = clamp(this.vy + e.movementY, 0, window.innerHeight - 1);
+      // Keep the DRAWN cursor glued to the mouse every event — this is a cheap,
+      // GPU-composited transform. The heavy work (elementFromPoint + synthetic
+      // re-dispatch that drives hover/drag/edge-scroll) is throttled to one per
+      // animation frame, so a busy main thread never makes the cursor trail.
       this.moveCursor();
-      this.route('mousemove', e);
+      this._lastMove = e;
+      this.scheduleRoute();
     }, opts);
 
     for (const type of ['mousedown', 'mouseup', 'click', 'contextmenu']) {
@@ -114,7 +121,20 @@ export class PointerManager {
   }
 
   moveCursor() {
-    this.cursor.style.transform = `translate(${this.vx}px, ${this.vy}px)`;
+    // translate3d forces a compositor layer so the move never repaints on the
+    // main thread (paired with `will-change: transform` in the CSS)
+    this.cursor.style.transform = `translate3d(${this.vx}px, ${this.vy}px, 0)`;
+  }
+
+  // Run the expensive mousemove routing at most once per frame with the latest
+  // virtual position, so raw-event rate never floods the main thread.
+  scheduleRoute() {
+    if (this._routeScheduled) return;
+    this._routeScheduled = true;
+    requestAnimationFrame(() => {
+      this._routeScheduled = false;
+      if (this.locked && this._lastMove) this.route('mousemove', this._lastMove);
+    });
   }
 
   // Swap the virtual cursor art for a per-race uploaded image (hotspot at the

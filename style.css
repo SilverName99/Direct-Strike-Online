@@ -129,6 +129,10 @@ html, body {
   display: none;
   pointer-events: none;
   z-index: 1000;
+  /* own compositor layer so the cursor transform never repaints on the main
+     thread — keeps it glued to the pointer even while the game renders */
+  will-change: transform;
+  backface-visibility: hidden;
 }
 #vcursor.visible { display: block; }
 
