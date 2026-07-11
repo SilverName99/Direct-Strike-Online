@@ -16,6 +16,7 @@ const thumbs = new Map(); // `${race}/${ent}` -> entry
 const projectiles = new Map(); // `${race}/${ent}` -> entry (single projectile image)
 const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
+const fireProjectiles = new Map();    // `${race}/${ent}` -> entry (Fireball projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
 const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
@@ -85,6 +86,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           if (slots.acidproj) {
             load(`${base}${race}/${ent}/acidproj.png?v=${man.v || 0}`, (img) => {
               acidProjectiles.set(`${race}/${ent}`, entryFor(img));
+            });
+          }
+          // dedicated fireball projectile image (slot "fireproj")
+          if (slots.fireproj) {
+            load(`${base}${race}/${ent}/fireproj.png?v=${man.v || 0}`, (img) => {
+              fireProjectiles.set(`${race}/${ent}`, entryFor(img));
             });
           }
           // per-caster projectile image for an ability (slot "abilityproj-<id>")
@@ -336,6 +343,10 @@ export function getProjectile(race, ent) {
 
 export function getAcidProjectile(race, ent) {
   return acidProjectiles.get(`${race}/${ent}`) || null;
+}
+
+export function getFireProjectile(race, ent) {
+  return fireProjectiles.get(`${race}/${ent}`) || null;
 }
 
 export function getAbilityProjectile(race, ent, aid) {

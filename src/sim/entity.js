@@ -126,6 +126,7 @@ export function spawnProjectile(game, source, stats, target) {
     aoe: stats.aoe || null,
     targetAir: !!target.isAir, // the struck plane (fixed at launch)
     acid: stats.acid || null, // {dot, dur} -> damage-over-time on impact (Acid Spit)
+    fire: stats.fire || null, // {dps, dur, radius} -> burning ground on impact (Fireball)
     // "Bounce": on impact the projectile ricochets to the next nearby enemy
     // (up to bounceLeft more hops), dealing bounceDamage (bouncePower% of the
     // original) on each ricochet — you see it fly from character to character.

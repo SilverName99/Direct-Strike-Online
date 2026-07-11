@@ -51,11 +51,29 @@ export function updateCombat(game, dt) {
     } else if (u.acidAttacker) {
       u.acidAttacker = false;
     }
+    // "Fireball" upgrade: the catapult lobs a fireball — direct/splash damage
+    // (with a bonus vs buildings) that leaves a burning-ground zone dealing
+    // damage over time to enemies standing in it.
+    const fire = !acid && !u.dismounted ? fireUpgradeFor(game, u) : null;
+    if (fire) {
+      const p = fire.params;
+      stats = {
+        ...stats,
+        heal: false, ranged: true, projectile: true,
+        range: p.range, damage: p.damage,
+        splash: p.splashRadius, projectileSpeed: p.projectileSpeed,
+        buildingDamage: p.buildingDamage || 0,
+        fire: { dps: p.zoneDps, dur: p.zoneDuration, radius: p.zoneRadius },
+      };
+      u.fireAttacker = true; // renderer -> "fire" walk/attack frames + fireball
+    } else if (u.fireAttacker) {
+      u.fireAttacker = false;
+    }
     // "AoE Damage" upgrade: the unit's thrown projectile bursts on impact —
     // the struck target takes full damage, everyone else on the SAME plane
     // (air/ground) in the radius takes splashPower% of it. Applies to any of
     // its ranged forms (mounted, or a split rider still throwing).
-    if (!acid && stats.projectile) {
+    if (!acid && !fire && stats.projectile) {
       const aoe = aoeUpgradeFor(game, u);
       if (aoe) {
         stats = {
@@ -91,6 +109,22 @@ export function updateCombat(game, dt) {
     if (u.hp <= 0) continue;
     const dps = effectVal(u, 'acid', game.time);
     if (dps > 0) applyDamage(game, u, dps * dt, 'normal', true);
+  }
+
+  // Burning ground (Fireball upgrade): each fire zone scorches enemy GROUND
+  // units standing in it every tick, until it burns out.
+  if (game.fireZones.length) {
+    const kept = [];
+    for (const z of game.fireZones) {
+      if (game.time >= z.until) continue; // burned out -> dropped
+      for (const e of game.entities) {
+        if (e.team === z.team || e.hp <= 0 || e.isAir) continue;
+        const dx = e.x - z.x; const dy = e.y - z.y;
+        if (dx * dx + dy * dy <= z.radius * z.radius) applyDamage(game, e, z.dps * dt, z.dmgType || 'normal', true);
+      }
+      kept.push(z);
+    }
+    game.fireZones = kept;
   }
 
   // Armed structures (starting turret + built towers) shoot the nearest
@@ -378,6 +412,16 @@ function acidUpgradeFor(game, u) {
   return null;
 }
 
+// The active "Fireball" (kind 'fire') upgrade transforming u's type, else null.
+function fireUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue;
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'fire' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+  }
+  return null;
+}
+
 // The active "AoE Damage" (kind 'aoe') upgrade transforming u's type, else null.
 function aoeUpgradeFor(game, u) {
   for (const id of game.upgrades[u.team]) {
@@ -649,6 +693,12 @@ export function updateProjectiles(game, dt) {
 }
 
 function impact(game, p, target) {
+  // Fireball: drop a burning-ground zone where it lands (damages enemies over
+  // time). The direct/splash hit below still applies normally.
+  if (p.fire) {
+    game.fireZones.push({ x: p.tx, y: p.ty, radius: p.fire.radius, dps: p.fire.dps, until: game.time + p.fire.dur, team: p.team, dmgType: p.dmgType });
+    game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.fire.radius, fire: true });
+  }
   if (p.splash > 0) {
     game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, acid: !!p.acid });
     for (const e of game.entities) {

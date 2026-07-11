@@ -6,7 +6,7 @@ import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
-  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile,
+  getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile, getFireProjectile,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
 } from './sprites.js';
 
@@ -81,6 +81,12 @@ export function hasAcidAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'acid');
 }
 
+// True when a fireball unit has uploaded its "Foc" ("fire-<which>") sprite for
+// walking or attacking.
+export function hasFireAnim(type, team, which) {
+  return hasSpriteAnim(raceOf(team), type, `fire-${which}`);
+}
+
 // True when a dismounted unit has an uploaded on-foot ("foot-<anim>") sprite.
 export function hasFootAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `foot-${anim}`);
@@ -105,6 +111,15 @@ export function drawProjectileSprite(ctx, type, team, targetH) {
 // falls back to the normal projectile image / procedural dot.
 export function drawAcidProjectileSprite(ctx, type, team, targetH) {
   const entry = getAcidProjectile(raceOf(team), type);
+  if (!entry) return false;
+  drawSprite(ctx, entry, targetH, team);
+  return true;
+}
+
+// Dedicated Fireball projectile image for a unit type. False -> caller falls
+// back to the normal projectile image / procedural dot.
+export function drawFireProjectileSprite(ctx, type, team, targetH) {
+  const entry = getFireProjectile(raceOf(team), type);
   if (!entry) return false;
   drawSprite(ctx, entry, targetH, team);
   return true;

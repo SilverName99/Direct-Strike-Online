@@ -27,6 +27,9 @@ const ARMED_BUILDINGS = ['turret', 'tower'];
 const DISMOUNT_UPGRADES = ['dashmount'];
 // upgrades of kind 'acid' (Acid Spit) — grant two extra "acid" attack frames
 const ACID_UPGRADES = ['acidspit'];
+// upgrades of kind 'fire' (Fireball) — grant a "fire-" walk + attack set and a
+// dedicated fireball projectile
+const FIRE_UPGRADES = ['fireball'];
 // upgrades of kind 'split' (Landing Split) — the unit splits into rider +
 // beast, so it gets BOTH the "foot-" (rider on foot) and "beast-" sprite sets
 const SPLIT_UPGRADES = ['splitmount'];
@@ -46,6 +49,7 @@ const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
   'groundattack' => 'Attack ground units',
   'acidspit' => 'Acid Spit',
+  'fireball' => 'Bile de foc',
   'aoedamage' => 'AoE Damage',
   'splitmount' => 'Landing Split: beast & rider',
   'focusbuilding' => 'Focus building',
@@ -112,6 +116,10 @@ function unitHasDismount(string $race, string $ent): bool {
 // True when this race's unit is targeted by an "Acid Spit" upgrade.
 function unitHasAcid(string $race, string $ent): bool {
   return unitHasUpgradeKind($race, $ent, ACID_UPGRADES);
+}
+// True when this race's unit is targeted by a "Bile de foc" (Fireball) upgrade.
+function unitHasFire(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, FIRE_UPGRADES);
 }
 // True when this race's unit is targeted by a "Landing Split" upgrade.
 function unitHasSplit(string $race, string $ent): bool {
@@ -312,6 +320,15 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['acid_1'] = 'Acid 2';
     $slots['acidproj'] = 'Proiectil acid';
   }
+  // "Bile de foc" (Fireball) upgrade: a separate walk + attack sprite set for
+  // the fire-loaded form, plus a dedicated fireball projectile image
+  if (unitHasFire($race, $ent)) {
+    $slots['fire-walk_0'] = 'Foc: Mers 1';
+    $slots['fire-walk_1'] = 'Foc: Mers 2';
+    $slots['fire-attack_0'] = 'Foc: Atac 1';
+    $slots['fire-attack_1'] = 'Foc: Atac 2';
+    $slots['fireproj'] = 'Proiectil foc';
+  }
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
   // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {
@@ -349,7 +366,7 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'projectile' || $slot === 'acidproj' || str_starts_with($slot, 'abilityproj-')) {
+        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);

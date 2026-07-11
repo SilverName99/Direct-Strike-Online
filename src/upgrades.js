@@ -85,6 +85,24 @@ export const UPGRADES = {
       beastSize: 100,  // beast visual size (%)
     },
   },
+  fireball: {
+    name: 'Bile de foc',
+    desc: 'Catapulta aruncă bile de foc în loc de proiectilul normal: lovește pentru damage (cu bonus vs clădiri) și lasă o ZONĂ de foc pe pământ care arde inamicii din ea câteva secunde (damage per secundă). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de 2 frame-uri "Foc: mers", 2 "Foc: atac" și un proiectil de foc pe unitate.',
+    kind: 'fire',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the fireball attack (set in admin)
+    params: {
+      cost: 350,           // gold to buy from the base
+      range: 300,          // how far the fireball is thrown
+      damage: 40,          // direct impact damage (splash center)
+      splashRadius: 80,    // radius of the immediate impact burst
+      buildingDamage: 60,  // damage vs STRUCTURES (replaces the normal damage on buildings)
+      zoneRadius: 110,     // radius of the burning ground left on impact
+      zoneDps: 16,         // damage per second inside the fire zone
+      zoneDuration: 4,     // seconds the fire keeps burning
+      projectileSpeed: 300,
+    },
+  },
   acidspit: {
     name: 'Acid Spit',
     desc: 'The rider\'s dragon spits acid instead of its basic attack: a ranged projectile that bursts for SPLASH damage and leaves acid that deals damage over time to everyone caught in the blast (e.g. a Wyvern Rider). Bought once from the base; permanent for the match. Needs two extra "Acid" attack sprites on the unit.',
@@ -124,6 +142,10 @@ export const UPGRADE_PARAM_LABELS = {
   dmRanged: 'Călărețul rămâne ranged (1/0)',
   dashDamage: 'Damage la impact (dash)',
   splashPower: 'Putere splash (% din damage)',
+  buildingDamage: 'Damage vs clădiri',
+  zoneRadius: 'Rază zonă de foc',
+  zoneDps: 'Damage zonă (pe secundă)',
+  zoneDuration: 'Durată zonă de foc (s)',
   beastHp: 'HP bestie',
   beastDamage: 'Damage bestie',
   beastRange: 'Rază atac bestie',

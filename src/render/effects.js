@@ -42,8 +42,9 @@ export class Effects {
           }
           break;
         case 'explosion':
-          this.burst(e.x, e.y, 14, e.acid ? '#8fd14f' : '#ffb347', 180, 0.4, 3.5);
+          this.burst(e.x, e.y, e.fire ? 20 : 14, e.acid ? '#8fd14f' : e.fire ? '#ff7a1a' : '#ffb347', e.fire ? 210 : 180, 0.45, e.fire ? 4 : 3.5);
           if (e.acid) this.rings.push({ x: e.x, y: e.y, r0: 4, r1: (e.radius || 90), life: 0.5, maxLife: 0.5, color: '#8fd14f' });
+          if (e.fire) this.rings.push({ x: e.x, y: e.y, r0: 6, r1: (e.radius || 90), life: 0.45, maxLife: 0.45, color: '#ff9636' });
           break;
         case 'dash': {
           // charge impact: a quick ring + a spray of chips at the target

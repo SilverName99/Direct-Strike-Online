@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -204,6 +204,7 @@ export class Renderer {
 
     this.drawField(ctx, game);
     this.drawGrid(ctx, uiState);
+    this.drawFireZones(ctx, game); // burning ground sits on the terrain, under everything
     this.drawTemplates(ctx, game, uiState);
     this.drawStructures(ctx, game);
     effects.drawStructureCorpses(ctx); // toppled towers crumble where they stood
@@ -315,6 +316,30 @@ export class Renderer {
     ctx.globalAlpha = 0.85;
     ctx.drawImage(img, mid - dw / 2, 0, dw, rh);
     ctx.restore();
+  }
+
+  // Burning ground left by fireballs (Fireball upgrade): a flickering fiery
+  // patch that fades out in its final moments. Read straight from sim state.
+  drawFireZones(ctx, game) {
+    const zones = game.fireZones;
+    if (!zones || !zones.length) return;
+    for (const z of zones) {
+      if (!this.visible(z.x, z.y, z.radius + 40)) continue;
+      const left = z.until - game.time;
+      const fade = Math.max(0, Math.min(1, left / 0.6)); // ease out over the last 0.6s
+      const flick = 0.72 + 0.28 * Math.sin(this.now * 9 + z.x * 0.05);
+      ctx.save();
+      ctx.globalAlpha = 0.34 * fade * flick;
+      const g = ctx.createRadialGradient(z.x, z.y, z.radius * 0.12, z.x, z.y, z.radius);
+      g.addColorStop(0, '#ffe08a');
+      g.addColorStop(0.45, '#ff7a1a');
+      g.addColorStop(1, 'rgba(150, 30, 8, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   // Ambient life: for every gold generator with uploaded "worker" sprites,
@@ -834,6 +859,10 @@ export class Renderer {
           anim = u.state === 'march' ? 'walk' : 'idle';
           frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
         }
+        // fireball upgrade: swap walk/attack for the uploaded "Foc" sprite set
+        if (u.fireAttacker && (anim === 'walk' || anim === 'attack') && hasFireAnim(u.type, u.team, anim)) {
+          anim = `fire-${anim}`;
+        }
         // dismounted (mount upgrade): use the on-foot sprite set only if it was
         // uploaded, else keep the mounted sprite/puppet (which always exists)
         if (u.dismounted && !anim.startsWith('foot-') && hasFootAnim(u.type, u.team, anim)) {
@@ -938,19 +967,21 @@ export class Renderer {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(ang);
-        // Acid Spit: its own uploaded projectile image, else the unit's normal
-        // one; frost & other ability bolts use the per-ability image.
+        // Acid Spit / Fireball: their own uploaded projectile image, else the
+        // unit's normal one; frost & other ability bolts use the per-ability image.
         drawn = p.acid
           ? (drawAcidProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
-          : p.ability
-            ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
-            : drawProjectileSprite(ctx, p.srcType, p.team, size);
+          : p.fire
+            ? (drawFireProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
+            : p.ability
+              ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
+              : drawProjectileSprite(ctx, p.srcType, p.team, size);
         ctx.restore();
       }
       if (!drawn) {
         // ability projectiles glow in their ability color (frost = icy blue);
-        // acid spits glow corrosive green
-        const abColor = p.acid ? '#8fd14f' : (p.ability ? (resolvedAbility(p.ability) || {}).color : null);
+        // acid spits glow corrosive green, fireballs fiery orange
+        const abColor = p.acid ? '#8fd14f' : p.fire ? '#ff7a1a' : (p.ability ? (resolvedAbility(p.ability) || {}).color : null);
         if (abColor) {
           ctx.globalAlpha = 0.35;
           ctx.fillStyle = abColor;

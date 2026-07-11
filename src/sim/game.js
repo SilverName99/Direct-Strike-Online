@@ -53,6 +53,7 @@ export class Game {
     this.entities = [];
     this.projectiles = [];
     this.structures = [];
+    this.fireZones = []; // burning ground left by the Fireball upgrade
     this.byId = new Map();
     this.events = []; // drained by the render layer
 
