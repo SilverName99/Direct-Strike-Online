@@ -72,6 +72,11 @@ export class Effects {
         case 'heal':
           this.burst(e.x, e.y, 2, '#58d68d', 40, 0.5, 2, -40);
           break;
+        case 'shield':
+          // Scut de lumină: a bright flash + expanding ring of light
+          this.burst(e.x, e.y - 8, 14, '#fff6c0', 120, 0.5, 2.5, -30);
+          this.rings.push({ x: e.x, y: e.y - 8, r0: 6, r1: 46, life: 0.5, maxLife: 0.5, color: '#ffe08a' });
+          break;
         case 'cast': {
           const color = (ABILITIES[e.ability] || {}).color || '#ffffff';
           if (e.ability === 'dispell') {

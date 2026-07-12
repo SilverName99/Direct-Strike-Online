@@ -48,6 +48,8 @@ export function spawnUnit(game, team, type, x, y) {
     ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,
+    // "Scut de lumină" upgrade state (invulnerability window)
+    shieldAt: -1, shieldUntil: 0, shieldCd: 0,
     targetId: null,
     state: 'march',
     radius,

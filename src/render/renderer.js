@@ -1,11 +1,11 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
-import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo } from './vfx.js';
+import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo, drawLightShield } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 
@@ -887,6 +887,10 @@ export class Renderer {
         if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
         }
+        // Scut de lumină: hold the "shield" activation pose while invulnerable
+        if (u.shieldUntil && game.time < u.shieldUntil && hasShieldAnim(u.type, u.team)) {
+          anim = 'shield'; frame = 0;
+        }
         drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
       } else {
         ctx.rotate(u.team === 0 ? 0 : Math.PI);
@@ -929,6 +933,14 @@ export class Renderer {
       // status-effect indicators (slow swirl, haste sparks, regen cross...)
       if (u.effects && u.effects.length) {
         this.drawEffectIndicators(ctx, u, x, y, stats.radius);
+      }
+      // Scut de lumină: a glowing dome while invulnerable (fades out at the end)
+      if (u.shieldUntil && game.time < u.shieldUntil) {
+        const fade = Math.max(0, Math.min(1, (u.shieldUntil - game.time) / 0.5));
+        ctx.save();
+        ctx.translate(x, y);
+        drawLightShield(ctx, this.now, drawR, fade);
+        ctx.restore();
       }
     }
   }

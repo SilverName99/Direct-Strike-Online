@@ -30,6 +30,8 @@ const ACID_UPGRADES = ['acidspit'];
 // upgrades of kind 'fire' (Fireball) — grant a "fire-" walk + attack set and a
 // dedicated fireball projectile
 const FIRE_UPGRADES = ['fireball'];
+// upgrades of kind 'shield' (Scut de lumină) — grant one "shield" activation frame
+const SHIELD_UPGRADES = ['lightshield'];
 // upgrades of kind 'split' (Landing Split) — the unit splits into rider +
 // beast, so it gets BOTH the "foot-" (rider on foot) and "beast-" sprite sets
 const SPLIT_UPGRADES = ['splitmount'];
@@ -56,6 +58,7 @@ const UPGRADE_INFO = [
   'groundattack' => 'Attack ground units',
   'acidspit' => 'Acid Spit',
   'fireball' => 'Bile de foc',
+  'lightshield' => 'Scut de lumină',
   'aoedamage' => 'AoE Damage',
   'splitmount' => 'Landing Split: beast & rider',
   'focusbuilding' => 'Focus building',
@@ -126,6 +129,10 @@ function unitHasAcid(string $race, string $ent): bool {
 // True when this race's unit is targeted by a "Bile de foc" (Fireball) upgrade.
 function unitHasFire(string $race, string $ent): bool {
   return unitHasUpgradeKind($race, $ent, FIRE_UPGRADES);
+}
+// True when this race's unit is targeted by a "Scut de lumină" upgrade.
+function unitHasShield(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, SHIELD_UPGRADES);
 }
 // True when this race's unit is targeted by a "Landing Split" upgrade.
 function unitHasSplit(string $race, string $ent): bool {
@@ -339,6 +346,11 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['fire-attack_0'] = 'Foc: Atac 1';
     $slots['fire-attack_1'] = 'Foc: Atac 2';
     $slots['fireproj'] = 'Proiectil foc';
+  }
+  // "Scut de lumină" upgrade: one activation frame (the light shield itself is
+  // drawn procedurally by the game)
+  if (unitHasShield($race, $ent)) {
+    $slots['shield_0'] = 'Scut de lumină (activare)';
   }
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
   // summoned animals (Shaman): a walk + attack + die set per assigned summon

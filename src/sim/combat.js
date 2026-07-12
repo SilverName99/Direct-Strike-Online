@@ -32,6 +32,8 @@ export function updateCombat(game, dt) {
       updateFighter(game, u, stats, dt);
       continue;
     }
+    // "Scut de lumină" upgrade: below the HP threshold -> brief invulnerability
+    maybeShield(game, u);
     // "Attack ground units" upgrade: grants a (normally air-only) unit the
     // ability to hit ground once its owner has bought the upgrade for its type.
     if (stats.targetsGround === false && groundUpgradeFor(game, u)) {
@@ -419,6 +421,34 @@ function acidUpgradeFor(game, u) {
   return null;
 }
 
+// The active "Scut de lumină" (kind 'shield') upgrade for u's type, else null.
+function shieldUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue;
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'shield' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+  }
+  return null;
+}
+
+// Trigger the shield the instant the unit is below its HP threshold (and not
+// already shielded / on cooldown). While shielded, applyDamage ignores hits.
+function maybeShield(game, u) {
+  const up = shieldUpgradeFor(game, u);
+  if (!up) return;
+  const now = game.time;
+  if ((u.shieldUntil && now < u.shieldUntil) || (u.shieldCd && now < u.shieldCd)) return;
+  const p = up.params;
+  const thresh = Math.max(1, Math.min(99, p.threshold || 50)) / 100;
+  if (u.hp > 0 && u.hp < u.maxHp * thresh) {
+    const dur = p.duration || 3;
+    u.shieldAt = now;
+    u.shieldUntil = now + dur;
+    u.shieldCd = now + dur + (p.cooldown || 0);
+    game.events.push({ type: 'shield', x: u.x, y: u.y, team: u.team, unitId: u.id });
+  }
+}
+
 // The active "Fireball" (kind 'fire') upgrade transforming u's type, else null.
 function fireUpgradeFor(game, u) {
   for (const id of game.upgrades[u.team]) {
@@ -652,6 +682,8 @@ function effDist(a, b) {
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {
+  // "Scut de lumină" upgrade: a shielded unit takes no damage at all
+  if (target.shieldUntil && game.time < target.shieldUntil) return;
   // tolerate a unit with no configured damage type (e.g. one flipped from
   // healer to fighter in the admin) — fall back to plain 'normal' damage
   const row = DAMAGE_MATRIX[dmgType] || DAMAGE_MATRIX.normal;

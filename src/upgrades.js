@@ -119,6 +119,19 @@ export const UPGRADES = {
       projectileSpeed: 340,
     },
   },
+  lightshield: {
+    name: 'Scut de lumină',
+    desc: 'Când viața unității scade sub un prag (%), invocă un scut de lumină și devine INVULNERABILĂ câteva secunde, apoi intră în cooldown înainte să se poată reactiva (ex. Lightblade Weaver). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de un frame „Scut" pe unitate (scutul de lumină propriu-zis e desenat automat).',
+    kind: 'shield',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the shield (set in admin)
+    params: {
+      cost: 300,       // gold to buy from the base
+      threshold: 50,   // % HP under which the shield triggers
+      duration: 3,     // seconds of invulnerability
+      cooldown: 12,    // seconds before it can trigger again (after it ends)
+    },
+  },
 };
 
 export const UPGRADE_IDS = Object.keys(UPGRADES);
@@ -139,6 +152,9 @@ export const UPGRADE_PARAM_LABELS = {
   splashRadius: 'Rază splash',
   dotDamage: 'Damage over time (pe secundă)',
   dotDuration: 'Durată acid (s)',
+  threshold: 'Prag activare (% HP)',
+  duration: 'Durată invulnerabilitate (s)',
+  cooldown: 'Cooldown (s)',
   dmRanged: 'Călărețul rămâne ranged (1/0)',
   dashDamage: 'Damage la impact (dash)',
   splashPower: 'Putere splash (% din damage)',

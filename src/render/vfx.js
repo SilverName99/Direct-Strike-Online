@@ -149,6 +149,45 @@ export function drawImmuneHalo(ctx, r) {
   ctx.globalAlpha = 1;
 }
 
+// A protective dome of light around an invulnerable unit (Scut de lumină).
+// `fade` (1→0) dims it as the shield is about to expire. Drawn at the ctx
+// origin; the caller translates to the unit and passes its drawn radius.
+export function drawLightShield(ctx, now, r, fade = 1) {
+  const R = r * 1.5 + 10;
+  const cy = -r * 0.4;
+  const pulse = 0.9 + 0.1 * Math.sin(now * 6);
+  ctx.save();
+  // soft glowing bubble
+  const g = ctx.createRadialGradient(0, cy, R * 0.2, 0, cy, R * pulse);
+  g.addColorStop(0, `rgba(255,248,200,${0.10 * fade})`);
+  g.addColorStop(0.7, `rgba(255,224,120,${0.18 * fade})`);
+  g.addColorStop(1, 'rgba(255,210,80,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, cy, R * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  // bright rim
+  ctx.globalAlpha = 0.6 * fade;
+  ctx.strokeStyle = '#fff6c0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, cy, R * pulse, 0, Math.PI * 2);
+  ctx.stroke();
+  // orbiting sparks of light
+  ctx.globalAlpha = 0.9 * fade;
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 3; i++) {
+    const a = now * 2 + (i * Math.PI * 2) / 3;
+    const sx = Math.cos(a) * R * pulse;
+    const sy = cy + Math.sin(a) * R * pulse * 0.55;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
 // Expanding double-stroke ring (dispell / ability impact). `fade` is 1→0.
 export function drawExpandingRing(ctx, x, y, rad, fade, color) {
   ctx.strokeStyle = color;

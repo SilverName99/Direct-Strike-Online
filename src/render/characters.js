@@ -87,6 +87,11 @@ export function hasFireAnim(type, team, which) {
   return hasSpriteAnim(raceOf(team), type, `fire-${which}`);
 }
 
+// True when a unit has uploaded its "Scut" activation frame (shield upgrade).
+export function hasShieldAnim(type, team) {
+  return hasSpriteAnim(raceOf(team), type, 'shield');
+}
+
 // True when a dismounted unit has an uploaded on-foot ("foot-<anim>") sprite.
 export function hasFootAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `foot-${anim}`);
