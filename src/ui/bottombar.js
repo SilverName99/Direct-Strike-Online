@@ -456,6 +456,14 @@ export class BottomBar {
     const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
+    // Buildings show their STATIC thumbnail in the portrait (not the flipping
+    // idle 1↔2 animation). Fall through to idle/vector only if no thumb exists.
+    if (info.kind === 'structure') {
+      ctx.save();
+      ctx.translate(56, 58);
+      if (drawThumb(ctx, info.type, info.team, 96, form)) { ctx.restore(); return; }
+      ctx.restore();
+    }
     let entry = null;
     if (form !== 'base') {
       // form idle, then walk/attack (summoned animals have no idle frame)
