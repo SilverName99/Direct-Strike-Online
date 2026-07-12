@@ -74,7 +74,15 @@ html, body {
   min-height: 0;
   background: #080b10;
 }
-#game { display: block; cursor: crosshair; }
+#game {
+  display: block;
+  cursor: crosshair;
+  /* Force the game canvas onto its own double-buffered GPU compositor layer.
+     On some GPU / multi-monitor (mixed refresh) setups this stops the browser
+     from presenting the canvas mid-scanout — the "black line tearing" glitch. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
 
 .tier-badge {
   font-size: 11px;
