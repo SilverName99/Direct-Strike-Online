@@ -142,6 +142,7 @@ export class AIController {
     // this the AI could never field a building-gated unit.
     for (const bk of TECH_BUILDINGS) {
       if (game.hasBuilding(t, bk)) continue;
+      if (game.tier[t] < (game.bstat(t, bk).tier || 1)) continue; // not yet unlocked by tier
       const gated = UNIT_IDS.some((id) => {
         const s = game.ustat(t, id);
         return s.building === bk && s.tier <= game.tier[t];

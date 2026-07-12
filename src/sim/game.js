@@ -302,6 +302,7 @@ export class Game {
     if (cmd.type === 'build') {
       if (!CONFIG.BUILDINGS[cmd.kind]) return { ok: false, reason: 'unknown-building' };
       const stats = this.bstat(cmd.team, cmd.kind);
+      if (this.tier[cmd.team] < (stats.tier || 1)) return { ok: false, reason: 'tier-locked' };
       if (this.buildCdLeft(cmd.team, cmd.kind) > 0) return { ok: false, reason: 'cooldown' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.countKind(cmd.team, cmd.kind) >= stats.cap)

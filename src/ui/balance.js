@@ -43,9 +43,9 @@ export const BUILDING_FIELDS = {
     ['income', 'Extra gold every 20 seconds'],
     ['buildCd', 'Cooldown construire (s)'],
   ],
-  bldg1: [['cost', 'Cost'], ['hp', 'HP']],
-  bldg2: [['cost', 'Cost'], ['hp', 'HP']],
-  bldg3: [['cost', 'Cost'], ['hp', 'HP']],
+  bldg1: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
+  bldg2: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
+  bldg3: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
 };
 // The 3 tech/unlock buildings (build one of each to unlock its assigned units).
 export const TECH_BUILDINGS = ['bldg1', 'bldg2', 'bldg3'];
@@ -225,7 +225,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =

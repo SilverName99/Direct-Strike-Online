@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.46';
+export const VERSION = 'v10.47';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -135,9 +135,9 @@ export const CONFIG = {
     // it (admin: per-unit "Clădire"). A unit is buyable only when ITS building
     // is built AND the base is at the unit's tier. Destructible — lose it and
     // you lose access (already-placed units stay). One of each (cap 1).
-    bldg1: { cost: 120, hp: 500, cw: 2, ch: 2, cap: 1, idleSpeed: 2, name: 'Clădire I' },
-    bldg2: { cost: 160, hp: 550, cw: 2, ch: 2, cap: 1, idleSpeed: 2, name: 'Clădire II' },
-    bldg3: { cost: 200, hp: 600, cw: 2, ch: 2, cap: 1, idleSpeed: 2, name: 'Clădire III' },
+    bldg1: { cost: 120, hp: 500, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire I' },
+    bldg2: { cost: 160, hp: 550, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire II' },
+    bldg3: { cost: 200, hp: 600, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire III' },
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)

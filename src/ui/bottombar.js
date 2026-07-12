@@ -787,7 +787,8 @@ export class BottomBar {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
           const bs = game.bstat(0, d.id);
-          if (game.countKind(0, d.id) >= bs.cap) el.classList.add('disabled');
+          if (game.tier[0] < (bs.tier || 1)) { el.classList.add('locked'); this.setLockTier(el, bs.tier); }
+          else if (game.countKind(0, d.id) >= bs.cap) el.classList.add('disabled');
           else if (game.money[0] < bs.cost) el.classList.add('disabled');
           cd = game.buildCdLeft(0, d.id);
         }
@@ -937,10 +938,17 @@ export class BottomBar {
           ? `<div class="p-dim">Deblochează: ${names.join(', ')}</div>`
           : '<div class="p-dim">(nicio unitate asignată — vezi /admin)</div>';
       }
+      const req = s.tier || 1;
+      const tierNote = req > 1
+        ? (game && game.tier[0] < req
+            ? `<div class="p-dim" style="color:#ff9a6a">Se construiește de la Tier ${'I'.repeat(req)}</div>`
+            : `<div class="p-dim">Necesită Tier ${'I'.repeat(req)}</div>`)
+        : '';
       return `<div class="p-title">${buildingNameOf(race, d.id)} · ◆ ${s.cost}</div>
         <div class="p-dim">${b ? b.role : ''}</div>
         <div>${b ? b.tip : ''}</div>
         ${unlocks}
+        ${tierNote}
         <div class="p-dim">${extra} · max ${s.cap}</div>`;
     }
     if (d.kind === 'upgradeBase') {

@@ -273,6 +273,8 @@ export class Input {
       const b = game.ustat(0, id).building;
       if (b && !game.hasBuilding(0, b)) return;
     }
+    // some buildings can only be built from a given base tier
+    if (BUILDING_IDS.includes(id) && game.tier[0] < (game.bstat(0, id).tier || 1)) return;
     this.uiState.selected = this.uiState.selected === id ? null : id;
   }
 }
