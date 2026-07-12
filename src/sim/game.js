@@ -112,6 +112,11 @@ export class Game {
     return n;
   }
 
+  // Does this team have a living building of `kind`? (unlock check for units)
+  hasBuilding(team, kind) {
+    return this.structures.some((s) => s.team === team && s.kind === kind && s.hp > 0);
+  }
+
   // Income amounts are configured per INCOME_WINDOW (20s); each INCOME_TICK
   // pays the proportional slice so gold still flows in smoothly.
   incomePer20s(team) {
@@ -259,6 +264,8 @@ export class Game {
       const stats = this.ustat(cmd.team, cmd.unitId);
       if (!stats) return { ok: false, reason: 'unknown-unit' };
       if (stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
+      // gated behind its tech building: must be built (alive) to buy the unit
+      if (stats.building && !this.hasBuilding(cmd.team, stats.building)) return { ok: false, reason: 'no-building' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.templates[cmd.team].length >= CONFIG.MAX_TEMPLATES)
         return { ok: false, reason: 'template-cap' };

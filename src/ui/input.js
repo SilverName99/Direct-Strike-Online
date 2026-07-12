@@ -4,7 +4,7 @@ import { hitTestTemplate, visualRadiusOf } from '../render/renderer.js';
 import { snapToZone, zoneFor } from './grid.js';
 import { toast } from './pointer.js';
 
-const BUILDING_IDS = ['wall', 'tower', 'generator'];
+const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3'];
 
 // Mouse + keyboard input. Owns uiState.selected / drag / grid / mouse
 // position; translates gestures into game commands for team 0.
@@ -165,6 +165,12 @@ export class Input {
         this.select('tower');
       } else if (e.key === 'c' || e.key === 'C') {
         this.select('generator');
+      } else if (e.key === 'v' || e.key === 'V') {
+        this.select('bldg1');
+      } else if (e.key === 'b' || e.key === 'B') {
+        this.select('bldg2');
+      } else if (e.key === 'n' || e.key === 'N') {
+        this.select('bldg3');
       }
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.key));
@@ -261,7 +267,12 @@ export class Input {
     // Tier lock uses the RESOLVED per-race tier (the admin can retier a unit),
     // matching the shop's lock badge and the sim's buy gate — not the static
     // UNITS[id].tier, which would wrongly block a unit retiered down to T1.
-    if (UNITS[id] && game.ustat(0, id).tier > game.tier[0]) return; // locked
+    if (UNITS[id] && game.ustat(0, id).tier > game.tier[0]) return; // tier-locked
+    // gated behind its tech building — must be built to select/place it
+    if (UNITS[id]) {
+      const b = game.ustat(0, id).building;
+      if (b && !game.hasBuilding(0, b)) return;
+    }
     this.uiState.selected = this.uiState.selected === id ? null : id;
   }
 }

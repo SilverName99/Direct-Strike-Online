@@ -43,7 +43,12 @@ export const BUILDING_FIELDS = {
     ['income', 'Extra gold every 20 seconds'],
     ['buildCd', 'Cooldown construire (s)'],
   ],
+  bldg1: [['cost', 'Cost'], ['hp', 'HP']],
+  bldg2: [['cost', 'Cost'], ['hp', 'HP']],
+  bldg3: [['cost', 'Cost'], ['hp', 'HP']],
 };
+// The 3 tech/unlock buildings (build one of each to unlock its assigned units).
+export const TECH_BUILDINGS = ['bldg1', 'bldg2', 'bldg3'];
 export const GENERAL_FIELDS = [
   ['START_MONEY', 'Starting money'],
   ['INCOME_BASE', 'Starting gold every 20 seconds'],
@@ -64,14 +69,14 @@ export const MIDDLE_KINDS = ['none', 'moveslow', 'atkslow', 'manaregen'];
 export function middleConfig(i) {
   return (CONFIG.MIDDLES && CONFIG.MIDDLES[i]) || null;
 }
-export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator'];
-export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall'];
+export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3'];
+export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3'];
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const num = (v) => (typeof v === 'number' && isFinite(v) ? v : undefined);
 const cleanName = (v) => String(v).replace(/[<>]/g, '').trim().slice(0, 20);
 
-export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall'];
+export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3'];
 
 // ------------ per-race resolved unit + building tables ------------
 // Full clone of the base entities (so the sim can read every field) plus a
@@ -135,6 +140,7 @@ function baseUnits() {
       // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
       ranged: false, projectile: false,
       heal: false,         // healer behavior is opt-in (admin toggle), like every other special
+      building: '',        // which tech building unlocks this unit ('' = none/always available)
       buildingDamage: 0,   // special damage vs structures (0 = use the normal damage); always applies
       isAir: false, targetsAir: false,
       targetsGround: true, // can attack ground units (default on; turn off for air-only)
@@ -159,6 +165,9 @@ function baseBuildings() {
     wall: { ...CONFIG.BUILDINGS.wall, size: 1, projSize: 1 },
     tower: { ...CONFIG.BUILDINGS.tower, size: 1, projSize: 1 },
     generator: { ...CONFIG.BUILDINGS.generator, size: 1, projSize: 1 },
+    bldg1: { ...CONFIG.BUILDINGS.bldg1, size: 1, projSize: 1 },
+    bldg2: { ...CONFIG.BUILDINGS.bldg2, size: 1, projSize: 1 },
+    bldg3: { ...CONFIG.BUILDINGS.bldg3, size: 1, projSize: 1 },
   };
 }
 // Abilities are GLOBAL (one balance shared by both races); which units carry
@@ -237,7 +246,7 @@ function raceUnitsSnapshot(race) {
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
-      mana: u.mana, manaRegen: u.manaRegen,
+      mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
     };
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
     for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
@@ -378,6 +387,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.animSpeed) !== undefined) u.animSpeed = clamp(vals.animSpeed, 0.2, 30);
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
+    if (typeof vals.building === 'string' && (vals.building === '' || TECH_BUILDINGS.includes(vals.building))) u.building = vals.building;
     if (num(vals.buildingDamage) !== undefined) u.buildingDamage = clamp(vals.buildingDamage, 0, 100000);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;

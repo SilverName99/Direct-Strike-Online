@@ -8,7 +8,7 @@
 import { CONFIG } from '../config.js';
 import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
-import { resolvedUpgrade } from '../ui/balance.js';
+import { resolvedUpgrade, TECH_BUILDINGS } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 
 // Target army-cost share per role. Tuned toward a solid frontline so the AI
@@ -137,6 +137,29 @@ export class AIController {
       }
     }
 
+    // 2.5 Tech buildings unlock the roster: build the ones gating a unit that's
+    // reachable at our current tier (and not already up), one per think. Without
+    // this the AI could never field a building-gated unit.
+    for (const bk of TECH_BUILDINGS) {
+      if (game.hasBuilding(t, bk)) continue;
+      const gated = UNIT_IDS.some((id) => {
+        const s = game.ustat(t, id);
+        return s.building === bk && s.tier <= game.tier[t];
+      });
+      if (!gated || game.buildCdLeft(t, bk) !== 0) continue;
+      const bc = game.bstat(t, bk).cost;
+      if (money >= bc) {
+        this.intent = `🏗 ${game.bstat(t, bk).name || bk} (deblochează unități)`;
+        if (this.tryBuild(game, bk)) return;
+      } else {
+        const income = Math.max(1, game.incomePerSecond(t));
+        if ((bc - money) / income <= 15) {
+          this.intent = `💰 economisește ${Math.ceil(bc)} → clădire`;
+          return;
+        }
+      }
+    }
+
     // 3. Defensive reaction: our base took damage -> towers, then (at T2+)
     // a one-time wall arc in front of the main base.
     const main = game.mainOf(t);
@@ -178,7 +201,8 @@ export class AIController {
 
     let want = null;
     if (!frontThin && this.rng() < this.diff.counterChance) want = this.pickCounter(game);
-    if (!want || game.ustat(t, want).tier > game.tier[t]) want = this.pickComposition(game);
+    if (!want || game.ustat(t, want).tier > game.tier[t] || !this.unlocked(game, game.ustat(t, want)))
+      want = this.pickComposition(game);
     if (!want) return;
 
     let stats = game.ustat(t, want);
@@ -197,7 +221,7 @@ export class AIController {
       }
       const affordable = UNIT_IDS
         .map((id) => ({ id, s: game.ustat(t, id) }))
-        .filter(({ s }) => s.tier <= game.tier[t] && s.cost <= money)
+        .filter(({ s }) => s.tier <= game.tier[t] && this.unlocked(game, s) && s.cost <= money)
         .sort((a, b) => b.s.cost - a.s.cost)[0];
       if (!affordable) { this.intent = '💰 fără bani — așteaptă venit'; return; } // genuinely broke
       want = affordable.id;
@@ -291,6 +315,11 @@ export class AIController {
     return false;
   }
 
+  // A unit is fieldable only if its gating tech building (if any) is standing.
+  unlocked(game, s) {
+    return !s.building || game.hasBuilding(this.team, s.building);
+  }
+
   // Try a handful of candidate spots; the sim validates zone/overlap.
   tryBuild(game, kind) {
     const zone = CONFIG.CONSTRUCTION_ZONE[this.team];
@@ -298,7 +327,7 @@ export class AIController {
     for (let i = 0; i < 12; i++) {
       let x;
       let y;
-      if (kind === 'generator') {
+      if (kind === 'generator' || TECH_BUILDINGS.includes(kind)) {
         // tucked toward the back edge, spread vertically
         const off = 30 + this.rng() * w * 0.4;
         x = this.team === 1 ? zone.x1 - off : zone.x0 + off;
@@ -357,7 +386,7 @@ export class AIController {
     const bestOwn = (pred) => {
       const pool = UNIT_IDS
         .map((id) => ({ id, s: game.ustat(t, id) }))
-        .filter(({ s }) => s.tier <= game.tier[t] && pred(s));
+        .filter(({ s }) => s.tier <= game.tier[t] && this.unlocked(game, s) && pred(s));
       if (pool.length === 0) return null;
       pool.sort((a, b) => b.s.cost - a.s.cost);
       const affordable = pool.find(({ s }) => s.cost <= game.money[t]);
@@ -393,7 +422,7 @@ export class AIController {
     // unit ids whose RESOLVED stats fall in a category (within the unlocked tier)
     const poolFor = (cat) => UNIT_IDS.filter((id) => {
       const s = game.ustat(this.team, id);
-      return s.tier <= tier && categoryOf(s) === cat;
+      return s.tier <= tier && this.unlocked(game, s) && categoryOf(s) === cat;
     });
 
     let bestCat = null;
@@ -408,8 +437,11 @@ export class AIController {
       }
     }
     const pool = bestCat ? poolFor(bestCat)
-      : UNIT_IDS.filter((id) => game.ustat(this.team, id).tier <= tier);
-    if (pool.length === 0) return 'grunt';
+      : UNIT_IDS.filter((id) => {
+          const s = game.ustat(this.team, id);
+          return s.tier <= tier && this.unlocked(game, s);
+        });
+    if (pool.length === 0) return null;
     return pool[Math.floor(this.rng() * pool.length)];
   }
 

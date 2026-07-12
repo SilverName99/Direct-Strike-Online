@@ -9,7 +9,7 @@ import { RACES } from '../config.js';
 import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
 import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
-  FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
+  TECH_BUILDINGS, FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
   resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance, setUnitOrder,
   musicVolumeOf, setMusicVolume,
 } from './balance.js';
@@ -131,6 +131,15 @@ function fieldsFor(ent, kind) {
     out.push({
       group: G, label: 'Înălțime (celule)', type: 'num', value: u.ch || 1,
       apply: (v) => { u.ch = clamp(Math.round(v), 1, 20); },
+    });
+    // Which tech building unlocks (and hosts) this unit. "" = disponibil din
+    // Bază, fără clădire. Altfel, unitatea apare doar dacă acea clădire e ridicată.
+    out.push({
+      group: G, label: 'Clădire (deblochează)', type: 'selkv',
+      value: TECH_BUILDINGS.includes(u.building) ? u.building : '',
+      opts: [{ v: '', label: '— (niciuna)' },
+        ...TECH_BUILDINGS.map((bk) => ({ v: bk, label: buildingNameOf(RACE, bk) }))],
+      apply: (v) => { u.building = TECH_BUILDINGS.includes(v) ? v : ''; },
     });
     // idle/walk frame flip rate (flips per second). Attack animation is NOT
     // set here — it follows the unit's Attack period (one Attack 1<->2 cycle
@@ -314,7 +323,7 @@ function fieldsFor(ent, kind) {
   }
   // idle 1↔2 flip speed (entities with an uploaded idle animation; the main
   // base uses per-tier images instead, so no idle speed there)
-  if (ent === 'turret' || ent === 'tower' || ent === 'generator') {
+  if (ent === 'turret' || ent === 'tower' || ent === 'generator' || TECH_BUILDINGS.includes(ent)) {
     out.push({
       group: G, label: 'Viteză idle (flip/s)', type: 'num', value: b.idleSpeed ?? 2,
       apply: (v) => { b.idleSpeed = clamp(v, 0.2, 10); },

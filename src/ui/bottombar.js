@@ -16,7 +16,7 @@ import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
-  resolvedAbility, resolvedUpgrade, towerStatForTier,
+  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS,
 } from './balance.js';
 import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
@@ -29,6 +29,12 @@ const BUILDING_CARDS = [
     tip: 'Trage în sol și aer. Apără zona de construcție.' },
   { id: 'generator', hotkey: 'C', role: 'Clădire economică',
     tip: 'Fiecare adaugă aur în plus la fiecare 20s. Poate fi distrus — protejează-ți economia!' },
+  { id: 'bldg1', hotkey: 'V', role: 'Deblochează unități',
+    tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
+  { id: 'bldg2', hotkey: 'B', role: 'Deblochează unități',
+    tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
+  { id: 'bldg3', hotkey: 'N', role: 'Deblochează unități',
+    tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
 ];
 
 const STATUS_LABELS = {
@@ -503,7 +509,7 @@ export class BottomBar {
       ? this.inspectItems(game, info)
       : this.mode === 'buildings'
         ? this.buildingItems()
-        : this.unitItems();
+        : this.unitItems(game);
 
     for (let i = 0; i < 9; i++) {
       const slot = this.slots[i];
@@ -536,12 +542,19 @@ export class BottomBar {
     }
   }
 
-  unitItems() {
+  unitItems(game) {
     const race = raceOf(0);
-    return resolvedUnitOrder(race).map((id, i) => {
-      const u = statsUnit(race, id);
-      return { kind: 'unit', id, cost: u.cost, hotkey: i < 9 ? String(i + 1) : '' };
-    });
+    // only units whose tech building is built (unassigned units always show);
+    // tier-gating still shows as a lock badge in the grid
+    return resolvedUnitOrder(race)
+      .filter((id) => {
+        const b = (statsUnit(race, id) || {}).building;
+        return !b || !game || game.hasBuilding(0, b);
+      })
+      .map((id, i) => {
+        const u = statsUnit(race, id);
+        return { kind: 'unit', id, cost: u.cost, hotkey: i < 9 ? String(i + 1) : '' };
+      });
   }
 
   buildingItems() {
@@ -559,19 +572,31 @@ export class BottomBar {
     const isStruct = info.kind === 'structure';
     const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
 
-    // your own Main Base: the upgrades shop lives HERE (no more modal) —
-    // unowned = click to buy, owned = click to activate/deactivate — plus the
-    // tier upgrade (advance the base to the next tier) after the upgrades
+    // your own Main Base: only the tier upgrade (units + their upgrades now
+    // live in the tech buildings; heroes come later)
     if (own && isStruct && info.type === 'main') {
+      items.push({ kind: 'upgradeBase', id: 'upgrade' });
+      return items;
+    }
+
+    // your own tech building: the units it unlocks (buyable / placeable) plus
+    // those units' upgrades. A unit still needs the base at its tier.
+    if (own && isStruct && TECH_BUILDINGS.includes(info.type)) {
       const race = raceOf(0);
-      for (const id of UPGRADE_IDS) {
-        const up = resolvedUpgrade(id);
-        if (up && up.unit && (!up.race || up.race === race)) {
-          const unitTier = (game.ustat(0, up.unit) || {}).tier || 1;
-          items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: unitTier });
+      const myUnits = resolvedUnitOrder(race).filter((id) => (statsUnit(race, id) || {}).building === info.type);
+      for (const id of myUnits) {
+        const u = statsUnit(race, id);
+        items.push({ kind: 'unit', id, cost: u.cost, tier: u.tier });
+      }
+      for (const uid of myUnits) {
+        for (const id of UPGRADE_IDS) {
+          const up = resolvedUpgrade(id);
+          if (up && up.unit === uid && (!up.race || up.race === race)) {
+            items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: (statsUnit(race, uid) || {}).tier || 1 });
+          }
         }
       }
-      items.push({ kind: 'upgradeBase', id: 'upgrade' });
+      items.push({ kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) });
       return items;
     }
 
@@ -837,9 +862,19 @@ export class BottomBar {
       const extra = d.id === 'tower'
         ? `${s.hp} HP · ${(s.damage / Math.max(0.1, s.period)).toFixed(1)} DPS · rază ${s.range}`
         : d.id === 'generator' ? `${s.hp} HP · +${s.income} aur/20s` : `${s.hp} HP`;
+      let unlocks = '';
+      if (TECH_BUILDINGS.includes(d.id)) {
+        const names = resolvedUnitOrder(race)
+          .filter((id) => (statsUnit(race, id) || {}).building === d.id)
+          .map((id) => (statsUnit(race, id) || {}).name || id);
+        unlocks = names.length
+          ? `<div class="p-dim">Deblochează: ${names.join(', ')}</div>`
+          : '<div class="p-dim">(nicio unitate asignată — vezi /admin)</div>';
+      }
       return `<div class="p-title">${buildingNameOf(race, d.id)} · ◆ ${s.cost}</div>
         <div class="p-dim">${b ? b.role : ''}</div>
         <div>${b ? b.tip : ''}</div>
+        ${unlocks}
         <div class="p-dim">${extra} · max ${s.cap}</div>`;
     }
     if (d.kind === 'upgradeBase') {

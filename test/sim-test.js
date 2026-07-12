@@ -622,6 +622,7 @@ console.log('abilities (casters, auras, status effects)');
       upgrades: { dashmount: { race: 'orcs', unit: 'crab', params: { cost: 100, radius: 260, dashSpeed: 720, dmDamage: 22, dmRange: 30, dmPeriod: 0.8, dmSpeed: 95, dmSize: 100 } } },
     });
     const game = new Game(11, { races: ['humans', 'orcs'] });
+    game.tier[1] = 3; // crab is tier 3 — the upgrade is gated behind the unit's tier
     game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'dashmount' });
     const rider = spawnUnit(game, 1, 'crab', 950, 300);
     const archer = spawnUnit(game, 0, 'slinger', 700, 300); // in trigger radius, at mounted range
@@ -655,6 +656,7 @@ console.log('abilities (casters, auras, status effects)');
       upgrades: { dashmount: { race: 'orcs', unit: 'crab', params: { cost: 100, radius: 300, dashSpeed: 720, dmDamage: 22, dmRange: 5, dmPeriod: 0.8, dmSpeed: 95, dmSize: 100 } } },
     });
     const game = new Game(11, { races: ['humans', 'orcs'] });
+    game.tier[1] = 3; // crab is tier 3
     game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'dashmount' });
     const rider = spawnUnit(game, 1, 'crab', 990, 300);
     const archer = spawnUnit(game, 0, 'slinger', 700, 300);
@@ -1287,6 +1289,7 @@ console.log('abilities (casters, auras, status effects)');
     };
     applyBalance({ upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: P } } });
     const game = new Game(12, { races: ['humans', 'orcs'] });
+    game.tier[1] = 2; // wasp is tier 2 — the upgrade is gated behind the unit's tier
     game.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
     const rider = spawnUnit(game, 1, 'wasp', 900, 400);
     const foe = spawnUnit(game, 0, 'grunt', 780, 400); foe.hp = foe.maxHp = 100000;
@@ -1315,6 +1318,7 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({ upgrades: { splitmount: { race: 'orcs', unit: 'wasp',
       params: { ...P, dmDamage: 0, beastDamage: 0, dmRanged: 0 } } } });
     const gd = new Game(12, { races: ['humans', 'orcs'] });
+    gd.tier[1] = 2;
     gd.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
     spawnUnit(gd, 1, 'wasp', 900, 400);
     const foeD = spawnUnit(gd, 0, 'grunt', 780, 400); foeD.hp = foeD.maxHp = 100000;
@@ -1330,6 +1334,7 @@ console.log('abilities (casters, auras, status effects)');
       upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: P } },
     });
     const ga = new Game(12, { races: ['humans', 'orcs'] });
+    ga.tier[1] = 2;
     ga.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
     const riderA = spawnUnit(ga, 1, 'wasp', 900, 400);
     spawnUnit(ga, 0, 'grunt', 780, 400); // flying enemy
@@ -1340,6 +1345,7 @@ console.log('abilities (casters, auras, status effects)');
     // no enemy nearby -> stays whole; toggled off -> never splits
     applyBalance({ upgrades: { splitmount: { race: 'orcs', unit: 'wasp', params: P } } });
     const g2 = new Game(12, { races: ['humans', 'orcs'] });
+    g2.tier[1] = 2;
     g2.issueCommand({ type: 'buyUpgrade', team: 1, id: 'splitmount' });
     const lone = spawnUnit(g2, 1, 'wasp', 3000, 400);
     g2.update(DT); g2.drainEvents();
