@@ -34,7 +34,8 @@ export class Game {
     this.upgradeOff = [new Set(), new Set()]; // per team: upgrade id owned but deactivated
     this.incomeMult = options.incomeMult || [1, 1];
 
-    this.waveTimer = CONFIG.WAVE_INTERVAL;
+    // the first round can run on its own timer; every later wave uses WAVE_INTERVAL
+    this.waveTimer = CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL;
     this.waveCount = 0;
 
     this.templates = [[], []]; // per team: {type, x, y}

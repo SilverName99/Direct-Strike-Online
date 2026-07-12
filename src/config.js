@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.45';
+export const VERSION = 'v10.46';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -154,6 +154,7 @@ export const CONFIG = {
 
   // Waves
   WAVE_INTERVAL: 20,
+  FIRST_WAVE_INTERVAL: 20, // seconds until the very first wave (round 1 only)
   MAX_TEMPLATES: 40, // per team
   SPAWN_JITTER: 4,
   TEMPLATE_MIN_DIST: 16, // no two templates on the same spot

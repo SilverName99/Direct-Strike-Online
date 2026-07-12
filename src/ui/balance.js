@@ -53,6 +53,7 @@ export const GENERAL_FIELDS = [
   ['START_MONEY', 'Starting money'],
   ['INCOME_BASE', 'Starting gold every 20 seconds'],
   ['MID_INCOME', 'Extra gold every 20s past middle'],
+  ['FIRST_WAVE_INTERVAL', 'Seconds until first wave (round 1)'],
   ['WAVE_INTERVAL', 'Seconds between waves'],
   ['MAX_TEMPLATES', 'Max placed units per side'],
   ['SELL_REFUND', 'Unit sell refund (0-1)'],
