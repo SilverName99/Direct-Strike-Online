@@ -187,6 +187,13 @@ for (const btn of document.querySelectorAll('.btn.diff')) {
 }
 
 window.addEventListener('resize', () => renderer.resize());
+// entering/leaving fullscreen resizes the wrapper over a couple of frames —
+// re-fit the canvas immediately AND after layout settles so the backing store
+// always matches the display (no stale/black strips)
+document.addEventListener('fullscreenchange', () => {
+  renderer.resize();
+  requestAnimationFrame(() => renderer.resize());
+});
 renderer.resize();
 camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
 

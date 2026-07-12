@@ -161,11 +161,21 @@ export class Renderer {
   resize() {
     // Fill the whole wrapper — the camera crops the world, so no aspect lock.
     const wrap = this.canvas.parentElement;
-    const dpr = window.devicePixelRatio || 1;
-    this.canvas.style.width = `${wrap.clientWidth}px`;
-    this.canvas.style.height = `${wrap.clientHeight}px`;
-    this.canvas.width = Math.round(wrap.clientWidth * dpr);
-    this.canvas.height = Math.round(wrap.clientHeight * dpr);
+    const cssW = wrap.clientWidth;
+    const cssH = wrap.clientHeight;
+    // Cap the backing store: a 4K / high-DPR display would otherwise build an
+    // enormous canvas that some GPUs rasterize in tiles and present half-drawn
+    // (flickering black bands in fullscreen), besides tanking the frame rate.
+    // Normal displays (<=1440p) stay at full device resolution. screenToWorld
+    // derives the real ratio from canvas-vs-CSS size, so input stays exact.
+    const MAX_DIM = 2880;
+    let dpr = window.devicePixelRatio || 1;
+    const longest = Math.max(cssW, cssH) * dpr;
+    if (longest > MAX_DIM) dpr *= MAX_DIM / longest;
+    this.canvas.style.width = `${cssW}px`;
+    this.canvas.style.height = `${cssH}px`;
+    this.canvas.width = Math.max(1, Math.round(cssW * dpr));
+    this.canvas.height = Math.max(1, Math.round(cssH * dpr));
     if (this.camera) this.camera.clamp();
   }
 
