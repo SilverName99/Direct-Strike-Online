@@ -32,7 +32,9 @@ export function buildZonesFor(team) {
 // buildings, x/y (world cursor) picks the construction rect the cursor is in
 // (or nearest), so both the base zone and the mid pocket snap correctly.
 export function zoneFor(selected, x = null, y = null) {
-  if (selected === 'wall' || selected === 'tower' || selected === 'generator') {
+  // Any placeable building snaps to a construction rect (base zone or mid
+  // pocket); everything else (units) snaps to the army zone.
+  if (CONFIG.BUILDINGS[selected]) {
     const zones = buildZonesFor(0);
     if (x == null || y == null) return zones[0];
     for (const z of zones) {
