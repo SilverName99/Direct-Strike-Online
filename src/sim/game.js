@@ -350,6 +350,10 @@ export class Game {
       const up = resolvedUpgrade(cmd.id);
       if (!up || !up.unit) return { ok: false, reason: 'no-unit' }; // must target a unit
       if (up.race && up.race !== this.races[cmd.team]) return { ok: false, reason: 'wrong-race' };
+      // gated behind the target unit's tier: you can't buy an upgrade for a
+      // tier-2 unit until your base is tier 2 (etc.)
+      const upUnit = this.ustat(cmd.team, up.unit);
+      if (upUnit && this.tier[cmd.team] < (upUnit.tier || 1)) return { ok: false, reason: 'tier-locked' };
       if (this.upgrades[cmd.team].has(cmd.id)) return { ok: false, reason: 'owned' };
       const cost = up.params.cost || 0;
       if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };

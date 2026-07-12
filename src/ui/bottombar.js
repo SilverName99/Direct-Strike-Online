@@ -567,7 +567,8 @@ export class BottomBar {
       for (const id of UPGRADE_IDS) {
         const up = resolvedUpgrade(id);
         if (up && up.unit && (!up.race || up.race === race)) {
-          items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0 });
+          const unitTier = (game.ustat(0, up.unit) || {}).tier || 1;
+          items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: unitTier });
         }
       }
       items.push({ kind: 'upgradeBase', id: 'upgrade' });
@@ -734,6 +735,8 @@ export class BottomBar {
         if (owned) {
           el.classList.add('owned-upg');
           el.classList.add(game.upgradeOff[0].has(d.id) ? 'off' : 'on');
+        } else if (d.tier && d.tier > game.tier[0]) {
+          el.classList.add('locked'); this.setLockTier(el, d.tier); // needs the unit's tier
         } else if (game.money[0] < d.cost) {
           el.classList.add('disabled');
         }
@@ -870,15 +873,20 @@ export class BottomBar {
       const team = d.team || 0;
       const owned = game && game.upgrades[team].has(d.id);
       const off = owned && game.upgradeOff[team].has(d.id);
-      const uname = (statsUnit(up.race || race, up.unit) || {}).name || up.unit;
+      const ustats = statsUnit(up.race || race, up.unit) || {};
+      const uname = ustats.name || up.unit;
+      const unitTier = ustats.tier || 1;
+      const tierLocked = !owned && d.kind === 'buyUpgrade' && game && unitTier > game.tier[0];
       const state = owned
         ? (off ? 'DEZACTIVAT' : 'ACTIV')
-        : d.kind === 'buyUpgrade'
-          ? `◆ ${up.params.cost || 0} — click pentru a cumpăra`
-          : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
+        : tierLocked
+          ? `blocat — necesită Tier ${'I'.repeat(unitTier)}`
+          : d.kind === 'buyUpgrade'
+            ? `◆ ${up.params.cost || 0} — click pentru a cumpăra`
+            : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
       return `<div class="p-title">🐗 ${up.name} — ${state}</div>
         <div>${up.desc || ''}</div>
-        <div class="p-dim">Unitate: ${uname}</div>
+        <div class="p-dim">Unitate: ${uname} (Tier ${'I'.repeat(unitTier)})</div>
         ${owned && (d.own || d.kind === 'buyUpgrade') ? '<div class="p-dim">Click: activează/dezactivează.</div>' : ''}`;
     }
     if (d.kind === 'sell') {
