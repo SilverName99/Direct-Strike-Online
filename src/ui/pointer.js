@@ -18,6 +18,12 @@ export class PointerManager {
     this.vy = 0;
     this.lastTarget = null;
     this.hoverCard = null;
+    // Mouse capture (pointer lock) drives a virtual cursor — needed only to keep
+    // the mouse inside the window for edge-scroll on multi-monitor. It costs a
+    // little cursor latency, so it is OPT-IN; by default fullscreen uses the
+    // real hardware cursor (zero delay). Persisted across sessions.
+    this.captureMouse = false;
+    try { this.captureMouse = localStorage.getItem('ds-capture-mouse') === '1'; } catch { /* private mode */ }
 
     this.cursor = document.createElement('div');
     this.cursor.id = 'vcursor';
@@ -71,7 +77,7 @@ export class PointerManager {
     // released only the lock) — the first real click on the map re-captures,
     // like native web games.
     canvas.addEventListener('mousedown', (e) => {
-      if (e.isTrusted && document.fullscreenElement && !document.pointerLockElement) {
+      if (e.isTrusted && this.captureMouse && document.fullscreenElement && !document.pointerLockElement) {
         this.requestLock();
       }
     });
@@ -221,7 +227,20 @@ export class PointerManager {
         toast('Fullscreen blocked by the browser — press F to retry');
       });
     }
-    this.requestLock();
+    // Only capture the pointer when the user opted in; otherwise fullscreen uses
+    // the hardware cursor (no virtual-cursor latency).
+    if (this.captureMouse) this.requestLock();
+  }
+
+  // Turn mouse capture (pointer lock) on/off, persisted. Turning it off frees
+  // the pointer immediately (back to the delay-free hardware cursor); turning
+  // it on captures now if already in fullscreen.
+  setCaptureMouse(on) {
+    this.captureMouse = !!on;
+    try { localStorage.setItem('ds-capture-mouse', on ? '1' : '0'); } catch { /* private mode */ }
+    if (!on && document.pointerLockElement) document.exitPointerLock();
+    if (on && document.fullscreenElement && !document.pointerLockElement) this.requestLock();
+    return this.captureMouse;
   }
 
   requestLock() {
