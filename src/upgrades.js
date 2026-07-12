@@ -121,7 +121,7 @@ export const UPGRADES = {
   },
   lightshield: {
     name: 'Scut de lumină',
-    desc: 'Când viața unității scade sub un prag (%), invocă un scut de lumină și devine INVULNERABILĂ câteva secunde, apoi intră în cooldown înainte să se poată reactiva (ex. Lightblade Weaver). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de un frame „Scut" pe unitate (scutul de lumină propriu-zis e desenat automat).',
+    desc: 'Când viața unității scade sub un prag (%), invocă un scut de lumină și devine INVULNERABILĂ câteva secunde, apoi intră în cooldown înainte să se poată reactiva (ex. Lightblade Weaver). Scutul se pune și pe cei mai apropiați aliați (configurabil). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de un frame „Scut" pe unitate (scutul de lumină propriu-zis e desenat automat).',
     kind: 'shield',
     race: '',   // which race's unit this targets
     unit: '',   // which unit type gains the shield (set in admin)
@@ -132,6 +132,8 @@ export const UPGRADES = {
       cooldown: 12,    // seconds before it can trigger again (after it ends)
       shieldSize: 100, // size of the light dome (%, 100 = default)
       poseTime: 0.5,   // seconds the unit holds the "shield" activation pose
+      allies: 1,       // how many nearby allies also get the shield (0 = none)
+      allyRange: 250,  // radius to look for those allies (0 = whole field)
     },
   },
 };
@@ -159,6 +161,8 @@ export const UPGRADE_PARAM_LABELS = {
   cooldown: 'Cooldown (s)',
   shieldSize: 'Mărime scut (%)',
   poseTime: 'Durată poză activare (s)',
+  allies: 'Aliați scutați în plus',
+  allyRange: 'Rază aliați (0 = tot terenul)',
   dmRanged: 'Călărețul rămâne ranged (1/0)',
   dashDamage: 'Damage la impact (dash)',
   splashPower: 'Putere splash (% din damage)',

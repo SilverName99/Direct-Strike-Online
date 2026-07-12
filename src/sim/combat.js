@@ -422,33 +422,62 @@ function acidUpgradeFor(game, u) {
 }
 
 // The active "Scut de lumină" (kind 'shield') upgrade for u's type, else null.
-function shieldUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue;
+// The active 'shield' upgrade for this team (whatever unit it's attached to),
+// or null. The upgrade's `unit` is the SOURCE (e.g. the Lightblade Weaver) that
+// projects the shield onto itself and onto nearby allies.
+function teamShieldUpgrade(game, team) {
+  for (const id of game.upgrades[team]) {
+    if (!game.upgradeActive(team, id)) continue;
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'shield' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'shield' && (!up.race || up.race === game.races[team])) return up;
   }
   return null;
 }
 
-// Trigger the shield the instant the unit is below its HP threshold (and not
+// Grant the light shield to a unit: invulnerable for `duration`, then a
+// cooldown before it can be shielded again.
+function applyShield(game, u, p, now) {
+  u.shieldAt = now;
+  u.shieldUntil = now + (p.duration || 3);
+  u.shieldCd = u.shieldUntil + (p.cooldown || 0);
+  u.shieldScale = Math.max(0.2, Math.min(6, (p.shieldSize || 100) / 100));
+  u.shieldPose = Math.max(0, p.poseTime != null ? p.poseTime : 0.5);
+  game.events.push({ type: 'shield', x: u.x, y: u.y, team: u.team, unitId: u.id });
+}
+
+// Trigger the shield the instant a unit drops below its HP threshold (and isn't
 // already shielded / on cooldown). While shielded, applyDamage ignores hits.
+// The SOURCE unit (the upgrade's `unit`, e.g. the Weaver) always shields
+// itself; in addition, up to `allies` nearby allies get the same shield —
+// whoever drops below the threshold first claims a slot until it frees up.
 function maybeShield(game, u) {
-  const up = shieldUpgradeFor(game, u);
+  const up = teamShieldUpgrade(game, u.team);
   if (!up) return;
   const now = game.time;
   if ((u.shieldUntil && now < u.shieldUntil) || (u.shieldCd && now < u.shieldCd)) return;
   const p = up.params;
   const thresh = Math.max(1, Math.min(99, p.threshold || 50)) / 100;
-  if (u.hp > 0 && u.hp < u.maxHp * thresh) {
-    const dur = p.duration || 3;
-    u.shieldAt = now;
-    u.shieldUntil = now + dur;
-    u.shieldCd = now + dur + (p.cooldown || 0);
-    u.shieldScale = Math.max(0.2, Math.min(6, (p.shieldSize || 100) / 100));
-    u.shieldPose = Math.max(0, p.poseTime != null ? p.poseTime : 0.5);
-    game.events.push({ type: 'shield', x: u.x, y: u.y, team: u.team, unitId: u.id });
+  if (!(u.hp > 0 && u.hp < u.maxHp * thresh)) return;
+
+  // the source unit always protects itself
+  if (u.type === up.unit) { applyShield(game, u, p, now); return; }
+
+  // ally path: needs a living source (Weaver) in range and a free ally slot
+  const cap = Math.max(0, Math.round(p.allies != null ? p.allies : 1));
+  if (cap <= 0) return;
+  const range = p.allyRange || 0; // 0 = whole field
+  let sourceNear = false;
+  let shieldedAllies = 0;
+  for (const e of game.entities) {
+    if (e.team !== u.team || e.hp <= 0) continue;
+    if (e.type === up.unit) {
+      if (!sourceNear && (range <= 0 ||
+          (e.x - u.x) ** 2 + (e.y - u.y) ** 2 <= range * range)) sourceNear = true;
+    } else if (e !== u && e.shieldUntil && now < e.shieldUntil) {
+      shieldedAllies++;
+    }
   }
+  if (sourceNear && shieldedAllies < cap) applyShield(game, u, p, now);
 }
 
 // The active "Fireball" (kind 'fire') upgrade transforming u's type, else null.
