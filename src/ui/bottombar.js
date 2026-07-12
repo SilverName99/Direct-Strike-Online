@@ -605,10 +605,6 @@ export class BottomBar {
         }
       }
       const onUpg = this.bldgView === 'upgrades';
-      // toggle button only when there's actually an upgrades page to reach
-      if (upgrades.length) {
-        items.push({ kind: 'bldgView', to: onUpg ? 'units' : 'upgrades' });
-      }
       if (onUpg) {
         items.push(...upgrades);
       } else {
@@ -618,6 +614,15 @@ export class BottomBar {
         }
       }
       items.push({ kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) });
+      // Pin the ⬆/⬇ toggle to the LAST cell (slot 8), independent of how many
+      // units/upgrades fill the earlier slots. Only shown when an upgrades page
+      // exists; the rest keep their sequential slots 0..7.
+      if (upgrades.length) {
+        const grid = new Array(9).fill(null);
+        for (let i = 0; i < Math.min(items.length, 8); i++) grid[i] = items[i];
+        grid[8] = { kind: 'bldgView', to: onUpg ? 'units' : 'upgrades' };
+        return grid;
+      }
       return items;
     }
 
