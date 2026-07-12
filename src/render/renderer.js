@@ -888,9 +888,9 @@ export class Renderer {
           anim = `${u.summonKind}-${anim}`;
         }
         // Scut de lumină: show the "shield" pose only for the ACTIVATION moment
-        // (~0.5s); after that the unit keeps fighting normally, with the light
-        // dome (drawn separately) over it for the rest of the invulnerability
-        if (u.shieldAt >= 0 && game.time < u.shieldAt + 0.5 && hasShieldAnim(u.type, u.team)) {
+        // (configurable); after that the unit keeps fighting normally, with the
+        // light dome (drawn separately) over it for the rest of the invuln
+        if (u.shieldAt >= 0 && game.time < u.shieldAt + (u.shieldPose ?? 0.5) && hasShieldAnim(u.type, u.team)) {
           anim = 'shield'; frame = 0;
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, vScale);

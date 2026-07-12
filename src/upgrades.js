@@ -131,6 +131,7 @@ export const UPGRADES = {
       duration: 3,     // seconds of invulnerability
       cooldown: 12,    // seconds before it can trigger again (after it ends)
       shieldSize: 100, // size of the light dome (%, 100 = default)
+      poseTime: 0.5,   // seconds the unit holds the "shield" activation pose
     },
   },
 };
@@ -157,6 +158,7 @@ export const UPGRADE_PARAM_LABELS = {
   duration: 'Durată invulnerabilitate (s)',
   cooldown: 'Cooldown (s)',
   shieldSize: 'Mărime scut (%)',
+  poseTime: 'Durată poză activare (s)',
   dmRanged: 'Călărețul rămâne ranged (1/0)',
   dashDamage: 'Damage la impact (dash)',
   splashPower: 'Putere splash (% din damage)',
