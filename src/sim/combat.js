@@ -23,6 +23,12 @@ export function effStats(u, stats) {
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
+    // Scut de lumină: the activation pose has finished -> the shield "appears"
+    // now (bright flash + ring), matching when invulnerability actually starts.
+    if (u.shieldPending && game.time >= u.shieldFrom) {
+      u.shieldPending = false;
+      game.events.push({ type: 'shield', x: u.x, y: u.y, team: u.team, unitId: u.id });
+    }
     const base = game.ustatOf(u);
     let stats = effStats(u, base);
     // Summoned animals are plain fighters with their own stats — they never
@@ -434,15 +440,19 @@ function teamShieldUpgrade(game, team) {
   return null;
 }
 
-// Grant the light shield to a unit: invulnerable for `duration`, then a
-// cooldown before it can be shielded again.
+// Grant the light shield to a unit. The unit first holds an activation pose for
+// `poseTime`; the invulnerability + dome (and the light flash) only kick in
+// AFTER the pose finishes, and last `duration`, then a cooldown before it can be
+// shielded again.
 function applyShield(game, u, p, now) {
-  u.shieldAt = now;
-  u.shieldUntil = now + (p.duration || 3);
+  const pose = Math.max(0, p.poseTime != null ? p.poseTime : 0.5);
+  u.shieldAt = now;               // pose starts now
+  u.shieldFrom = now + pose;      // invulnerability + dome begin here
+  u.shieldUntil = u.shieldFrom + (p.duration || 3);
   u.shieldCd = u.shieldUntil + (p.cooldown || 0);
   u.shieldScale = Math.max(0.2, Math.min(6, (p.shieldSize || 100) / 100));
-  u.shieldPose = Math.max(0, p.poseTime != null ? p.poseTime : 0.5);
-  game.events.push({ type: 'shield', x: u.x, y: u.y, team: u.team, unitId: u.id });
+  u.shieldPose = pose;
+  u.shieldPending = true;         // the light flash fires when the pose ends
 }
 
 // Trigger the shield the instant a unit drops below its HP threshold (and isn't
@@ -713,8 +723,9 @@ function effDist(a, b) {
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {
-  // "Scut de lumină" upgrade: a shielded unit takes no damage at all
-  if (target.shieldUntil && game.time < target.shieldUntil) return;
+  // "Scut de lumină" upgrade: a shielded unit takes no damage at all — but only
+  // once the activation pose has finished (game.time in [shieldFrom, shieldUntil]).
+  if (target.shieldUntil && game.time >= (target.shieldFrom || 0) && game.time < target.shieldUntil) return;
   // tolerate a unit with no configured damage type (e.g. one flipped from
   // healer to fighter in the admin) — fall back to plain 'normal' damage
   const row = DAMAGE_MATRIX[dmgType] || DAMAGE_MATRIX.normal;

@@ -951,8 +951,9 @@ export class Renderer {
       if (u.effects && u.effects.length) {
         this.drawEffectIndicators(ctx, u, x, y, stats.radius);
       }
-      // Scut de lumină: a glowing dome while invulnerable (fades out at the end)
-      if (u.shieldUntil && game.time < u.shieldUntil) {
+      // Scut de lumină: a glowing dome while invulnerable (only after the
+      // activation pose finishes; fades out at the end)
+      if (u.shieldUntil && game.time >= (u.shieldFrom || 0) && game.time < u.shieldUntil) {
         const fade = Math.max(0, Math.min(1, (u.shieldUntil - game.time) / 0.5));
         ctx.save();
         ctx.translate(x, y);

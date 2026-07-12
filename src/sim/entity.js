@@ -49,7 +49,7 @@ export function spawnUnit(game, team, type, x, y) {
     mana: s.caster ? (s.mana || 0) : 0,    // casting resource
     manaMax: s.caster ? (s.mana || 0) : 0,
     // "Scut de lumină" upgrade state (invulnerability window)
-    shieldAt: -1, shieldUntil: 0, shieldCd: 0, shieldScale: 1, shieldPose: 0.5,
+    shieldAt: -1, shieldFrom: 0, shieldUntil: 0, shieldCd: 0, shieldScale: 1, shieldPose: 0.5, shieldPending: false,
     targetId: null,
     state: 'march',
     radius,
