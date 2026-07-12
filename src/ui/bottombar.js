@@ -734,6 +734,12 @@ export class BottomBar {
     }
     if (data.kind === 'bldgView') {
       const toUpg = data.to === 'upgrades';
+      const img = getUiIcon(toUpg ? 'bldg-upgrades' : 'bldg-units');
+      if (img) {
+        const s = Math.min(46 / img.width, 46 / img.height);
+        ctx.drawImage(img, (46 - img.width * s) / 2, (46 - img.height * s) / 2, img.width * s, img.height * s);
+        return;
+      }
       ctx.fillStyle = '#ffd35c';
       ctx.font = 'bold 26px sans-serif';
       ctx.textAlign = 'center';

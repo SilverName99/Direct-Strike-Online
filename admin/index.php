@@ -68,6 +68,9 @@ function iconKeys(): array {
   $keys = [];
   foreach (ABILITY_INFO as $id => $_) $keys["ability-$id"] = ABILITY_INFO[$id][0];
   foreach (UPGRADE_INFO as $id => $name) $keys["upgrade-$id"] = $name;
+  // building command-card page toggle buttons (units <-> upgrades)
+  $keys['bldg-upgrades'] = 'Buton „Upgrade-uri" (clădire)';
+  $keys['bldg-units'] = 'Buton „Unități" (clădire)';
   return $keys;
 }
 // per-race shop tab buttons (UNITS / CLĂDIRI) — tab-<slot>.png in the race dir
