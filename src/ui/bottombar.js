@@ -54,6 +54,7 @@ export class BottomBar {
 
     this.tab = 'units';          // last shop tab
     this.mode = 'units';         // 'units' | 'buildings' | 'inspect'
+    this.bldgView = 'units';     // tech-building card: 'units' | 'upgrades'
     this.lastInspectKey = null;
     this.sig = null;             // grid rebuild signature
 
@@ -246,7 +247,7 @@ export class BottomBar {
     // its command card. Tab buttons change `mode` without touching
     // uiState.inspect, so clicking a tab and then re-clicking the same base
     // correctly re-opens the base's upgrades.
-    if (sel && sel !== this.lastInspectRef) this.mode = 'inspect';
+    if (sel && sel !== this.lastInspectRef) { this.mode = 'inspect'; this.bldgView = 'units'; }
     this.lastInspectRef = sel;
     // selection gone or stale (sold / died / clicked empty): back to the shop
     if (this.mode === 'inspect' && !info) this.mode = this.tab;
@@ -299,7 +300,7 @@ export class BottomBar {
       const upgs = [...game.upgrades[info.team]].sort().join(',') + '|' +
         [...game.upgradeOff[info.team]].sort().join(',');
       const spawned = info.kind === 'template' ? !!info.tpl.spawned : '';
-      s += `:${info.kind}:${info.type}:${info.team}:t${game.tier[info.team]}:${toggles}:${upgs}:${spawned}`;
+      s += `:${info.kind}:${info.type}:${info.team}:t${game.tier[info.team]}:${toggles}:${upgs}:${spawned}:bv${this.bldgView}`;
     }
     return s;
   }
@@ -579,21 +580,33 @@ export class BottomBar {
       return items;
     }
 
-    // your own tech building: the units it unlocks (buyable / placeable) plus
-    // those units' upgrades. A unit still needs the base at its tier.
+    // your own tech building: units and their upgrades live on SEPARATE pages
+    // so they don't crowd the same grid. Default page = units; a ⬆ toggle
+    // switches to the upgrades page (⬇ toggles back). A unit still needs the
+    // base at its tier.
     if (own && isStruct && TECH_BUILDINGS.includes(info.type)) {
       const race = raceOf(0);
       const myUnits = resolvedUnitOrder(race).filter((id) => (statsUnit(race, id) || {}).building === info.type);
-      for (const id of myUnits) {
-        const u = statsUnit(race, id);
-        items.push({ kind: 'unit', id, cost: u.cost, tier: u.tier });
-      }
+      const upgrades = [];
       for (const uid of myUnits) {
         for (const id of UPGRADE_IDS) {
           const up = resolvedUpgrade(id);
           if (up && up.unit === uid && (!up.race || up.race === race)) {
-            items.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: (statsUnit(race, uid) || {}).tier || 1 });
+            upgrades.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: (statsUnit(race, uid) || {}).tier || 1 });
           }
+        }
+      }
+      const onUpg = this.bldgView === 'upgrades';
+      // toggle button only when there's actually an upgrades page to reach
+      if (upgrades.length) {
+        items.push({ kind: 'bldgView', to: onUpg ? 'units' : 'upgrades' });
+      }
+      if (onUpg) {
+        items.push(...upgrades);
+      } else {
+        for (const id of myUnits) {
+          const u = statsUnit(race, id);
+          items.push({ kind: 'unit', id, cost: u.cost, tier: u.tier });
         }
       }
       items.push({ kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) });
@@ -704,6 +717,18 @@ export class BottomBar {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('💰', 23, 24);
+      return;
+    }
+    if (data.kind === 'bldgView') {
+      const toUpg = data.to === 'upgrades';
+      ctx.fillStyle = '#ffd35c';
+      ctx.font = 'bold 26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(toUpg ? '⬆' : '⬇', 23, 15);
+      ctx.fillStyle = '#cfe0f5';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(toUpg ? 'UPGRADE' : 'UNITĂȚI', 23, 36);
     }
   }
 
@@ -802,6 +827,11 @@ export class BottomBar {
     }
     if (d.kind === 'upgradeBase') {
       this.onShopClick('upgrade');
+      return;
+    }
+    if (d.kind === 'bldgView') {
+      this.bldgView = d.to;
+      this.sig = null; // force the grid to rebuild for the new page
       return;
     }
     if (!game) return;
@@ -927,6 +957,11 @@ export class BottomBar {
     if (d.kind === 'sell') {
       return `<div class="p-title">Vinde — ◆ ${d.cost}${d.full ? ' (100%, nespawnat)' : ''}</div>
         <div class="p-dim">${d.what === 'unit' ? 'Vinde acest șablon de unitate.' : 'Vinde această clădire.'}</div>`;
+    }
+    if (d.kind === 'bldgView') {
+      return d.to === 'upgrades'
+        ? `<div class="p-title">⬆ Upgrade-uri</div><div>Arată upgrade-urile unităților acestei clădiri.</div>`
+        : `<div class="p-title">⬇ Unități</div><div>Înapoi la unitățile clădirii.</div>`;
     }
     return '';
   }
