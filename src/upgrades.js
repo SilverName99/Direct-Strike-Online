@@ -130,6 +130,7 @@ export const UPGRADES = {
       threshold: 50,   // % HP under which the shield triggers
       duration: 3,     // seconds of invulnerability
       cooldown: 12,    // seconds before it can trigger again (after it ends)
+      shieldSize: 100, // size of the light dome (%, 100 = default)
     },
   },
 };
@@ -155,6 +156,7 @@ export const UPGRADE_PARAM_LABELS = {
   threshold: 'Prag activare (% HP)',
   duration: 'Durată invulnerabilitate (s)',
   cooldown: 'Cooldown (s)',
+  shieldSize: 'Mărime scut (%)',
   dmRanged: 'Călărețul rămâne ranged (1/0)',
   dashDamage: 'Damage la impact (dash)',
   splashPower: 'Putere splash (% din damage)',

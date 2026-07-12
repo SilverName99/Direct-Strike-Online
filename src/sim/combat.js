@@ -445,6 +445,7 @@ function maybeShield(game, u) {
     u.shieldAt = now;
     u.shieldUntil = now + dur;
     u.shieldCd = now + dur + (p.cooldown || 0);
+    u.shieldScale = Math.max(0.2, Math.min(6, (p.shieldSize || 100) / 100));
     game.events.push({ type: 'shield', x: u.x, y: u.y, team: u.team, unitId: u.id });
   }
 }

@@ -941,7 +941,7 @@ export class Renderer {
         const fade = Math.max(0, Math.min(1, (u.shieldUntil - game.time) / 0.5));
         ctx.save();
         ctx.translate(x, y);
-        drawLightShield(ctx, this.now, drawR, fade);
+        drawLightShield(ctx, this.now, drawR * (u.shieldScale || 1), fade);
         ctx.restore();
       }
     }
