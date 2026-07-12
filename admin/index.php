@@ -189,6 +189,11 @@ function portraitVidVariants(string $race, string $ent): array {
   $v = ['' => 'Animație portret (mp4/webm) — apare lângă statusuri'];
   if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) $v['-foot'] = 'Animație portret — călărețul PE JOS';
   if (unitHasSplit($race, $ent)) $v['-beast'] = 'Animație portret — BESTIA';
+  // a summoned animal (Shaman) can have its own portrait clip, hosted here
+  $ua = unitAbilities($race, $ent);
+  foreach (SUMMON_ANIMALS as $aid => $animal) {
+    if (in_array($aid, $ua, true)) $v["-$animal"] = 'Animație portret — ' . SUMMON_LABELS[$animal];
+  }
   return $v;
 }
 
@@ -430,7 +435,10 @@ function regenManifest(string $assetsDir): void {
     $pv = [];
     foreach (UNIT_LIST as $ent) {
       $forms = [];
-      foreach (['' => 'base', '-foot' => 'foot', '-beast' => 'beast'] as $suffix => $key) {
+      // every portrait-clip form this unit can have: base, foot, beast, and any
+      // summoned-animal forms (wolf/eagle/bear) — keyed by the form name
+      foreach (portraitVidVariants($r, $ent) as $suffix => $_label) {
+        $key = $suffix === '' ? 'base' : ltrim($suffix, '-');
         $vf = portraitVidFileFor($assetsDir, $r, $ent, $suffix);
         if ($vf) $forms[$key] = $vf;
       }

@@ -70,7 +70,7 @@ export function spawnSummon(game, caster, ab) {
   const animal = ab.animal || 'wolf';
   const radius = 12;
   const stats = {
-    name: ab.name || animal,
+    name: ab.animalName || ab.name || animal,
     hp: Math.max(1, p.hp || 1),
     damage: p.damage || 0, range: p.range || 25, period: p.period || 1,
     dmgType: 'normal', armor: p.armored ? 'armored' : 'light',

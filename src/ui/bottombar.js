@@ -331,7 +331,8 @@ export class BottomBar {
     // fall back to the sprite/vector portrait drawn on the canvas. A split
     // rider (on foot) / beast plays its OWN clip when one was uploaded. The
     // gold mine plays its map clip (mineidle) in the portrait too.
-    const form = info.kind === 'entity' && info.u.beast ? 'beast'
+    const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
+      : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     const vid = info.kind === 'structure' && info.type === 'generator'
       ? (getMineVideoUrl(raceOf(info.team), 'mineidle') || getPortraitVideoUrl(raceOf(info.team), info.type, form))
@@ -343,7 +344,10 @@ export class BottomBar {
 
     const own = info.team === 0;
     const isStruct = info.kind === 'structure';
-    const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
+    // a summoned animal shows its OWN stats (its type only hosts sprites)
+    const stats = isStruct ? game.bstat(info.team, info.type)
+      : info.kind === 'entity' ? game.ustatOf(info.u)
+      : game.ustat(info.team, info.type);
     const name = stats.name || info.type;
     let sub;
     if (isStruct) {
@@ -352,6 +356,8 @@ export class BottomBar {
         : info.type === 'tower'
           ? `Clădire · Tier ${'I'.repeat(Math.max(1, game.tier[info.team]))}${stats.cost ? ` · ◆ ${stats.cost}` : ''}`
           : `Clădire${stats.cost ? ` · ◆ ${stats.cost}` : ''}`;
+    } else if (info.kind === 'entity' && info.u.summon) {
+      sub = 'Animal invocat';
     } else {
       sub = `Tier ${stats.tier} · ◆ ${stats.cost}` +
         (info.kind === 'template' && !info.tpl.spawned ? ' · nou (100% la vânzare)' : '');
@@ -440,12 +446,16 @@ export class BottomBar {
     const frame = Math.floor(performance.now() / 500) % 2;
     // a split beast / rider on foot shows its own art: form idle sprite, then
     // form thumbnail, then the whole unit's idle sprite / thumb, then vectors
-    const form = info.kind === 'entity' && info.u.beast ? 'beast'
+    const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
+      : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     let entry = null;
     if (form !== 'base') {
-      const fa = `${form}-idle`;
-      entry = getSprite(race, info.type, fa, frame) || getSprite(race, info.type, fa, 0);
+      // form idle, then walk/attack (summoned animals have no idle frame)
+      for (const a of [`${form}-idle`, `${form}-walk`, `${form}-attack`]) {
+        entry = getSprite(race, info.type, a, frame) || getSprite(race, info.type, a, 0);
+        if (entry) break;
+      }
       if (!entry) {
         const ft = getThumb(race, info.type, form);
         if (ft && ft !== getThumb(race, info.type)) entry = ft; // the form's OWN thumb only

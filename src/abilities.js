@@ -92,6 +92,7 @@ export const ABILITIES = {
     name: 'Invocă Lup',
     kind: 'summon',
     animal: 'wolf', // sprite prefix hosted on the caster (wolf-walk/attack/die)
+    animalName: 'Lup',
     color: '#c8d0da',
     desc: 'Invocă un lup rapid care luptă alături de shaman (deblocat la tier 1).',
     params: {
@@ -107,6 +108,7 @@ export const ABILITIES = {
     name: 'Invocă Vultur',
     kind: 'summon',
     animal: 'eagle',
+    animalName: 'Vultur',
     color: '#ffe08a',
     desc: 'Invocă un vultur zburător (deblocat la tier 2).',
     params: {
@@ -121,6 +123,7 @@ export const ABILITIES = {
     name: 'Invocă Urs',
     kind: 'summon',
     animal: 'bear',
+    animalName: 'Urs',
     color: '#d8a86a',
     desc: 'Invocă un urs masiv și rezistent (deblocat la tier 3).',
     params: {
