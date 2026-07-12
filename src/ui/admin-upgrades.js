@@ -24,6 +24,18 @@ function unitOpts() {
   return opts;
 }
 
+// Grid-cell options for the upgrades page (cells 8/9 reserved for Vinde +
+// butonul de comutare). Value = slot index; -1 = auto.
+const SLOT_LABELS = [
+  [-1, 'Auto'], [0, 'Rând 1 · Col 1'], [1, 'Rând 1 · Col 2'], [2, 'Rând 1 · Col 3'],
+  [3, 'Rând 2 · Col 1'], [4, 'Rând 2 · Col 2'], [5, 'Rând 2 · Col 3'], [6, 'Rând 3 · Col 1'],
+];
+function slotOpts(cur) {
+  const c = Number.isInteger(cur) ? cur : -1;
+  return SLOT_LABELS.map(([v, label]) =>
+    `<option value="${v}" ${v === c ? 'selected' : ''}>${label}</option>`).join('');
+}
+
 function render() {
   let html = '';
   const UNIT_OPTS = unitOpts();
@@ -37,6 +49,8 @@ function render() {
       <div class="desc">${base.desc}</div>
       <div class="unit-row"><span>Se aplică unității:</span>
         <select data-up="${id}" data-unit="1">${opts}</select></div>
+      <div class="unit-row"><span>Poziție grilă clădire:</span>
+        <select data-up="${id}" data-slot="1">${slotOpts(up.slot)}</select></div>
       <div class="fields">`;
     for (const [k, v] of Object.entries(up.params)) {
       const label = UPGRADE_PARAM_LABELS[k] || k;
@@ -55,6 +69,11 @@ function collect() {
     const [race, unit] = sel.value ? sel.value.split(':') : ['', ''];
     up.race = race;
     up.unit = unit;
+  }
+  for (const sel of app.querySelectorAll('select[data-slot]')) {
+    const up = resolvedUpgrade(sel.dataset.up);
+    const n = parseInt(sel.value, 10);
+    if (up && isFinite(n)) up.slot = Math.max(-1, Math.min(6, n));
   }
   for (const el of app.querySelectorAll('input[data-up]')) {
     const up = resolvedUpgrade(el.dataset.up);

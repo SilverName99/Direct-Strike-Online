@@ -37,6 +37,24 @@ const BUILDING_CARDS = [
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
 ];
 
+// Lay out a building command-card page onto the 9 cells: sell fixed at slot 7,
+// the units/upgrades toggle at slot 8, and the page entries in cells 0..6 —
+// each at its admin-chosen `slot` (0..6) when free, otherwise auto-filling the
+// first empty cell. Entries whose slot collides or is out of range auto-fill.
+function layoutCardPage(entries, sellItem, toggleItem) {
+  const grid = new Array(9).fill(null);
+  grid[7] = sellItem;
+  grid[8] = toggleItem; // may be null (no upgrades page) -> empty cell
+  const auto = [];
+  for (const it of entries) {
+    const s = Number.isInteger(it.slot) ? it.slot : -1;
+    if (s >= 0 && s <= 6 && grid[s] == null) grid[s] = it;
+    else auto.push(it);
+  }
+  for (let i = 0; i <= 6 && auto.length; i++) if (grid[i] == null) grid[i] = auto.shift();
+  return grid;
+}
+
 const STATUS_LABELS = {
   atkslow: ['🐌', 'Atac încetinit', '#7fb4ff'],
   moveslow: ['❄', 'Mișcare încetinită', '#8fe3ff'],
@@ -600,30 +618,23 @@ export class BottomBar {
         for (const id of UPGRADE_IDS) {
           const up = resolvedUpgrade(id);
           if (up && up.unit === uid && (!up.race || up.race === race)) {
-            upgrades.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: (statsUnit(race, uid) || {}).tier || 1 });
+            upgrades.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: (statsUnit(race, uid) || {}).tier || 1, slot: Number.isInteger(up.slot) ? up.slot : -1 });
           }
         }
       }
       const onUpg = this.bldgView === 'upgrades';
-      if (onUpg) {
-        items.push(...upgrades);
-      } else {
-        for (const id of myUnits) {
-          const u = statsUnit(race, id);
-          items.push({ kind: 'unit', id, cost: u.cost, tier: u.tier });
-        }
-      }
-      items.push({ kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) });
-      // Pin the ⬆/⬇ toggle to the LAST cell (slot 8), independent of how many
-      // units/upgrades fill the earlier slots. Only shown when an upgrades page
-      // exists; the rest keep their sequential slots 0..7.
-      if (upgrades.length) {
-        const grid = new Array(9).fill(null);
-        for (let i = 0; i < Math.min(items.length, 8); i++) grid[i] = items[i];
-        grid[8] = { kind: 'bldgView', to: onUpg ? 'units' : 'upgrades' };
-        return grid;
-      }
-      return items;
+      const page = onUpg
+        ? upgrades
+        : myUnits.map((id) => {
+            const u = statsUnit(race, id);
+            return { kind: 'unit', id, cost: u.cost, tier: u.tier, slot: Number.isInteger(u.slot) ? u.slot : -1 };
+          });
+      // Fixed cells: sell at slot 7, the ⬆/⬇ toggle at slot 8. The units /
+      // upgrades occupy cells 0..6 at their admin-chosen slot (or auto-fill the
+      // first free cell when slot is -1).
+      const sell = { kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) };
+      const toggle = upgrades.length ? { kind: 'bldgView', to: onUpg ? 'units' : 'upgrades' } : null;
+      return layoutCardPage(page, sell, toggle);
     }
 
     if (!isStruct && stats.caster && stats.abilities) {
@@ -726,6 +737,12 @@ export class BottomBar {
       return;
     }
     if (data.kind === 'sell') {
+      const img = getUiIcon('sell');
+      if (img) {
+        const s = Math.min(46 / img.width, 46 / img.height);
+        ctx.drawImage(img, (46 - img.width * s) / 2, (46 - img.height * s) / 2, img.width * s, img.height * s);
+        return;
+      }
       ctx.font = '25px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

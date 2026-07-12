@@ -141,6 +141,7 @@ function baseUnits() {
       ranged: false, projectile: false,
       heal: false,         // healer behavior is opt-in (admin toggle), like every other special
       building: '',        // which tech building unlocks this unit ('' = none/always available)
+      slot: -1,            // fixed cell (0-6) on its building's units page (-1 = auto/sequential)
       buildingDamage: 0,   // special damage vs structures (0 = use the normal damage); always applies
       isAir: false, targetsAir: false,
       targetsGround: true, // can attack ground units (default on; turn off for air-only)
@@ -184,7 +185,7 @@ function baseAbilities() {
 const resolvedUpgrades = {};
 function baseUpgrades() {
   const t = {};
-  for (const [id, up] of Object.entries(UPGRADES)) t[id] = { ...up, params: { ...up.params } };
+  for (const [id, up] of Object.entries(UPGRADES)) t[id] = { ...up, slot: -1, params: { ...up.params } };
   return t;
 }
 
@@ -247,6 +248,7 @@ function raceUnitsSnapshot(race) {
       dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
+      slot: Number.isInteger(u.slot) ? u.slot : -1,
     };
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
     for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
@@ -278,7 +280,7 @@ function snapshot() {
   const abilities = {};
   for (const [id, ab] of Object.entries(resolvedAbilities)) abilities[id] = { ...ab.params };
   const upgrades = {};
-  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { race: up.race || '', unit: up.unit || '', params: { ...up.params } };
+  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { race: up.race || '', unit: up.unit || '', slot: Number.isInteger(up.slot) ? up.slot : -1, params: { ...up.params } };
   return {
     general,
     middles: CONFIG.MIDDLES.map((m) => ({ ...m })),
@@ -352,6 +354,7 @@ export function applyBalance(data) {
       if (!up || typeof vals !== 'object') continue;
       if (typeof vals.race === 'string' && (vals.race === '' || RACES.includes(vals.race))) up.race = vals.race;
       if (typeof vals.unit === 'string' && (vals.unit === '' || UNITS[vals.unit])) up.unit = vals.unit;
+      if (num(vals.slot) !== undefined) up.slot = Math.round(clamp(vals.slot, -1, 6));
       const params = vals.params || {};
       for (const k of Object.keys(up.params)) {
         if (num(params[k]) !== undefined) up.params[k] = clamp(params[k], 0, 100000);
@@ -388,6 +391,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
     if (typeof vals.building === 'string' && (vals.building === '' || TECH_BUILDINGS.includes(vals.building))) u.building = vals.building;
+    if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 6));
     if (num(vals.buildingDamage) !== undefined) u.buildingDamage = clamp(vals.buildingDamage, 0, 100000);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;

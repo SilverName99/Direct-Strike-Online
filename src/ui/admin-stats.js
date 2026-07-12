@@ -141,6 +141,17 @@ function fieldsFor(ent, kind) {
         ...TECH_BUILDINGS.map((bk) => ({ v: bk, label: buildingNameOf(RACE, bk) }))],
       apply: (v) => { u.building = TECH_BUILDINGS.includes(v) ? v : ''; },
     });
+    // Fixed cell on the building's UNITS page (0-6). Cells 8/9 are reserved for
+    // Vinde + butonul de Upgrade-uri. "Auto" = umple prima căsuță liberă.
+    out.push({
+      group: G, label: 'Poziție grilă clădire', type: 'selkv',
+      value: String(Number.isInteger(u.slot) ? u.slot : -1),
+      opts: [{ v: '-1', label: 'Auto' },
+        { v: '0', label: 'Rând 1 · Col 1' }, { v: '1', label: 'Rând 1 · Col 2' }, { v: '2', label: 'Rând 1 · Col 3' },
+        { v: '3', label: 'Rând 2 · Col 1' }, { v: '4', label: 'Rând 2 · Col 2' }, { v: '5', label: 'Rând 2 · Col 3' },
+        { v: '6', label: 'Rând 3 · Col 1' }],
+      apply: (v) => { const n = parseInt(v, 10); u.slot = isFinite(n) ? Math.max(-1, Math.min(6, n)) : -1; },
+    });
     // idle/walk frame flip rate (flips per second). Attack animation is NOT
     // set here — it follows the unit's Attack period (one Attack 1<->2 cycle
     // per attack), so it stays in sync with how often the unit actually hits.
