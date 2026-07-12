@@ -98,7 +98,7 @@ export const ABILITIES = {
     params: {
       tier: 1, manaCost: 30, cooldown: 5,
       cap: 2,         // max wolves this shaman keeps alive (0 = unlimited)
-      duration: 12,   // seconds the wolf lives (0 = until it dies)
+      life: 12,       // seconds the wolf lives (0 = never disappears)
       hp: 120, damage: 16, range: 25, period: 0.8, speed: 130,
       animSpeed: 8,   // walk frame flips per second
       size: 90,       // visual size (%)
@@ -114,7 +114,7 @@ export const ABILITIES = {
     desc: 'Invocă un vultur zburător (deblocat la tier 2).',
     params: {
       tier: 2, manaCost: 40, cooldown: 8,
-      cap: 1, duration: 12,
+      cap: 1, life: 12,
       hp: 90, damage: 15, range: 30, period: 0.9, speed: 150,
       animSpeed: 8,
       size: 90,
@@ -130,7 +130,7 @@ export const ABILITIES = {
     desc: 'Invocă un urs masiv și rezistent (deblocat la tier 3).',
     params: {
       tier: 3, manaCost: 60, cooldown: 10,
-      cap: 1, duration: 15,
+      cap: 1, life: 15,
       hp: 320, damage: 30, range: 30, period: 1.2, speed: 90,
       animSpeed: 5,
       size: 120,
@@ -178,6 +178,7 @@ export const ABILITY_PARAM_LABELS = {
   projectileSpeed: 'Projectile speed',
   // summon params
   cap: 'Nr. maxim vii (0 = nelimitat)',
+  life: 'Durată viață (s, 0 = nu dispare)',
   hp: 'HP animal',
   period: 'Perioadă atac (s)',
   speed: 'Viteză mișcare',

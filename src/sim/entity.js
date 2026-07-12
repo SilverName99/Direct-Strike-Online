@@ -101,7 +101,7 @@ export function spawnSummon(game, caster, ab) {
     armor: stats.armor, isAir: stats.isAir,
     // summon specifics
     summon: true, summonKind: animal, summonOf: caster.id, summonStats: stats,
-    despawnAt: (p.duration || 0) > 0 ? game.time + p.duration : null,
+    despawnAt: (() => { const life = p.life != null ? p.life : (p.duration || 0); return life > 0 ? game.time + life : null; })(),
   };
   game.entities.push(e);
   game.byId.set(e.id, e);
