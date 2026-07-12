@@ -5,7 +5,7 @@ import { moveSpeedMult } from './abilities.js';
 export function updateMovement(game, dt) {
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
-    const stats = game.ustat(u.team, u.type);
+    const stats = game.ustatOf(u);
     // dashing units close the gap at their charge speed (basic dash or mount);
     // dismounted riders / split beasts move at their override speed
     let base;

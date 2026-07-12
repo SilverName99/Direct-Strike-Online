@@ -2,7 +2,7 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { hasDeathAnim, hasFootAnim, hasBeastAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
+import { hasDeathAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
 import { raceOf } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
@@ -31,16 +31,20 @@ export class Effects {
         case 'hit':
           this.burst(e.x, e.y, e.big ? 4 : 1, '#ffffff', 60, 0.18, 2);
           break;
-        case 'death':
-          if (hasDeathAnim(e.unitType, e.team)) {
-            // character units play their die animation, then fade; a dismounted
-            // unit uses its on-foot "foot-die" frame, a split mount "beast-die"
-            this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, footScale: e.footScale });
+        case 'death': {
+          // a summoned animal plays its own "<animal>-die"; otherwise the unit's
+          // die frame (on-foot / beast variants for split forms)
+          const hasDie = e.summonKind
+            ? hasSummonAnim(e.unitType, e.team, e.summonKind, 'die')
+            : hasDeathAnim(e.unitType, e.team);
+          if (hasDie) {
+            this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, summonKind: e.summonKind || null, footScale: e.footScale });
             this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);
           } else {
             this.burst(e.x, e.y, 8, TEAM_COLORS[e.team], 120, 0.45, 3);
           }
           break;
+        }
         case 'explosion':
           this.burst(e.x, e.y, e.fire ? 20 : 14, e.acid ? '#8fd14f' : e.fire ? '#ff7a1a' : '#ffb347', e.fire ? 210 : 180, 0.45, e.fire ? 4 : 3.5);
           if (e.acid) this.rings.push({ x: e.x, y: e.y, r0: 4, r1: (e.radius || 90), life: 0.5, maxLife: 0.5, color: '#8fd14f' });
@@ -152,7 +156,8 @@ export class Effects {
       ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
-      const anim = c.beast && hasBeastAnim(c.type, c.team, 'die') ? 'beast-die'
+      const anim = c.summonKind ? `${c.summonKind}-die`
+        : c.beast && hasBeastAnim(c.type, c.team, 'die') ? 'beast-die'
         : c.dismounted && hasFootAnim(c.type, c.team, 'die') ? 'foot-die' : 'die';
       const scale = (c.dismounted || c.beast) && c.footScale != null ? c.footScale : sizeOf(raceOf(c.team), c.type);
       drawCharacter(ctx, c.type, anim, frame, c.team, scale);

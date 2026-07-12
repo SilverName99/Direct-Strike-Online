@@ -43,7 +43,13 @@ const ABILITY_INFO = [
   'hasteaura' => ['Haste Aura', true, false],
   'regenaura' => ['Regeneration Aura', true, false],
   'frostbolt' => ['Frost Bolt', true, true],
+  'summonwolf' => ['Invocă Lup', true, false],
+  'summoneagle' => ['Invocă Vultur', true, false],
+  'summonbear' => ['Invocă Urs', true, false],
 ];
+// summon abilities -> the animal sprite prefix hosted on the caster unit
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
@@ -330,6 +336,18 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['fireproj'] = 'Proiectil foc';
   }
   if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
+  // summoned animals (Shaman): a walk + attack + die set per assigned summon
+  // ability, hosted on this unit under an "<animal>-" prefix
+  $ua = unitAbilities($race, $ent);
+  foreach (SUMMON_ANIMALS as $aid => $animal) {
+    if (!in_array($aid, $ua, true)) continue;
+    $lbl = SUMMON_LABELS[$animal];
+    $slots["{$animal}-walk_0"] = "$lbl: Mers 1";
+    $slots["{$animal}-walk_1"] = "$lbl: Mers 2";
+    $slots["{$animal}-attack_0"] = "$lbl: Atac 1";
+    $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
+    $slots["{$animal}-die_0"] = "$lbl: Die";
+  }
   // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];

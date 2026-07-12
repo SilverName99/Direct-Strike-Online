@@ -61,6 +61,53 @@ export function spawnUnit(game, team, type, x, y) {
   return e;
 }
 
+// Spawn a summoned animal beside its caster. It is a normal fighting entity,
+// but its stats come from the summon ability (not the roster) and its sprites
+// are hosted on the CASTER's type under an "<animal>-" prefix (so its art is
+// uploaded on the caster unit). Cosmetically it uses the caster's race art.
+export function spawnSummon(game, caster, ab) {
+  const p = ab.params;
+  const animal = ab.animal || 'wolf';
+  const radius = 12;
+  const stats = {
+    name: ab.name || animal,
+    hp: Math.max(1, p.hp || 1),
+    damage: p.damage || 0, range: p.range || 25, period: p.period || 1,
+    dmgType: 'normal', armor: p.armored ? 'armored' : 'light',
+    speed: p.speed || 100, radius, shape: 'circle',
+    isAir: !!p.flying, targetsAir: !!p.flying, targetsGround: true,
+    projectile: !!p.projectile, ranged: !!p.projectile,
+    projectileSpeed: 380, splash: p.splash || 0,
+    size: (p.size != null ? p.size : 100) / 100, animSpeed: 5,
+    caster: false, heal: false, cw: 1, ch: 1, tier: 1, cost: 0,
+  };
+  // spawn just behind/beside the caster, nudged toward its own side
+  const dir = caster.team === 0 ? -1 : 1;
+  const e = {
+    id: game.nextId++,
+    team: caster.team, type: caster.type, // type hosts the sprites; stats overridden
+    x: caster.x + dir * 20, y: caster.y + 14, prevX: caster.x, prevY: caster.y,
+    hp: stats.hp, maxHp: stats.hp,
+    cooldown: 0, windup: 0, windupMax: 0,
+    effects: [], abilityCd: {}, auraUntil: {},
+    castState: null, castAbility: null, castTargetId: null, castPhaseEnd: 0, spellHold: false,
+    dashing: false, dashCharge: false, dashReadyAt: 0, dashVel: 0,
+    mountTargetId: null, splitTargetId: null, dismounted: false, beast: false,
+    ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovRanged: null,
+    ovSize: stats.size, // drawn scale (renderer reuses the ov-size path for summons)
+    mana: 0, manaMax: 0,
+    targetId: null, state: 'march',
+    radius, baseRadius: radius, footprint: false, hw: radius, hh: radius,
+    armor: stats.armor, isAir: stats.isAir,
+    // summon specifics
+    summon: true, summonKind: animal, summonOf: caster.id, summonStats: stats,
+    despawnAt: (p.duration || 0) > 0 ? game.time + p.duration : null,
+  };
+  game.entities.push(e);
+  game.byId.set(e.id, e);
+  return e;
+}
+
 // Half-extents (hw, hh) of a structure, plus a bounding radius, from that
 // kind's resolved (per-race) stats. Buildings occupy a rectangle of cw x ch
 // grid cells; main/turret stay square (their `radius` is the half-extent).

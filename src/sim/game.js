@@ -70,6 +70,13 @@ export class Game {
     return statsUnit(this.races[team], type);
   }
 
+  // Resolved stats for a LIVE entity: a summoned animal carries its own stat
+  // block (its type points at the caster only to host sprites), everything else
+  // resolves by type per its race.
+  ustatOf(u) {
+    return u.summonStats || statsUnit(this.races[u.team], u.type);
+  }
+
   // Resolved building stats for a team, per its race.
   bstat(team, kind) {
     return statsBuilding(this.races[team], kind);
@@ -407,6 +414,10 @@ export class Game {
     updateCombat(this, dt);
     updateMovement(this, dt);
     updateProjectiles(this, dt);
+    // summoned animals with a lifetime expire (play their death like any unit)
+    for (const e of this.entities) {
+      if (e.summon && e.despawnAt != null && e.hp > 0 && this.time >= e.despawnAt) e.hp = 0;
+    }
     this.removeDead();
     this.updateMidControl();
 

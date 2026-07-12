@@ -12,6 +12,10 @@
 //                    the zone expires (cooldown = duration).
 //       'active'   — auto-cast on cooldown when a valid trigger exists
 //                    (plays the unit's uploaded cast frames, if any).
+//       'summon'   — spawns an allied animal (its own stats) beside the caster,
+//                    up to a cap, for a duration. Cast proactively (no enemy
+//                    needed). The animal's sprites are hosted on the CASTER unit
+//                    under an "<animal>-" prefix (wolf-/eagle-/bear-).
 //
 // Ability ids must stay lowercase-alphanumeric: they become sprite slot
 // names (cast-<id>_0.png) and balance keys — do NOT rename existing ids or
@@ -84,6 +88,49 @@ export const ABILITIES = {
       manaCost: 30,  // mana per cast
     },
   },
+  summonwolf: {
+    name: 'Invocă Lup',
+    kind: 'summon',
+    animal: 'wolf', // sprite prefix hosted on the caster (wolf-walk/attack/die)
+    color: '#c8d0da',
+    desc: 'Invocă un lup rapid care luptă alături de shaman (deblocat la tier 1).',
+    params: {
+      tier: 1, manaCost: 30, cooldown: 5,
+      cap: 2,         // max wolves this shaman keeps alive (0 = unlimited)
+      duration: 12,   // seconds the wolf lives (0 = until it dies)
+      hp: 120, damage: 16, range: 25, period: 0.8, speed: 130,
+      size: 90,       // visual size (%)
+      splash: 0, flying: 0, projectile: 0, armored: 0,
+    },
+  },
+  summoneagle: {
+    name: 'Invocă Vultur',
+    kind: 'summon',
+    animal: 'eagle',
+    color: '#ffe08a',
+    desc: 'Invocă un vultur zburător (deblocat la tier 2).',
+    params: {
+      tier: 2, manaCost: 40, cooldown: 8,
+      cap: 1, duration: 12,
+      hp: 90, damage: 15, range: 30, period: 0.9, speed: 150,
+      size: 90,
+      splash: 0, flying: 1, projectile: 0, armored: 0,
+    },
+  },
+  summonbear: {
+    name: 'Invocă Urs',
+    kind: 'summon',
+    animal: 'bear',
+    color: '#d8a86a',
+    desc: 'Invocă un urs masiv și rezistent (deblocat la tier 3).',
+    params: {
+      tier: 3, manaCost: 60, cooldown: 10,
+      cap: 1, duration: 15,
+      hp: 320, damage: 30, range: 30, period: 1.2, speed: 90,
+      size: 120,
+      splash: 0, flying: 0, projectile: 0, armored: 1,
+    },
+  },
   frostbolt: {
     name: 'Frost Bolt',
     kind: 'active',
@@ -123,4 +170,14 @@ export const ABILITY_PARAM_LABELS = {
   damage: 'Damage',
   duration: 'Effect duration (s)',
   projectileSpeed: 'Projectile speed',
+  // summon params
+  cap: 'Nr. maxim vii (0 = nelimitat)',
+  hp: 'HP animal',
+  period: 'Perioadă atac (s)',
+  speed: 'Viteză mișcare',
+  size: 'Mărime (%)',
+  splash: 'Splash (rază, 0 = fără)',
+  flying: 'Zboară (1/0)',
+  projectile: 'Atac la distanță (1/0)',
+  armored: 'Armură grea (1/0)',
 };

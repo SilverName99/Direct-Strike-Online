@@ -92,6 +92,12 @@ export function hasFootAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `foot-${anim}`);
 }
 
+// True when a summoned animal has an uploaded "<animal>-<anim>" sprite hosted
+// on the caster's type (e.g. wolf-walk, eagle-attack, bear-die).
+export function hasSummonAnim(type, team, animal, anim) {
+  return hasSpriteAnim(raceOf(team), type, `${animal}-${anim}`);
+}
+
 // True when a split-off mount has an uploaded beast ("beast-<anim>") sprite.
 export function hasBeastAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `beast-${anim}`);

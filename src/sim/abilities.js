@@ -9,7 +9,7 @@
 
 import { CONFIG } from '../config.js';
 import { resolvedAbility } from '../ui/balance.js';
-import { spawnProjectile } from './entity.js';
+import { spawnProjectile, spawnSummon } from './entity.js';
 
 const AURA_TICK = 0.35;    // aura effects auto-expire this fast (re-applied while inside)
 export const CAST_PREPARE = 0.45; // "Prepare spell" wind-up before the release frame
@@ -19,7 +19,7 @@ export const CAST_RELEASE = 0.40; // minimum time on the release frame (instant 
 // projectile spells ('active') and cast-then-persist buff zones ('castaura').
 // Passive 'aura' abilities are not cast.
 function isCastable(ab) {
-  return !!ab && (ab.kind === 'active' || ab.kind === 'castaura');
+  return !!ab && (ab.kind === 'active' || ab.kind === 'castaura' || ab.kind === 'summon');
 }
 
 // Does this unit have at least one castable ability USABLE right now (not
@@ -40,7 +40,7 @@ export function casterPrioritizesSpells(game, unit, stats) {
   if (stats.autoAttackBetween) return false; // admin opt-in: attack between spells
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
-    if (ab && ab.kind === 'active' && unit.mana >= (ab.params.manaCost || 0) &&
+    if (ab && (ab.kind === 'active' || ab.kind === 'summon') && unit.mana >= (ab.params.manaCost || 0) &&
         game.abilityUsable(unit.team, unit.type, aid)) return true;
   }
   return false;
@@ -105,7 +105,7 @@ export function updateAbilities(game, dt) {
   }
 
   for (const u of game.entities) {
-    const stats = game.ustat(u.team, u.type);
+    const stats = game.ustatOf(u);
     if (!stats.caster || !stats.abilities || stats.abilities.length === 0) continue;
 
     // mana regen (capped at the unit's configured pool)
@@ -224,7 +224,9 @@ function pickCastable(game, caster, stats, time, engaged) {
     if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // toggled off / tier-locked
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
-    if (!engaged && !ENGAGE_EXEMPT.has(aid)) continue; // must be engaged (support spells excepted)
+    // summons cast proactively (build the pack); everything else needs an enemy
+    // engaged, except the support spells in ENGAGE_EXEMPT
+    if (!engaged && ab.kind !== 'summon' && !ENGAGE_EXEMPT.has(aid)) continue;
     const target = findAbilityTarget(game, caster, aid, ab, time);
     if (target) return { aid, ab, target };
   }
@@ -234,6 +236,18 @@ function pickCastable(game, caster, stats, time, engaged) {
 // The target a given ability would act on, or null if there is none.
 function findAbilityTarget(game, caster, aid, ab, time) {
   const p = ab.params;
+  if (ab.kind === 'summon') {
+    // castable while below the cap of this animal kept alive by this caster
+    const cap = p.cap || 0;
+    if (cap > 0) {
+      let alive = 0;
+      for (const u of game.entities) {
+        if (u.hp > 0 && u.summon && u.summonOf === caster.id && u.summonKind === ab.animal) alive++;
+      }
+      if (alive >= cap) return null;
+    }
+    return caster; // self-cast: the animal appears beside the caster
+  }
   if (aid === 'regenaura') {
     // self-centered zone worth raising when any ally in range is wounded
     // (the caster itself counts) — fires even when no enemy is engaged
@@ -313,6 +327,13 @@ function releaseSpell(game, caster, time) {
   // zone expires); instant/projectile spells use their own `cooldown`.
   caster.abilityCd[aid] = time + (p.cooldown != null ? p.cooldown : (p.duration || 0));
   caster.mana -= p.manaCost || 0;
+
+  if (ab.kind === 'summon') {
+    const animal = spawnSummon(game, caster, ab);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'summon', x: animal.x, y: animal.y, team: caster.team });
+    return CAST_RELEASE;
+  }
 
   if (ab.kind === 'castaura') {
     // raise the persistent zone around the caster; tickCastAura applies it

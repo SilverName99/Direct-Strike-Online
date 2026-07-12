@@ -23,8 +23,15 @@ export function effStats(u, stats) {
 
 export function updateCombat(game, dt) {
   for (const u of game.entities) {
-    const base = game.ustat(u.team, u.type);
+    const base = game.ustatOf(u);
     let stats = effStats(u, base);
+    // Summoned animals are plain fighters with their own stats — they never
+    // inherit the caster's upgrades or cast abilities.
+    if (u.summon) {
+      u.cooldown = Math.max(0, u.cooldown - dt);
+      updateFighter(game, u, stats, dt);
+      continue;
+    }
     // "Attack ground units" upgrade: grants a (normally air-only) unit the
     // ability to hit ground once its owner has bought the upgrade for its type.
     if (stats.targetsGround === false && groundUpgradeFor(game, u)) {
@@ -660,7 +667,8 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
       unitType: target.type || null,
       dismounted: !!target.dismounted, // corpse uses the on-foot "foot-die" sprite
       beast: !!target.beast,           // split mount corpse -> "beast-die" sprite
-      footScale: (target.dismounted || target.beast) ? (target.ovSize || 1) : null,
+      summonKind: target.summon ? target.summonKind : null, // -> "<animal>-die"
+      footScale: (target.dismounted || target.beast || target.summon) ? (target.ovSize || 1) : null,
     });
   }
 }

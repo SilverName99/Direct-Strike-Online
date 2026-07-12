@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasFootAnim, hasBeastAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -784,7 +784,7 @@ export class Renderer {
       const color = TEAM_COLORS[u.team];
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
-      const vScale = (u.dismounted || u.beast) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
+      const vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
 
       if (u.isAir) {
         // soft shadow under flyers — scales with the unit's drawn Size so a
@@ -800,7 +800,7 @@ export class Renderer {
       }
 
       // casters project their aura circles beneath everyone's feet
-      const rstats = game.ustat(u.team, u.type);
+      const rstats = game.ustatOf(u);
       if (rstats.caster && rstats.abilities && rstats.abilities.length) {
         this.drawAuraRings(ctx, u, rstats, x, y, game.time);
       }
@@ -871,6 +871,11 @@ export class Renderer {
         // split-off mount: same idea with the "Bestie" sprite set
         if (u.beast && !anim.startsWith('beast-') && hasBeastAnim(u.type, u.team, anim)) {
           anim = `beast-${anim}`;
+        }
+        // summoned animal: its art is hosted on the caster's type under an
+        // "<animal>-" prefix (wolf-/eagle-/bear-)
+        if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
+          anim = `${u.summonKind}-${anim}`;
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
       } else {
