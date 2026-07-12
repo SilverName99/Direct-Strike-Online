@@ -100,6 +100,7 @@ export const ABILITIES = {
       cap: 2,         // max wolves this shaman keeps alive (0 = unlimited)
       duration: 12,   // seconds the wolf lives (0 = until it dies)
       hp: 120, damage: 16, range: 25, period: 0.8, speed: 130,
+      animSpeed: 8,   // walk frame flips per second
       size: 90,       // visual size (%)
       splash: 0, flying: 0, projectile: 0, armored: 0,
     },
@@ -115,6 +116,7 @@ export const ABILITIES = {
       tier: 2, manaCost: 40, cooldown: 8,
       cap: 1, duration: 12,
       hp: 90, damage: 15, range: 30, period: 0.9, speed: 150,
+      animSpeed: 8,
       size: 90,
       splash: 0, flying: 1, projectile: 0, armored: 0,
     },
@@ -130,6 +132,7 @@ export const ABILITIES = {
       tier: 3, manaCost: 60, cooldown: 10,
       cap: 1, duration: 15,
       hp: 320, damage: 30, range: 30, period: 1.2, speed: 90,
+      animSpeed: 5,
       size: 120,
       splash: 0, flying: 0, projectile: 0, armored: 1,
     },
@@ -178,6 +181,7 @@ export const ABILITY_PARAM_LABELS = {
   hp: 'HP animal',
   period: 'Perioadă atac (s)',
   speed: 'Viteză mișcare',
+  animSpeed: 'Viteză animație mers (flip/s)',
   size: 'Mărime (%)',
   splash: 'Splash (rază, 0 = fără)',
   flying: 'Zboară (1/0)',

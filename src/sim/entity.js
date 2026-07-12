@@ -78,7 +78,7 @@ export function spawnSummon(game, caster, ab) {
     isAir: !!p.flying, targetsAir: !!p.flying, targetsGround: true,
     projectile: !!p.projectile, ranged: !!p.projectile,
     projectileSpeed: 380, splash: p.splash || 0,
-    size: (p.size != null ? p.size : 100) / 100, animSpeed: 5,
+    size: (p.size != null ? p.size : 100) / 100, animSpeed: p.animSpeed || 5,
     caster: false, heal: false, cw: 1, ch: 1, tier: 1, cost: 0,
   };
   // spawn just behind/beside the caster, nudged toward its own side
