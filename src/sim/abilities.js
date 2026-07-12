@@ -237,12 +237,14 @@ function pickCastable(game, caster, stats, time, engaged) {
 function findAbilityTarget(game, caster, aid, ab, time) {
   const p = ab.params;
   if (ab.kind === 'summon') {
-    // castable while below the cap of this animal kept alive by this caster
+    // castable while the TEAM is below the cap of this animal alive (counted
+    // team-wide, not per caster: the army re-spawns each wave, so several
+    // shaman copies would otherwise each keep their own quota)
     const cap = p.cap || 0;
     if (cap > 0) {
       let alive = 0;
       for (const u of game.entities) {
-        if (u.hp > 0 && u.summon && u.summonOf === caster.id && u.summonKind === ab.animal) alive++;
+        if (u.hp > 0 && u.summon && u.team === caster.team && u.summonKind === ab.animal) alive++;
       }
       if (alive >= cap) return null;
     }
