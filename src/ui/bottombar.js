@@ -35,6 +35,8 @@ const BUILDING_CARDS = [
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
   { id: 'bldg3', hotkey: 'N', role: 'Deblochează unități',
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
+  { id: 'farm', hotkey: 'M', role: 'Mărește food cap',
+    tip: 'Fiecare fermă crește plafonul de food, ca să poți plasa mai multe unități. Distrusă = pierzi plafonul (unitățile plasate rămân).' },
 ];
 
 // Lay out a building command-card page onto the 9 cells: sell fixed at slot 7,
@@ -712,6 +714,7 @@ export class BottomBar {
         ctx.strokeRect(-15, -15, 30, 30);
         if (data.id === 'tower') { ctx.fillStyle = TEAM_COLORS[0]; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); }
         if (data.id === 'generator') { ctx.fillStyle = '#ffd35c'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); }
+        if (data.id === 'farm') { ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🌾', 0, 1); }
       } else {
         const u = statsUnit(raceOf(0), data.id);
         ctx.fillStyle = TEAM_COLORS[0];
@@ -809,6 +812,7 @@ export class BottomBar {
           if (u.tier > game.tier[0]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
           else if (d.isHero && game.hasHero(0)) el.classList.add('disabled'); // one hero per team
           else if (game.money[0] < u.cost) el.classList.add('disabled');
+          else if (game.foodUsed(0) + (u.food || 0) > game.foodCap(0)) el.classList.add('disabled'); // over food cap
         }
       } else if (d.kind === 'building') {
         el.classList.toggle('selected', this.uiState.selected === d.id);
@@ -946,7 +950,7 @@ export class BottomBar {
       const dps = u.heal
         ? `${(u.damage / Math.max(0.1, u.period)).toFixed(0)} HP/s vindecare`
         : `${(u.damage / Math.max(0.1, u.period)).toFixed(1)} DPS (${u.dmgType})`;
-      return `<div class="p-title">${u.name} · Tier ${u.tier} · ◆ ${u.cost}</div>
+      return `<div class="p-title">${u.name} · Tier ${u.tier} · ◆ ${u.cost} · 🍖 ${u.food ?? 1}</div>
         <div class="p-dim">${u.role || ''}</div>
         <div>${u.tip || ''}</div>
         <div class="p-dim">${u.hp} HP · ${u.armor} · ${dps} · rază ${u.range} · viteză ${u.speed}</div>`;
@@ -956,7 +960,8 @@ export class BottomBar {
       const s = statsBuilding(race, d.id);
       const extra = d.id === 'tower'
         ? `${s.hp} HP · ${(s.damage / Math.max(0.1, s.period)).toFixed(1)} DPS · rază ${s.range}`
-        : d.id === 'generator' ? `${s.hp} HP · +${s.income} aur/20s` : `${s.hp} HP`;
+        : d.id === 'generator' ? `${s.hp} HP · +${s.income} aur/20s`
+        : d.id === 'farm' ? `${s.hp} HP · +${s.food} food` : `${s.hp} HP`;
       let unlocks = '';
       if (TECH_BUILDINGS.includes(d.id)) {
         const names = resolvedUnitOrder(race)

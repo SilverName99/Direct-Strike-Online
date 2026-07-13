@@ -100,6 +100,17 @@ export class AIController {
       return; // save for economy
     }
 
+    // 1.2 Food: build a farm when we're within a few food of the cap, so the
+    // army can keep growing (food is the only army-size limit).
+    const farmCap = game.bstat(t, 'farm').cap;
+    if (game.foodCap(t) - game.foodUsed(t) < 4 && game.countKind(t, 'farm') < farmCap
+        && game.buildCdLeft(t, 'farm') === 0) {
+      const fc = game.bstat(t, 'farm').cost;
+      this.intent = money >= fc ? '🌾 Fermă (food)' : `💰 economisește ${Math.ceil(fc)} → Fermă`;
+      if (money >= fc) { if (this.tryBuild(game, 'farm')) return; }
+      else return; // save for the farm — nothing else to field until food frees up
+    }
+
     // 1.5 Upgrades configured for our race: grab them once the army exists.
     if (game.waveCount >= 2) {
       for (const id of UPGRADE_IDS) {
@@ -279,9 +290,9 @@ export class AIController {
       }
     }
 
-    // B) At the template cap with money to spare: sell the cheapest unit so a
+    // B) At the food cap with money to spare: sell the cheapest unit so a
     // stronger buy can replace it (still rate-limited).
-    if (canSellNow && tpls.length >= CONFIG.MAX_TEMPLATES && game.money[t] > 400) {
+    if (canSellNow && game.foodUsed(t) >= game.foodCap(t) && game.money[t] > 400) {
       let cheap = 0;
       for (let i = 1; i < tpls.length; i++) {
         if (game.ustat(t, tpls[i].type).cost < game.ustat(t, tpls[cheap].type).cost) cheap = i;
@@ -329,7 +340,7 @@ export class AIController {
     for (let i = 0; i < 12; i++) {
       let x;
       let y;
-      if (kind === 'generator' || TECH_BUILDINGS.includes(kind)) {
+      if (kind === 'generator' || kind === 'farm' || TECH_BUILDINGS.includes(kind)) {
         // tucked toward the back edge, spread vertically
         const off = 30 + this.rng() * w * 0.4;
         x = this.team === 1 ? zone.x1 - off : zone.x0 + off;

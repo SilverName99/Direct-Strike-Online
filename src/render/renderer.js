@@ -742,6 +742,21 @@ export class Renderer {
         ctx.font = `bold ${Math.round(Math.min(hw, hh) * 0.9)}px sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(s.kind === 'bldg1' ? 'I' : s.kind === 'bldg2' ? 'II' : 'III', 0, 2);
+      } else if (!spriteDrawn && s.kind === 'farm') {
+        // farm placeholder: a barn box with a roof + a wheat glyph
+        ctx.fillStyle = dark;
+        ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-hw, -hh); ctx.lineTo(0, -hh - Math.min(hw, hh) * 0.6); ctx.lineTo(hw, -hh); ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#e8c860';
+        ctx.font = `${Math.round(Math.min(hw, hh) * 1.0)}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🌾', 0, 2);
       }
       ctx.restore();
 

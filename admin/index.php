@@ -16,7 +16,7 @@ define('DS_ADMIN', 1);
 
 const RACES = ['humans', 'orcs'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
-const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3'];
+const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
 // ranged units (projectile:true in units.js) can upload a projectile image
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image

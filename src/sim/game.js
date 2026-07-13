@@ -128,6 +128,23 @@ export class Game {
     return !!this.heroTemplate(team);
   }
 
+  // Food/supply: each placed template costs its unit's `food`; farms raise the
+  // cap. If a farm is destroyed the cap drops (placed units stay, but you can't
+  // buy more until back under the cap).
+  foodUsed(team) {
+    let f = 0;
+    for (const tpl of this.templates[team]) f += this.ustat(team, tpl.type).food || 0;
+    return f;
+  }
+
+  foodCap(team) {
+    let cap = CONFIG.FOOD_CAP_BASE || 0;
+    for (const s of this.structures) {
+      if (s.team === team && s.kind === 'farm' && s.hp > 0) cap += this.bstat(team, 'farm').food || 0;
+    }
+    return cap;
+  }
+
   // A unit died: the ENEMY team's hero earns its XP — but only while that hero
   // is alive on the field. Structures/base grant nothing.
   creditHeroKill(dead) {
@@ -316,8 +333,8 @@ export class Game {
       // only ONE hero per team
       if (stats.isHero && this.hasHero(cmd.team)) return { ok: false, reason: 'hero-cap' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
-      if (this.templates[cmd.team].length >= CONFIG.MAX_TEMPLATES)
-        return { ok: false, reason: 'template-cap' };
+      if (this.foodUsed(cmd.team) + (stats.food || 0) > this.foodCap(cmd.team))
+        return { ok: false, reason: 'food' };
       if (!this.isValidPlacement(cmd.team, cmd.x, cmd.y, -1, cmd.unitId))
         return { ok: false, reason: 'zone' };
       this.money[cmd.team] -= stats.cost;

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.55';
+export const VERSION = 'v10.56';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -142,6 +142,9 @@ export const CONFIG = {
     bldg1: { cost: 120, hp: 500, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire I' },
     bldg2: { cost: 160, hp: 550, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire II' },
     bldg3: { cost: 200, hp: 600, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire III' },
+    // Farm: raises your FOOD cap so you can field more units. Destructible —
+    // if destroyed you keep placed units but can't buy more until under cap.
+    farm: { cost: 100, hp: 300, cw: 2, ch: 2, cap: 12, food: 10, idleSpeed: 2, name: 'Fermă' },
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)
@@ -156,10 +159,14 @@ export const CONFIG = {
   MID_INCOME: 0,      // extra gold every 20s while you have units past midfield
   SELL_REFUND: 0.75, // units (templates) refund
 
+  // Food/supply cap: each placed unit costs `food`; farms raise the cap. You
+  // can't place a unit if it would put you over the cap. This is the only army
+  // size limit (no hard template cap).
+  FOOD_CAP_BASE: 20,  // starting food capacity before any farm
+
   // Waves
   WAVE_INTERVAL: 20,
   FIRST_WAVE_INTERVAL: 20, // seconds until the very first wave (round 1 only)
-  MAX_TEMPLATES: 40, // per team
   SPAWN_JITTER: 4,
   TEMPLATE_MIN_DIST: 16, // no two templates on the same spot
 

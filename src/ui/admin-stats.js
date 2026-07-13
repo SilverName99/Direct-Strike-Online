@@ -164,6 +164,11 @@ function fieldsFor(ent, kind) {
       group: G, label: 'XP dat eroului inamic la moarte', type: 'num', value: u.xp ?? 1,
       apply: (v) => { u.xp = clamp(Math.round(v), 0, 100000); },
     });
+    // Food/supply this unit costs when placed (farms raise the cap)
+    out.push({
+      group: G, label: 'Food (cost supply)', type: 'num', value: u.food ?? 1,
+      apply: (v) => { u.food = clamp(Math.round(v), 0, 100000); },
+    });
     // Hero-only: per-level growth + the XP thresholds for levels 2..10
     if (u.isHero) {
       const H = 'Erou (nivelare)';
@@ -354,7 +359,7 @@ function fieldsFor(ent, kind) {
   }
   // idle 1↔2 flip speed (entities with an uploaded idle animation; the main
   // base uses per-tier images instead, so no idle speed there)
-  if (ent === 'turret' || ent === 'tower' || ent === 'generator' || ent === 'wall' || TECH_BUILDINGS.includes(ent)) {
+  if (ent === 'turret' || ent === 'tower' || ent === 'generator' || ent === 'wall' || ent === 'farm' || TECH_BUILDINGS.includes(ent)) {
     out.push({
       group: G, label: 'Viteză idle (flip/s)', type: 'num', value: b.idleSpeed ?? 2,
       apply: (v) => { b.idleSpeed = clamp(v, 0.2, 10); },

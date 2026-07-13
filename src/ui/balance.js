@@ -46,6 +46,7 @@ export const BUILDING_FIELDS = {
   bldg1: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
   bldg2: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
   bldg3: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
+  farm: [['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable'], ['food', 'Food adăugat']],
 };
 // The 3 tech/unlock buildings (build one of each to unlock its assigned units).
 export const TECH_BUILDINGS = ['bldg1', 'bldg2', 'bldg3'];
@@ -55,7 +56,7 @@ export const GENERAL_FIELDS = [
   ['MID_INCOME', 'Extra gold every 20s past middle'],
   ['FIRST_WAVE_INTERVAL', 'Seconds until first wave (round 1)'],
   ['WAVE_INTERVAL', 'Seconds between waves'],
-  ['MAX_TEMPLATES', 'Max placed units per side'],
+  ['FOOD_CAP_BASE', 'Food de bază (fără ferme)'],
   ['SELL_REFUND', 'Unit sell refund (0-1)'],
   ['SELL_BUILDING_REFUND', 'Building sell refund (0-1)'],
 ];
@@ -70,14 +71,14 @@ export const MIDDLE_KINDS = ['none', 'moveslow', 'atkslow', 'manaregen'];
 export function middleConfig(i) {
   return (CONFIG.MIDDLES && CONFIG.MIDDLES[i]) || null;
 }
-export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3'];
-export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3'];
+export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm'];
+export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const num = (v) => (typeof v === 'number' && isFinite(v) ? v : undefined);
 const cleanName = (v) => String(v).replace(/[<>]/g, '').trim().slice(0, 20);
 
-export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3'];
+export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
 
 // ------------ per-race resolved unit + building tables ------------
 // Full clone of the base entities (so the sim can read every field) plus a
@@ -162,6 +163,7 @@ function baseUnits() {
       dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,
       caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
       xp: 1,               // XP granted to the enemy hero when this unit dies
+      food: 1,             // food/supply this unit consumes when placed
     };
     // the hero carries its own leveling config (thresholds + per-level growth)
     if (u.isHero) {
@@ -191,6 +193,7 @@ function baseBuildings() {
     bldg1: { ...CONFIG.BUILDINGS.bldg1, size: 1, projSize: 1 },
     bldg2: { ...CONFIG.BUILDINGS.bldg2, size: 1, projSize: 1 },
     bldg3: { ...CONFIG.BUILDINGS.bldg3, size: 1, projSize: 1 },
+    farm: { ...CONFIG.BUILDINGS.farm, size: 1, projSize: 1 },
   };
 }
 // Abilities are GLOBAL (one balance shared by both races); which units carry
@@ -246,7 +249,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -271,7 +274,7 @@ function raceUnitsSnapshot(race) {
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
       slot: Number.isInteger(u.slot) ? u.slot : -1,
-      xp: u.xp,
+      xp: u.xp, food: u.food,
     };
     if (u.isHero) {
       out[id].levelXp = [...(u.levelXp || [])];
@@ -421,6 +424,7 @@ function applyRaceUnits(race, unitsData) {
     if (typeof vals.building === 'string' && (vals.building === '' || TECH_BUILDINGS.includes(vals.building))) u.building = vals.building;
     if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 6));
     if (num(vals.xp) !== undefined) u.xp = clamp(vals.xp, 0, 100000);
+    if (num(vals.food) !== undefined) u.food = clamp(vals.food, 0, 100000);
     if (u.isHero) {
       if (Array.isArray(vals.levelXp)) {
         u.levelXp = vals.levelXp.slice(0, 9).map((n) => clamp(Number(n) || 0, 0, 1000000));

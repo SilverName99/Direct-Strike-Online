@@ -4,7 +4,7 @@ import { hitTestTemplate, visualRadiusOf } from '../render/renderer.js';
 import { snapToZone, zoneFor } from './grid.js';
 import { toast } from './pointer.js';
 
-const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3'];
+const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm'];
 
 // Mouse + keyboard input. Owns uiState.selected / drag / grid / mouse
 // position; translates gestures into game commands for team 0.
@@ -171,6 +171,8 @@ export class Input {
         this.select('bldg2');
       } else if (e.key === 'n' || e.key === 'N') {
         this.select('bldg3');
+      } else if (e.key === 'm' || e.key === 'M') {
+        this.select('farm');
       }
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.key));

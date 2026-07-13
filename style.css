@@ -45,6 +45,8 @@ html, body {
 #eco { font-size: 20px; font-weight: 700; color: var(--gold); min-width: 180px; }
 .money-icon { font-size: 16px; }
 #income { font-size: 13px; font-weight: 500; }
+#food { font-size: 13px; font-weight: 600; color: #cfe0f5; }
+#food.food-full { color: #ff8090; }
 .dim { color: var(--dim); }
 
 #wave-info { font-size: 16px; color: var(--text); }

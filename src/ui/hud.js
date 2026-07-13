@@ -8,6 +8,7 @@ export class Hud {
     this.el = {
       money: document.getElementById('money'),
       income: document.getElementById('income'),
+      food: document.getElementById('food'),
       tier: document.getElementById('tier'),
       waveNum: document.getElementById('wave-num'),
       waveTimer: document.getElementById('wave-timer'),
@@ -39,6 +40,12 @@ export class Hud {
     const mid = game.midBonusPerTick(0) > 0 ? ' · +mid' : '';
     this.el.income.textContent = `+${game.incomePerSecond(0).toFixed(1).replace(/\.0$/, '')}/s · ${gens} gen${mid}`;
     this.el.tier.textContent = `TIER ${'I'.repeat(game.tier[0])}`;
+    if (this.el.food) {
+      const used = game.foodUsed(0);
+      const cap = game.foodCap(0);
+      this.el.food.textContent = `🍖 ${used}/${cap}`;
+      this.el.food.classList.toggle('food-full', used >= cap);
+    }
     this.el.waveNum.textContent = game.waveCount + 1;
     this.el.waveTimer.textContent = Math.ceil(game.waveTimer);
 
