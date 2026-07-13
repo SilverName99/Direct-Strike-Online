@@ -73,7 +73,7 @@ document.getElementById('grid-btn').addEventListener('click', () => {
 });
 // Bottom-bar zoom: cycle the whole bottom interface through 1× / 2× / 3×.
 const uiScaleBtn = document.getElementById('uiscale-btn');
-const UI_SCALES = [1, 2, 3];
+const UI_SCALES = [1, 1.2, 1.4, 1.6];
 let uiScaleIdx = 0;
 try { const s = parseFloat(localStorage.getItem('ds-bb-scale')); const i = UI_SCALES.indexOf(s); if (i >= 0) uiScaleIdx = i; } catch { /* private mode */ }
 function applyUiScale() {
