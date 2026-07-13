@@ -148,30 +148,6 @@ export const ABILITIES = {
       radius: 150, damage: 60, moveSlow: 40, atkSlow: 30, duration: 3,
     },
   },
-  wardrums: {
-    name: 'War Drums',
-    kind: 'castaura',
-    color: '#ffcf6a',
-    desc: 'Ridică o zonă de război: aliații din jur atacă mai repede pentru o durată.',
-    params: {
-      tier: 1, radius: 160, haste: 30, duration: 12, manaCost: 30,
-    },
-  },
-  spiritwolves: {
-    name: 'Spirit Wolves',
-    kind: 'summon',
-    animal: 'spiritwolf',
-    animalName: 'Lup spirit',
-    color: '#a9d0ff',
-    desc: 'Invocă lupi-spirit care luptă alături de erou.',
-    params: {
-      tier: 1, manaCost: 40, cooldown: 8,
-      cap: 2, life: 20,
-      hp: 160, damage: 22, range: 25, period: 0.8, speed: 140,
-      animSpeed: 8, size: 100,
-      splash: 0, flying: 0, projectile: 0, armored: 0,
-    },
-  },
   bloodlust: {
     name: 'Bloodlust',
     kind: 'active',

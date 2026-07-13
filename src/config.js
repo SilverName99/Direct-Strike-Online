@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.66';
+export const VERSION = 'v10.67';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -54,10 +54,11 @@ export const CONFIG = {
     { x0: 560, x1: 920, y0: 80, y1: 880 },    // team 0 (left)
     { x0: 2680, x1: 3040, y0: 80, y1: 880 },  // team 1 (right)
   ],
-  // Army formation strip (12 × 20 cells) at the BACK of each side.
+  // Army formation strip (12 × 18 cells) at the BACK of each side. 2 rows
+  // shorter than the construction zone, kept vertically centered.
   ARMY_ZONE: [
-    { x0: 60, x1: 540, y0: 80, y1: 880 },
-    { x0: 3060, x1: 3540, y0: 80, y1: 880 },
+    { x0: 60, x1: 540, y0: 120, y1: 840 },
+    { x0: 3060, x1: 3540, y0: 120, y1: 840 },
   ],
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
@@ -121,6 +122,7 @@ export const CONFIG = {
       // projectiles fired per tier (default 1/2/3 — the classic multi-arrow
       // tower). Set all to 1 for a single-shot tower (e.g. a lone Orc archer).
       shots: 1, shots2: 2, shots3: 3,
+      attackHold: 0.4, // seconds the "Attack 2" (fire) frame is held per shot
       // After this many seconds without firing, the soldiers come down and
       // light a campfire at the tower's base (purely cosmetic).
       campfireDelay: 60,

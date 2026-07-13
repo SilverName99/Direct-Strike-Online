@@ -164,7 +164,7 @@ function tickCastAura(game, caster, aid, ab, time) {
     if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
     if (aid === 'slowaura') {
       if (u.team !== caster.team) applyEffect(u, 'atkslow', p.atkSlow, until, time);
-    } else if (aid === 'hasteaura' || aid === 'wardrums') {
+    } else if (aid === 'hasteaura') {
       if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
     } else if (aid === 'regenaura') {
       if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
@@ -273,7 +273,7 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     }
     return null;
   }
-  if (aid === 'hasteaura' || aid === 'wardrums') {
+  if (aid === 'hasteaura') {
     // only worth casting when at least one *other* ally is in range to buff
     for (const u of game.entities) {
       if (u.hp > 0 && u.team === caster.team && u !== caster && inRadius(u, caster, p.radius)) return caster;

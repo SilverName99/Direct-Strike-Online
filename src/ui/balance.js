@@ -37,6 +37,7 @@ export const BUILDING_FIELDS = {
     ['damage', 'Damage Tier 1'], ['damage2', 'Damage Tier 2'], ['damage3', 'Damage Tier 3'],
     ['period', 'Attack period Tier 1 (s)'], ['period2', 'Attack period Tier 2 (s)'], ['period3', 'Attack period Tier 3 (s)'],
     ['shots', 'Proiectile Tier 1'], ['shots2', 'Proiectile Tier 2'], ['shots3', 'Proiectile Tier 3'],
+    ['projectileSpeed', 'Viteză proiectil'], ['attackHold', 'Durată frame Attack 2 (s)'],
     ['campfireDelay', 'Secunde inactiv → foc de tabără'],
   ],
   generator: [
@@ -153,7 +154,15 @@ export function setMusicVolume(race, v) {
   if (RACES.includes(race) && isFinite(Number(v))) musicVol[race] = clamp(Number(v), 0, 100);
 }
 
-function baseUnits() {
+// Per-race hero default kit (3 skills + ultimate). Heroes are per-race and
+// meant to differ; each race's hero starts from its own kit (empty = build it
+// yourself in admin). Kept in sync with admin/index.php HERO_DEFAULT_KITS.
+const HERO_DEFAULT_KITS = {
+  orcs: { skills: ['warstomp', '', ''], ult: 'bloodlust' },
+  humans: { skills: ['', '', ''], ult: '' },
+};
+
+function baseUnits(race) {
   const t = {};
   // size = visual scale, projSize = projectile scale (both 1 = 100%);
   // caster + abilities come only from the admin config (empty by default);
@@ -187,9 +196,10 @@ function baseUnits() {
       t[id].levelXp = [...DEFAULT_HERO_XP]; // XP needed to reach levels 2..10
       t[id].hpPerLevel = 40;
       t[id].dmgPerLevel = 4;
-      // default kit = the Orc Chieftain (editable per race in admin)
-      t[id].heroAbilities = ['warstomp', 'wardrums', 'spiritwolves']; // 3 rankable skills
-      t[id].heroUltimate = 'bloodlust';   // the ultimate (rankable from level 6)
+      // per-race default kit (editable per race in admin)
+      const kit = HERO_DEFAULT_KITS[race] || { skills: ['', '', ''], ult: '' };
+      t[id].heroAbilities = [...kit.skills];
+      t[id].heroUltimate = kit.ult;
     }
   }
   return t;
@@ -235,7 +245,7 @@ function baseUpgrades() {
 }
 
 function rebuildResolved() {
-  for (const r of RACES) { resolvedUnits[r] = baseUnits(); resolvedBuildings[r] = baseBuildings(); }
+  for (const r of RACES) { resolvedUnits[r] = baseUnits(r); resolvedBuildings[r] = baseBuildings(); }
   Object.assign(resolvedAbilities, baseAbilities());
   Object.assign(resolvedUpgrades, baseUpgrades());
 }
@@ -269,7 +279,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -540,16 +550,10 @@ export function currentBalance() {
 }
 
 export function resetRaceUnit(race, id) {
-  const u = UNITS[id];
-  const ps = u.projectileSpeed || CONFIG.PROJECTILE_SPEED;
-  resolvedUnits[race][id] = {
-    ...u, size: 1, projSize: 1, cw: 1, ch: 1, animSpeed: 5,
-    ranged: false, projectile: false, heal: false, buildingDamage: 0, isAir: false, targetsAir: false, targetsGround: true, splash: 0,
-    projSpeed: ps, projectileSpeed: ps,
-    bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
-    dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,
-    caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
-  };
+  // rebuild from the same source as the initial tables, so every field (incl.
+  // xp/food/slot/building and the hero's leveling + kit) is restored correctly
+  const fresh = baseUnits(race)[id];
+  if (fresh) resolvedUnits[race][id] = fresh;
 }
 
 export function resetAbility(id) {

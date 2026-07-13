@@ -53,16 +53,14 @@ const ABILITY_INFO = [
   'summonbear' => ['Invocă Urs', true, false],
   // Chieftain (Orc hero) kit
   'warstomp' => ['War Stomp', true, false],
-  'wardrums' => ['War Drums', true, false],
-  'spiritwolves' => ['Spirit Wolves', true, false],
   'bloodlust' => ['Bloodlust', true, false],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'spiritwolves' => 'spiritwolf'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'spiritwolf' => 'Lup spirit'];
-// hero's default kit (kept in sync with src/ui/balance.js) — used until the
-// hero's abilities are saved from admin, so the Eroi tab shows its cast slots.
-const HERO_DEFAULT_KIT = ['warstomp', 'wardrums', 'spiritwolves', 'bloodlust'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
+// per-race hero default kit (kept in sync with src/ui/balance.js) — used until
+// the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'bloodlust'], 'humans' => []];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
@@ -124,7 +122,7 @@ function unitAbilities(string $race, string $ent): array {
       if (!empty($u['heroUltimate'])) $list[] = $u['heroUltimate'];
     }
     $list = array_values(array_filter($list, fn($a) => is_string($a) && $a !== '' && isset(ABILITY_INFO[$a])));
-    return $list ?: HERO_DEFAULT_KIT;
+    return $list ?: (HERO_DEFAULT_KITS[$race] ?? []);
   }
   if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
   return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));

@@ -24,6 +24,12 @@ export function visualRadiusOf(u) {
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
 
 // Draws a unit shape centered at (0,0) in a pre-transformed context.
+// Tower attack period for a base tier (mirrors balance.towerStatForTier).
+function towerPeriodFor(bs, tier) {
+  return (tier >= 3 ? (bs.period3 ?? bs.period2 ?? bs.period)
+    : tier === 2 ? (bs.period2 ?? bs.period) : bs.period) || 1;
+}
+
 export function drawShape(ctx, shape, r) {
   ctx.beginPath();
   switch (shape) {
@@ -540,11 +546,11 @@ export class Renderer {
     const idleFor = this.now - this._towerIdle.get(s.id);
 
     if (firing) {
-      const period = bs.period || 1;
+      const period = towerPeriodFor(bs, tier);
       const sinceFire = period - s.cooldown; // 0 right after a shot
-      // hold the "fire" frame for a clear beat (a fraction of the reload), so
-      // it reads as one swing per shot instead of a rapid flicker
-      const flash = Math.min(0.28, period * 0.45);
+      // hold the "fire" (Attack 2) frame for a configurable beat, capped at the
+      // reload so it always returns to Attack 1 before the next shot
+      const flash = Math.min(Math.max(0.02, bs.attackHold ?? 0.4), period);
       const frame = sinceFire >= 0 && sinceFire < flash ? 1 : 0;
       return drawTowerSprite(ctx, s.team, tier, hw, hh, 'attack', frame);
     }
@@ -629,9 +635,11 @@ export class Renderer {
         if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, s.team)) {
           const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
           if (tgt && tgt.hp > 0) {
-            const period = game.bstat(s.team, s.kind).period || 1;
+            const abs = game.bstat(s.team, s.kind);
+            const period = s.kind === 'tower' ? towerPeriodFor(abs, game.tier[s.team]) : (abs.period || 1);
             const sinceFire = period - s.cooldown; // 0 right after a shot
-            const frame = sinceFire >= 0 && sinceFire < 0.16 ? 1 : 0;
+            const flash = Math.min(Math.max(0.02, abs.attackHold ?? 0.16), period);
+            const frame = sinceFire >= 0 && sinceFire < flash ? 1 : 0;
             spriteDrawn = drawStructureAttack(ctx, s.kind, s.team, hw, hh, frame);
           }
         }
