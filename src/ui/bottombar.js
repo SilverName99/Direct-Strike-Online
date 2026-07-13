@@ -410,11 +410,11 @@ export class BottomBar {
       if (stats.targetsAir) rows.push('🎯 lovește aer');
       if (stats.targetsGround === false) rows.push('⛔ nu lovește sol');
     } else {
-      // towers scale their damage with the owner's base tier
-      const dmg = info.type === 'tower'
-        ? towerStatForTier(stats, game.tier[info.team]).damage
-        : stats.damage;
-      if (dmg) rows.push(`⚔ <b>${dmg}</b> · <b>${(dmg / Math.max(0.1, stats.period || 1)).toFixed(1)}</b> DPS`, `➹ <b>${stats.range}</b>`);
+      // towers scale their damage AND attack period with the owner's base tier
+      const tst = info.type === 'tower' ? towerStatForTier(stats, game.tier[info.team]) : null;
+      const dmg = tst ? tst.damage : stats.damage;
+      const per = tst ? tst.period : stats.period;
+      if (dmg) rows.push(`⚔ <b>${dmg}</b> · <b>${(dmg / Math.max(0.1, per || 1)).toFixed(1)}</b> DPS`, `➹ <b>${stats.range}</b>`);
       if (stats.income) rows.push(`◆ +<b>${stats.income}</b> aur/20s`);
       if (info.type === 'main') rows.push('🏰 obiectivul principal');
     }

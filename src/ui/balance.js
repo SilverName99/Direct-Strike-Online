@@ -32,10 +32,10 @@ export const UNIT_SELECT_FIELDS = {
 export const BUILDING_FIELDS = {
   wall: [['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable']],
   tower: [
-    ['cost', 'Cost'], ['cap', 'Max buildable'],
-    ['range', 'Range'], ['period', 'Attack period (s)'],
+    ['cost', 'Cost'], ['cap', 'Max buildable'], ['range', 'Range'],
     ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'],
     ['damage', 'Damage Tier 1'], ['damage2', 'Damage Tier 2'], ['damage3', 'Damage Tier 3'],
+    ['period', 'Attack period Tier 1 (s)'], ['period2', 'Attack period Tier 2 (s)'], ['period3', 'Attack period Tier 3 (s)'],
     ['campfireDelay', 'Secunde inactiv → foc de tabără'],
   ],
   generator: [
@@ -268,7 +268,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -277,7 +277,8 @@ export function towerStatForTier(b, tier) {
   const t = tier < 1 ? 1 : tier > 3 ? 3 : tier;
   const hp = t >= 3 ? (b.hp3 ?? b.hp2 ?? b.hp) : t === 2 ? (b.hp2 ?? b.hp) : b.hp;
   const damage = t >= 3 ? (b.damage3 ?? b.damage2 ?? b.damage) : t === 2 ? (b.damage2 ?? b.damage) : b.damage;
-  return { hp, damage };
+  const period = t >= 3 ? (b.period3 ?? b.period2 ?? b.period) : t === 2 ? (b.period2 ?? b.period) : b.period;
+  return { hp, damage, period };
 }
 
 function raceUnitsSnapshot(race) {
