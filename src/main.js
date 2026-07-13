@@ -71,19 +71,13 @@ document.getElementById('grid-btn').addEventListener('click', () => {
   document.getElementById('grid-btn').classList.toggle('off', !uiState.gridOn);
   toast(uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
 });
-const captureBtn = document.getElementById('capture-btn');
-function refreshCaptureBtn() { captureBtn.classList.toggle('off', !pointer.captureMouse); }
-function toggleCapture() {
-  const on = pointer.setCaptureMouse(!pointer.captureMouse);
-  refreshCaptureBtn();
-  toast(on ? 'Capturare mouse: ON — edge-scroll pe 2 monitoare' : 'Capturare mouse: OFF — cursor hardware, fără delay');
-}
-captureBtn.addEventListener('click', toggleCapture);
-refreshCaptureBtn();
+// Mouse capture is intentionally off: the game uses the real hardware cursor
+// (no delay). The toggle UI was removed, so force it off — this also clears any
+// previously saved "ON" preference for players who had enabled it.
+pointer.setCaptureMouse(false);
 document.addEventListener('keydown', (e) => {
   if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
-  if (e.key === 'c' || e.key === 'C') toggleCapture();
   if (e.key === 'g' || e.key === 'G') { // toggle the AI debug overlay
     aiDebugOn = !aiDebugOn;
     aiDebugEl.style.display = aiDebugOn ? 'block' : 'none';
