@@ -16,6 +16,9 @@ define('DS_ADMIN', 1);
 
 const RACES = ['humans', 'orcs'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
+// Heroes are units too (sprites/portrait), but live on their own admin tab and
+// are NOT part of the shop order.
+const HERO_LIST = ['hero'];
 const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
 // ranged units (projectile:true in units.js) can upload a projectile image
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
@@ -409,7 +412,7 @@ function checkCsrf(): bool {
 function regenManifest(string $assetsDir): void {
   $races = [];
   foreach (RACES as $r) {
-    foreach (array_merge(UNIT_LIST, BUILDING_LIST) as $ent) {
+    foreach (array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST) as $ent) {
       $slots = slotsFor($ent, $r);
       $entData = [];
       foreach ($slots as $slot => $label) {
@@ -458,7 +461,7 @@ function regenManifest(string $assetsDir): void {
     }
     if ($tv) $towervids[$r] = (object)$tv;
     $pv = [];
-    foreach (UNIT_LIST as $ent) {
+    foreach (array_merge(UNIT_LIST, HERO_LIST) as $ent) {
       $forms = [];
       // every portrait-clip form this unit can have: base, foot, beast, and any
       // summoned-animal forms (wolf/eagle/bear) — keyed by the form name
@@ -552,7 +555,7 @@ $authed = !empty($_SESSION['auth']);
 
 function validTarget(string $race, string $ent, string $slot): bool {
   return in_array($race, RACES, true)
-    && in_array($ent, array_merge(UNIT_LIST, BUILDING_LIST), true)
+    && in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
     && array_key_exists($slot, slotsFor($ent, $race));
 }
 
@@ -666,7 +669,7 @@ if ($authed && $action === 'deletemusic') {
 if ($authed && $action === 'uploadportraitvid') {
   $ent = $_POST['entity'] ?? '';
   $suffix = $_POST['variant'] ?? '';
-  $okTarget = in_array($race, RACES, true) && in_array($ent, UNIT_LIST, true)
+  $okTarget = in_array($race, RACES, true) && in_array($ent, array_merge(UNIT_LIST, HERO_LIST), true)
     && array_key_exists($suffix, portraitVidVariants($race, $ent));
   if (!checkCsrf() || !$okTarget) {
     $err = 'Cerere invalidă.';
@@ -694,7 +697,7 @@ if ($authed && $action === 'uploadportraitvid') {
 if ($authed && $action === 'deleteportraitvid') {
   $ent = $_POST['entity'] ?? '';
   $suffix = $_POST['variant'] ?? '';
-  if (checkCsrf() && in_array($race, RACES, true) && in_array($ent, UNIT_LIST, true)
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($ent, array_merge(UNIT_LIST, HERO_LIST), true)
       && array_key_exists($suffix, portraitVidVariants($race, $ent))) {
     foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/$ent/portrait$suffix.$e");
     regenManifest($assetsDir);
@@ -1060,6 +1063,12 @@ if ($authed && $action === 'deletebarover') {
       padding: 14px 16px; margin-bottom: 12px;
       display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;
     }
+    .unit-tabs { display: flex; gap: 8px; margin: 18px 0 10px; }
+    .unit-tabs .utab {
+      padding: 8px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
+      background: #10151d; color: #9fb0c8; border: 1px solid #2a3446; border-radius: 20px;
+    }
+    .unit-tabs .utab.active { background: #1c2740; color: #ffd35c; border-color: #5a4a1e; }
     .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
     .portraitvid .lbl { font-size: 10px; color: #b58fff; text-transform: uppercase; letter-spacing: 1px; }
     .portraitvid .pv-row { display: flex; align-items: center; gap: 14px; margin: 6px 0 12px; }
@@ -1550,8 +1559,34 @@ if ($authed && $action === 'deletebarover') {
     </div>
   <?php } ?>
 
-  <h2>Unități — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(▲▼ reordonează — ordinea apare la fel în shop-ul din joc)</span></h2>
-  <?php foreach (orderedUnits($race) as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  <div class="unit-tabs">
+    <button type="button" class="utab active" data-tab="units">Unități</button>
+    <button type="button" class="utab" data-tab="heroes">Eroi</button>
+  </div>
+
+  <div id="utab-units" class="utab-panel">
+    <h2>Unități — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(▲▼ reordonează — ordinea apare la fel în shop-ul din joc)</span></h2>
+    <?php foreach (orderedUnits($race) as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  </div>
+
+  <div id="utab-heroes" class="utab-panel" style="display:none">
+    <h2>Eroi — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(Thumb, idle, walk, attack, die + animație portret; abilitățile vin ulterior)</span></h2>
+    <?php foreach (HERO_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  </div>
+
+  <script>
+    (function () {
+      var btns = document.querySelectorAll('.utab');
+      btns.forEach(function (b) {
+        b.addEventListener('click', function () {
+          btns.forEach(function (x) { x.classList.remove('active'); });
+          b.classList.add('active');
+          document.getElementById('utab-units').style.display = b.dataset.tab === 'units' ? '' : 'none';
+          document.getElementById('utab-heroes').style.display = b.dataset.tab === 'heroes' ? '' : 'none';
+        });
+      });
+    })();
+  </script>
 
   <h2>Clădiri — <?= $race ?></h2>
   <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'building'); ?>
