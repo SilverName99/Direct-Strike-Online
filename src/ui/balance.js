@@ -106,10 +106,20 @@ function sanitizeOrder(arr) {
   return out;
 }
 export function resolvedUnitOrder(race) {
-  return [...(unitOrder[race] || unitOrder[RACES[0]])];
+  // heroes are bought from the Base, never listed in the normal shop / tech
+  // building cards / AI pools that consume this order
+  return [...(unitOrder[race] || unitOrder[RACES[0]])]
+    .filter((id) => !(resolvedUnits[race] && resolvedUnits[race][id] && resolvedUnits[race][id].isHero));
 }
 export function setUnitOrder(race, arr) {
   if (RACES.includes(race)) unitOrder[race] = sanitizeOrder(arr);
+}
+
+// The hero unit id for a race (the one flagged isHero), or null. One per race.
+export function resolvedHeroId(race) {
+  const t = resolvedUnits[race] || resolvedUnits[RACES[0]];
+  for (const id of Object.keys(t)) if (t[id] && t[id].isHero) return id;
+  return null;
 }
 
 // Per-race background-music volume (0-100). The track itself is a file upload

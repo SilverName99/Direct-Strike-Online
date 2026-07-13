@@ -270,8 +270,9 @@ export class Input {
     if (UNITS[id] && game.ustat(0, id).tier > game.tier[0]) return; // tier-locked
     // gated behind its tech building — must be built to select/place it
     if (UNITS[id]) {
-      const b = game.ustat(0, id).building;
-      if (b && !game.hasBuilding(0, b)) return;
+      const s = game.ustat(0, id);
+      if (s.building && !game.hasBuilding(0, s.building)) return;
+      if (s.isHero && game.hasHero(0)) return; // one hero per team
     }
     // some buildings can only be built from a given base tier
     if (BUILDING_IDS.includes(id) && game.tier[0] < (game.bstat(0, id).tier || 1)) return;

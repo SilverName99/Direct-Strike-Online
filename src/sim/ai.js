@@ -316,9 +316,10 @@ export class AIController {
     return false;
   }
 
-  // A unit is fieldable only if its gating tech building (if any) is standing.
+  // A unit is fieldable by the AI only if it's not a hero (heroes aren't wired
+  // for the AI yet) and its gating tech building (if any) is standing.
   unlocked(game, s) {
-    return !s.building || game.hasBuilding(this.team, s.building);
+    return !s.isHero && (!s.building || game.hasBuilding(this.team, s.building));
   }
 
   // Try a handful of candidate spots; the sim validates zone/overlap.

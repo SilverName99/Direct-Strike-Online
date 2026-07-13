@@ -78,6 +78,17 @@ export const UNITS = {
     role: 'Anti-air / anti-armor',
     tip: 'Piercing beams that hit air and ground. The dedicated Wasp answer.',
   },
+  // Hero: one special unit per race, bought from the Base (not the shop/tech
+  // buildings). Levels up 1->10 from your army's kills and learns abilities;
+  // respawns each wave keeping its level. Only ONE per team.
+  hero: {
+    name: 'Erou', shape: 'star', radius: 15,
+    tier: 1, cost: 250, hp: 600, armor: 'armored',
+    damage: 40, period: 1.0, dmgType: 'normal', range: 30, speed: 85,
+    isHero: true,
+    role: 'Erou',
+    tip: 'Unitate specială, una per rasă. Urcă în nivel din kill-urile armatei și învață abilități. Respawn la fiecare val, păstrând nivelul.',
+  },
 };
 
 // Categories used by the AI's composition logic.

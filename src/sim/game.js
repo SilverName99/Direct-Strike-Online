@@ -118,6 +118,16 @@ export class Game {
     return this.structures.some((s) => s.team === team && s.kind === kind && s.hp > 0);
   }
 
+  // This team's hero template (persistent record: level/xp/points), or null.
+  // Only one per team; it respawns each wave from this template.
+  heroTemplate(team) {
+    return this.templates[team].find((t) => t.hero) || null;
+  }
+
+  hasHero(team) {
+    return !!this.heroTemplate(team);
+  }
+
   // Income amounts are configured per INCOME_WINDOW (20s); each INCOME_TICK
   // pays the proportional slice so gold still flows in smoothly.
   incomePer20s(team) {
@@ -267,6 +277,8 @@ export class Game {
       if (stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       // gated behind its tech building: must be built (alive) to buy the unit
       if (stats.building && !this.hasBuilding(cmd.team, stats.building)) return { ok: false, reason: 'no-building' };
+      // only ONE hero per team
+      if (stats.isHero && this.hasHero(cmd.team)) return { ok: false, reason: 'hero-cap' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.templates[cmd.team].length >= CONFIG.MAX_TEMPLATES)
         return { ok: false, reason: 'template-cap' };
@@ -274,7 +286,9 @@ export class Game {
         return { ok: false, reason: 'zone' };
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
-      this.templates[cmd.team].push({ type: cmd.unitId, x: cmd.x, y: cmd.y, spawned: false });
+      const tpl = { type: cmd.unitId, x: cmd.x, y: cmd.y, spawned: false };
+      if (stats.isHero) { tpl.hero = true; tpl.level = 1; tpl.xp = 0; tpl.points = 0; }
+      this.templates[cmd.team].push(tpl);
       return { ok: true };
     }
 

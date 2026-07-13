@@ -71,6 +71,18 @@ export function drawShape(ctx, shape, r) {
     case 'hexagon':
       polygon(ctx, 6, r, 0, 1, 1);
       break;
+    case 'star': {
+      const pts = 5;
+      for (let i = 0; i < pts * 2; i++) {
+        const rr = i % 2 === 0 ? r * 1.3 : r * 0.55;
+        const a = -Math.PI / 2 + (i * Math.PI) / pts;
+        const x = Math.cos(a) * rr;
+        const y = Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      break;
+    }
     default:
       ctx.arc(0, 0, r, 0, Math.PI * 2);
   }

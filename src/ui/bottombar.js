@@ -16,7 +16,7 @@ import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
-  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS,
+  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId,
 } from './balance.js';
 import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
@@ -599,10 +599,16 @@ export class BottomBar {
     const isStruct = info.kind === 'structure';
     const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
 
-    // your own Main Base: only the tier upgrade (units + their upgrades now
-    // live in the tech buildings; heroes come later)
+    // your own Main Base: the tier upgrade + the Hero (one per team, bought here
+    // and placed like a unit; units + their upgrades live in the tech buildings)
     if (own && isStruct && info.type === 'main') {
       items.push({ kind: 'upgradeBase', id: 'upgrade' });
+      const race = raceOf(0);
+      const hero = resolvedHeroId(race);
+      if (hero) {
+        const h = statsUnit(race, hero);
+        items.push({ kind: 'unit', id: hero, cost: h.cost, tier: h.tier, isHero: true });
+      }
       return items;
     }
 
@@ -781,6 +787,7 @@ export class BottomBar {
         if (game) {
           const u = game.ustat(0, d.id);
           if (u.tier > game.tier[0]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
+          else if (d.isHero && game.hasHero(0)) el.classList.add('disabled'); // one hero per team
           else if (game.money[0] < u.cost) el.classList.add('disabled');
         }
       } else if (d.kind === 'building') {
@@ -859,6 +866,7 @@ export class BottomBar {
     const game = this.getGame();
     if (d.kind === 'unit' || d.kind === 'building') {
       if (el.classList.contains('locked')) return;
+      if (d.isHero && game && game.hasHero(0)) return; // already have your hero
       this.onShopClick(d.id);
       return;
     }
