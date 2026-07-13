@@ -57,6 +57,8 @@ export function spawnUnit(game, team, type, x, y) {
     footprint, hw, hh, // rectangular separation for multi-cell units
     armor: s.armor,
     isAir: !!s.isAir,
+    hero: !!s.isHero,   // the special per-race hero (levels up, respawns each wave)
+    heroLevel: 1,       // set from the persistent template at wave spawn
   };
   game.entities.push(e);
   game.byId.set(e.id, e);

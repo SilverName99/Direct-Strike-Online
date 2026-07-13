@@ -159,6 +159,26 @@ function fieldsFor(ent, kind) {
       group: G, label: 'Viteză animație mers/idle (flip/s)', type: 'num', value: u.animSpeed ?? 5,
       apply: (v) => { u.animSpeed = clamp(v, 0.2, 30); },
     });
+    // XP this unit grants to the ENEMY hero when it dies
+    out.push({
+      group: G, label: 'XP dat eroului inamic la moarte', type: 'num', value: u.xp ?? 1,
+      apply: (v) => { u.xp = clamp(Math.round(v), 0, 100000); },
+    });
+    // Hero-only: per-level growth + the XP thresholds for levels 2..10
+    if (u.isHero) {
+      const H = 'Erou (nivelare)';
+      out.push({ group: H, label: 'HP +/nivel', type: 'num', value: u.hpPerLevel ?? 40, apply: (v) => { u.hpPerLevel = clamp(Math.round(v), 0, 100000); } });
+      out.push({ group: H, label: 'Damage +/nivel', type: 'num', value: u.dmgPerLevel ?? 4, apply: (v) => { u.dmgPerLevel = clamp(Math.round(v), 0, 100000); } });
+      out.push({ group: H, type: 'note', label: 'XP necesar pentru fiecare nivel (cumulat de la nivelul anterior):' });
+      const lx = Array.isArray(u.levelXp) ? u.levelXp : [];
+      for (let i = 0; i < 9; i++) {
+        const lvl = i + 2;
+        out.push({
+          group: H, label: `→ Nivel ${lvl}`, type: 'num', value: lx[i] ?? 0,
+          apply: (v) => { if (!Array.isArray(u.levelXp)) u.levelXp = []; u.levelXp[i] = clamp(Math.round(v), 0, 1000000); },
+        });
+      }
+    }
 
     // Flying: the unit passes over walls/structures and can only be hit by
     // units flagged "Can hit air".

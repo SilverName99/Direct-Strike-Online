@@ -161,10 +161,21 @@ function baseUnits() {
       bounce: false, bouncePower: 50, bounceRadius: 80, bounceMax: 3,
       dash: false, dashDamage: 30, dashSpeed: 400, dashRange: 250, dashCd: 3,
       caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
+      xp: 1,               // XP granted to the enemy hero when this unit dies
     };
+    // the hero carries its own leveling config (thresholds + per-level growth)
+    if (u.isHero) {
+      t[id].levelXp = [...DEFAULT_HERO_XP]; // XP needed to reach levels 2..10
+      t[id].hpPerLevel = 40;
+      t[id].dmgPerLevel = 4;
+    }
   }
   return t;
 }
+
+// Default XP required to reach each of levels 2..10 (9 thresholds). Editable
+// per race in the hero's ⚙ stats.
+const DEFAULT_HERO_XP = [10, 15, 20, 25, 30, 40, 50, 65, 80];
 function baseBuildings() {
   return {
     main: {
@@ -260,7 +271,13 @@ function raceUnitsSnapshot(race) {
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
       slot: Number.isInteger(u.slot) ? u.slot : -1,
+      xp: u.xp,
     };
+    if (u.isHero) {
+      out[id].levelXp = [...(u.levelXp || [])];
+      out[id].hpPerLevel = u.hpPerLevel;
+      out[id].dmgPerLevel = u.dmgPerLevel;
+    }
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
     for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
   }
@@ -403,6 +420,14 @@ function applyRaceUnits(race, unitsData) {
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
     if (typeof vals.building === 'string' && (vals.building === '' || TECH_BUILDINGS.includes(vals.building))) u.building = vals.building;
     if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 6));
+    if (num(vals.xp) !== undefined) u.xp = clamp(vals.xp, 0, 100000);
+    if (u.isHero) {
+      if (Array.isArray(vals.levelXp)) {
+        u.levelXp = vals.levelXp.slice(0, 9).map((n) => clamp(Number(n) || 0, 0, 1000000));
+      }
+      if (num(vals.hpPerLevel) !== undefined) u.hpPerLevel = clamp(vals.hpPerLevel, 0, 100000);
+      if (num(vals.dmgPerLevel) !== undefined) u.dmgPerLevel = clamp(vals.dmgPerLevel, 0, 100000);
+    }
     if (num(vals.buildingDamage) !== undefined) u.buildingDamage = clamp(vals.buildingDamage, 0, 100000);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;
     if (typeof vals.autoAttackBetween === 'boolean') u.autoAttackBetween = vals.autoAttackBetween;

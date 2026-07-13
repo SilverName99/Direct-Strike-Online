@@ -439,10 +439,25 @@ export class BottomBar {
     const manaBar = manaMax > 0
       ? `<div class="d-bar"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${Math.floor(mana)} / ${manaMax}</span></div>`
       : '';
+    // hero: a level line + XP bar toward the next level (and unspent talent pts)
+    let heroBar = '';
+    if (info.kind === 'entity' && info.u.hero) {
+      const tpl = game.heroTemplate(info.team);
+      if (tpl) {
+        const lvl = tpl.level || 1;
+        const need = (stats.levelXp || [])[lvl - 1] || 0;
+        const pct = lvl >= 10 || !need ? 100 : Math.max(0, ((tpl.xp || 0) / need) * 100);
+        const label = lvl >= 10 ? 'MAX' : `${Math.floor(tpl.xp || 0)} / ${need} XP`;
+        const pts = tpl.points ? `<span class="d-chip" style="border-color:#ffd35c;color:#ffd35c">★ ${tpl.points} punct${tpl.points > 1 ? 'e' : ''}</span>` : '';
+        heroBar = `<div class="d-sub" style="margin:2px 0">Nivel ${lvl}${own ? '' : ''} ${pts}</div>
+          <div class="d-bar"><div class="mana" style="width:${pct}%;background:#ffd35c"></div><span>${label}</span></div>`;
+      }
+    }
     this.details.innerHTML = `
       <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">${name}</span><span class="d-sub">${sub}${own ? '' : ' · INAMIC'}</span></div>
       <div class="d-bar"><div class="hp ${own ? '' : 'enemy'}" style="width:${Math.max(0, (hp / maxHp) * 100)}%"></div><span>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</span></div>
       ${manaBar}
+      ${heroBar}
       <div class="d-stats">${rows.map((r) => `<span>${r}</span>`).join('')}</div>
       <div class="d-status">${chips}</div>`;
   }

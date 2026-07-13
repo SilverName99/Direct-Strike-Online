@@ -128,6 +128,42 @@ export class Game {
     return !!this.heroTemplate(team);
   }
 
+  // A unit died: the ENEMY team's hero earns its XP — but only while that hero
+  // is alive on the field. Structures/base grant nothing.
+  creditHeroKill(dead) {
+    if (!dead || dead.isStructure || dead.isBase) return;
+    const team = 1 - dead.team; // the team whose army scored the kill
+    const tpl = this.heroTemplate(team);
+    if (!tpl || tpl.level >= 10) return;
+    if (!this.entities.some((e) => e.team === team && e.hero && e.hp > 0)) return;
+    const xp = (this.ustatOf(dead).xp) || 0;
+    if (xp > 0) this.gainHeroXp(team, tpl, xp);
+  }
+
+  // Add XP to a hero and process level-ups (1->10). Each level grants a talent
+  // point and grows the live hero entity's HP.
+  gainHeroXp(team, tpl, xp) {
+    tpl.xp = (tpl.xp || 0) + xp;
+    const s = this.ustat(team, tpl.type);
+    const thresholds = s.levelXp || [];
+    while (tpl.level < 10) {
+      const need = thresholds[tpl.level - 1];
+      if (!(need > 0) || tpl.xp < need) break;
+      tpl.xp -= need;
+      tpl.level++;
+      tpl.points = (tpl.points || 0) + 1;
+      this.events.push({ type: 'herolevel', team, level: tpl.level, unitId: tpl.type });
+      const ent = this.entities.find((e) => e.team === team && e.hero && e.hp > 0);
+      if (ent) {
+        const oldMax = ent.maxHp;
+        ent.heroLevel = tpl.level;
+        ent.maxHp = s.hp + (tpl.level - 1) * (s.hpPerLevel || 0);
+        ent.hp += ent.maxHp - oldMax; // gain the fresh HP chunk on ding
+      }
+    }
+    if (tpl.level >= 10) tpl.xp = 0;
+  }
+
   // Income amounts are configured per INCOME_WINDOW (20s); each INCOME_TICK
   // pays the proportional slice so gold still flows in smoothly.
   incomePer20s(team) {

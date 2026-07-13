@@ -8,7 +8,15 @@ export function spawnWave(game) {
     for (const tpl of game.templates[team]) {
       const jx = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       const jy = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
-      spawnUnit(game, team, tpl.type, tpl.x + jx, tpl.y + jy);
+      const u = spawnUnit(game, team, tpl.type, tpl.x + jx, tpl.y + jy);
+      // the hero respawns at its persisted level, with per-level HP growth baked
+      // in (the damage bonus is applied live in effStats)
+      if (tpl.hero) {
+        const s = game.ustat(team, tpl.type);
+        u.heroLevel = tpl.level || 1;
+        u.maxHp += (u.heroLevel - 1) * (s.hpPerLevel || 0);
+        u.hp = u.maxHp;
+      }
       tpl.spawned = true; // once spawned, selling only gives the partial refund
     }
   }

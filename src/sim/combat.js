@@ -9,6 +9,10 @@ import { resolvedUpgrade, towerStatForTier } from '../ui/balance.js';
 // says the rider stays ranged, e.g. the Landing Split's axe thrower). A split
 // beast uses the same override block with its own melee numbers.
 export function effStats(u, stats) {
+  // the hero gains flat damage per level (HP growth is baked in at spawn)
+  if (u.hero && u.heroLevel > 1 && (stats.dmgPerLevel || 0) > 0) {
+    stats = { ...stats, damage: stats.damage + (u.heroLevel - 1) * stats.dmgPerLevel };
+  }
   if (!u.dismounted && !u.beast) return stats;
   const ranged = !!u.ovRanged;
   return {
@@ -733,6 +737,7 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
   target.hp -= damage * mult;
   if (!silent) game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
+    game.creditHeroKill(target); // your hero earns XP when your army kills a unit
     game.events.push({
       type: 'death',
       x: target.x, y: target.y,
