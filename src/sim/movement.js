@@ -85,6 +85,10 @@ function collideStructures(game) {
     if (u.isAir) continue;
     for (const s of game.structures) {
       if (s.hp <= 0) continue;
+      // units pass THROUGH their own structures — the army now spawns behind
+      // the base and marches out through its own construction zone. Enemy
+      // structures (walls/towers/base) still block, so defenses keep their job.
+      if (s.team === u.team) continue;
       if (s.kind === 'main' || s.kind === 'turret') collideCircle(u, s);
       else collideBox(u, s);
     }

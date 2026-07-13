@@ -254,7 +254,7 @@ export class Renderer {
     // GLOBAL neutral strip over the seam (the variant the sim picked this match)
     this.drawMiddleStrip(ctx, getMiddleImage(game.middleSlot != null ? game.middleSlot : -1), mid);
 
-    // per-team base quadrant: construction zone (back) + army zone (front)
+    // per-team base quadrant: army zone (back) + construction zone (front)
     const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
     for (const team of [0, 1]) {
       const cz = CONFIG.CONSTRUCTION_ZONE[team];

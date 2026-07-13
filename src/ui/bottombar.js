@@ -560,11 +560,16 @@ export class BottomBar {
       slot.el.className = 'slot' + (data ? '' : ' empty');
       slot.el.innerHTML = '';
       if (!data) continue;
-      // icon
+      // icon — supersample the backing store so icons stay crisp on high-DPR
+      // screens and when the bottom bar is zoomed (1.2×–1.6×). CSS keeps it 46px.
+      const SS = this.iconSS || (this.iconSS =
+        Math.min(4, Math.max(2, Math.ceil((window.devicePixelRatio || 1) * 1.6))));
       const cv = document.createElement('canvas');
-      cv.width = 46; cv.height = 46;
+      cv.width = 46 * SS; cv.height = 46 * SS;
       slot.el.appendChild(cv);
-      this.drawSlotIcon(cv.getContext('2d'), data, game);
+      const ictx = cv.getContext('2d');
+      ictx.scale(SS, SS); // drawing code stays in 46-unit space
+      this.drawSlotIcon(ictx, data, game);
       // overlays
       if (data.hotkey) {
         const k = document.createElement('span');

@@ -115,18 +115,18 @@ console.log('unit commands (army zone, tiers)');
 
   const buy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 500, y: 700 });
   check('buy inside army zone ok', buy.ok);
-  const badZone = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 200, y: 700 });
+  const badZone = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 740, y: 700 });
   check('buy in construction zone rejected', !badZone.ok);
   const tooClose = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 502, y: 702 });
   check('buy on top of another template rejected', !tooClose.ok);
 
-  const locked = game.issueCommand({ type: 'buy', team: 0, unitId: 'bruiser', x: 560, y: 700 });
+  const locked = game.issueCommand({ type: 'buy', team: 0, unitId: 'bruiser', x: 460, y: 300 });
   check('tier-2 unit locked at tier 1', !locked.ok && locked.reason === 'tier-locked');
   const up = game.issueCommand({ type: 'upgradeBase', team: 0 });
   check('base upgrade to tier 2 ok', up.ok && game.tier[0] === 2);
-  const nowOk = game.issueCommand({ type: 'buy', team: 0, unitId: 'bruiser', x: 560, y: 700 });
+  const nowOk = game.issueCommand({ type: 'buy', team: 0, unitId: 'bruiser', x: 460, y: 300 });
   check('tier-2 unit unlocked after upgrade', nowOk.ok);
-  const t3 = game.issueCommand({ type: 'buy', team: 0, unitId: 'archon', x: 620, y: 700 });
+  const t3 = game.issueCommand({ type: 'buy', team: 0, unitId: 'archon', x: 460, y: 400 });
   check('tier-3 unit still locked at tier 2', !t3.ok);
 
   // never-spawned template sells for a full refund
@@ -144,9 +144,9 @@ console.log('unit commands (army zone, tiers)');
   const refund = Math.round(UNITS.grunt.cost * CONFIG.SELL_REFUND);
   check('sellUnit refunds 75% after spawn', sell.ok && game.money[0] === before + refund);
 
-  const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 600, y: 500 });
-  check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 600);
-  const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 300, y: 500 });
+  const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 400, y: 500 });
+  check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 400);
+  const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 740, y: 500 });
   check('moveUnit outside army zone rejected', !badMv.ok);
 }
 
@@ -157,8 +157,8 @@ console.log('buildings');
   game.money[0] = 5000;
 
   const base = game.incomePerTick(0);
-  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 400 });
-  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 500 });
+  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 200 });
+  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 300 });
   check('generators build in construction zone', g1.ok && g2.ok);
   // income amounts are per 20s; each tick pays the proportional slice
   const tickShare = CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW;
@@ -167,16 +167,16 @@ console.log('buildings');
     game.incomePerTick(0) === base + Math.round(2 * CONFIG.BUILDINGS.generator.income * tickShare)
   );
 
-  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 105, y: 405 });
+  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 850, y: 205 });
   check('overlapping build rejected', !overlap.ok);
   const badZone = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 500, y: 700 });
   check('building in army zone rejected', !badZone.ok);
 
-  const wall = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: 720 });
+  const wall = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 750, y: 720 });
   check('wall builds ok', wall.ok);
 
   // flush-adjacent walls (edges touching, one grid cell apart) are allowed
-  const wallB = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: 720 + CONFIG.GRID });
+  const wallB = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 750, y: 720 + CONFIG.GRID });
   check('flush-adjacent wall builds ok', wallB.ok);
 
   const money = game.money[0];
@@ -196,18 +196,18 @@ console.log('defense structures');
   // A wall in the enemy's path: the grunt must stop and hit it, not pass.
   const game = new Game(9);
   game.money[0] = 1000;
-  game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 380, y: MID_Y });
+  game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 750, y: MID_Y });
   const wall = game.structures.find((s) => s.kind === 'wall');
-  const g = spawnUnit(game, 1, 'grunt', 600, MID_Y);
+  const g = spawnUnit(game, 1, 'grunt', 980, MID_Y);
   run(game, 8);
-  check('grunt does not pass the wall', g.x > 350, `grunt.x=${Math.round(g.x)}`);
+  check('grunt does not pass the wall', g.x > 720, `grunt.x=${Math.round(g.x)}`);
   check('grunt attacks the wall', wall.hp < wall.maxHp);
 
   // A tower kills a lone passer-by.
   const game2 = new Game(10);
   game2.money[0] = 1000;
-  game2.issueCommand({ type: 'build', team: 0, kind: 'tower', x: 400, y: 400 });
-  const passer = spawnUnit(game2, 1, 'grunt', 540, 400);
+  game2.issueCommand({ type: 'build', team: 0, kind: 'tower', x: 750, y: 400 });
+  const passer = spawnUnit(game2, 1, 'grunt', 980, 400);
   run(game2, 12);
   check('tower kills a passing enemy grunt', passer.hp <= 0);
 
@@ -494,10 +494,10 @@ console.log('abilities (casters, auras, status effects)');
   {
     applyBalance({ races: { humans: { units: { slinger: { ranged: true, bounce: true, bouncePower: 60, bounceRadius: 60, bounceMax: 2 } } } } });
     const game = new Game(4, { races: ['humans', 'orcs'] });
-    spawnUnit(game, 0, 'slinger', 560, 300);
-    const a = spawnUnit(game, 1, 'grunt', 700, 300);
-    const c2 = spawnUnit(game, 1, 'grunt', 740, 300);
-    const c3 = spawnUnit(game, 1, 'grunt', 780, 300);
+    spawnUnit(game, 0, 'slinger', 1600, 300);
+    const a = spawnUnit(game, 1, 'grunt', 1700, 300);
+    const c2 = spawnUnit(game, 1, 'grunt', 1740, 300);
+    const c3 = spawnUnit(game, 1, 'grunt', 1780, 300);
     for (const g of [a, c2, c3]) { g.hp = g.maxHp = 100000; }
     run(game, 2);
     check('bounce chains through a line of enemies',
@@ -937,16 +937,16 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({ races: { humans: { buildings: { generator: { buildCd: 10 } } } } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
     game.money[0] = 5000;
-    const b1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 400 });
-    const b2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 500 });
+    const b1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 200 });
+    const b2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 300 });
     check('first generator builds', b1.ok);
     check('second generator blocked by build cooldown', !b2.ok && b2.reason === 'cooldown');
     run(game, 10.1);
-    const b3 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 100, y: 500 });
+    const b3 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 300 });
     check('cooldown over -> generator builds again', b3.ok, JSON.stringify(b3));
     // walls are unaffected (no buildCd on them)
-    const w = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 260, y: 200 });
-    const w2 = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 260, y: 300 });
+    const w = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 780, y: 200 });
+    const w2 = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 780, y: 300 });
     check('other buildings have no cooldown', w.ok && w2.ok);
   }
 

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.54';
+export const VERSION = 'v10.55';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -44,17 +44,20 @@ export const CONFIG = {
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
   GRID_MAJOR: 2,        // draw a grid line every N cells (the fine cell still snaps)
-  // Construction (base) zone: 9 × 20 cells, same height as the army strip so
-  // the whole base reads as one 20-cell-tall block.
+  // Layout (back -> front, toward the enemy):
+  //   [army formation][construction: base + buildings][open field]
+  // The army now sits BEHIND the base, so units march THROUGH their own
+  // construction zone (they pass through friendly structures) to reach the
+  // field. Enemy structures (walls) still block them.
+  // Construction (base) zone: 9 × 20 cells, in FRONT of the army strip.
   CONSTRUCTION_ZONE: [
-    { x0: 60, x1: 420, y0: 80, y1: 880 },    // team 0 (left)
-    { x0: 3180, x1: 3540, y0: 80, y1: 880 }, // team 1 (right)
+    { x0: 560, x1: 920, y0: 80, y1: 880 },    // team 0 (left)
+    { x0: 2680, x1: 3040, y0: 80, y1: 880 },  // team 1 (right)
   ],
-  // Army formation strip: exactly 12 × 20 cells (of GRID px), centered
-  // vertically; major grid lines land every GRID_MAJOR cells.
+  // Army formation strip (12 × 20 cells) at the BACK of each side.
   ARMY_ZONE: [
-    { x0: 440, x1: 920, y0: 80, y1: 880 },
-    { x0: 2680, x1: 3160, y0: 80, y1: 880 },
+    { x0: 60, x1: 540, y0: 80, y1: 880 },
+    { x0: 3060, x1: 3540, y0: 80, y1: 880 },
   ],
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
@@ -66,7 +69,7 @@ export const CONFIG = {
   // Main base: the win objective, back-center of the construction zone.
   // HP by tier; upgrading unlocks unit tiers and heals +1000.
   MAIN: {
-    x: [200, 3400],
+    x: [640, 2960],
     y: 480,
     radius: 50,
     hp: [4000, 5000, 6000],
