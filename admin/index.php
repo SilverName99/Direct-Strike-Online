@@ -60,6 +60,9 @@ const ABILITY_INFO = [
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'spiritwolves' => 'spiritwolf'];
 const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'spiritwolf' => 'Lup spirit'];
+// hero's default kit (kept in sync with src/ui/balance.js) — used until the
+// hero's abilities are saved from admin, so the Eroi tab shows its cast slots.
+const HERO_DEFAULT_KIT = ['warstomp', 'wardrums', 'spiritwolves', 'bloodlust'];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
@@ -112,6 +115,17 @@ function unitCfg(string $race, string $ent): ?array {
 }
 function unitAbilities(string $race, string $ent): array {
   $u = unitCfg($race, $ent);
+  // the hero's kit = its 3 skills + ultimate (its own admin fields); falls back
+  // to the code default until saved, so its cast slots show on the Eroi tab
+  if (in_array($ent, HERO_LIST, true)) {
+    $list = [];
+    if ($u) {
+      if (isset($u['heroAbilities']) && is_array($u['heroAbilities'])) $list = $u['heroAbilities'];
+      if (!empty($u['heroUltimate'])) $list[] = $u['heroUltimate'];
+    }
+    $list = array_values(array_filter($list, fn($a) => is_string($a) && $a !== '' && isset(ABILITY_INFO[$a])));
+    return $list ?: HERO_DEFAULT_KIT;
+  }
   if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
   return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));
 }
@@ -122,6 +136,7 @@ function unitIsRanged(string $race, string $ent): bool {
   return in_array($ent, PROJECTILE_UNITS, true);
 }
 function unitIsCaster(string $race, string $ent): bool {
+  if (in_array($ent, HERO_LIST, true)) return true; // heroes always cast their kit
   $u = unitCfg($race, $ent);
   return $u && !empty($u['caster']);
 }
@@ -1575,7 +1590,7 @@ if ($authed && $action === 'deletebarover') {
   </div>
 
   <div id="utab-heroes" class="utab-panel" style="display:none">
-    <h2>Eroi — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(Thumb, idle, walk, attack, die + animație portret; abilitățile vin ulterior)</span></h2>
+    <h2>Eroi — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(Thumb, idle, walk, attack, die + animație portret · „Prepare spell" + un cadru „Cast …" per abilitate · sprite-uri pentru invocări. Abilitățile le alegi din ⚙ stats.)</span></h2>
     <?php foreach (HERO_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
   </div>
 
