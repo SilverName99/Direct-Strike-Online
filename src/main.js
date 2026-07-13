@@ -71,6 +71,26 @@ document.getElementById('grid-btn').addEventListener('click', () => {
   document.getElementById('grid-btn').classList.toggle('off', !uiState.gridOn);
   toast(uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
 });
+// Bottom-bar zoom: cycle the whole bottom interface through 1× / 2× / 3×.
+const uiScaleBtn = document.getElementById('uiscale-btn');
+const UI_SCALES = [1, 2, 3];
+let uiScaleIdx = 0;
+try { const s = parseFloat(localStorage.getItem('ds-bb-scale')); const i = UI_SCALES.indexOf(s); if (i >= 0) uiScaleIdx = i; } catch { /* private mode */ }
+function applyUiScale() {
+  const s = UI_SCALES[uiScaleIdx];
+  document.getElementById('bottombar').style.setProperty('--bb-scale', s);
+  uiScaleBtn.textContent = `${s}×`;
+  uiScaleBtn.classList.toggle('off', s === 1);
+  requestAnimationFrame(() => bottombar.buildTrayBg());
+}
+uiScaleBtn.addEventListener('click', () => {
+  uiScaleIdx = (uiScaleIdx + 1) % UI_SCALES.length;
+  const s = UI_SCALES[uiScaleIdx];
+  try { localStorage.setItem('ds-bb-scale', String(s)); } catch { /* private mode */ }
+  applyUiScale();
+  toast(`Bară de jos: ${s}×`);
+});
+applyUiScale();
 // Mouse capture is intentionally off: the game uses the real hardware cursor
 // (no delay). The toggle UI was removed, so force it off — this also clears any
 // previously saved "ON" preference for players who had enabled it.

@@ -159,7 +159,10 @@ html, body {
   position: fixed;
   bottom: 0;
   left: 50%;
-  transform: translateX(-50%);
+  /* --bb-scale enlarges the whole bottom bar (map/portrait/details/9 slots/
+     tabs) as one unit, anchored to the bottom-center so it stays put */
+  transform: translateX(-50%) scale(var(--bb-scale, 1));
+  transform-origin: bottom center;
   width: fit-content;
   z-index: 6;
 }
