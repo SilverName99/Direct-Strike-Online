@@ -282,6 +282,15 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots['projectile'] = 'Proiectil';
       return $slots;
     }
+    // the wall shows a distinct idle look per base tier (1/2/3), 2 frames each
+    if ($ent === 'wall') {
+      $slots = ['thumb' => 'Thumb'];
+      foreach ([1, 2, 3] as $t) {
+        $slots["tier{$t}-idle_0"] = "T$t Idle 1";
+        $slots["tier{$t}-idle_1"] = "T$t Idle 2";
+      }
+      return $slots;
+    }
     $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
     if (in_array($ent, ARMED_BUILDINGS, true)) {
       $slots['attack_0'] = 'Attack 1';

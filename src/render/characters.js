@@ -195,9 +195,31 @@ export function drawStructureSprite(ctx, kind, team, hw, hh, clock, idSeed = 0) 
 export function drawBuildingSprite(ctx, kind, team, hw, hh, frame = 0) {
   const race = raceOf(team);
   const entry = getSprite(race, kind, 'idle', frame)
-    || (kind === 'tower' ? getSprite(race, 'tower', 'tier1-idle', frame) : null);
+    || ((kind === 'tower' || kind === 'wall') ? getSprite(race, kind, 'tier1-idle', frame) : null);
   if (!entry) return false;
   drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
+  return true;
+}
+
+// ---- Walls: an idle look per base tier (1/2/3), 2-frame pulse. A tier with no
+// uploaded frame borrows the nearest lower tier; tier 1 also falls back to the
+// plain idle_0/1 slots, so an existing single-look wall keeps working.
+function wallEntry(race, tier, frame) {
+  const t = tier < 1 ? 1 : tier > 3 ? 3 : tier;
+  for (let k = t; k >= 1; k--) {
+    const e = getSprite(race, 'wall', `tier${k}-idle`, frame);
+    if (e) return e;
+  }
+  return getSprite(race, 'wall', 'idle', frame); // legacy single-look
+}
+
+// Draw a wall's idle frame for its base tier. False -> caller draws vector.
+export function drawWallSprite(ctx, team, tier, hw, hh, clock, idSeed = 0) {
+  const race = raceOf(team);
+  const frame = (Math.floor(clock * idleSpeedOf(race, 'wall')) + idSeed) % 2;
+  const entry = wallEntry(race, tier, frame);
+  if (!entry) return false;
+  drawBuildingScaled(ctx, race, 'wall', entry, hw, hh, team);
   return true;
 }
 
