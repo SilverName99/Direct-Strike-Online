@@ -4,7 +4,7 @@
 // is what makes lockstep multiplayer possible later.
 
 import { CONFIG, RACES } from '../config.js';
-import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility, towerStatForTier } from '../ui/balance.js';
+import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility, towerStatForTier, heroAbilitySlots } from '../ui/balance.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import { ABILITY_IDS } from '../abilities.js';
 import { mulberry32 } from './rng.js';
@@ -75,7 +75,12 @@ export class Game {
   // block (its type points at the caster only to host sprites), everything else
   // resolves by type per its race.
   ustatOf(u) {
-    return u.summonStats || statsUnit(this.races[u.team], u.type);
+    if (u.summonStats) return u.summonStats;
+    const s = statsUnit(this.races[u.team], u.type);
+    // the hero fights AND casts its LEARNED abilities (rank >= 1); its ability
+    // list is synced onto the entity from the template's ranks
+    if (u.hero) return { ...s, caster: true, abilities: u.heroAbilities || [] };
+    return s;
   }
 
   // Resolved building stats for a team, per its race.
@@ -87,6 +92,10 @@ export class Game {
   // autocast toggle and the ability's required base tier (params.tier, min 1).
   abilityUsable(team, unitType, aid) {
     if (this.abilityOff[team].has(`${unitType}/${aid}`)) return false;
+    // heroes gate abilities by LEARNED RANK (already filtered into the hero's
+    // ability list), not by the base tier
+    const s = statsUnit(this.races[team], unitType);
+    if (s && s.isHero) return true;
     const ab = resolvedAbility(aid);
     const req = Math.max(1, (ab && ab.params && ab.params.tier) || 1);
     return this.tier[team] >= req;
@@ -126,6 +135,18 @@ export class Game {
 
   hasHero(team) {
     return !!this.heroTemplate(team);
+  }
+
+  // Push the template's learned abilities/ranks onto the LIVE hero entity so the
+  // ability engine (via ustatOf) casts exactly what's been ranked up.
+  syncHeroEntity(team) {
+    const tpl = this.heroTemplate(team);
+    const ent = this.entities.find((e) => e.team === team && e.hero && e.hp > 0);
+    if (!ent) return;
+    const ranks = (tpl && tpl.ranks) || {};
+    ent.heroRanks = { ...ranks };
+    ent.heroAbilities = heroAbilitySlots(this.races[team])
+      .map((s) => s.id).filter((id) => id && (ranks[id] || 0) >= 1);
   }
 
   // Food/supply: each placed template costs its unit's `food`; farms raise the
@@ -342,6 +363,22 @@ export class Game {
       const tpl = { type: cmd.unitId, x: cmd.x, y: cmd.y, spawned: false };
       if (stats.isHero) { tpl.hero = true; tpl.level = 1; tpl.xp = 0; tpl.points = 0; }
       this.templates[cmd.team].push(tpl);
+      return { ok: true };
+    }
+
+    if (cmd.type === 'rankHero') {
+      const tpl = this.heroTemplate(cmd.team);
+      if (!tpl) return { ok: false, reason: 'no-hero' };
+      if ((tpl.points || 0) <= 0) return { ok: false, reason: 'no-points' };
+      const slot = heroAbilitySlots(this.races[cmd.team]).find((s) => s.id === cmd.ability);
+      if (!slot || !slot.id) return { ok: false, reason: 'unknown-ability' };
+      if (slot.ult && (tpl.level || 1) < 6) return { ok: false, reason: 'ult-locked' };
+      if (!tpl.ranks) tpl.ranks = {};
+      const cur = tpl.ranks[cmd.ability] || 0;
+      if (cur >= (slot.ult ? 1 : 3)) return { ok: false, reason: 'max-rank' };
+      tpl.ranks[cmd.ability] = cur + 1;
+      tpl.points -= 1;
+      this.syncHeroEntity(cmd.team);
       return { ok: true };
     }
 

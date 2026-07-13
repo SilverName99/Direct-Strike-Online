@@ -16,7 +16,7 @@ import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
-  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId,
+  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId, heroAbilitySlots,
 } from './balance.js';
 import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
@@ -665,6 +665,18 @@ export class BottomBar {
       return layoutCardPage(page, sell, toggle);
     }
 
+    // your own hero: its 3 skills + ultimate, each rankable with talent points
+    if (!isStruct && own && stats.isHero) {
+      for (const slot of heroAbilitySlots(raceOf(0))) {
+        if (slot.id) items.push({ kind: 'heroAbility', id: slot.id, ult: slot.ult });
+      }
+      if (info.kind === 'template') {
+        const full = !info.tpl.spawned;
+        items.push({ kind: 'sell', what: 'unit', cost: Math.round(stats.cost * (full ? 1 : CONFIG.SELL_REFUND)), full });
+      }
+      return items;
+    }
+
     if (!isStruct && stats.caster && stats.abilities) {
       for (const aid of stats.abilities) {
         const ab = resolvedAbility(aid);
@@ -687,6 +699,15 @@ export class BottomBar {
       items.push({ kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) });
     }
     return items;
+  }
+
+  // small star in the corner marking the ultimate slot
+  drawUltMark(ctx) {
+    ctx.fillStyle = '#ffd35c';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('★', 2, 1);
   }
 
   drawSlotIcon(ctx, data, game) {
@@ -738,15 +759,17 @@ export class BottomBar {
       ctx.fillText('▲', 23, 24);
       return;
     }
-    if (data.kind === 'ability' || data.kind === 'upgrade' || data.kind === 'buyUpgrade') {
-      const img = getUiIcon(`${data.kind === 'ability' ? 'ability' : 'upgrade'}-${data.id}`);
+    if (data.kind === 'ability' || data.kind === 'upgrade' || data.kind === 'buyUpgrade' || data.kind === 'heroAbility') {
+      const isAb = data.kind === 'ability' || data.kind === 'heroAbility';
+      const img = getUiIcon(`${isAb ? 'ability' : 'upgrade'}-${data.id}`);
       if (img) {
         const s = Math.min(46 / img.width, 46 / img.height);
         ctx.drawImage(img, (46 - img.width * s) / 2, (46 - img.height * s) / 2, img.width * s, img.height * s);
+        if (data.ult) this.drawUltMark(ctx);
         return;
       }
       // fallback: colored disc + initial (ability) / boar glyph (upgrade)
-      if (data.kind === 'ability') {
+      if (isAb) {
         const ab = resolvedAbility(data.id);
         ctx.fillStyle = (ab && ab.color) || '#8fa3c0';
         ctx.beginPath();
@@ -757,6 +780,7 @@ export class BottomBar {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(((ab && ab.name) || data.id)[0].toUpperCase(), 23, 24);
+        if (data.ult) this.drawUltMark(ctx);
       } else {
         ctx.font = '27px sans-serif';
         ctx.textAlign = 'center';
@@ -858,6 +882,17 @@ export class BottomBar {
         } else if (game.money[0] < d.cost) {
           el.classList.add('disabled');
         }
+      } else if (d.kind === 'heroAbility' && game) {
+        const tpl = game.heroTemplate(0);
+        const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
+        const max = d.ult ? 1 : 3;
+        const pts = (tpl && tpl.points) || 0;
+        const lvl = (tpl && tpl.level) || 1;
+        this.setRankBadge(el, `${rank}/${max}`);
+        if (d.ult && lvl < 6) el.classList.add('locked');       // ultimate needs level 6
+        else if (rank >= max) el.classList.add('owned-upg');    // maxed out
+        else if (pts > 0) el.classList.add('on');               // a point is available
+        else el.classList.add('off');                           // learned but no point
       } else if (d.kind === 'sell') {
         el.classList.add('sell');
       }
@@ -886,6 +921,12 @@ export class BottomBar {
     l.textContent = `T${tier}`;
   }
 
+  setRankBadge(el, text) {
+    let r = el.querySelector('.s-cost');
+    if (!r) { r = document.createElement('span'); r.className = 's-cost'; el.appendChild(r); }
+    r.textContent = text;
+  }
+
   clickSlot(d, el) {
     const game = this.getGame();
     if (d.kind === 'unit' || d.kind === 'building') {
@@ -904,6 +945,10 @@ export class BottomBar {
       return;
     }
     if (!game) return;
+    if (d.kind === 'heroAbility') {
+      game.issueCommand({ type: 'rankHero', team: 0, ability: d.id });
+      return;
+    }
     if (d.kind === 'ability' && d.own) {
       const on = game.abilityOff[0].has(`${d.unit}/${d.id}`); // off -> turn on
       game.issueCommand({ type: 'toggleAbility', team: 0, unit: d.unit, ability: d.id, on });
@@ -1030,6 +1075,24 @@ export class BottomBar {
         <div>${up.desc || ''}</div>
         <div class="p-dim">Unitate: ${uname} (Tier ${'I'.repeat(unitTier)})</div>
         ${owned && (d.own || d.kind === 'buyUpgrade') ? '<div class="p-dim">Click: activează/dezactivează.</div>' : ''}`;
+    }
+    if (d.kind === 'heroAbility') {
+      const ab = resolvedAbility(d.id);
+      if (!ab) return '';
+      const tpl = game && game.heroTemplate(0);
+      const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
+      const max = d.ult ? 1 : 3;
+      const lvl = (tpl && tpl.level) || 1;
+      const pts = (tpl && tpl.points) || 0;
+      let status;
+      if (d.ult && lvl < 6) status = 'Ultima — se deblochează la nivel 6';
+      else if (rank >= max) status = `Rang MAXIM (${rank}/${max})`;
+      else if (pts > 0) status = `Rang ${rank}/${max} — click pentru +1 rang (${pts} pct.)`;
+      else status = `Rang ${rank}/${max} — n-ai puncte de talent`;
+      return `<div class="p-title" style="color:${ab.color || '#ffd35c'}">${d.ult ? '★ ' : ''}${ab.name}</div>
+        <div>${ab.desc || ''}</div>
+        <div class="p-dim">${status}</div>
+        <div class="p-dim">Efectul crește cu rangul.</div>`;
     }
     if (d.kind === 'sell') {
       return `<div class="p-title">Vinde — ◆ ${d.cost}${d.full ? ' (100%, nespawnat)' : ''}</div>

@@ -16,6 +16,7 @@ export function spawnWave(game) {
         u.heroLevel = tpl.level || 1;
         u.maxHp += (u.heroLevel - 1) * (s.hpPerLevel || 0);
         u.hp = u.maxHp;
+        game.syncHeroEntity(team); // learned abilities/ranks onto the fresh hero
       }
       tpl.spawned = true; // once spawned, selling only gives the partial refund
     }

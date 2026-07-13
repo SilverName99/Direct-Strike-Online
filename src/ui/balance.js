@@ -123,6 +123,21 @@ export function resolvedHeroId(race) {
   return null;
 }
 
+// The hero's 4 assigned ability slots for a race: 3 skills + 1 ultimate.
+// Each entry: { id, ult }. Unassigned slots have id ''.
+export function heroAbilitySlots(race) {
+  const id = resolvedHeroId(race);
+  const h = id ? statsUnit(race, id) : null;
+  const skills = (h && h.heroAbilities) || ['', '', ''];
+  const ult = (h && h.heroUltimate) || '';
+  return [
+    { id: skills[0] || '', ult: false },
+    { id: skills[1] || '', ult: false },
+    { id: skills[2] || '', ult: false },
+    { id: ult, ult: true },
+  ];
+}
+
 // Per-race background-music volume (0-100). The track itself is a file upload
 // (assets/units/<race>/music.*, via the sprite admin); only the volume lives
 // in the balance.
@@ -166,10 +181,13 @@ function baseUnits() {
       food: 1,             // food/supply this unit consumes when placed
     };
     // the hero carries its own leveling config (thresholds + per-level growth)
+    // plus its 3 skill abilities + 1 ultimate (assigned in admin, ranked in-game)
     if (u.isHero) {
       t[id].levelXp = [...DEFAULT_HERO_XP]; // XP needed to reach levels 2..10
       t[id].hpPerLevel = 40;
       t[id].dmgPerLevel = 4;
+      t[id].heroAbilities = ['', '', '']; // 3 rankable skills (ability ids)
+      t[id].heroUltimate = '';            // the ultimate (rankable from level 6)
     }
   }
   return t;
@@ -280,6 +298,8 @@ function raceUnitsSnapshot(race) {
       out[id].levelXp = [...(u.levelXp || [])];
       out[id].hpPerLevel = u.hpPerLevel;
       out[id].dmgPerLevel = u.dmgPerLevel;
+      out[id].heroAbilities = [...(u.heroAbilities || ['', '', ''])];
+      out[id].heroUltimate = u.heroUltimate || '';
     }
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined) out[id][f] = u[f];
     for (const f of Object.keys(UNIT_SELECT_FIELDS)) if (u[f] !== undefined) out[id][f] = u[f];
@@ -431,6 +451,10 @@ function applyRaceUnits(race, unitsData) {
       }
       if (num(vals.hpPerLevel) !== undefined) u.hpPerLevel = clamp(vals.hpPerLevel, 0, 100000);
       if (num(vals.dmgPerLevel) !== undefined) u.dmgPerLevel = clamp(vals.dmgPerLevel, 0, 100000);
+      if (Array.isArray(vals.heroAbilities)) {
+        u.heroAbilities = [0, 1, 2].map((i) => (ABILITY_IDS.includes(vals.heroAbilities[i]) ? vals.heroAbilities[i] : ''));
+      }
+      if (typeof vals.heroUltimate === 'string') u.heroUltimate = ABILITY_IDS.includes(vals.heroUltimate) ? vals.heroUltimate : '';
     }
     if (num(vals.buildingDamage) !== undefined) u.buildingDamage = clamp(vals.buildingDamage, 0, 100000);
     if (typeof vals.caster === 'boolean') u.caster = vals.caster;

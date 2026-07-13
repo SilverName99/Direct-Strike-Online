@@ -183,6 +183,22 @@ function fieldsFor(ent, kind) {
           apply: (v) => { if (!Array.isArray(u.levelXp)) u.levelXp = []; u.levelXp[i] = clamp(Math.round(v), 0, 1000000); },
         });
       }
+      // the 3 skills + 1 ultimate (chosen from the shared ability catalog);
+      // ranked in-game with talent points, ultimate only from level 6
+      const A = 'Erou (abilități)';
+      const heroAbOpts = [{ v: '', label: '—' }, ...ABILITY_IDS.map((a) => ({ v: a, label: ABILITIES[a].name }))];
+      const skills = Array.isArray(u.heroAbilities) ? u.heroAbilities : ['', '', ''];
+      for (let i = 0; i < 3; i++) {
+        out.push({
+          group: A, label: `Abilitate ${i + 1}`, type: 'selkv', value: skills[i] || '', opts: heroAbOpts,
+          apply: (v) => { if (!Array.isArray(u.heroAbilities)) u.heroAbilities = ['', '', '']; u.heroAbilities[i] = ABILITY_IDS.includes(v) ? v : ''; },
+        });
+      }
+      out.push({
+        group: A, label: 'Ultima (rang la nivel 6+)', type: 'selkv', value: u.heroUltimate || '', opts: heroAbOpts,
+        apply: (v) => { u.heroUltimate = ABILITY_IDS.includes(v) ? v : ''; },
+      });
+      out.push({ group: A, type: 'note', label: 'Efectul fiecărei abilități crește cu rangul. Eroul are nevoie de un frame „Prepare spell" + „Cast …" pentru animații (ca la casteri).' });
     }
 
     // Flying: the unit passes over walls/structures and can only be hit by

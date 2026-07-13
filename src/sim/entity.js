@@ -46,8 +46,8 @@ export function spawnUnit(game, team, type, x, y) {
     beast: false,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
     ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
-    mana: s.caster ? (s.mana || 0) : 0,    // casting resource
-    manaMax: s.caster ? (s.mana || 0) : 0,
+    mana: (s.caster || s.isHero) ? (s.mana || 0) : 0,    // casting resource (heroes cast too)
+    manaMax: (s.caster || s.isHero) ? (s.mana || 0) : 0,
     // "Scut de lumină" upgrade state (invulnerability window)
     shieldAt: -1, shieldFrom: 0, shieldUntil: 0, shieldCd: 0, shieldScale: 1, shieldPose: 0.5, shieldPending: false,
     targetId: null,
@@ -59,6 +59,8 @@ export function spawnUnit(game, team, type, x, y) {
     isAir: !!s.isAir,
     hero: !!s.isHero,   // the special per-race hero (levels up, respawns each wave)
     heroLevel: 1,       // set from the persistent template at wave spawn
+    heroAbilities: [],  // learned ability ids (rank >= 1), synced from template
+    heroRanks: {},      // abilityId -> rank, for per-rank effect scaling
   };
   game.entities.push(e);
   game.byId.set(e.id, e);
@@ -69,8 +71,8 @@ export function spawnUnit(game, team, type, x, y) {
 // but its stats come from the summon ability (not the roster) and its sprites
 // are hosted on the CASTER's type under an "<animal>-" prefix (so its art is
 // uploaded on the caster unit). Cosmetically it uses the caster's race art.
-export function spawnSummon(game, caster, ab) {
-  const p = ab.params;
+export function spawnSummon(game, caster, ab, params) {
+  const p = params || ab.params; // hero casters pass rank-scaled params
   const animal = ab.animal || 'wolf';
   const radius = 12;
   const stats = {

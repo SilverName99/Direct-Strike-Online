@@ -22,6 +22,20 @@ function isCastable(ab) {
   return !!ab && (ab.kind === 'active' || ab.kind === 'castaura' || ab.kind === 'summon');
 }
 
+// Hero abilities scale with their learned RANK: rank 1 = base numbers, each
+// extra rank adds HERO_RANK_STEP to a multiplier on the "power" params below
+// (rank 2 = 1.5×, rank 3 = 2×). Non-hero casters always use base params.
+const HERO_RANK_STEP = 0.5;
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp'];
+function abParams(caster, aid, ab) {
+  const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
+  if (rank <= 1) return ab.params;
+  const mult = 1 + (rank - 1) * HERO_RANK_STEP;
+  const p = { ...ab.params };
+  for (const k of RANK_SCALED) if (typeof p[k] === 'number') p[k] = p[k] * mult;
+  return p;
+}
+
 // Does this unit have at least one castable ability USABLE right now (not
 // autocast-toggled off, base tier reached)? Only such casters run the
 // prepare -> release state machine; the rest keep fighting normally.
@@ -142,7 +156,7 @@ function inRadius(a, b, r) {
 // was paid once at cast time (see releaseSpell), so there is no per-tick drain.
 function tickCastAura(game, caster, aid, ab, time) {
   if (!caster.auraUntil || (caster.auraUntil[aid] || 0) <= time) return;
-  const p = ab.params;
+  const p = abParams(caster, aid, ab);
   const until = time + AURA_TICK;
   for (const u of game.entities) {
     if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
@@ -235,7 +249,7 @@ function pickCastable(game, caster, stats, time, engaged) {
 
 // The target a given ability would act on, or null if there is none.
 function findAbilityTarget(game, caster, aid, ab, time) {
-  const p = ab.params;
+  const p = abParams(caster, aid, ab);
   if (ab.kind === 'summon') {
     // castable while THIS shaman keeps fewer than its cap of this animal alive
     // (counted per individual caster entity)
@@ -320,7 +334,7 @@ function releaseSpell(game, caster, time) {
   const aid = caster.castAbility;
   const ab = resolvedAbility(aid);
   if (!ab) return null;
-  const p = ab.params;
+  const p = abParams(caster, aid, ab);
   const target = findAbilityTarget(game, caster, aid, ab, time);
   if (!target) return null; // nothing valid to hit -> abort with no cost
 
@@ -330,7 +344,7 @@ function releaseSpell(game, caster, time) {
   caster.mana -= p.manaCost || 0;
 
   if (ab.kind === 'summon') {
-    const animal = spawnSummon(game, caster, ab);
+    const animal = spawnSummon(game, caster, ab, p);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'summon', x: animal.x, y: animal.y, team: caster.team });
     return CAST_RELEASE;
