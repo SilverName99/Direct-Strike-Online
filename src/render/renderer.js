@@ -378,6 +378,7 @@ export class Renderer {
       if (count === 0) continue;
       const speed = cl(gs.workerSpeed || 100, 10, 1000);
       const scale = cl(gs.workerSize || 1, 0.2, 4);
+      const animRate = cl(gs.workerAnimSpeed ?? 6, 0.2, 30); // walk-frame flips/s
 
       const d = Math.hypot(s.x - base.x, s.y - base.y) || 1;
       const legT = Math.max(0.6, d / speed);   // seconds for one leg
@@ -406,7 +407,7 @@ export class Renderer {
         if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
         // PNG only on the map: a 2-frame walk cycle. (mp4 clips play only in
         // the portrait box on click, never here.)
-        const frame = Math.floor(now * 6 + w) % 2;
+        const frame = Math.floor(now * animRate + w) % 2;
         const entry = getSprite(race, 'generator', anim, frame) || getSprite(race, 'generator', anim, 0)
           // fallbacks so a partial upload still shows something
           || getSprite(race, 'generator', 'worker-full', frame)

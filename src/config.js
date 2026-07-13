@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.47';
+export const VERSION = 'v10.48';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -130,6 +130,7 @@ export const CONFIG = {
       workerSpeed: 100,  // world units / second
       workerCount: 2,    // how many shuttle per mine (0 = none)
       workerPause: 1.5,  // seconds a worker lingers (idle clip) at mine & at base
+      workerAnimSpeed: 6, // walk-frame flips per second (1 <-> 2 while moving)
     },
     // Tech / unlock buildings: build one of each to unlock the units assigned to
     // it (admin: per-unit "Clădire"). A unit is buyable only when ITS building
