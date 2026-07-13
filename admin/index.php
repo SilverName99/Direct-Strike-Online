@@ -51,10 +51,15 @@ const ABILITY_INFO = [
   'summonwolf' => ['Invocă Lup', true, false],
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
+  // Chieftain (Orc hero) kit
+  'warstomp' => ['War Stomp', true, false],
+  'wardrums' => ['War Drums', true, false],
+  'spiritwolves' => ['Spirit Wolves', true, false],
+  'bloodlust' => ['Bloodlust', true, false],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'spiritwolves' => 'spiritwolf'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'spiritwolf' => 'Lup spirit'];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',

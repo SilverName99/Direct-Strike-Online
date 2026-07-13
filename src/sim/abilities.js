@@ -10,6 +10,7 @@
 import { CONFIG } from '../config.js';
 import { resolvedAbility } from '../ui/balance.js';
 import { spawnProjectile, spawnSummon } from './entity.js';
+import { applyDamage } from './combat.js';
 
 const AURA_TICK = 0.35;    // aura effects auto-expire this fast (re-applied while inside)
 export const CAST_PREPARE = 0.45; // "Prepare spell" wind-up before the release frame
@@ -87,11 +88,12 @@ export function attackPeriodMult(u, time) {
 // Movement-speed multiplier. 'terrainslow' is the invisible middle-terrain slow.
 export function moveSpeedMult(u, time) {
   const slow = Math.max(effectVal(u, 'moveslow', time), effectVal(u, 'terrainslow', time));
-  return Math.max(0.2, 1 - slow / 100);
+  const haste = effectVal(u, 'movehaste', time); // Bloodlust move-speed buff
+  return Math.max(0.2, (1 - slow / 100) * (1 + haste / 100));
 }
 
 const DEBUFFS = ['atkslow', 'moveslow'];
-const BUFFS = ['haste', 'regen'];
+const BUFFS = ['haste', 'movehaste', 'regen'];
 
 // Apply an effect, honoring dispell's immunity (allies) / buff-block (enemies).
 export function applyEffect(u, kind, val, until, time) {
@@ -162,7 +164,7 @@ function tickCastAura(game, caster, aid, ab, time) {
     if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
     if (aid === 'slowaura') {
       if (u.team !== caster.team) applyEffect(u, 'atkslow', p.atkSlow, until, time);
-    } else if (aid === 'hasteaura') {
+    } else if (aid === 'hasteaura' || aid === 'wardrums') {
       if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
     } else if (aid === 'regenaura') {
       if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
@@ -271,12 +273,24 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     }
     return null;
   }
-  if (aid === 'hasteaura') {
+  if (aid === 'hasteaura' || aid === 'wardrums') {
     // only worth casting when at least one *other* ally is in range to buff
     for (const u of game.entities) {
       if (u.hp > 0 && u.team === caster.team && u !== caster && inRadius(u, caster, p.radius)) return caster;
     }
     return null;
+  }
+  if (aid === 'warstomp') {
+    // worth stomping when an enemy is inside the blast radius
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team !== caster.team && !u.isAir && inRadius(u, caster, p.radius)) return caster;
+    }
+    return null;
+  }
+  if (aid === 'bloodlust') {
+    // a war cry — always castable (self-centred, buffs the whole army); the
+    // "cast only while engaged" rule keeps it from firing before contact
+    return caster;
   }
   if (aid === 'slowaura') {
     // only worth casting when at least one enemy is in range to slow
@@ -379,6 +393,32 @@ function releaseSpell(game, caster, time) {
       }
     }
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius });
+    return CAST_RELEASE;
+  }
+
+  if (aid === 'warstomp') {
+    // AoE around the Chieftain: damage + move/attack slow to enemies in radius
+    for (const u of game.entities) {
+      if (u.hp <= 0 || u.team === caster.team || u.isAir) continue;
+      if (!inRadius(u, caster, p.radius)) continue;
+      applyDamage(game, u, p.damage, 'normal');
+      if (u.hp > 0) {
+        if (p.moveSlow) applyEffect(u, 'moveslow', p.moveSlow, time + p.duration, time);
+        if (p.atkSlow) applyEffect(u, 'atkslow', p.atkSlow, time + p.duration, time);
+      }
+    }
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
+    return CAST_RELEASE;
+  }
+
+  if (aid === 'bloodlust') {
+    // war cry: haste + move-speed to the WHOLE army for `duration`
+    for (const u of game.entities) {
+      if (u.hp <= 0 || u.team !== caster.team) continue;
+      if (p.haste) applyEffect(u, 'haste', p.haste, time + p.duration, time);
+      if (p.moveHaste) applyEffect(u, 'movehaste', p.moveHaste, time + p.duration, time);
+    }
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: 200 });
     return CAST_RELEASE;
   }
 

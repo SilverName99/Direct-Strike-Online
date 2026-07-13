@@ -186,8 +186,9 @@ function baseUnits() {
       t[id].levelXp = [...DEFAULT_HERO_XP]; // XP needed to reach levels 2..10
       t[id].hpPerLevel = 40;
       t[id].dmgPerLevel = 4;
-      t[id].heroAbilities = ['', '', '']; // 3 rankable skills (ability ids)
-      t[id].heroUltimate = '';            // the ultimate (rankable from level 6)
+      // default kit = the Orc Chieftain (editable per race in admin)
+      t[id].heroAbilities = ['warstomp', 'wardrums', 'spiritwolves']; // 3 rankable skills
+      t[id].heroUltimate = 'bloodlust';   // the ultimate (rankable from level 6)
     }
   }
   return t;

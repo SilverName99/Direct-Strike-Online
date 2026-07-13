@@ -137,6 +137,51 @@ export const ABILITIES = {
       splash: 0, flying: 0, projectile: 0, armored: 1,
     },
   },
+  // ---- Chieftain (Orc hero) kit ----
+  warstomp: {
+    name: 'War Stomp',
+    kind: 'active',
+    color: '#e8a15a',
+    desc: 'Lovește pământul: damage și încetinire tuturor inamicilor din jurul eroului.',
+    params: {
+      tier: 1, cooldown: 8, manaCost: 40,
+      radius: 150, damage: 60, moveSlow: 40, atkSlow: 30, duration: 3,
+    },
+  },
+  wardrums: {
+    name: 'War Drums',
+    kind: 'castaura',
+    color: '#ffcf6a',
+    desc: 'Ridică o zonă de război: aliații din jur atacă mai repede pentru o durată.',
+    params: {
+      tier: 1, radius: 160, haste: 30, duration: 12, manaCost: 30,
+    },
+  },
+  spiritwolves: {
+    name: 'Spirit Wolves',
+    kind: 'summon',
+    animal: 'spiritwolf',
+    animalName: 'Lup spirit',
+    color: '#a9d0ff',
+    desc: 'Invocă lupi-spirit care luptă alături de erou.',
+    params: {
+      tier: 1, manaCost: 40, cooldown: 8,
+      cap: 2, life: 20,
+      hp: 160, damage: 22, range: 25, period: 0.8, speed: 140,
+      animSpeed: 8, size: 100,
+      splash: 0, flying: 0, projectile: 0, armored: 0,
+    },
+  },
+  bloodlust: {
+    name: 'Bloodlust',
+    kind: 'active',
+    color: '#ff6a6a',
+    desc: 'Strigăt de război: TOATĂ armata ta atacă și se mișcă mai repede câteva secunde. (ultima Chieftain-ului)',
+    params: {
+      tier: 1, cooldown: 40, manaCost: 80,
+      haste: 40, moveHaste: 30, duration: 6,
+    },
+  },
   frostbolt: {
     name: 'Frost Bolt',
     kind: 'active',
@@ -171,6 +216,7 @@ export const ABILITY_PARAM_LABELS = {
   atkSlow: 'Attack slow (%)',
   moveSlow: 'Move slow (%)',
   haste: 'Attack haste (%)',
+  moveHaste: 'Move haste (%)',
   hps: 'Regen (HP/s)',
   amount: 'Heal amount (HP)',
   damage: 'Damage',
