@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.65';
+export const VERSION = 'v10.66';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -118,6 +118,9 @@ export const CONFIG = {
       hp2: 600, hp3: 950,
       damage2: 30, damage3: 48,
       period2: 0.9, period3: 0.9, // attack period per tier (falls back to tier 1)
+      // projectiles fired per tier (default 1/2/3 — the classic multi-arrow
+      // tower). Set all to 1 for a single-shot tower (e.g. a lone Orc archer).
+      shots: 1, shots2: 2, shots3: 3,
       // After this many seconds without firing, the soldiers come down and
       // light a campfire at the tower's base (purely cosmetic).
       campfireDelay: 60,

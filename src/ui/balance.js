@@ -36,6 +36,7 @@ export const BUILDING_FIELDS = {
     ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'],
     ['damage', 'Damage Tier 1'], ['damage2', 'Damage Tier 2'], ['damage3', 'Damage Tier 3'],
     ['period', 'Attack period Tier 1 (s)'], ['period2', 'Attack period Tier 2 (s)'], ['period3', 'Attack period Tier 3 (s)'],
+    ['shots', 'Proiectile Tier 1'], ['shots2', 'Proiectile Tier 2'], ['shots3', 'Proiectile Tier 3'],
     ['campfireDelay', 'Secunde inactiv → foc de tabără'],
   ],
   generator: [
@@ -268,7 +269,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -278,7 +279,8 @@ export function towerStatForTier(b, tier) {
   const hp = t >= 3 ? (b.hp3 ?? b.hp2 ?? b.hp) : t === 2 ? (b.hp2 ?? b.hp) : b.hp;
   const damage = t >= 3 ? (b.damage3 ?? b.damage2 ?? b.damage) : t === 2 ? (b.damage2 ?? b.damage) : b.damage;
   const period = t >= 3 ? (b.period3 ?? b.period2 ?? b.period) : t === 2 ? (b.period2 ?? b.period) : b.period;
-  return { hp, damage, period };
+  const shots = t >= 3 ? (b.shots3 ?? b.shots2 ?? b.shots) : t === 2 ? (b.shots2 ?? b.shots) : b.shots;
+  return { hp, damage, period, shots };
 }
 
 function raceUnitsSnapshot(race) {

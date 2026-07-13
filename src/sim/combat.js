@@ -152,12 +152,12 @@ export function updateCombat(game, dt) {
     if (s.hp <= 0) continue;
     if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
     else if (s.kind === 'tower') {
-      // towers scale their HP / damage / attack-period with the owner's base
-      // tier, and fire a SINGLE projectile at every tier
+      // towers scale their HP / damage / period / projectile-count with the
+      // owner's base tier (arrows per tier are configurable, default 1/2/3)
       const bs = game.bstat(s.team, 'tower');
       const tn = Math.max(1, Math.min(3, game.tier[s.team]));
       const st = towerStatForTier(bs, tn);
-      updateTurret(game, s, { ...bs, hp: st.hp, damage: st.damage, period: st.period }, dt);
+      updateTurret(game, s, { ...bs, hp: st.hp, damage: st.damage, period: st.period }, dt, Math.max(1, Math.round(st.shots || 1)));
     }
     // the main base only shoots if given an attack (damage > 0) in ⚙ stats
     else if (s.kind === 'main') {
