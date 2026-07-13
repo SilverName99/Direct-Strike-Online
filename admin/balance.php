@@ -72,6 +72,38 @@ $authed = !empty($_SESSION['auth']);
     <button id="reset-btn" class="ghost">Reset la valorile din cod</button>
     <span id="status"></span>
   </div>
+
+  <div class="group" style="margin-top:22px">
+    <h3 style="color:#4da6ff">Optimizare imagini</h3>
+    <div class="sub" style="margin:2px 0 10px">Comprimă fără pierderi toate imaginile deja încărcate din <code>assets/</code>
+      (PNG/JPG/WEBP): re-codează la compresie maximă și șterge metadatele, păstrând transparența și calitatea.
+      Fișierul e păstrat doar dacă iese mai mic. Rulează o singură dată; la multe imagini poate dura.</div>
+    <button id="compress-btn">Comprimă imaginile existente</button>
+    <span id="compress-status" style="margin-left:12px;color:#7c8ba1;font-size:13px"></span>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById('compress-btn');
+      var st = document.getElementById('compress-status');
+      if (!btn) return;
+      function fmt(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'; return (b / 1048576).toFixed(2) + ' MB'; }
+      btn.addEventListener('click', async function () {
+        btn.disabled = true; st.style.color = '#7c8ba1'; st.textContent = 'Se comprimă… (poate dura la multe imagini)';
+        try {
+          var r = await fetch('compress-images.php', { method: 'POST', headers: { 'X-DS-Compress': '1' } });
+          var j = await r.json();
+          if (j.error) { st.style.color = '#ff8090'; st.textContent = 'Eroare: ' + j.error; }
+          else {
+            var saved = j.before - j.after;
+            var pct = j.before > 0 ? Math.round(saved / j.before * 100) : 0;
+            st.style.color = '#58d68d';
+            st.textContent = j.processed + ' imagini · ' + j.optimized + ' optimizate · economisit ' + fmt(saved) + ' (' + pct + '%)' + (j.errors ? ' · ' + j.errors + ' erori' : '');
+          }
+        } catch (e) { st.style.color = '#ff8090'; st.textContent = 'Eroare de rețea.'; }
+        btn.disabled = false;
+      });
+    })();
+  </script>
   <script type="module" src="../src/ui/admin-balance.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 </body>
