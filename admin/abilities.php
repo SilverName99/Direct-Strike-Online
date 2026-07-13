@@ -23,10 +23,16 @@ $authed = !empty($_SESSION['auth']);
     h1 .accent { color: #b58cff; }
     .sub { color: #7c8ba1; font-size: 13px; margin-bottom: 18px; }
     a { color: #4da6ff; }
+    /* abilities laid out 3 per row (they're getting numerous) */
+    #ab-app { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+    @media (max-width: 1200px) { #ab-app { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { #ab-app { grid-template-columns: 1fr; } }
     .group {
       background: #161c26; border: 1px solid #2a3446; border-radius: 10px;
-      padding: 12px 16px; margin-bottom: 12px;
+      padding: 12px 16px; margin-bottom: 0;
     }
+    /* narrower columns -> fields stack more tightly */
+    #ab-app .fields { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
     .ab-head { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
     .ab-info { min-width: 0; }
     .ab-preview {
