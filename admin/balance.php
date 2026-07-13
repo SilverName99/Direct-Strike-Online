@@ -88,18 +88,33 @@ $authed = !empty($_SESSION['auth']);
       if (!btn) return;
       function fmt(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'; return (b / 1048576).toFixed(2) + ' MB'; }
       btn.addEventListener('click', async function () {
-        btn.disabled = true; st.style.color = '#7c8ba1'; st.textContent = 'Se comprimă… (poate dura la multe imagini)';
+        btn.disabled = true;
+        var acc = { proc: 0, opt: 0, before: 0, after: 0, err: 0 };
+        var offset = 0, total = 0, done = false;
         try {
-          var r = await fetch('compress-images.php', { method: 'POST', headers: { 'X-DS-Compress': '1' } });
-          var j = await r.json();
-          if (j.error) { st.style.color = '#ff8090'; st.textContent = 'Eroare: ' + j.error; }
-          else {
-            var saved = j.before - j.after;
-            var pct = j.before > 0 ? Math.round(saved / j.before * 100) : 0;
-            st.style.color = '#58d68d';
-            st.textContent = j.processed + ' imagini · ' + j.optimized + ' optimizate · economisit ' + fmt(saved) + ' (' + pct + '%)' + (j.errors ? ' · ' + j.errors + ' erori' : '');
+          while (!done) {
+            var r = await fetch('compress-images.php', {
+              method: 'POST',
+              headers: { 'X-DS-Compress': '1', 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: 'offset=' + offset,
+            });
+            if (!r.ok) throw new Error('http ' + r.status);
+            var j = await r.json();
+            if (j.error) { st.style.color = '#ff8090'; st.textContent = 'Eroare: ' + j.error; btn.disabled = false; return; }
+            total = j.total;
+            acc.proc += j.processed; acc.opt += j.optimized; acc.before += j.before; acc.after += j.after; acc.err += (j.errors || 0);
+            offset = j.next; done = j.done;
+            st.style.color = '#7c8ba1';
+            st.textContent = 'Se comprimă… ' + acc.proc + '/' + total + ' · economisit ' + fmt(acc.before - acc.after);
           }
-        } catch (e) { st.style.color = '#ff8090'; st.textContent = 'Eroare de rețea.'; }
+          var saved = acc.before - acc.after;
+          var pct = acc.before > 0 ? Math.round(saved / acc.before * 100) : 0;
+          st.style.color = '#58d68d';
+          st.textContent = 'GATA — ' + acc.proc + ' imagini · ' + acc.opt + ' optimizate · economisit ' + fmt(saved) + ' (' + pct + '%)' + (acc.err ? ' · ' + acc.err + ' erori' : '');
+        } catch (e) {
+          st.style.color = '#ff8090';
+          st.textContent = 'Întrerupt la ' + acc.proc + ' imagini (progresul e salvat pe disc — reapasă ca să continui).';
+        }
         btn.disabled = false;
       });
     })();

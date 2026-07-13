@@ -1,8 +1,9 @@
 <?php
 // Batch image optimizer — admin only. Walks assets/ and losslessly re-encodes
-// every raster image (PNG/JPG/WEBP) with GD, keeping the result ONLY when it
-// comes out smaller. PNG/WEBP keep full alpha; nothing is quantized, so quality
-// is preserved. Triggered by a button on the Balance page.
+// every PNG/WEBP with GD, keeping the result ONLY when it comes out smaller.
+// Runs in TIME-BUDGETED chunks: each POST processes files starting at `offset`
+// for a few seconds, then returns the next offset + running totals, so the
+// client can loop and show x/y progress without ever hitting a server timeout.
 
 declare(strict_types=1);
 session_start();
@@ -11,7 +12,6 @@ header('Content-Type: application/json');
 
 if (empty($_SESSION['auth'])) { http_response_code(401); echo json_encode(['error' => 'auth']); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'method']); exit; }
-// lightweight cross-site guard (same idea as save-balance.php)
 if (($_SERVER['HTTP_X_DS_COMPRESS'] ?? '') !== '1') { http_response_code(400); echo json_encode(['error' => 'header']); exit; }
 if (!function_exists('imagecreatefromstring')) { echo json_encode(['error' => 'GD nu este disponibil pe server']); exit; }
 
@@ -40,8 +40,6 @@ function optimizeImage(string $path, string $ext): ?int {
     $q = defined('IMG_WEBP_LOSSLESS') ? IMG_WEBP_LOSSLESS : 100; // LOSSLESS webp
     $ok = @imagewebp($img, $tmp, $q);
   }
-  // JPG/JPEG are deliberately left UNTOUCHED: re-encoding them is inherently
-  // lossy, so we never risk their quality (they're rare in sprite assets anyway).
   imagedestroy($img);
 
   if ($ok && is_file($tmp)) {
@@ -54,30 +52,47 @@ function optimizeImage(string $path, string $ext): ?int {
 
 $assets = dirname(__DIR__) . '/assets';
 $exts = ['png', 'webp']; // strictly-lossless formats only (JPG left untouched)
-$processed = 0; $optimized = 0; $errors = 0; $before = 0; $after = 0;
 
+// Full, stable list of image paths (paths don't change across chunks — files
+// are only shrunk in place — so `offset` stays valid between requests).
+$files = [];
 if (is_dir($assets)) {
   $it = new RecursiveIteratorIterator(
     new RecursiveDirectoryIterator($assets, FilesystemIterator::SKIP_DOTS)
   );
   foreach ($it as $f) {
-    if (!$f->isFile()) continue;
-    $ext = strtolower($f->getExtension());
-    if (!in_array($ext, $exts, true)) continue;
-    $path = $f->getPathname();
-    $orig = @filesize($path);
-    if ($orig === false) { $errors++; continue; }
-    $res = optimizeImage($path, $ext);
-    if ($res === null) { $errors++; continue; }
-    $processed++;
-    $before += $orig;
-    $after += $res;
-    if ($res < $orig) $optimized++;
+    if ($f->isFile() && in_array(strtolower($f->getExtension()), $exts, true)) $files[] = $f->getPathname();
   }
+  sort($files);
+}
+$total = count($files);
+
+$offset = max(0, (int)($_POST['offset'] ?? 0));
+$BUDGET = 8.0; // seconds of work per request (well under any server timeout)
+$start = microtime(true);
+
+$processed = 0; $optimized = 0; $errors = 0; $before = 0; $after = 0;
+$i = $offset;
+for (; $i < $total; $i++) {
+  if ($i > $offset && (microtime(true) - $start) > $BUDGET) break; // budget spent (always do >=1)
+  $path = $files[$i];
+  $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+  $orig = @filesize($path);
+  if ($orig === false) { $errors++; continue; }
+  $res = optimizeImage($path, $ext);
+  if ($res === null) { $errors++; continue; }
+  $processed++;
+  $before += $orig;
+  $after += $res;
+  if ($res < $orig) $optimized++;
 }
 
+$next = $i < $total ? $i : null;
 echo json_encode([
   'ok' => true,
+  'total' => $total,
+  'next' => $next,
+  'done' => $next === null,
   'processed' => $processed,
   'optimized' => $optimized,
   'errors' => $errors,
