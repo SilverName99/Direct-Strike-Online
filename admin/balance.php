@@ -75,9 +75,9 @@ $authed = !empty($_SESSION['auth']);
 
   <div class="group" style="margin-top:22px">
     <h3 style="color:#4da6ff">Optimizare imagini</h3>
-    <div class="sub" style="margin:2px 0 10px">Comprimă fără pierderi toate imaginile deja încărcate din <code>assets/</code>
-      (PNG/JPG/WEBP): re-codează la compresie maximă și șterge metadatele, păstrând transparența și calitatea.
-      Fișierul e păstrat doar dacă iese mai mic. Rulează o singură dată; la multe imagini poate dura.</div>
+    <div class="sub" style="margin:2px 0 10px">Comprimă <b>fără pierderi</b> imaginile <b>PNG și WEBP</b> deja încărcate din <code>assets/</code>:
+      re-codează la compresie maximă și șterge metadatele — pixelii și transparența rămân identici, deci calitatea NU se schimbă.
+      Fișierul e păstrat doar dacă iese mai mic. JPG-urile sunt lăsate neatinse. Se poate rula oricând, de câte ori vrei.</div>
     <button id="compress-btn">Comprimă imaginile existente</button>
     <span id="compress-status" style="margin-left:12px;color:#7c8ba1;font-size:13px"></span>
   </div>

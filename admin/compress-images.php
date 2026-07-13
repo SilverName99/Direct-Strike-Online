@@ -33,14 +33,15 @@ function optimizeImage(string $path, string $ext): ?int {
   if ($ext === 'png') {
     imagealphablending($img, false);
     imagesavealpha($img, true);
-    $ok = @imagepng($img, $tmp, 9); // max zlib level, strips metadata (lossless)
-  } elseif ($ext === 'jpg' || $ext === 'jpeg') {
-    $ok = @imagejpeg($img, $tmp, 90);
+    $ok = @imagepng($img, $tmp, 9); // max zlib level, strips metadata — LOSSLESS
   } elseif ($ext === 'webp' && function_exists('imagewebp')) {
     imagealphablending($img, false);
     imagesavealpha($img, true);
-    $ok = @imagewebp($img, $tmp, 90);
+    $q = defined('IMG_WEBP_LOSSLESS') ? IMG_WEBP_LOSSLESS : 100; // LOSSLESS webp
+    $ok = @imagewebp($img, $tmp, $q);
   }
+  // JPG/JPEG are deliberately left UNTOUCHED: re-encoding them is inherently
+  // lossy, so we never risk their quality (they're rare in sprite assets anyway).
   imagedestroy($img);
 
   if ($ok && is_file($tmp)) {
@@ -52,7 +53,7 @@ function optimizeImage(string $path, string $ext): ?int {
 }
 
 $assets = dirname(__DIR__) . '/assets';
-$exts = ['png', 'jpg', 'jpeg', 'webp'];
+$exts = ['png', 'webp']; // strictly-lossless formats only (JPG left untouched)
 $processed = 0; $optimized = 0; $errors = 0; $before = 0; $after = 0;
 
 if (is_dir($assets)) {
