@@ -15,6 +15,32 @@ import { mulberry32 } from './rng.js';
 // isn't a soft ranged blob that folds to a melee counter.
 const CATEGORY_TARGETS = { front: 0.45, ranged: 0.25, special: 0.15, support: 0.15 };
 
+// The AI "brain" as a set of numeric knobs. The evolutionary trainer breeds
+// these; passing null keeps the exact hand-tuned behavior below. Every field is
+// a scalar so a genome is trivial to mutate/crossover/serialize.
+export const DEFAULT_GENOME = {
+  tFront: 0.45, tRanged: 0.25, tSpecial: 0.15, tSupport: 0.15, // composition targets
+  counterChance: 0.5,   // chance to buy a hard counter each think
+  aggression: 0.3,      // chance to adopt the "push the middle" posture
+  tier2Wave: 3,         // wave from which it saves toward tier 2
+  tier3Wave: 7,         // wave from which it saves toward tier 3
+  savePatience: 15,     // seconds-to-afford under which it saves for the wanted unit
+  farmBuffer: 4,        // build a farm when (foodCap - foodUsed) drops below this
+  maxGens: 5,           // generators to grow to in the late game
+};
+
+export function randomGenome(rand) {
+  const r = (lo, hi) => lo + rand() * (hi - lo);
+  const raw = { front: r(0.15, 0.6), ranged: r(0.1, 0.45), special: r(0.05, 0.35), support: r(0.02, 0.25) };
+  const sum = raw.front + raw.ranged + raw.special + raw.support;
+  return {
+    tFront: raw.front / sum, tRanged: raw.ranged / sum, tSpecial: raw.special / sum, tSupport: raw.support / sum,
+    counterChance: r(0, 1), aggression: r(0, 0.7),
+    tier2Wave: Math.round(r(1, 6)), tier3Wave: Math.round(r(5, 12)),
+    savePatience: r(5, 30), farmBuffer: Math.round(r(1, 8)), maxGens: Math.round(r(3, 8)),
+  };
+}
+
 // Composition category from RESOLVED stats (NOT the original slot id), so the
 // AI reads a fully custom/renamed roster correctly: a melee tank counts as
 // front even on the old "archon" (ranged) slot, a shooter as ranged, etc.
@@ -44,9 +70,16 @@ function roleOf(s) {
 }
 
 export class AIController {
-  constructor(team, difficulty, seed) {
+  constructor(team, difficulty, seed, genome = null) {
     this.team = team;
     this.diff = CONFIG.DIFFICULTY[difficulty] || CONFIG.DIFFICULTY.normal;
+    // brain knobs: a genome (from the trainer) overrides the hand-tuned values;
+    // without one, mirror the exact previous behavior (incl. difficulty counter)
+    this.g = { ...DEFAULT_GENOME, ...(genome || {}) };
+    if (!genome) {
+      this.g.counterChance = this.diff.counterChance;
+      this.g.aggression = CONFIG.MID_INCOME > 0 ? 0.45 : 0.2; // preserve prior behavior
+    }
     this.rng = mulberry32(seed >>> 0);
     this.timer = 0;
     this.purchases = 0;
@@ -77,8 +110,7 @@ export class AIController {
     // mostly when holding the middle actually pays income; re-decided every
     // ~20-40s so a match ebbs and flows instead of one fixed style.
     if (game.time >= this.aggroReroll) {
-      const wantMid = CONFIG.MID_INCOME > 0 ? 0.45 : 0.2;
-      this.aggro = this.rng() < wantMid;
+      this.aggro = this.rng() < this.g.aggression;
       this.aggroReroll = game.time + 20 + this.rng() * 20;
     }
 
@@ -92,7 +124,7 @@ export class AIController {
     // 1. Economy first: rush 2 generators, grow to 5 as the game develops.
     // While the generator build-cooldown runs, don't stall — spend elsewhere.
     const gens = game.countKind(t, 'generator');
-    const wantGens = game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : 5;
+    const wantGens = game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : Math.max(3, this.g.maxGens);
     if (gens < wantGens && game.buildCdLeft(t, 'generator') === 0) {
       const gc = game.bstat(t, 'generator').cost;
       this.intent = money >= gc ? '🏭 Generator (economie)' : `💰 economisește ${Math.ceil(gc)} → Generator`;
@@ -103,7 +135,7 @@ export class AIController {
     // 1.2 Food: build a farm when we're within a few food of the cap, so the
     // army can keep growing (food is the only army-size limit).
     const farmCap = game.bstat(t, 'farm').cap;
-    if (game.foodCap(t) - game.foodUsed(t) < 4 && game.countKind(t, 'farm') < farmCap
+    if (game.foodCap(t) - game.foodUsed(t) < this.g.farmBuffer && game.countKind(t, 'farm') < farmCap
         && game.buildCdLeft(t, 'farm') === 0) {
       const fc = game.bstat(t, 'farm').cost;
       this.intent = money >= fc ? '🌾 Fermă (food)' : `💰 economisește ${Math.ceil(fc)} → Fermă`;
@@ -130,8 +162,8 @@ export class AIController {
     const upCost = game.tierUpCost(t);
     if (upCost !== null) {
       const due =
-        (game.tier[t] === 1 && game.waveCount >= 3) ||
-        (game.tier[t] === 2 && game.waveCount >= 7);
+        (game.tier[t] === 1 && game.waveCount >= this.g.tier2Wave) ||
+        (game.tier[t] === 2 && game.waveCount >= this.g.tier3Wave);
       if (due) {
         if (money >= upCost) {
           this.intent = '🏰 Upgrade Bază (tier up)';
@@ -212,7 +244,7 @@ export class AIController {
     const frontThin = armyCost > 0 && frontCost / armyCost < 0.25;
 
     let want = null;
-    if (!frontThin && this.rng() < this.diff.counterChance) want = this.pickCounter(game);
+    if (!frontThin && this.rng() < this.g.counterChance) want = this.pickCounter(game);
     if (!want || game.ustat(t, want).tier > game.tier[t] || !this.unlocked(game, game.ustat(t, want)))
       want = this.pickComposition(game);
     if (!want) return;
@@ -227,7 +259,7 @@ export class AIController {
       // far out of reach, so the army doesn't stall on an absurdly-priced unit.
       const income = Math.max(1, game.incomePerSecond(t));
       const secondsToAfford = (stats.cost - money) / income;
-      if (secondsToAfford <= 15) {
+      if (secondsToAfford <= this.g.savePatience) {
         this.intent = `💰 economisește ${Math.ceil(stats.cost)} → ${stats.name}${this.aggro ? ' (ofensiv)' : ''}`;
         return; // save up a few ticks, then buy it
       }
@@ -438,9 +470,10 @@ export class AIController {
       return s.tier <= tier && this.unlocked(game, s) && categoryOf(s) === cat;
     });
 
+    const targets = { front: this.g.tFront, ranged: this.g.tRanged, special: this.g.tSpecial, support: this.g.tSupport };
     let bestCat = null;
     let bestDeficit = -Infinity;
-    for (const [cat, target] of Object.entries(CATEGORY_TARGETS)) {
+    for (const [cat, target] of Object.entries(targets)) {
       if (poolFor(cat).length === 0) continue;
       const share = total > 0 ? catCost[cat] / total : 0;
       const deficit = target - share;

@@ -358,8 +358,14 @@ function snapshot() {
     abilities,
     upgrades,
     races,
+    aiGenome: aiGenome ? { ...aiGenome } : null,
   };
 }
+
+// The evolved AI brain (from the trainer). null = the hand-tuned default AI.
+let aiGenome = null;
+export function resolvedAIGenome() { return aiGenome ? { ...aiGenome } : null; }
+export function setAIGenome(g) { aiGenome = g && typeof g === 'object' ? { ...g } : null; }
 
 const DEFAULTS = snapshot();
 
@@ -376,6 +382,7 @@ export function applyBalance(data) {
   if (data.music && typeof data.music === 'object') {
     for (const r of RACES) if (num(data.music[r]) !== undefined) setMusicVolume(r, data.music[r]);
   }
+  aiGenome = (data.aiGenome && typeof data.aiGenome === 'object') ? { ...data.aiGenome } : null;
 
   // ---- global rules (truly shared: economy, waves, tint, tier costs) ----
   for (const [f] of GENERAL_FIELDS) {

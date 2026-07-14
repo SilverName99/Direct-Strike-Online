@@ -12,6 +12,7 @@ $navTabs = [
   ['balance',   'balance.php',           '⚙ Balance'],
   ['abilities', 'abilities.php',         '✨ Abilități'],
   ['upgrades',  'upgrades.php',          '🐗 Upgrades'],
+  ['trainer',   'train.php',             '🧬 Antrenor AI'],
 ];
 ?>
 <style>

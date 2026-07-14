@@ -10,7 +10,7 @@ import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
 import { PointerManager, toast } from './ui/pointer.js';
 import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl, availableMiddleSlots } from './render/sprites.js';
-import { loadBalance, musicVolumeOf, middleConfig } from './ui/balance.js';
+import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -181,7 +181,7 @@ function newGame(difficulty) {
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
   for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
   game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult], middles });
-  ai = new AIController(1, difficulty, seed ^ 0x9e3779b9);
+  ai = new AIController(1, difficulty, seed ^ 0x9e3779b9, resolvedAIGenome());
   effects.reset();
   uiState.selected = null;
   uiState.drag = null;
