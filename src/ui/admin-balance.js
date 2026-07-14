@@ -4,7 +4,7 @@
 // page. Saves to the server; the game applies assets/balance.json at boot.
 
 import { CONFIG } from '../config.js';
-import { GENERAL_FIELDS, TINT_MODES, MIDDLE_KINDS, loadBalance, saveBalance, resetAll, ensureBalanceLoadedUI } from './balance.js';
+import { GENERAL_FIELDS, TINT_MODES, MIDDLE_KINDS, loadBalance, saveBalance, resetAll, ensureBalanceLoadedUI, currentBalance, importBalance } from './balance.js';
 
 const MIDDLE_KIND_LABELS = {
   none: 'Fără efect',
@@ -112,6 +112,49 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   render();
   setStatus('Resetat la valorile din cod (apasă Salvează ca să publici).');
 });
+
+// ---- Import / Export whole balance.json (apply a full rework in one shot) ----
+const ioStatus = document.getElementById('io-status');
+function setIo(msg, color = '#7c8ba1') { if (ioStatus) { ioStatus.textContent = msg; ioStatus.style.color = color; } }
+
+const exportBtn = document.getElementById('export-btn');
+if (exportBtn) exportBtn.addEventListener('click', () => {
+  try {
+    const blob = new Blob([JSON.stringify(currentBalance(), null, 2) + '\n'], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'balance.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    setIo('Exportat ✓ (balance.json descărcat)', '#58d68d');
+  } catch (e) { setIo('Export eșuat: ' + e.message, '#ff8090'); }
+});
+
+const importBtn = document.getElementById('import-btn');
+const importFile = document.getElementById('import-file');
+if (importBtn && importFile) {
+  importBtn.addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', async () => {
+    const file = importFile.files && importFile.files[0];
+    if (!file) return;
+    setIo('Se citește fișierul…');
+    try {
+      const text = (await file.text()).replace(/^﻿/, '').trim();
+      const data = JSON.parse(text);
+      importBalance(data);        // apply + seed cache + clear the load-failed guard
+      render();                   // reflect imported general rules in the editor
+      setIo('Se salvează pe server…');
+      const res = await saveBalance('save-balance.php');
+      if (res === 'ok') setIo('Import + salvare ✓ — activ la următoarea pornire a jocului', '#58d68d');
+      else if (res === 'auth') setIo('Aplicat local, dar sesiunea a expirat — reloghează-te în /admin și apasă Salvează', '#ff8090');
+      else setIo('Aplicat local, dar salvarea a eșuat — verifică serverul și apasă Salvează', '#ff8090');
+    } catch (e) {
+      setIo('Fișier invalid (nu e un balance.json bun): ' + e.message, '#ff8090');
+    } finally {
+      importFile.value = ''; // allow re-importing the same file
+    }
+  });
+}
 
 // apply any previously saved overrides, then render current values
 loadBalance('../assets/').then(() => { if (ensureBalanceLoadedUI()) render(); });

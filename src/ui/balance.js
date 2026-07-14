@@ -566,6 +566,17 @@ export function currentBalance() {
   return snapshot();
 }
 
+// Load a full balance object from outside the server (admin Import). Applies it,
+// seeds the local cache, and clears the "not loaded" guard — so Import doubles as
+// a recovery path even if the initial fetch failed. Caller then saves to server.
+// Throws if `data` isn't a usable object, so the caller can report a bad file.
+export function importBalance(data) {
+  if (!data || typeof data !== 'object') throw new Error('balans invalid');
+  applyBalance(data);
+  cacheBalanceText(JSON.stringify(data));
+  balanceLoadFailed = false;
+}
+
 export function resetRaceUnit(race, id) {
   // rebuild from the same source as the initial tables, so every field (incl.
   // xp/food/slot/building and the hero's leveling + kit) is restored correctly

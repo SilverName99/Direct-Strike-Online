@@ -74,6 +74,18 @@ $authed = !empty($_SESSION['auth']);
   </div>
 
   <div class="group" style="margin-top:22px">
+    <h3 style="color:#4da6ff">Import / Export balans</h3>
+    <div class="sub" style="margin:2px 0 10px">Salvează sau încarcă întreg config-ul (<code>balance.json</code>) ca fișier.
+      <b>Export</b> descarcă un backup al balansului curent. <b>Import</b> aplică un fișier și îl salvează pe server
+      dintr-o mișcare — util ca să aplici un rework complet (ex: fișierul <code>backups/balance-20260715.json</code> din repo).
+      Import merge și dacă balansul nu s-a încărcat (recuperare).</div>
+    <button id="export-btn" class="ghost">⬇ Export (descarcă balance.json)</button>
+    <button id="import-btn" class="ghost">⬆ Import (încarcă fișier)</button>
+    <input id="import-file" type="file" accept="application/json,.json" style="display:none">
+    <span id="io-status" style="margin-left:12px;color:#7c8ba1;font-size:13px"></span>
+  </div>
+
+  <div class="group" style="margin-top:12px">
     <h3 style="color:#4da6ff">Optimizare imagini</h3>
     <div class="sub" style="margin:2px 0 10px">Comprimă <b>fără pierderi</b> imaginile <b>PNG și WEBP</b> deja încărcate din <code>assets/</code>:
       re-codează la compresie maximă și șterge metadatele — pixelii și transparența rămân identici, deci calitatea NU se schimbă.
