@@ -770,7 +770,11 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
   // healer to fighter in the admin) — fall back to plain 'normal' damage
   const row = DAMAGE_MATRIX[dmgType] || DAMAGE_MATRIX.normal;
   const mult = row[target.armor];
-  target.hp -= damage * mult;
+  let dmg = damage * mult;
+  // Devotion Aura: allies inside the Paladin's aura take less damage
+  const reduce = effectVal(target, 'dmgReduce', game.time);
+  if (reduce > 0) dmg *= 1 - Math.min(reduce, 90) / 100;
+  target.hp -= dmg;
   if (!silent) game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
     game.creditHeroKill(target); // your hero earns XP when your army kills a unit

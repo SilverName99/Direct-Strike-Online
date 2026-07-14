@@ -27,7 +27,7 @@ function isCastable(ab) {
 // extra rank adds HERO_RANK_STEP to a multiplier on the "power" params below
 // (rank 2 = 1.5×, rank 3 = 2×). Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5;
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   if (rank <= 1) return ab.params;
@@ -109,7 +109,7 @@ export function isStunned(u, time) {
 }
 
 const DEBUFFS = ['atkslow', 'moveslow', 'stun'];
-const BUFFS = ['haste', 'movehaste', 'regen'];
+const BUFFS = ['haste', 'movehaste', 'regen', 'dmgReduce'];
 
 // Apply an effect, honoring dispell's immunity (allies) / buff-block (enemies).
 export function applyEffect(u, kind, val, until, time) {
@@ -151,6 +151,19 @@ export function updateAbilities(game, dt) {
     for (const aid of stats.abilities) {
       const ab = resolvedAbility(aid);
       if (ab && ab.kind === 'castaura') tickCastAura(game, u, aid, ab, time);
+    }
+  }
+
+  // Passive hero auras (Devotion Aura): always on while the Paladin lives —
+  // protect every ally in range with a short, re-applied damage-reduction buff.
+  for (const u of game.entities) {
+    if (u.hp <= 0) continue;
+    const dev = learnedAbilityParams(u, 'devotionaura');
+    if (!dev) continue;
+    const until = time + AURA_TICK;
+    for (const a of game.entities) {
+      if (a.hp <= 0 || a.team !== u.team) continue;
+      if (inRadius(a, u, dev.radius)) applyEffect(a, 'dmgReduce', dev.dmgReduce, until, time);
     }
   }
 
@@ -254,7 +267,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 
 // Support abilities that fire for a wounded/needy ally even when no enemy is in
 // range — they are exempt from the "cast only while engaged" rule.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal']);
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield']);
 
 // First castable ability, in the caster's configured order, that is off
 // cooldown, affordable, and has a valid target right now.
@@ -301,6 +314,25 @@ function findAbilityTarget(game, caster, aid, ab, time) {
       if (u.hp > 0 && u.team === caster.team && u.hp < u.maxHp && inRadius(u, caster, p.radius)) return caster;
     }
     return null;
+  }
+  if (aid === 'holylight') {
+    // heal the most-wounded ally in range (the Paladin himself counts)
+    let best = null;
+    let bestRatio = 1;
+    for (const u of game.entities) {
+      if (u.team !== caster.team || u.hp <= 0 || u.hp >= u.maxHp) continue;
+      if (!inRadius(u, caster, p.range)) continue;
+      const ratio = u.hp / u.maxHp;
+      if (ratio < bestRatio) { bestRatio = ratio; best = u; }
+    }
+    return best;
+  }
+  if (aid === 'divineshield') {
+    // pop invulnerability when the Paladin drops below the HP threshold
+    return caster.maxHp > 0 && caster.hp / caster.maxHp < (p.threshold || 100) / 100 ? caster : null;
+  }
+  if (aid === 'holynova') {
+    return caster; // ultimate: self-invuln + team heal, cast while engaged
   }
   if (aid === 'hasteaura') {
     // only worth casting when at least one *other* ally is in range to buff
@@ -407,6 +439,37 @@ function releaseSpell(game, caster, time) {
     target.hp = Math.min(target.maxHp, target.hp + p.amount);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
     game.events.push({ type: 'heal', x: target.x, y: target.y });
+    return hold;
+  }
+
+  if (aid === 'holylight') {
+    // heal a % of the target's MAX hp
+    target.hp = Math.min(target.maxHp, target.hp + target.maxHp * (p.healPct || 0) / 100);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
+    game.events.push({ type: 'heal', x: target.x, y: target.y });
+    return hold;
+  }
+
+  if (aid === 'divineshield') {
+    // the Paladin becomes invulnerable for `duration` (applyDamage ignores hits
+    // while game.time is in [shieldFrom, shieldUntil])
+    caster.shieldFrom = time;
+    caster.shieldUntil = time + (p.duration || 0);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'shield', x: caster.x, y: caster.y, team: caster.team, unitId: caster.id });
+    return hold;
+  }
+
+  if (aid === 'holynova') {
+    // ultimate: self-invuln + a strong regen on every ally in range
+    caster.shieldFrom = time;
+    caster.shieldUntil = time + (p.duration || 0);
+    for (const u of game.entities) {
+      if (u.hp <= 0 || u.team !== caster.team || !inRadius(u, caster, p.radius)) continue;
+      applyEffect(u, 'regen', p.hps, time + (p.duration || 0), time);
+    }
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
+    game.events.push({ type: 'shield', x: caster.x, y: caster.y, team: caster.team, unitId: caster.id });
     return hold;
   }
 

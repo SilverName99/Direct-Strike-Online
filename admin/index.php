@@ -57,13 +57,18 @@ const ABILITY_INFO = [
   'bloodlust' => ['Bloodlust', true, false, 1],
   'cleave' => ['Cleave', false, false], // passive: no cast frame
   'charge' => ['Charge', false, false], // passive gap-closer: uses the Dash frame
+  // Paladin (Human hero) kit
+  'holylight' => ['Holy Light', true, false],
+  'divineshield' => ['Divine Shield', true, false],
+  'devotionaura' => ['Devotion Aura', false, false], // passive aura: no cast frame
+  'holynova' => ['Holy Nova', true, false],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
 const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
-const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => []];
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova']];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',

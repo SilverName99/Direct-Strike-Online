@@ -159,7 +159,7 @@ export function setMusicVolume(race, v) {
 // yourself in admin). Kept in sync with admin/index.php HERO_DEFAULT_KITS.
 const HERO_DEFAULT_KITS = {
   orcs: { skills: ['warstomp', 'cleave', 'charge'], ult: 'bloodlust' },
-  humans: { skills: ['', '', ''], ult: '' },
+  humans: { skills: ['holylight', 'divineshield', 'devotionaura'], ult: 'holynova' },
 };
 
 function baseUnits(race) {
