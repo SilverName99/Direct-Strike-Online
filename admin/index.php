@@ -329,12 +329,16 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     return $slots;
   }
   $caster = unitIsCaster($race, $ent);
+  $isHero = in_array($ent, HERO_LIST, true);
   $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2', 'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2'];
-  if ($caster) {
-    // single-frame model: one shared wind-up pose + one release per action
+  if ($caster && !$isHero) {
+    // regular caster: one shared wind-up pose + one release frame per action
     $slots['prepare_0'] = 'Prepare spell';
     $slots['attack_0'] = 'Attack';
   } else {
+    // fighters — and heroes, who fight melee-first — use a full 2-frame attack
+    // cycle (Attack 1 while winding up, Attack 2 after the hit). Heroes cast
+    // instantly (no prepare frame); their per-ability "Cast …" slots stay below.
     $slots['attack_0'] = 'Attack 1';
     $slots['attack_1'] = 'Attack 2';
   }

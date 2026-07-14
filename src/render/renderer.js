@@ -903,8 +903,8 @@ export class Renderer {
           }
           frame = 0;
         } else if (attacking) {
-          if (isCaster) {
-            // non-caster-ability fighter path (out of mana / auto-attacking):
+          if (isCaster && !rstats.isHero) {
+            // regular caster auto-attacking (out of mana / between spells):
             // shared "prepare" during the wind-up, one "attack" release frame
             anim = u.windup > 0 && prep ? 'prepare' : 'attack';
             frame = 0;
