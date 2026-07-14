@@ -112,6 +112,10 @@ console.log('unit commands (army zone, tiers)');
 {
   const game = new Game(5);
   game.money[0] = 2000;
+  // per-race default rosters gate units behind tech buildings — grant the ones
+  // these zone/tier/sell tests need (grunt->bldg1, bruiser->bldg3)
+  for (const kind of ['bldg1', 'bldg3']) game.structures.push(makeStructure(game, 0, kind, 700, 300));
+  const gruntCost = game.ustat(0, 'grunt').cost;
 
   const buy = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 500, y: 700 });
   check('buy inside army zone ok', buy.ok);
@@ -133,7 +137,7 @@ console.log('unit commands (army zone, tiers)');
   const beforeFull = game.money[0];
   const sellFull = game.issueCommand({ type: 'sellUnit', team: 0, index: 0 });
   check('sellUnit refunds 100% before first spawn',
-    sellFull.ok && game.money[0] === beforeFull + UNITS.grunt.cost);
+    sellFull.ok && game.money[0] === beforeFull + gruntCost);
 
   // once it has spawned, selling only gives the partial refund
   game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 500, y: 700 });
@@ -141,7 +145,7 @@ console.log('unit commands (army zone, tiers)');
   const idxSpawned = game.templates[0].length - 1;
   const before = game.money[0];
   const sell = game.issueCommand({ type: 'sellUnit', team: 0, index: idxSpawned });
-  const refund = Math.round(UNITS.grunt.cost * CONFIG.SELL_REFUND);
+  const refund = Math.round(gruntCost * CONFIG.SELL_REFUND);
   check('sellUnit refunds 75% after spawn', sell.ok && game.money[0] === before + refund);
 
   const mv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 400, y: 500 });
@@ -245,12 +249,19 @@ console.log('counter matchups (equal cost)');
 // ranged/air/splash/anti-air traits before testing its counter dynamics.
 {
   const { applyBalance } = await import('../src/ui/balance.js');
+  // Full "classic" generic roster (per-race defaults are now distinct real
+  // units, so pin explicit stats here to test the counter MECHANICS in isolation).
+  const b = (o) => ({ building: '', caster: false, splash: 0, isAir: false, targetsAir: false, targetsGround: true, heal: false, ranged: false, ...o });
   const roster = {
-    slinger: { ranged: true, targetsAir: true },
-    lancer: { ranged: true },
-    crab: { ranged: true, splash: 60, projSpeed: 300 },
-    wasp: { ranged: true, isAir: true, targetsAir: true },
-    archon: { ranged: true, targetsAir: true },
+    grunt:   b({ tier: 1, cost: 50, hp: 90, damage: 10, period: 0.8, range: 25, speed: 90, armor: 'light', dmgType: 'normal' }),
+    slinger: b({ tier: 1, cost: 75, hp: 60, damage: 9, period: 0.9, range: 180, speed: 70, armor: 'light', dmgType: 'normal', ranged: true, targetsAir: true }),
+    dasher:  b({ tier: 1, cost: 100, hp: 70, damage: 14, period: 0.7, range: 25, speed: 150, armor: 'light', dmgType: 'normal' }),
+    lancer:  b({ tier: 2, cost: 175, hp: 110, damage: 45, period: 1.5, range: 200, speed: 65, armor: 'light', dmgType: 'piercing', ranged: true }),
+    bruiser: b({ tier: 2, cost: 200, hp: 400, damage: 20, period: 1.2, range: 30, speed: 55, armor: 'armored', dmgType: 'normal' }),
+    crab:    b({ tier: 3, cost: 300, hp: 250, damage: 40, period: 2.5, range: 320, speed: 40, armor: 'armored', dmgType: 'explosive', ranged: true, splash: 60, projSpeed: 300 }),
+    wasp:    b({ tier: 2, cost: 150, hp: 100, damage: 12, period: 0.8, range: 150, speed: 110, armor: 'armored', dmgType: 'normal', ranged: true, isAir: true, targetsAir: true }),
+    archon:  b({ tier: 3, cost: 250, hp: 150, damage: 24, period: 1.0, range: 220, speed: 60, armor: 'light', dmgType: 'piercing', ranged: true, targetsAir: true }),
+    mender:  b({ tier: 2, cost: 150, hp: 80, damage: 15, period: 1.0, range: 140, speed: 60, armor: 'light', dmgType: 'normal', heal: true }),
   };
   applyBalance({ races: { humans: { units: roster }, orcs: { units: roster } } });
 }
@@ -741,7 +752,7 @@ console.log('abilities (casters, auras, status effects)');
   // Footprint placement: a 2x2 unit occupies its box — overlapping placements
   // are rejected, clear ones accepted
   {
-    applyBalance({ races: { humans: { units: { grunt: { cw: 2, ch: 2 } } } } });
+    applyBalance({ races: { humans: { units: { grunt: { cw: 2, ch: 2, building: '' } } } } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
     const x0 = CONFIG.ARMY_ZONE[0].x0 + 40, y0 = 400; // 2x2 box fits the army zone
     const r1 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: x0, y: y0 });
@@ -821,7 +832,7 @@ console.log('abilities (casters, auras, status effects)');
     check('regen aura casts for wounded allies even when not engaged', caster.mana === 70, `mana=${caster.mana}`);
   }
   {
-    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 0 } } } } });
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 0, isAir: false } } } } });
     const game = new Game(9, { races: ['humans', 'orcs'] });
     const caster = spawnUnit(game, 0, 'mender', 600, 300);
     const wounded = spawnUnit(game, 0, 'grunt', 620, 300); // wounded ally, no enemy in range
@@ -1006,12 +1017,12 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({});
     const game = new Game(5, { races: ['humans', 'orcs'] });
     const zone = CONFIG.ARMY_ZONE[1];
-    game.templates[1].push({ type: 'crab', x: zone.x0 + 10, y: 300 }); // artillery on the front edge
+    game.templates[1].push({ type: 'mender', x: zone.x0 + 10, y: 300 }); // artillery (Orc catapult) on the front edge
     const ai = new AIController(1, 'normal', 7);
     for (let i = 0; i < 9; i++) ai.update(game, 1);
     const crab = game.templates[1][0];
     check('AI moves misplaced artillery toward the back band',
-      crab.x > zone.x0 + (zone.x1 - zone.x0) * 0.6, `x=${Math.round(crab.x)}`);
+      crab.x > zone.x0 + (zone.x1 - zone.x0) * 0.45, `x=${Math.round(crab.x)}`);
   }
 
   // A3: when the ideal unit pick is priced out of reach, the AI still fields
@@ -1485,7 +1496,7 @@ console.log('abilities (casters, auras, status effects)');
     check('no middle variants -> no terrain effect', !g3.middle && moveSpeedMult(u3, g3.time) === 1);
 
     // mana-regen variant: tops up a caster's mana while on the band
-    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 0 } } } } });
+    applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal'], mana: 100, manaRegen: 0, isAir: false } } } } });
     const g4 = new Game(31, { races: ['humans', 'orcs'],
       middles: [{ slot: 0, kind: 'manaregen', amount: 30, band: 150, air: false }] });
     const caster = spawnUnit(g4, 0, 'mender', mid + 20, 400); caster.mana = 0;

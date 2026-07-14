@@ -11,6 +11,7 @@
 
 import { CONFIG, RACES } from '../config.js';
 import { UNITS } from '../units.js';
+import { RACE_UNITS } from '../race-units.js';
 import { ABILITIES, ABILITY_IDS, MAX_ABILITIES } from '../abilities.js';
 import { UPGRADES, UPGRADE_IDS } from '../upgrades.js';
 
@@ -200,6 +201,15 @@ function baseUnits(race) {
       const kit = HERO_DEFAULT_KITS[race] || { skills: ['', '', ''], ult: '' };
       t[id].heroAbilities = [...kit.skills];
       t[id].heroUltimate = kit.ult;
+    }
+    // per-race roster: bake this race's distinct name + stats + role over the
+    // shared base, so Orc and Human are different units even with no balance.json
+    const ov = RACE_UNITS[race] && RACE_UNITS[race][id];
+    if (ov) {
+      Object.assign(t[id], ov);
+      if ('abilities' in ov) t[id].abilities = [...ov.abilities];
+      t[id].projectile = !!t[id].ranged;                       // derived flag
+      t[id].projectileSpeed = t[id].projSpeed;                 // keep both in sync
     }
   }
   return t;
