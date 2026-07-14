@@ -87,6 +87,12 @@ export function hasFireAnim(type, team, which) {
   return hasSpriteAnim(raceOf(team), type, `fire-${which}`);
 }
 
+// True when the hero has uploaded its "Bloodlust" ("bloodlust-<which>") raging
+// sprite for walking or attacking (used only while Bloodlust is active).
+export function hasBloodlustAnim(type, team, which) {
+  return hasSpriteAnim(raceOf(team), type, `bloodlust-${which}`);
+}
+
 // True when a unit has uploaded its "Scut" activation frame (shield upgrade).
 export function hasShieldAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'shield');
