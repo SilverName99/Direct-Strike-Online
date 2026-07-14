@@ -403,10 +403,13 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
     $slots["{$animal}-die_0"] = "$lbl: Die";
   }
-  // one cast-release frame + per-ability projectile for each selected ability
+  // two cast frames (frame 2 optional) + per-ability projectile for each ability
   foreach (unitAbilities($race, $ent) as $aid) {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
-    if ($hasCast) $slots["cast-{$aid}_0"] = "Cast {$name}";
+    if ($hasCast) {
+      $slots["cast-{$aid}_0"] = "Cast {$name} 1";
+      $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+    }
     if ($hasProj) $slots["abilityproj-{$aid}"] = "Proiectil {$name}";
   }
   return $slots;

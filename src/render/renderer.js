@@ -898,10 +898,14 @@ export class Renderer {
           // gracefully to attack/idle when a frame isn't uploaded.
           if (u.castState === 'prepare') {
             anim = prep ? 'prepare' : 'attack';
+            frame = 0;
           } else { // release
             anim = castAnimOf(u.type, u.team, u.castAbility) || (prep ? 'prepare' : 'attack');
+            // 2-frame cast: frame 1 for the first half of the cast, frame 2 for
+            // the second half (frame 2 optional — falls back to 1 if not uploaded)
+            const dur = (u.castPhaseEnd || 0) - (u.castPhaseStart || 0);
+            frame = (dur > 0 && game.time - u.castPhaseStart >= dur * 0.5) ? 1 : 0;
           }
-          frame = 0;
         } else if (attacking) {
           if (isCaster && !rstats.isHero) {
             // regular caster auto-attacking (out of mana / between spells):

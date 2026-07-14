@@ -204,6 +204,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
       const rel = releaseSpell(game, caster, time); // fires the effect
       if (rel == null) { endCast(caster); return false; } // target gone -> abort
       caster.castState = 'release';
+      caster.castPhaseStart = time;
       caster.castPhaseEnd = time + rel;
     }
     return true;
@@ -230,6 +231,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   const rel = releaseSpell(game, caster, time);
   if (rel == null) { endCast(caster); return false; }
   caster.castState = 'release';
+  caster.castPhaseStart = time;
   caster.castPhaseEnd = time + rel;
   return true;
 }
