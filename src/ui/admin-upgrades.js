@@ -5,7 +5,7 @@
 import { UPGRADES, UPGRADE_PARAM_LABELS } from '../upgrades.js';
 import { UNITS } from '../units.js';
 import { RACES } from '../config.js';
-import { resolvedUpgrade, resetUpgrade, statsUnit, loadBalance, saveBalance } from './balance.js';
+import { resolvedUpgrade, resetUpgrade, statsUnit, loadBalance, saveBalance, ensureBalanceLoadedUI } from './balance.js';
 
 const app = document.getElementById('up-app');
 const status = document.getElementById('status');
@@ -103,4 +103,4 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 });
 
 // apply any previously saved overrides, then render current values
-loadBalance('../assets/').then(() => render());
+loadBalance('../assets/').then(() => { if (ensureBalanceLoadedUI()) render(); });

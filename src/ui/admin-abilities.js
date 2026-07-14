@@ -3,7 +3,7 @@
 // (shared by both races) and ship inside assets/balance.json.
 
 import { ABILITIES, ABILITY_PARAM_LABELS } from '../abilities.js';
-import { resolvedAbility, resetAbility, loadBalance, saveBalance } from './balance.js';
+import { resolvedAbility, resetAbility, loadBalance, saveBalance, ensureBalanceLoadedUI } from './balance.js';
 import { mountAbilityPreviews } from './ability-preview.js';
 
 const app = document.getElementById('ab-app');
@@ -70,4 +70,4 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 });
 
 // apply any previously saved overrides, then render current values
-loadBalance('../assets/').then(() => render());
+loadBalance('../assets/').then(() => { if (ensureBalanceLoadedUI()) render(); });

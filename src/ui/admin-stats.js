@@ -11,7 +11,7 @@ import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
   TECH_BUILDINGS, FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
   resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance, setUnitOrder,
-  musicVolumeOf, setMusicVolume,
+  musicVolumeOf, setMusicVolume, ensureBalanceLoadedUI,
 } from './balance.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -597,8 +597,11 @@ function wireMusicVolume() {
   });
 }
 
-// Wire the gears once the saved balance is applied, so saving preserves it.
+// Wire the gears once the saved balance is applied, so saving preserves it. If
+// the load genuinely failed, bail out (banner shown) — editing/saving now would
+// overwrite the real config with code defaults.
 loadBalance('../assets/').then(() => {
+  if (!ensureBalanceLoadedUI()) return;
   for (const g of document.querySelectorAll('.stat-gear')) {
     g.addEventListener('click', () => open(g.dataset.ent, g.dataset.kind));
   }

@@ -584,20 +584,47 @@ export function defaults() {
 }
 
 // ---------------------------------------------------------- load/save
+// Tracks whether the saved balance FAILED to load (network/server error while
+// the file may still exist). Admin editors must NOT save in that state, or a
+// Save would overwrite the real config with code defaults. A missing file (404)
+// is NOT a failure — it's a fresh install, safe to write the first balance.json.
+let balanceLoadFailed = false;
+
 export async function loadBalance(base = 'assets/') {
   try {
     const r = await fetch(`${base}balance.json`, { cache: 'no-cache' });
-    if (!r.ok) return false;
+    if (r.status === 404) { balanceLoadFailed = false; return false; } // fresh: no file yet
+    if (!r.ok) { balanceLoadFailed = true; return false; }             // exists but errored
     applyBalance(await r.json());
+    balanceLoadFailed = false;
     return true;
   } catch {
+    balanceLoadFailed = true; // network error: the file may exist — don't risk a Save
     return false;
   }
+}
+
+// Admin guard: call right after loadBalance in an editor. Returns true when it's
+// safe to show the editor / allow saving. On a genuine load failure it drops a
+// sticky warning banner and returns false, so the caller bails out and never
+// saves code defaults over the real config. (Save is also blocked in saveBalance.)
+export function ensureBalanceLoadedUI() {
+  if (!balanceLoadFailed) return true;
+  if (typeof document !== 'undefined' && document.body && !document.getElementById('ds-balance-warn')) {
+    const d = document.createElement('div');
+    d.id = 'ds-balance-warn';
+    d.textContent = '⚠ Balance nu s-a încărcat (rețea/server). NU edita și NU salva — reîncarcă pagina, altfel suprascrii tot config-ul cu valori default.';
+    d.style.cssText = 'position:sticky;top:0;z-index:99999;background:#7a1f1f;color:#fff;padding:12px 16px;font:14px/1.4 system-ui,sans-serif;font-weight:700;text-align:center';
+    document.body.prepend(d);
+  }
+  return false;
 }
 
 // Requires an active admin session. `endpoint` is relative to the caller's
 // page (the admin editors pass 'save-balance.php').
 export async function saveBalance(endpoint = 'admin/save-balance.php') {
+  // never overwrite the real config with defaults after a failed load
+  if (balanceLoadFailed) return 'not-loaded';
   const r = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-DS-Balance': '1' },

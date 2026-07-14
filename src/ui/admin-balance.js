@@ -4,7 +4,7 @@
 // page. Saves to the server; the game applies assets/balance.json at boot.
 
 import { CONFIG } from '../config.js';
-import { GENERAL_FIELDS, TINT_MODES, MIDDLE_KINDS, loadBalance, saveBalance, resetAll } from './balance.js';
+import { GENERAL_FIELDS, TINT_MODES, MIDDLE_KINDS, loadBalance, saveBalance, resetAll, ensureBalanceLoadedUI } from './balance.js';
 
 const MIDDLE_KIND_LABELS = {
   none: 'Fără efect',
@@ -114,4 +114,4 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 });
 
 // apply any previously saved overrides, then render current values
-loadBalance('../assets/').then(() => render());
+loadBalance('../assets/').then(() => { if (ensureBalanceLoadedUI()) render(); });

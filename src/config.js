@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.72';
+export const VERSION = 'v10.73';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -57,8 +57,8 @@ export const CONFIG = {
   // Army formation strip (12 × 18 cells) at the BACK of each side. 2 rows
   // shorter than the construction zone, kept vertically centered.
   ARMY_ZONE: [
-    { x0: 60, x1: 540, y0: 120, y1: 840 },
-    { x0: 3060, x1: 3540, y0: 120, y1: 840 },
+    { x0: 100, x1: 500, y0: 80, y1: 880 },
+    { x0: 3100, x1: 3500, y0: 80, y1: 880 },
   ],
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
