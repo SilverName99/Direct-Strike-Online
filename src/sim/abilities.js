@@ -216,10 +216,21 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   // idle: pick the first castable ability (list order) and start winding up
   const pick = pickCastable(game, caster, stats, time, engaged);
   if (!pick) return false;
-  caster.castState = 'prepare';
   caster.castAbility = pick.aid;
   caster.castTargetId = pick.target.id;
-  caster.castPhaseEnd = time + CAST_PREPARE;
+  // per-ability wind-up: castPrepare (seconds). 0 = instant cast, no prepare
+  // frame (heroes) — fire the effect right away and jump to the cast frame.
+  const pab = resolvedAbility(pick.aid);
+  const prep = pab && pab.params && pab.params.castPrepare != null ? pab.params.castPrepare : CAST_PREPARE;
+  if (prep > 0) {
+    caster.castState = 'prepare';
+    caster.castPhaseEnd = time + prep;
+    return true;
+  }
+  const rel = releaseSpell(game, caster, time);
+  if (rel == null) { endCast(caster); return false; }
+  caster.castState = 'release';
+  caster.castPhaseEnd = time + rel;
   return true;
 }
 
@@ -349,6 +360,8 @@ function releaseSpell(game, caster, time) {
   const ab = resolvedAbility(aid);
   if (!ab) return null;
   const p = abParams(caster, aid, ab);
+  // seconds held on the "Cast X" frame after the effect fires (per-ability)
+  const hold = ab.params.castHold != null ? ab.params.castHold : CAST_RELEASE;
   const target = findAbilityTarget(game, caster, aid, ab, time);
   if (!target) return null; // nothing valid to hit -> abort with no cost
 
@@ -361,7 +374,7 @@ function releaseSpell(game, caster, time) {
     const animal = spawnSummon(game, caster, ab, p);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'summon', x: animal.x, y: animal.y, team: caster.team });
-    return CAST_RELEASE;
+    return hold;
   }
 
   if (ab.kind === 'castaura') {
@@ -369,14 +382,14 @@ function releaseSpell(game, caster, time) {
     if (!caster.auraUntil) caster.auraUntil = {};
     caster.auraUntil[aid] = time + (p.duration || 0);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
-    return CAST_RELEASE;
+    return hold;
   }
 
   if (aid === 'heal') {
     target.hp = Math.min(target.maxHp, target.hp + p.amount);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
     game.events.push({ type: 'heal', x: target.x, y: target.y });
-    return CAST_RELEASE;
+    return hold;
   }
 
   if (aid === 'dispell') {
@@ -393,7 +406,7 @@ function releaseSpell(game, caster, time) {
       }
     }
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius });
-    return CAST_RELEASE;
+    return hold;
   }
 
   if (aid === 'warstomp') {
@@ -408,7 +421,7 @@ function releaseSpell(game, caster, time) {
       }
     }
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
-    return CAST_RELEASE;
+    return hold;
   }
 
   if (aid === 'bloodlust') {
@@ -418,8 +431,10 @@ function releaseSpell(game, caster, time) {
       if (p.haste) applyEffect(u, 'haste', p.haste, time + p.duration, time);
       if (p.moveHaste) applyEffect(u, 'movehaste', p.moveHaste, time + p.duration, time);
     }
+    // the Chieftain himself swells while raging (visual only; read by renderer)
+    if (p.size && p.size !== 100) applyEffect(caster, 'sizeup', p.size, time + p.duration, time);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: 200 });
-    return CAST_RELEASE;
+    return hold;
   }
 
   if (aid === 'frostbolt') {
@@ -438,8 +453,8 @@ function releaseSpell(game, caster, time) {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     const travel = speed > 0 ? dist / speed : 0;
-    return Math.max(CAST_RELEASE, travel);
+    return Math.max(hold, travel);
   }
 
-  return CAST_RELEASE;
+  return hold;
 }

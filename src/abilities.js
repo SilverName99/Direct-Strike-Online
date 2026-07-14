@@ -146,6 +146,7 @@ export const ABILITIES = {
     params: {
       tier: 1, cooldown: 8, manaCost: 40,
       radius: 150, damage: 60, moveSlow: 40, atkSlow: 30, duration: 3,
+      castPrepare: 0, // Chieftain casts instantly (no wind-up frame)
     },
   },
   bloodlust: {
@@ -156,6 +157,8 @@ export const ABILITIES = {
     params: {
       tier: 1, cooldown: 40, manaCost: 80,
       haste: 40, moveHaste: 30, duration: 6,
+      size: 130,      // % the Chieftain grows to while raging (100 = no change)
+      castPrepare: 0, // instant cast (no wind-up frame)
     },
   },
   frostbolt: {
@@ -178,6 +181,16 @@ export const ABILITIES = {
   },
 };
 
+// Every castable ability shares two animation-timing params, defaulted here so
+// balance.json files that predate them keep the old feel:
+//   castPrepare — seconds of wind-up ("Prepare spell") before the effect fires.
+//                 Set to 0 for an INSTANT cast with no prepare frame (heroes).
+//   castHold    — seconds held on the "Cast X" frame after the effect fires.
+for (const ab of Object.values(ABILITIES)) {
+  if (ab.params.castPrepare === undefined) ab.params.castPrepare = 0.45;
+  if (ab.params.castHold === undefined) ab.params.castHold = 0.4;
+}
+
 export const ABILITY_IDS = Object.keys(ABILITIES);
 export const MAX_ABILITIES = 5; // per caster
 
@@ -198,6 +211,8 @@ export const ABILITY_PARAM_LABELS = {
   damage: 'Damage',
   duration: 'Effect duration (s)',
   projectileSpeed: 'Projectile speed',
+  castPrepare: 'Prepare/wind-up (s, 0 = fără)',
+  castHold: 'Timp pe frame-ul de cast (s)',
   // summon params
   cap: 'Nr. maxim vii (0 = nelimitat)',
   life: 'Durată viață (s, 0 = nu dispare)',

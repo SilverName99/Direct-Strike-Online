@@ -5,6 +5,7 @@ import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
+import { effectVal } from '../sim/abilities.js';
 import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo, drawLightShield } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
@@ -849,7 +850,11 @@ export class Renderer {
       const color = TEAM_COLORS[u.team];
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
-      const vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
+      let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
+      // temporary size buff (Bloodlust makes the Chieftain grow while raging) —
+      // purely visual, so the deterministic sim/collision is untouched
+      const sizeUp = effectVal(u, 'sizeup', game.time);
+      if (sizeUp > 0) vScale *= sizeUp / 100;
 
       if (u.isAir) {
         // soft shadow under flyers — scales with the unit's drawn Size so a
