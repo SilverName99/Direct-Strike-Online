@@ -158,7 +158,7 @@ export function setMusicVolume(race, v) {
 // meant to differ; each race's hero starts from its own kit (empty = build it
 // yourself in admin). Kept in sync with admin/index.php HERO_DEFAULT_KITS.
 const HERO_DEFAULT_KITS = {
-  orcs: { skills: ['warstomp', '', ''], ult: 'bloodlust' },
+  orcs: { skills: ['warstomp', 'cleave', ''], ult: 'bloodlust' },
   humans: { skills: ['', '', ''], ult: '' },
 };
 

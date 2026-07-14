@@ -179,6 +179,17 @@ export const ABILITIES = {
       projectileSpeed: 380,
     },
   },
+  cleave: {
+    name: 'Cleave',
+    kind: 'passive', // not cast — modifies the hero's basic MELEE attack
+    color: '#ff9a3c',
+    desc: 'Pasiv: fiecare atac melee al eroului lovește și inamicii din jurul țintei (% din damage). Crește cu rangul.',
+    params: {
+      tier: 1,
+      radius: 130,     // splash radius around the struck target
+      cleavePct: 45,   // % of the hit dealt to nearby enemies (scales with rank)
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -187,6 +198,7 @@ export const ABILITIES = {
 //                 Set to 0 for an INSTANT cast with no prepare frame (heroes).
 //   castHold    — seconds held on the "Cast X" frame after the effect fires.
 for (const ab of Object.values(ABILITIES)) {
+  if (ab.kind === 'passive') continue; // passives never cast — no timing params
   if (ab.params.castPrepare === undefined) ab.params.castPrepare = 0.45;
   if (ab.params.castHold === undefined) ab.params.castHold = 0.4;
 }
@@ -213,6 +225,7 @@ export const ABILITY_PARAM_LABELS = {
   projectileSpeed: 'Projectile speed',
   castPrepare: 'Prepare/wind-up (s, 0 = fără)',
   castHold: 'Timp pe frame-ul de cast (s)',
+  cleavePct: 'Cleave (% din damage)',
   // summon params
   cap: 'Nr. maxim vii (0 = nelimitat)',
   life: 'Durată viață (s, 0 = nu dispare)',

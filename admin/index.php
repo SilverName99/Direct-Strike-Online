@@ -51,16 +51,18 @@ const ABILITY_INFO = [
   'summonwolf' => ['Invocă Lup', true, false],
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
-  // Chieftain (Orc hero) kit
-  'warstomp' => ['War Stomp', true, false],
-  'bloodlust' => ['Bloodlust', true, false],
+  // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
+  // War Stomp are o animație de 2 cadre, Bloodlust un singur cadru (ținut mai mult).
+  'warstomp' => ['War Stomp', true, false, 2],
+  'bloodlust' => ['Bloodlust', true, false, 1],
+  'cleave' => ['Cleave', false, false], // passive: no cast frame
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
 const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
-const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'bloodlust'], 'humans' => []];
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'bloodlust'], 'humans' => []];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
@@ -403,12 +405,17 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
     $slots["{$animal}-die_0"] = "$lbl: Die";
   }
-  // two cast frames (frame 2 optional) + per-ability projectile for each ability
+  // cast frames (per-ability: 1 or 2) + per-ability projectile for each ability
   foreach (unitAbilities($race, $ent) as $aid) {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
+    $castFrames = ABILITY_INFO[$aid][3] ?? 1;
     if ($hasCast) {
-      $slots["cast-{$aid}_0"] = "Cast {$name} 1";
-      $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+      if ($castFrames >= 2) {
+        $slots["cast-{$aid}_0"] = "Cast {$name} 1";
+        $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+      } else {
+        $slots["cast-{$aid}_0"] = "Cast {$name}";
+      }
     }
     if ($hasProj) $slots["abilityproj-{$aid}"] = "Proiectil {$name}";
   }

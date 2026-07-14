@@ -27,7 +27,7 @@ function isCastable(ab) {
 // extra rank adds HERO_RANK_STEP to a multiplier on the "power" params below
 // (rank 2 = 1.5×, rank 3 = 2×). Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5;
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   if (rank <= 1) return ab.params;
@@ -35,6 +35,15 @@ function abParams(caster, aid, ab) {
   const p = { ...ab.params };
   for (const k of RANK_SCALED) if (typeof p[k] === 'number') p[k] = p[k] * mult;
   return p;
+}
+
+// Rank-scaled params for a hero's LEARNED ability (rank >= 1), or null if the
+// unit doesn't have it learned. Used by combat.js for passive attack modifiers
+// (Cleave) that aren't cast through the FSM.
+export function learnedAbilityParams(u, aid) {
+  if (!u || !u.hero || !u.heroRanks || (u.heroRanks[aid] || 0) < 1) return null;
+  const ab = resolvedAbility(aid);
+  return ab ? abParams(u, aid, ab) : null;
 }
 
 // Does this unit have at least one castable ability USABLE right now (not

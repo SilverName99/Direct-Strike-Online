@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile, spawnUnit } from './entity.js';
-import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster } from './abilities.js';
+import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster, learnedAbilityParams } from './abilities.js';
 import { resolvedUpgrade, towerStatForTier } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
@@ -332,7 +332,23 @@ function updateFighter(game, u, stats, dt) {
           spawnProjectile(game, u, stats, target);
           game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
         } else {
-          applyDamage(game, target, dmgVsTarget(stats.damage, stats.buildingDamage, target), stats.dmgType);
+          const dmg = dmgVsTarget(stats.damage, stats.buildingDamage, target);
+          applyDamage(game, target, dmg, stats.dmgType);
+          // Cleave (hero passive): splash a % of the melee hit to other ground
+          // enemies around the struck target
+          const cl = learnedAbilityParams(u, 'cleave');
+          if (cl) {
+            const r = cl.radius || 0;
+            const cd = dmg * (cl.cleavePct || 0) / 100;
+            if (r > 0 && cd > 0) {
+              for (const e of game.entities) {
+                if (e === target || e.team === u.team || e.hp <= 0 || e.isAir || e.isStructure) continue;
+                const dx = e.x - target.x;
+                const dy = e.y - target.y;
+                if (dx * dx + dy * dy <= r * r) applyDamage(game, e, cd, stats.dmgType);
+              }
+            }
+          }
         }
       }
     } else if (u.cooldown <= 0) {
