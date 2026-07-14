@@ -270,6 +270,11 @@ function stepCasterHold(game, u, stats, dt) {
   }
   if (!casterPrioritizesSpells(game, u, stats)) return false; // out of mana -> basic action
 
+  // No offensive spell targets a building — a caster/hero engaged with a
+  // structure (tower/base) that couldn't cast this tick must NOT idle waiting;
+  // fall through and just basic-attack it.
+  if (target && target.isStructure) return false;
+
   // Still has mana for a spell but nothing castable this instant: wait for it.
   // Hold at range once engaged; otherwise march to close in (casting waits
   // until an enemy is in attack range), never slipping a basic attack in.
