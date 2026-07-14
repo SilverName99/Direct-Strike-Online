@@ -468,7 +468,7 @@ function releaseSpell(game, caster, time) {
       if (u.hp <= 0 || u.team !== caster.team || !inRadius(u, caster, p.radius)) continue;
       applyEffect(u, 'regen', p.hps, time + (p.duration || 0), time);
     }
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius, unitType: caster.type, dur: p.duration });
     game.events.push({ type: 'shield', x: caster.x, y: caster.y, team: caster.team, unitId: caster.id });
     return hold;
   }

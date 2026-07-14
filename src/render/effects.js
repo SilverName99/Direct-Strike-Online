@@ -3,7 +3,7 @@
 
 import { TEAM_COLORS } from './renderer.js';
 import { hasDeathAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
-import { raceOf } from './sprites.js';
+import { raceOf, getAbilityFx } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
 
@@ -16,6 +16,7 @@ export class Effects {
     this.corpses = [];
     this.structCorpses = []; // toppled towers showing their per-tier die frame
     this.rings = []; // expanding spell rings (dispell etc.)
+    this.domes = []; // uploaded AoE effect images scaled to an ability's radius
   }
 
   reset() {
@@ -23,6 +24,7 @@ export class Effects {
     this.corpses = [];
     this.structCorpses = [];
     this.rings = [];
+    this.domes = [];
   }
 
   spawnFromEvents(events) {
@@ -79,7 +81,17 @@ export class Effects {
           break;
         case 'cast': {
           const color = (ABILITIES[e.ability] || {}).color || '#ffffff';
-          if (e.ability === 'dispell') {
+          if (e.ability === 'holynova') {
+            // holy dome: the uploaded effect image, drawn scaled to the ult's
+            // heal radius, for the ult duration (falls back to a ring if no image)
+            this.domes.push({
+              x: e.x, y: e.y, radius: e.radius || 100,
+              race: raceOf(e.team), ent: e.unitType || 'hero', ability: e.ability,
+              t: 0, life: Math.max(0.6, e.dur || 1.5),
+            });
+            this.rings.push({ x: e.x, y: e.y, r0: 12, r1: e.radius || 100, life: 0.6, maxLife: 0.6, color });
+            this.burst(e.x, e.y, 14, color, 60, 0.7, 2, -40);
+          } else if (e.ability === 'dispell') {
             // expanding holy ring over the cleansed area + rising sparks
             this.rings.push({ x: e.x, y: e.y, r0: 12, r1: e.radius || 90, life: 0.55, maxLife: 0.55, color });
             this.burst(e.x, e.y, 10, color, 70, 0.5, 2, -50);
@@ -136,6 +148,7 @@ export class Effects {
     this.corpses = this.corpses.filter((c) => (c.t += dt) < CORPSE_LIFE);
     this.structCorpses = this.structCorpses.filter((c) => (c.t += dt) < STRUCT_CORPSE_LIFE);
     this.rings = this.rings.filter((r) => (r.life -= dt) > 0);
+    this.domes = this.domes.filter((d) => (d.t += dt) < d.life);
   }
 
   // Toppled towers: their per-tier "die" frame, fading out where they fell.
@@ -172,6 +185,19 @@ export class Effects {
   }
 
   draw(ctx) {
+    // AoE effect images (Holy Nova dome): centered on the caster, as wide as the
+    // ability's radius (diameter = 2 * radius), bottom anchored at the feet.
+    for (const d of this.domes) {
+      const img = getAbilityFx(d.race, d.ent, d.ability);
+      if (!img || !img.width) continue;
+      const w = d.radius * 2;
+      const h = w * (img.height / img.width);
+      const fadeIn = Math.min(1, d.t / 0.2);
+      const fadeOut = Math.min(1, (d.life - d.t) / 0.6);
+      ctx.globalAlpha = Math.max(0, Math.min(fadeIn, fadeOut));
+      ctx.drawImage(img, d.x - w / 2, d.y - h, w, h);
+    }
+    ctx.globalAlpha = 1;
     // expanding spell rings (double stroke for a soft glow)
     for (const r of this.rings) {
       const t = 1 - r.life / r.maxLife;

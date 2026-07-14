@@ -61,7 +61,7 @@ const ABILITY_INFO = [
   'holylight' => ['Holy Light', true, false],
   'divineshield' => ['Divine Shield', true, false],
   'devotionaura' => ['Devotion Aura', false, false], // passive aura: no cast frame
-  'holynova' => ['Holy Nova', true, false],
+  'holynova' => ['Holy Nova', true, false, 1, true], // 5th: are imagine de efect AoE (cupolă)
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
@@ -432,6 +432,7 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       }
     }
     if ($hasProj) $slots["abilityproj-{$aid}"] = "Proiectil {$name}";
+    if (ABILITY_INFO[$aid][4] ?? false) $slots["abilityfx-{$aid}"] = "Efect {$name} (cupolă, scalat cu raza)";
   }
   return $slots;
 }
@@ -463,7 +464,7 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-')) {
+        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-') || str_starts_with($slot, 'abilityfx-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);

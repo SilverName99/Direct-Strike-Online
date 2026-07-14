@@ -15,6 +15,7 @@ const anims = new Map();  // `${race}/${ent}/${anim}` -> [entry|null, entry|null
 const thumbs = new Map(); // `${race}/${ent}` -> entry
 const projectiles = new Map(); // `${race}/${ent}` -> entry (single projectile image)
 const abilityProjectiles = new Map(); // `${race}/${ent}/${abilityId}` -> entry
+const abilityFx = new Map(); // `${race}/${ent}/${abilityId}` -> Image (AoE effect)
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const fireProjectiles = new Map();    // `${race}/${ent}` -> entry (Fireball projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
@@ -100,6 +101,15 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
             const aid = slot.slice('abilityproj-'.length);
             load(`${base}${race}/${ent}/${slot}.png?v=${man.v || 0}`, (img) => {
               abilityProjectiles.set(`${race}/${ent}/${aid}`, entryFor(img));
+            });
+          }
+          // per-caster AoE effect image for an ability (slot "abilityfx-<id>"),
+          // drawn at cast scaled to the ability's radius (e.g. Holy Nova dome)
+          for (const slot of Object.keys(slots)) {
+            if (!slot.startsWith('abilityfx-') || !slots[slot]) continue;
+            const aid = slot.slice('abilityfx-'.length);
+            load(`${base}${race}/${ent}/${slot}.png?v=${man.v || 0}`, (img) => {
+              abilityFx.set(`${race}/${ent}/${aid}`, img);
             });
           }
           for (const [anim, frames] of Object.entries(slots)) {
@@ -351,6 +361,11 @@ export function getFireProjectile(race, ent) {
 
 export function getAbilityProjectile(race, ent, aid) {
   return abilityProjectiles.get(`${race}/${ent}/${aid}`) || null;
+}
+
+// Per-caster AoE effect image (e.g. the Holy Nova dome), or null.
+export function getAbilityFx(race, ent, aid) {
+  return abilityFx.get(`${race}/${ent}/${aid}`) || null;
 }
 
 // Tallest animation frame of a unit (the standing pose), in native px.
