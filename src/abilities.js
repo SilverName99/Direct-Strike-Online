@@ -190,6 +190,20 @@ export const ABILITIES = {
       cleavePct: 45,   // % of the hit dealt to nearby enemies (scales with rank)
     },
   },
+  charge: {
+    name: 'Charge',
+    kind: 'passive', // proximity-triggered gap-closer (reuses the dash mechanic)
+    color: '#ffca55',
+    desc: 'Eroul se aruncă spre un inamic din depărtare, la viteză mare; la impact face damage și îl stun-ează scurt. Cooldown.',
+    params: {
+      tier: 1,
+      range: 500,      // charges a target within this range (but out of melee)
+      dashSpeed: 620,  // charge movement speed
+      damage: 55,      // impact damage (scales with rank)
+      stun: 1,         // seconds the struck target is stunned on impact
+      cooldown: 9,     // seconds between charges
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -226,6 +240,8 @@ export const ABILITY_PARAM_LABELS = {
   castPrepare: 'Prepare/wind-up (s, 0 = fără)',
   castHold: 'Timp pe frame-ul de cast (s)',
   cleavePct: 'Cleave (% din damage)',
+  dashSpeed: 'Viteză șarjă',
+  stun: 'Stun la impact (s)',
   // summon params
   cap: 'Nr. maxim vii (0 = nelimitat)',
   life: 'Durată viață (s, 0 = nu dispare)',

@@ -56,13 +56,14 @@ const ABILITY_INFO = [
   'warstomp' => ['War Stomp', true, false, 2],
   'bloodlust' => ['Bloodlust', true, false, 1],
   'cleave' => ['Cleave', false, false], // passive: no cast frame
+  'charge' => ['Charge', false, false], // passive gap-closer: uses the Dash frame
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
 const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
-const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'bloodlust'], 'humans' => []];
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => []];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
@@ -347,7 +348,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   $slots['die_0'] = 'Die';
   // a unit dashes if its own Dash toggle is on OR a mount/split upgrade makes
   // it charge/dive
-  if (unitHasDash($race, $ent) || unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) $slots['dash_0'] = 'Dash';
+  // the hero's "Charge" ability uses the same single "Dash" (charge) frame
+  $hasCharge = $isHero && in_array('charge', unitAbilities($race, $ent), true);
+  if (unitHasDash($race, $ent) || unitHasDismount($race, $ent) || unitHasSplit($race, $ent) || $hasCharge) $slots['dash_0'] = 'Dash';
   // on-foot (dismounted) sprite set: a mount upgrade puts the rider on foot,
   // and the Landing Split's rider fights on foot too
   if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) {

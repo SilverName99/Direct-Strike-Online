@@ -96,12 +96,19 @@ export function attackPeriodMult(u, time) {
 
 // Movement-speed multiplier. 'terrainslow' is the invisible middle-terrain slow.
 export function moveSpeedMult(u, time) {
+  if (hasEffect(u, 'stun', time)) return 0; // stunned: can't move at all
   const slow = Math.max(effectVal(u, 'moveslow', time), effectVal(u, 'terrainslow', time));
   const haste = effectVal(u, 'movehaste', time); // Bloodlust move-speed buff
   return Math.max(0.2, (1 - slow / 100) * (1 + haste / 100));
 }
 
-const DEBUFFS = ['atkslow', 'moveslow'];
+// A stunned unit can neither move nor attack (Charge impact). Combat checks this
+// to skip the swing; movement is already zeroed via moveSpeedMult above.
+export function isStunned(u, time) {
+  return hasEffect(u, 'stun', time);
+}
+
+const DEBUFFS = ['atkslow', 'moveslow', 'stun'];
 const BUFFS = ['haste', 'movehaste', 'regen'];
 
 // Apply an effect, honoring dispell's immunity (allies) / buff-block (enemies).

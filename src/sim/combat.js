@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile, spawnUnit } from './entity.js';
-import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster, learnedAbilityParams } from './abilities.js';
+import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster, learnedAbilityParams, isStunned } from './abilities.js';
 import { resolvedUpgrade, towerStatForTier } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
@@ -12,6 +12,15 @@ export function effStats(u, stats) {
   // the hero gains flat damage per level (HP growth is baked in at spawn)
   if (u.hero && u.heroLevel > 1 && (stats.dmgPerLevel || 0) > 0) {
     stats = { ...stats, damage: stats.damage + (u.heroLevel - 1) * stats.dmgPerLevel };
+  }
+  // Hero "Charge" ability: drive the existing dash mechanic (long-range aggro +
+  // charge-in) with its own params; the impact also stuns (chargeStun).
+  const charge = u.hero ? learnedAbilityParams(u, 'charge') : null;
+  if (charge) {
+    stats = {
+      ...stats, dash: true, dashRange: charge.range, dashSpeed: charge.dashSpeed,
+      dashDamage: charge.damage, dashCd: charge.cooldown, chargeStun: charge.stun,
+    };
   }
   if (!u.dismounted && !u.beast) return stats;
   const ranged = !!u.ovRanged;
@@ -272,6 +281,8 @@ function stepCasterHold(game, u, stats, dt) {
 
 function updateFighter(game, u, stats, dt) {
   u.spellHold = false;
+  // Stunned (Charge impact): can neither move (moveSpeedMult=0) nor act
+  if (isStunned(u, game.time)) { u.windup = 0; u.dashing = false; u.dashCharge = false; return; }
 
   let target = game.byId.get(u.targetId) || null;
   if (target && !isValidTarget(u, stats, target, aggroRange(stats))) {
@@ -313,6 +324,10 @@ function updateFighter(game, u, stats, dt) {
       u.dashCharge = true;
     } else if (inRange && u.dashCharge) {
       applyDamage(game, target, stats.dashDamage || 0, stats.dmgType);
+      // Charge (hero): a brief stun on impact
+      if ((stats.chargeStun || 0) > 0 && target.hp > 0) {
+        applyEffect(target, 'stun', 1, game.time + stats.chargeStun, game.time);
+      }
       u.dashCharge = false;
       u.dashReadyAt = game.time + (stats.dashCd || 0); // cooldown before it can dash again
       game.events.push({ type: 'dash', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
