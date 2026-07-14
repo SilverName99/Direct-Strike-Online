@@ -461,7 +461,7 @@ export function applyBalance(data) {
 function applyRaceUnits(race, unitsData) {
   for (const [id, vals] of Object.entries(unitsData)) {
     const u = resolvedUnits[race][id];
-    if (!u || typeof vals !== 'object') continue;
+    if (!u || !vals || typeof vals !== 'object') continue; // typeof null === 'object'
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined && num(vals[f]) !== undefined) u[f] = vals[f];
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) if (u[f] !== undefined && opts.includes(vals[f])) u[f] = vals[f];
     if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
@@ -520,7 +520,7 @@ function applyRaceUnits(race, unitsData) {
 function applyRaceBuildings(race, buildingsData) {
   for (const [kind, vals] of Object.entries(buildingsData)) {
     const b = resolvedBuildings[race][kind];
-    if (b) applyBuilding(b, kind, vals);
+    if (b && vals && typeof vals === 'object') applyBuilding(b, kind, vals);
   }
 }
 
@@ -601,17 +601,23 @@ export function defaults() {
 let balanceLoadFailed = false;
 
 export async function loadBalance(base = 'assets/') {
-  try {
-    const r = await fetch(`${base}balance.json`, { cache: 'no-cache' });
-    if (r.status === 404) { balanceLoadFailed = false; return false; } // fresh: no file yet
-    if (!r.ok) { balanceLoadFailed = true; return false; }             // exists but errored
-    applyBalance(await r.json());
-    balanceLoadFailed = false;
-    return true;
-  } catch {
-    balanceLoadFailed = true; // network error: the file may exist — don't risk a Save
-    return false;
+  // Retry transient hiccups (network blips, momentary 5xx) before giving up, so
+  // a single flaky request doesn't trip the "not loaded" guard + warning banner.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(`${base}balance.json`, { cache: 'no-cache' });
+      if (r.status === 404) { balanceLoadFailed = false; return false; } // fresh: no file yet
+      if (!r.ok) throw new Error(`status ${r.status}`);                  // retry non-ok
+      applyBalance(await r.json());
+      balanceLoadFailed = false;
+      return true;
+    } catch {
+      if (attempt < 2) { await new Promise((res) => setTimeout(res, 400 * (attempt + 1))); continue; }
+      balanceLoadFailed = true; // still failing after retries — don't risk a Save
+      return false;
+    }
   }
+  return false;
 }
 
 // Admin guard: call right after loadBalance in an editor. Returns true when it's
