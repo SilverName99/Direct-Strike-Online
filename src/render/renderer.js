@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasBloodlustAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -932,12 +932,6 @@ export class Renderer {
         // fireball upgrade: swap walk/attack for the uploaded "Foc" sprite set
         if (u.fireAttacker && (anim === 'walk' || anim === 'attack') && hasFireAnim(u.type, u.team, anim)) {
           anim = `fire-${anim}`;
-        }
-        // Bloodlust: while the hero is raging, swap walk/attack for his uploaded
-        // "Bloodlust" sprite set (2 walk + 2 attack frames), if present
-        if (rstats.isHero && (anim === 'walk' || anim === 'attack') &&
-            effectVal(u, 'rage', game.time) > 0 && hasBloodlustAnim(u.type, u.team, anim)) {
-          anim = `bloodlust-${anim}`;
         }
         // dismounted (mount upgrade): use the on-foot sprite set only if it was
         // uploaded, else keep the mounted sprite/puppet (which always exists)

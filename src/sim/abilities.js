@@ -433,8 +433,6 @@ function releaseSpell(game, caster, time) {
     }
     // the Chieftain himself swells while raging (visual only; read by renderer)
     if (p.size && p.size !== 100) applyEffect(caster, 'sizeup', p.size, time + p.duration, time);
-    // mark the caster as raging so the renderer swaps to his Bloodlust sprite set
-    applyEffect(caster, 'rage', 1, time + p.duration, time);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: 200 });
     return hold;
   }

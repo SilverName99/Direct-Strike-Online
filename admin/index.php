@@ -403,14 +403,6 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
     $slots["{$animal}-die_0"] = "$lbl: Die";
   }
-  // Bloodlust (hero): a separate "raging" walk + attack sprite set, shown while
-  // the ultimate is active — only for a hero that has Bloodlust in its kit
-  if ($isHero && in_array('bloodlust', unitAbilities($race, $ent), true)) {
-    $slots['bloodlust-walk_0'] = 'Bloodlust: Mers 1';
-    $slots['bloodlust-walk_1'] = 'Bloodlust: Mers 2';
-    $slots['bloodlust-attack_0'] = 'Bloodlust: Atac 1';
-    $slots['bloodlust-attack_1'] = 'Bloodlust: Atac 2';
-  }
   // one cast-release frame + per-ability projectile for each selected ability
   foreach (unitAbilities($race, $ent) as $aid) {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
