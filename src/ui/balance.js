@@ -600,6 +600,27 @@ export function defaults() {
 // is NOT a failure — it's a fresh install, safe to write the first balance.json.
 let balanceLoadFailed = false;
 
+// Last known-good balance is mirrored in localStorage. When the server serves
+// balance.json fine on one page (e.g. Sprites) but hiccups on the next (e.g.
+// Upgrades), the cached copy lets the editor open with the REAL config instead
+// of code defaults — so an intermittent hop no longer trips the scary banner
+// (and can no longer lead to a Save-over-defaults). Only a total failure with
+// no cache at all still shows the banner.
+const BALANCE_CACHE_KEY = 'ds-balance-cache';
+
+function cacheBalanceText(text) {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(BALANCE_CACHE_KEY, text);
+  } catch { /* storage full / disabled — cache is best-effort */ }
+}
+
+function readBalanceCache() {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage.getItem(BALANCE_CACHE_KEY);
+  } catch { /* storage disabled */ }
+  return null;
+}
+
 export async function loadBalance(base = 'assets/') {
   // Retry transient hiccups (network blips, momentary 5xx) before giving up, so
   // a single flaky request doesn't trip the "not loaded" guard + warning banner.
@@ -613,11 +634,23 @@ export async function loadBalance(base = 'assets/') {
       // JSON parser would otherwise throw (and trip the "not loaded" banner).
       const text = (await r.text()).replace(/^\uFEFF/, '').trim();
       applyBalance(JSON.parse(text));
+      cacheBalanceText(text); // remember the good copy for next time
       balanceLoadFailed = false;
       return true;
     } catch {
       if (attempt < 2) { await new Promise((res) => setTimeout(res, 400 * (attempt + 1))); continue; }
-      balanceLoadFailed = true; // still failing after retries — don't risk a Save
+      // Server failed after retries. Fall back to the last known-good copy so the
+      // editor still opens on the real config — a single flaky request must not
+      // block the admin or wipe the config with defaults.
+      const cached = readBalanceCache();
+      if (cached) {
+        try {
+          applyBalance(JSON.parse(cached));
+          balanceLoadFailed = false; // we have the real config (from cache), safe to edit/save
+          return true;
+        } catch { /* corrupt cache — fall through to the failure path */ }
+      }
+      balanceLoadFailed = true; // no good copy anywhere — don't risk a Save
       return false;
     }
   }
