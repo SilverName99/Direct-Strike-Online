@@ -125,7 +125,13 @@ function unitAbilities(string $race, string $ent): array {
       if (!empty($u['heroUltimate'])) $list[] = $u['heroUltimate'];
     }
     $list = array_values(array_filter($list, fn($a) => is_string($a) && $a !== '' && isset(ABILITY_INFO[$a])));
-    return $list ?: (HERO_DEFAULT_KITS[$race] ?? []);
+    // Heroes: always include the default kit's abilities too, so every intended
+    // sprite slot (cast frames, Dash, summons) shows on the Eroi tab even before
+    // each slot is assigned in ⚙ stats — a partial kit no longer hides the rest.
+    foreach (HERO_DEFAULT_KITS[$race] ?? [] as $a) {
+      if (isset(ABILITY_INFO[$a]) && !in_array($a, $list, true)) $list[] = $a;
+    }
+    return $list;
   }
   if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
   return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));
