@@ -608,7 +608,11 @@ export async function loadBalance(base = 'assets/') {
       const r = await fetch(`${base}balance.json`, { cache: 'no-cache' });
       if (r.status === 404) { balanceLoadFailed = false; return false; } // fresh: no file yet
       if (!r.ok) throw new Error(`status ${r.status}`);                  // retry non-ok
-      applyBalance(await r.json());
+      // Parse tolerantly: strip a leading UTF-8 BOM / stray whitespace that a
+      // Windows editor or upload can add — the browser ignores it but the strict
+      // JSON parser would otherwise throw (and trip the "not loaded" banner).
+      const text = (await r.text()).replace(/^\uFEFF/, '').trim();
+      applyBalance(JSON.parse(text));
       balanceLoadFailed = false;
       return true;
     } catch {
