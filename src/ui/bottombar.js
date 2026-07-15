@@ -955,6 +955,11 @@ export class BottomBar {
         }
       } else if (d.kind === 'upgrade' && game) {
         const owned = game.upgrades[d.team].has(d.id);
+        const c = el.querySelector('.s-cost');
+        if (c) {
+          const want = owned ? '' : String(d.cost ?? '');
+          if (c.textContent !== want) c.textContent = want;
+        }
         if (owned) {
           tog = !game.upgradeOff[d.team].has(d.id); // ✔ activ / ✖ dezactivat
         } else {
@@ -962,6 +967,12 @@ export class BottomBar {
         }
       } else if (d.kind === 'buyUpgrade' && game) {
         const owned = game.upgrades[0].has(d.id);
+        // once owned the card stops being a "for sale" item: price off, ✔/✖ on
+        const c = el.querySelector('.s-cost');
+        if (c) {
+          const want = owned ? '' : String(d.cost);
+          if (c.textContent !== want) c.textContent = want;
+        }
         if (owned) {
           tog = !game.upgradeOff[0].has(d.id); // ✔ activ / ✖ dezactivat
         } else if (d.tier && d.tier > game.tier[0]) {

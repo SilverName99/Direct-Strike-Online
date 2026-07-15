@@ -178,6 +178,7 @@ function newGame(difficulty) {
   game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult], middles });
   window.__game = game; // debug/test handle (render side only; sim never reads it)
   window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)
+  window.__bb = bottombar; // debug/test handle (inspect the command grid state)
   ai = new AIController(1, difficulty, seed ^ 0x9e3779b9, resolvedAIGenome());
   effects.reset();
   uiState.selected = null;
