@@ -141,15 +141,15 @@ function fieldsFor(ent, kind) {
         ...TECH_BUILDINGS.map((bk) => ({ v: bk, label: buildingNameOf(RACE, bk) }))],
       apply: (v) => { u.building = TECH_BUILDINGS.includes(v) ? v : ''; },
     });
-    // Fixed cell on the building's UNITS page (0-6). Cells 8/9 are reserved for
-    // Vinde + butonul de Upgrade-uri. "Auto" = umple prima căsuță liberă.
+    // Fixed cell on the building's UNITS page (0-8). Vinde + butonul de
+    // Upgrade-uri se mută automat pe ultimele căsuțe libere. "Auto" = prima liberă.
     out.push({
       group: G, label: 'Poziție grilă clădire', type: 'selkv',
       value: String(Number.isInteger(u.slot) ? u.slot : -1),
       opts: [{ v: '-1', label: 'Auto' },
         { v: '0', label: 'Rând 1 · Col 1' }, { v: '1', label: 'Rând 1 · Col 2' }, { v: '2', label: 'Rând 1 · Col 3' },
         { v: '3', label: 'Rând 2 · Col 1' }, { v: '4', label: 'Rând 2 · Col 2' }, { v: '5', label: 'Rând 2 · Col 3' },
-        { v: '6', label: 'Rând 3 · Col 1' }],
+        { v: '6', label: 'Rând 3 · Col 1' }, { v: '7', label: 'Rând 3 · Col 2' }, { v: '8', label: 'Rând 3 · Col 3' }],
       apply: (v) => { const n = parseInt(v, 10); u.slot = isFinite(n) ? Math.max(-1, Math.min(6, n)) : -1; },
     });
     // idle/walk frame flip rate (flips per second). Attack animation is NOT
@@ -373,6 +373,16 @@ function fieldsFor(ent, kind) {
     out.push({
       group: G, label: 'Înălțime (celule)', type: 'num', value: b.ch || 1,
       apply: (v) => { b.ch = clamp(Math.round(v), 1, 20); },
+    });
+    // Fixed cell in the CLĂDIRI shop grid (3x3). "Auto" = first free cell.
+    out.push({
+      group: G, label: 'Poziție grilă (shop clădiri)', type: 'selkv',
+      value: String(Number.isInteger(b.slot) ? b.slot : -1),
+      opts: [{ v: '-1', label: 'Auto' },
+        { v: '0', label: 'Rând 1 · Col 1' }, { v: '1', label: 'Rând 1 · Col 2' }, { v: '2', label: 'Rând 1 · Col 3' },
+        { v: '3', label: 'Rând 2 · Col 1' }, { v: '4', label: 'Rând 2 · Col 2' }, { v: '5', label: 'Rând 2 · Col 3' },
+        { v: '6', label: 'Rând 3 · Col 1' }, { v: '7', label: 'Rând 3 · Col 2' }, { v: '8', label: 'Rând 3 · Col 3' }],
+      apply: (v) => { b.slot = clamp(Math.round(Number(v)), -1, 8); },
     });
   }
   // idle 1↔2 flip speed (entities with an uploaded idle animation; the main

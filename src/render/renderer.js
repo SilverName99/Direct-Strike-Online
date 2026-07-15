@@ -834,16 +834,33 @@ export class Renderer {
       // its top edge is 1.5*r*size above center; footprint buildings fit
       // their hh*size box. Vector fallbacks stay at the physical radius.
       if (s.kind === 'main' || s.hp < s.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
+        // slim rounded pill: narrower than the footprint, thin, dark inset
+        // with a hairline border — reads clearly without dominating the art
         const size = Math.max(1, sizeOf(raceOf(s.team), s.kind));
         const topH = spriteDrawn
           ? (s.kind === 'main' || s.kind === 'turret' ? r * 1.5 * size : (s.hh || r) * size)
           : r;
-        const w = s.kind === 'main' ? 110 : r * 3;
+        const w = s.kind === 'main' ? 84 : Math.max(30, r * 1.9);
+        const h = s.kind === 'main' ? 6 : 4;
+        const bx = s.x - w / 2;
+        const by = s.y - topH - (s.kind === 'main' ? 13 : 9);
         const ratio = Math.max(0, s.hp / s.maxHp);
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(s.x - w / 2, s.y - topH - (s.kind === 'main' ? 14 : 10), w, s.kind === 'main' ? 8 : 5);
-        ctx.fillStyle = color;
-        ctx.fillRect(s.x - w / 2, s.y - topH - (s.kind === 'main' ? 14 : 10), w * ratio, s.kind === 'main' ? 8 : 5);
+        ctx.save();
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, by, w, h, h / 2); else ctx.rect(bx, by, w, h);
+        ctx.fillStyle = 'rgba(6,9,14,0.75)';
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.stroke();
+        if (ratio > 0.01) {
+          ctx.beginPath();
+          const iw = Math.max(h - 2, (w - 2) * ratio);
+          if (ctx.roundRect) ctx.roundRect(bx + 1, by + 1, iw, h - 2, (h - 2) / 2); else ctx.rect(bx + 1, by + 1, iw, h - 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+        ctx.restore();
       }
     }
   }

@@ -458,3 +458,13 @@ html, body {
 /* Custom race cursor covers the WHOLE page (bottom bar and buttons included),
    overriding per-element cursor styles while a custom cursor is uploaded. */
 body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !important; }
+
+/* Orc bar skin: its details window is smaller, so the stats text runs compact
+   (smaller fonts, tighter spacing) to fit inside the carved frame. */
+#bottombar.race-orcs #bb-details { font-size: 10.5px; padding: 26px 10px 6px; }
+#bottombar.race-orcs #bb-details .d-name { font-size: 12px; }
+#bottombar.race-orcs #bb-details .d-sub { font-size: 9.5px; }
+#bottombar.race-orcs #bb-details .d-bar { height: 6px; margin-top: 3px; }
+#bottombar.race-orcs #bb-details .d-bar span { font-size: 7.5px; line-height: 7px; }
+#bottombar.race-orcs #bb-details .d-stats { gap: 1px 9px; margin-top: 3px; }
+#bottombar.race-orcs #bb-details .d-chip { font-size: 9px; padding: 0 6px; }

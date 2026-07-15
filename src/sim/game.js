@@ -618,9 +618,13 @@ export class Game {
       if (regen > 0) s.hp = Math.min(s.maxHp, s.hp + regen * dt);
     }
 
-    // Construction sites finish raising (buildTime elapsed -> fully working)
+    // Construction sites: HP grows linearly toward full while raising (the
+    // site started at 15%), then the building finishes and starts working
     for (const s of this.structures) {
-      if (s.building && s.hp > 0 && this.time >= s.buildDone) {
+      if (!s.building || s.hp <= 0) continue;
+      const total = Math.max(0.01, s.buildDone - s.buildStart);
+      s.hp = Math.min(s.maxHp, s.hp + (s.maxHp * 0.85 / total) * dt);
+      if (this.time >= s.buildDone) {
         s.building = false;
         this.events.push({ type: 'built', team: s.team, kind: s.kind, x: s.x, y: s.y });
       }

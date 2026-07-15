@@ -163,6 +163,11 @@ export function makeStructure(game, team, kind, x, y) {
     buildStart: game.time,
     buildDone: game.time + buildTime,
   };
+  // A construction site starts at ~15% HP and GROWS to full as it is built
+  // (game.update adds the missing 85% linearly over buildTime); damage taken
+  // during construction subtracts from the same pool, so a harassed site can
+  // still be destroyed before it finishes.
+  if (s.building) s.hp = Math.max(1, Math.round(hp * 0.15));
   game.structures.push(s);
   game.byId.set(s.id, s);
   return s;

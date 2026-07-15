@@ -45,15 +45,21 @@ const BUILDING_CARDS = [
 // first empty cell. Entries whose slot collides or is out of range auto-fill.
 function layoutCardPage(entries, sellItem, toggleItem) {
   const grid = new Array(9).fill(null);
-  grid[7] = sellItem;
-  grid[8] = toggleItem; // may be null (no upgrades page) -> empty cell
+  // cards claim their admin-chosen cell first (any of the 9 cells)…
   const auto = [];
   for (const it of entries) {
     const s = Number.isInteger(it.slot) ? it.slot : -1;
-    if (s >= 0 && s <= 6 && grid[s] == null) grid[s] = it;
+    if (s >= 0 && s <= 8 && grid[s] == null) grid[s] = it;
     else auto.push(it);
   }
-  for (let i = 0; i <= 6 && auto.length; i++) if (grid[i] == null) grid[i] = auto.shift();
+  // …then Vinde + the ⬆/⬇ pages toggle take the HIGHEST free cells (they used
+  // to own 7/8 outright, which locked those cells out of the admin's slot
+  // picker), and auto cards fill whatever is left, first free cell up.
+  for (let i = 8; i >= 0; i--) if (grid[i] == null) { grid[i] = sellItem; break; }
+  if (toggleItem) {
+    for (let i = 8; i >= 0; i--) if (grid[i] == null) { grid[i] = toggleItem; break; }
+  }
+  for (let i = 0; i <= 8 && auto.length; i++) if (grid[i] == null) grid[i] = auto.shift();
   return grid;
 }
 
@@ -609,10 +615,22 @@ export class BottomBar {
 
   buildingItems() {
     const race = raceOf(0);
-    // the base tier upgrade now lives on the Main Base selection, not here
-    return BUILDING_CARDS.map((b) => ({
-      kind: 'building', id: b.id, cost: statsBuilding(race, b.id).cost, hotkey: b.hotkey,
-    }));
+    // the base tier upgrade now lives on the Main Base selection, not here.
+    // Each building may carry an admin-chosen grid cell (slot 0-8, -1 = auto),
+    // laid out exactly like the unit cards in a tech building.
+    const cards = BUILDING_CARDS.map((b) => {
+      const bs = statsBuilding(race, b.id);
+      return { kind: 'building', id: b.id, cost: bs.cost, hotkey: b.hotkey,
+        slot: Number.isInteger(bs.slot) ? bs.slot : -1 };
+    });
+    const grid = new Array(9).fill(null);
+    const auto = [];
+    for (const it of cards) {
+      if (it.slot >= 0 && it.slot <= 8 && grid[it.slot] == null) grid[it.slot] = it;
+      else auto.push(it);
+    }
+    for (let i = 0; i <= 8 && auto.length; i++) if (grid[i] == null) grid[i] = auto.shift();
+    return grid;
   }
 
   inspectItems(game, info) {

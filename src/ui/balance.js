@@ -180,7 +180,7 @@ function baseUnits(race) {
       ranged: false, projectile: false,
       heal: false,         // healer behavior is opt-in (admin toggle), like every other special
       building: '',        // which tech building unlocks this unit ('' = none/always available)
-      slot: -1,            // fixed cell (0-6) on its building's units page (-1 = auto/sequential)
+      slot: -1,            // fixed cell (0-8) on its building's units page (-1 = auto/sequential)
       buildingDamage: 0,   // special damage vs structures (0 = use the normal damage); always applies
       isAir: false, targetsAir: false,
       targetsGround: true, // can attack ground units (default on; turn off for air-only)
@@ -230,13 +230,13 @@ function baseBuildings() {
       size: 1, projSize: 1,
     },
     turret: { ...CONFIG.TURRET, size: 1, projSize: 1 },
-    wall: { ...CONFIG.BUILDINGS.wall, size: 1, projSize: 1 },
-    tower: { ...CONFIG.BUILDINGS.tower, size: 1, projSize: 1 },
-    generator: { ...CONFIG.BUILDINGS.generator, size: 1, projSize: 1 },
-    bldg1: { ...CONFIG.BUILDINGS.bldg1, size: 1, projSize: 1 },
-    bldg2: { ...CONFIG.BUILDINGS.bldg2, size: 1, projSize: 1 },
-    bldg3: { ...CONFIG.BUILDINGS.bldg3, size: 1, projSize: 1 },
-    farm: { ...CONFIG.BUILDINGS.farm, size: 1, projSize: 1 },
+    wall: { ...CONFIG.BUILDINGS.wall, size: 1, projSize: 1, slot: -1 },
+    tower: { ...CONFIG.BUILDINGS.tower, size: 1, projSize: 1, slot: -1 },
+    generator: { ...CONFIG.BUILDINGS.generator, size: 1, projSize: 1, slot: -1 },
+    bldg1: { ...CONFIG.BUILDINGS.bldg1, size: 1, projSize: 1, slot: -1 },
+    bldg2: { ...CONFIG.BUILDINGS.bldg2, size: 1, projSize: 1, slot: -1 },
+    bldg3: { ...CONFIG.BUILDINGS.bldg3, size: 1, projSize: 1, slot: -1 },
+    farm: { ...CONFIG.BUILDINGS.farm, size: 1, projSize: 1, slot: -1 },
   };
 }
 // Abilities are GLOBAL (one balance shared by both races); which units carry
@@ -292,7 +292,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'buildTime', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -441,7 +441,7 @@ export function applyBalance(data) {
       if (!up || typeof vals !== 'object') continue;
       if (typeof vals.race === 'string' && (vals.race === '' || RACES.includes(vals.race))) up.race = vals.race;
       if (typeof vals.unit === 'string' && (vals.unit === '' || UNITS[vals.unit])) up.unit = vals.unit;
-      if (num(vals.slot) !== undefined) up.slot = Math.round(clamp(vals.slot, -1, 6));
+      if (num(vals.slot) !== undefined) up.slot = Math.round(clamp(vals.slot, -1, 8));
       const params = vals.params || {};
       for (const k of Object.keys(up.params)) {
         if (num(params[k]) !== undefined) up.params[k] = clamp(params[k], 0, 100000);
@@ -478,7 +478,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
     if (typeof vals.building === 'string' && (vals.building === '' || TECH_BUILDINGS.includes(vals.building))) u.building = vals.building;
-    if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 6));
+    if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 8));
     if (num(vals.xp) !== undefined) u.xp = clamp(vals.xp, 0, 100000);
     if (num(vals.food) !== undefined) u.food = clamp(vals.food, 0, 100000);
     if (u.isHero) {
@@ -545,6 +545,7 @@ function applyBuilding(b, kind, vals) {
     return;
   }
   for (const f of BUILDING_SCALARS) if (b[f] !== undefined && num(vals[f]) !== undefined) b[f] = vals[f];
+  if (num(vals.slot) !== undefined) b.slot = clamp(Math.round(vals.slot), -1, 8); // shop grid cell
   if (b.cw !== undefined) {
     if (num(vals.cw) !== undefined) b.cw = clamp(Math.round(vals.cw), 1, 20);
     if (num(vals.ch) !== undefined) b.ch = clamp(Math.round(vals.ch), 1, 20);
@@ -578,7 +579,7 @@ export function currentBalance() {
 // food, hero-XP bounty, and the hero's assigned ability kit. An import brings
 // BALANCE numbers (cost/hp/damage/...); these stay exactly as configured here.
 const IMPORT_KEEP_UNIT = ['name', 'speed', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
-const IMPORT_KEEP_BUILDING = ['name', 'size', 'cw', 'ch', 'idleSpeed',
+const IMPORT_KEEP_BUILDING = ['name', 'size', 'cw', 'ch', 'slot', 'idleSpeed',
   'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed',
   'campSize', 'campSize2', 'campSize3', 'campSpeed', 'campfireDelay', 'attackHold'];
 
