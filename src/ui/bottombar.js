@@ -658,16 +658,13 @@ export class BottomBar {
 
   unitItems(game) {
     const race = raceOf(0);
-    // only units whose tech building is built (unassigned units always show);
-    // tier-gating still shows as a lock badge in the grid
+    // EVERY unit always occupies its cell. Ones whose tech building isn't up yet
+    // (or that are tier-gated) just render locked (grayed, 🔒) instead of
+    // vanishing — the lock clears the instant the building finishes.
     const shown = resolvedUnitOrder(race)
-      .filter((id) => {
-        const b = (statsUnit(race, id) || {}).building;
-        return !b || !game || game.hasBuilding(0, b);
-      })
       .map((id) => {
         const u = statsUnit(race, id);
-        return { kind: 'unit', id, cost: u.cost, slot: Number.isInteger(u.slot) ? u.slot : -1 };
+        return { kind: 'unit', id, cost: u.cost, building: u.building || '', slot: Number.isInteger(u.slot) ? u.slot : -1 };
       });
     // place each unit at its admin-chosen cell (Poziție grilă, 0-8); the rest
     // auto-fill the first free cells. Hotkey = the cell number (1-9).
@@ -915,6 +912,7 @@ export class BottomBar {
           const u = game.ustat(0, d.id);
           const heroWait = d.isHero ? (CONFIG.HERO_UNLOCK_TIME || 0) - game.time : 0;
           if (u.tier > game.tier[0]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
+          else if (d.building && !game.hasBuilding(0, d.building)) { el.classList.add('locked'); this.setLock(el, '🔒'); }
           else if (heroWait > 0) {
             // hero still time-locked (⚙ Balance): radial countdown on the card
             el.classList.add('disabled');
@@ -1016,15 +1014,17 @@ export class BottomBar {
     }
   }
 
-  setLockTier(el, tier) {
+  setLock(el, text) {
     let l = el.querySelector('.s-lock');
     if (!l) {
       l = document.createElement('span');
       l.className = 's-lock';
       el.appendChild(l);
     }
-    l.textContent = `T${tier}`;
+    if (l.textContent !== text) l.textContent = text;
   }
+
+  setLockTier(el, tier) { this.setLock(el, `T${tier}`); }
 
   setRankBadge(el, text) {
     let r = el.querySelector('.s-cost');
@@ -1097,8 +1097,14 @@ export class BottomBar {
     const race = raceOf(0);
     if (d.kind === 'unit') {
       const u = statsUnit(race, d.id);
+      // still-locked units spell out what they need after the name, e.g.
+      // "(Requires: Barracks & Tier 2)" — drops each part as it's satisfied
+      const req = [];
+      if (u.building && game && !game.hasBuilding(0, u.building)) req.push(buildingNameOf(race, u.building));
+      if (u.tier > (game ? game.tier[0] : 1)) req.push(`Tier ${u.tier}`);
+      const reqNote = req.length ? ` <span class="p-req">(Requires: ${req.join(' & ')})</span>` : '';
       // name → editable description → a clean emoji stat line
-      return `<div class="p-title">${u.name}</div>
+      return `<div class="p-title">${u.name}${reqNote}</div>
         <div>${u.tip || ''}</div>
         <div class="p-dim">${unitStatBits(u).join(' · ')}</div>`;
     }

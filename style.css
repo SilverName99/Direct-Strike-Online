@@ -385,6 +385,7 @@ html, body {
 #bb-popup.on { display: block; }
 #bb-popup .p-title { color: var(--gold); font-weight: 700; font-size: 12px; }
 #bb-popup .p-dim { color: var(--dim); }
+#bb-popup .p-req { color: #ff9a6a; font-weight: 600; font-size: 11px; }
 
 /* UNITS / CLĂDIRI tab buttons — a tall pod like the grid */
 #bb-tabs {

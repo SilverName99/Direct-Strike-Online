@@ -99,11 +99,7 @@ function wireGoldIcon() {
   if (!pick || !file || !clear) return;
   updateGoldPreview();
   pick.addEventListener('click', () => file.click());
-  clear.addEventListener('click', () => {
-    CONFIG.GOLD_ICON = '';
-    updateGoldPreview();
-    setStatus('Iconiță aur eliminată (apasă Salvează ca să publici).');
-  });
+  clear.addEventListener('click', () => { CONFIG.GOLD_ICON = ''; updateGoldPreview(); autoSaveGoldIcon('Iconiță aur eliminată'); });
   file.addEventListener('change', () => {
     const f = file.files && file.files[0];
     if (!f) return;
@@ -112,11 +108,22 @@ function wireGoldIcon() {
     rd.onload = () => {
       CONFIG.GOLD_ICON = String(rd.result || '');
       updateGoldPreview();
-      setStatus('Iconiță aur setată (apasă Salvează ca să publici).');
+      autoSaveGoldIcon('Iconiță aur setată');
     };
     rd.readAsDataURL(f);
     file.value = '';
   });
+}
+
+// The gold icon has no obvious Save nearby, so persist it to the server right
+// away (also folds in any other pending edits, exactly like the Save button).
+async function autoSaveGoldIcon(what) {
+  collect();
+  setStatus(`${what} — se salvează…`);
+  const res = await saveBalance('save-balance.php');
+  if (res === 'ok') setStatus(`${what} ✓ (activ după reîncărcarea jocului)`, 'ok');
+  else if (res === 'auth') setStatus('Sesiune expirată — reloghează-te în /admin', 'bad');
+  else setStatus('Salvare eșuată — verifică serverul', 'bad');
 }
 
 // Write the general/tier inputs back into CONFIG (this page only holds

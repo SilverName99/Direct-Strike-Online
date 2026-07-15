@@ -285,9 +285,11 @@ function pickCastable(game, caster, stats, time, engaged) {
     if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // toggled off / tier-locked
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
-    // summons cast proactively (build the pack); everything else needs an enemy
-    // engaged, except the support spells in ENGAGE_EXEMPT
-    if (!engaged && ab.kind !== 'summon' && !ENGAGE_EXEMPT.has(aid)) continue;
+    // a caster only casts while ENGAGED (an enemy sits in its attack range) —
+    // summons included, so wolves/eagles/bears are conjured only when there's an
+    // enemy in reach, not proactively on an empty lane. The support spells in
+    // ENGAGE_EXEMPT (heal / regen) are the only ones that fire with no enemy near.
+    if (!engaged && !ENGAGE_EXEMPT.has(aid)) continue;
     const target = findAbilityTarget(game, caster, aid, ab, time);
     if (target) return { aid, ab, target };
   }

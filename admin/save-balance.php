@@ -35,7 +35,7 @@ if (($_SERVER['HTTP_X_DS_BALANCE'] ?? '') !== '1') {
   exit;
 }
 
-$raw = file_get_contents('php://input', false, null, 0, 131072);
+$raw = file_get_contents('php://input', false, null, 0, 2097152);
 $data = json_decode($raw, true);
 if (!is_array($data)) {
   http_response_code(400);
@@ -44,7 +44,7 @@ if (!is_array($data)) {
 }
 
 // keep only known top-level sections; re-encode to sanitize
-$clean = array_intersect_key($data, array_flip(['buildings', 'turret', 'mainHp', 'mainIdleSpeed', 'tierCosts', 'general', 'middles', 'middleEmpty', 'buildingSizes', 'tint', 'healthbarAlways', 'unitOrder', 'music', 'abilities', 'upgrades', 'races']));
+$clean = array_intersect_key($data, array_flip(['buildings', 'turret', 'mainHp', 'mainIdleSpeed', 'tierCosts', 'general', 'middles', 'middleEmpty', 'buildingSizes', 'tint', 'healthbarAlways', 'goldIcon', 'unitOrder', 'music', 'abilities', 'upgrades', 'races']));
 @mkdir(dirname($file), 0755, true);
 if (file_put_contents($file, json_encode($clean, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
   http_response_code(500);
