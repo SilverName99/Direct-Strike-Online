@@ -23,6 +23,7 @@ const uiState = {
   drag: null,
   inspect: null, // selection-panel target: {kind:'template'|'entity'|'structure', ...}
   gridOn: true,
+  showRanges: false, // 🎯 debug overlay: attack reach + physical boxes for everything
   mouseX: null,
   mouseY: null,
   screenX: null,
@@ -62,6 +63,12 @@ loadBalance().then((loaded) => {
   }
 });
 
+// 🎯 debug overlay: attack reach + physical body boxes around every unit
+const rangeBtn = document.getElementById('range-btn');
+if (rangeBtn) rangeBtn.addEventListener('click', () => {
+  uiState.showRanges = !uiState.showRanges;
+  rangeBtn.classList.toggle('active', uiState.showRanges);
+});
 document.getElementById('fs-btn').addEventListener('click', () => {
   console.log('fullscreen toggle requested');
   pointer.toggle();

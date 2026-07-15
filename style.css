@@ -113,6 +113,7 @@ html, body {
 }
 
 #uiscale-btn,
+#range-btn,
 #fs-btn {
   font-size: 15px;
   font-weight: 700;
@@ -127,7 +128,9 @@ html, body {
   cursor: pointer;
 }
 #uiscale-btn:hover,
+#range-btn:hover,
 #fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
+#range-btn.active { border-color: var(--gold); background: rgba(255, 211, 92, 0.12); }
 
 /* version tag pinned to the bottom-right corner of the play field */
 #version {

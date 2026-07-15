@@ -243,6 +243,7 @@ export class Renderer {
     this.drawUnits(ctx, game, alpha);
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
+    if (uiState.showRanges) this.drawRanges(ctx, game); // 🎯 debug overlay
     this.drawInspect(ctx, game, uiState, alpha);
     this.drawGhost(ctx, game, uiState);
 
@@ -883,6 +884,54 @@ export class Renderer {
         }
       }
     }
+  }
+
+  // 🎯 debug overlay (the HUD button next to the tier badge): for every unit
+  // its PHYSICAL body box (white) and its true attack reach — the box expanded
+  // by its range with rounded corners, exactly how effDist measures (green =
+  // yours, red = enemy). Armed structures show their reach dashed, and round
+  // structures (main/turret) also show their collision circle — the invisible
+  // wall ground units stop at.
+  drawRanges(ctx, game) {
+    const contour = (x, y, hw, hh, r) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x - hw - r, y - hh - r, (hw + r) * 2, (hh + r) * 2, r);
+      else ctx.rect(x - hw - r, y - hh - r, (hw + r) * 2, (hh + r) * 2);
+      ctx.stroke();
+    };
+    ctx.save();
+    ctx.lineWidth = 1;
+    for (const u of game.entities) {
+      if (u.hp <= 0 || !this.visible(u.x, u.y)) continue;
+      const s = game.ustatOf(u);
+      const hw = u.hw || u.radius;
+      const hh = u.hh || u.radius;
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.strokeRect(u.x - hw, u.y - hh, hw * 2, hh * 2);
+      const r = Math.max(s.range || 0, 4); // reach floor matches atkRange()
+      ctx.strokeStyle = u.team === 0 ? 'rgba(88,214,141,0.85)' : 'rgba(255,95,110,0.85)';
+      contour(u.x, u.y, hw, hh, r);
+    }
+    ctx.setLineDash([6, 4]);
+    for (const st of game.structures) {
+      if (st.hp <= 0 || st.building) continue;
+      const bs = game.bstat(st.team, st.kind);
+      const hw = st.hw || st.radius;
+      const hh = st.hh || st.radius;
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      ctx.strokeRect(st.x - hw, st.y - hh, hw * 2, hh * 2);
+      if (st.kind === 'main' || st.kind === 'turret') {
+        ctx.strokeStyle = 'rgba(255,211,92,0.85)';
+        ctx.beginPath();
+        ctx.arc(st.x, st.y, st.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if ((bs.damage || 0) > 0 && (bs.range || 0) > 0) {
+        ctx.strokeStyle = st.team === 0 ? 'rgba(88,214,141,0.7)' : 'rgba(255,95,110,0.7)';
+        contour(st.x, st.y, hw, hh, bs.range);
+      }
+    }
+    ctx.restore();
   }
 
   drawTemplates(ctx, game, uiState) {

@@ -130,15 +130,21 @@ function collideStructures(game) {
 }
 
 function collideCircle(u, s) {
-  const minD = u.radius + s.radius;
   let dx = u.x - s.x;
   let dy = u.y - s.y;
-  const d2 = dx * dx + dy * dy;
-  if (d2 >= minD * minD) return;
-  let d = Math.sqrt(d2);
+  let d = Math.sqrt(dx * dx + dy * dy);
   if (d < 0.001) { dx = u.team === 0 ? -1 : 1; dy = 0; d = 1; }
-  u.x = s.x + (dx / d) * minD;
-  u.y = s.y + (dy / d) * minD;
+  const nx = dx / d;
+  const ny = dy / d;
+  // The unit's box half-extent ALONG the ejection direction. The old bounding
+  // radius (max extent) held tall/wide units (1x2, 2x1) a whole band short of
+  // the structure on their SHORT axis — a short-range melee pinned there could
+  // NEVER touch the turret/base (it jittered at the ring forever instead).
+  const ex = Math.abs(nx) * (u.hw || u.radius) + Math.abs(ny) * (u.hh || u.radius);
+  const minD = s.radius + ex;
+  if (d >= minD) return;
+  u.x = s.x + nx * minD;
+  u.y = s.y + ny * minD;
 }
 
 function collideBox(u, s) {
