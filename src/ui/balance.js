@@ -570,7 +570,7 @@ export function currentBalance() {
 // never clobber: visual size, grid footprint, shop-grid slot, animation speeds,
 // food, hero-XP bounty, and the hero's assigned ability kit. An import brings
 // BALANCE numbers (cost/hp/damage/...); these stay exactly as configured here.
-const IMPORT_KEEP_UNIT = ['name', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
+const IMPORT_KEEP_UNIT = ['name', 'speed', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
 const IMPORT_KEEP_BUILDING = ['name', 'size', 'cw', 'ch', 'idleSpeed',
   'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed',
   'campSize', 'campSize2', 'campSize3', 'campSpeed', 'campfireDelay', 'attackHold'];
