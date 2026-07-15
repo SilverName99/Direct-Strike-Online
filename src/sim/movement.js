@@ -40,7 +40,12 @@ export function updateMovement(game, dt) {
       const dy = gy - u.y;
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d > 1) {
-        const step = Math.min(speed * dt, d);
+        // Wedged behind a standing teammate? Ease off the forward throttle so
+        // the sidestep (flowAround) actually carries the unit AROUND the
+        // blocker instead of ramming straight into it and jittering in place —
+        // this is what let a big cavalry body get stuck behind the hero.
+        const fwd = (u.blockedT || 0) > 0.3 ? 0.25 : 1;
+        const step = Math.min(speed * dt * fwd, d);
         u.x += (dx / d) * step;
         u.y += (dy / d) * step;
         // remember the ACTUAL heading (may be vertical when chasing up/down!)
@@ -52,7 +57,8 @@ export function updateMovement(game, dt) {
 
     const enemyMain = game.mainOf(1 - u.team);
     const dir = enemyMain ? Math.sign(enemyMain.x - u.x) || 1 : u.team === 0 ? 1 : -1;
-    u.x += speed * dt * dir;
+    const fwd = (u.blockedT || 0) > 0.3 ? 0.25 : 1; // ease off when wedged (see above)
+    u.x += speed * dt * dir * fwd;
     u.mvx = dir; u.mvy = 0; u.mvSpeed = speed; // base-march: heading is horizontal
 
     // Once past midfield, home vertically toward the enemy main base — but
