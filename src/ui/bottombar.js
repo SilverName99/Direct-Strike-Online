@@ -944,6 +944,13 @@ export class BottomBar {
           // top-right counter: how many you can build right now
           this.setRemaining(el, showCounter && !tierLocked ? String(remaining) : null);
           cd = game.buildCdLeft(0, d.id);
+          // charging wall: a radial (like an ability cooldown) counts down the
+          // time until the next wall drops into the stock
+          const max = Math.round(bs.chainMax || 1);
+          if (chargeWall && !tierLocked && remaining < max && game.wallStockAt && game.wallStockAt[0] > 0) {
+            cd = game.wallStockAt[0] - game.time;
+            cdTotal = Math.max(0.1, bs.chainDelay || 3);
+          }
           const c = el.querySelector('.s-cost');
           if (c && c.textContent !== String(price)) c.textContent = price;
         }
