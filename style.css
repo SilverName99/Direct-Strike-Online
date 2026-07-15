@@ -468,3 +468,24 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
 #bottombar.race-orcs #bb-details .d-bar span { font-size: 7.5px; line-height: 7px; }
 #bottombar.race-orcs #bb-details .d-stats { gap: 1px 9px; margin-top: 3px; }
 #bottombar.race-orcs #bb-details .d-chip { font-size: 9px; padding: 0 6px; }
+
+/* Vinde: the dedicated sell button at the bottom of the right column (it used
+   to occupy a cell in the 3x3 command grid). Only visible while the current
+   selection is sellable (own template / own building). */
+#bb-sell {
+  flex: 0 0 34px;
+  width: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(122, 31, 31, 0.35);
+  border: 1px solid #7a3a3a;
+  border-radius: 8px;
+  color: #ffd0d0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#bb-sell:hover { background: rgba(160, 40, 40, 0.5); border-color: #c05555; }
+#bb-sell.hidden { display: none; }

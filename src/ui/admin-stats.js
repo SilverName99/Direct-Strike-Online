@@ -457,6 +457,7 @@ function cellHtml(fd, i) {
 }
 
 function open(ent, kind) {
+  descTarget = null; // leaving the 📝 form (if it was open)
   current = { ent, kind, fields: fieldsFor(ent, kind) };
   titleEl.textContent = statsUnit && kind === 'unit' ? (statsUnit(RACE, ent) || {}).name || ent : ent;
   subEl.textContent = ` — ${RACE}`;
@@ -525,8 +526,16 @@ function writeInputs() {
 
 function setStatus(msg, cls = '') { statusEl.textContent = msg; statusEl.className = `sm-status ${cls}`; }
 
+// The modal serves two forms: the ⚙ stats grid (current != null) and the 📝
+// hover-description textarea (descTarget != null) — one pair of handlers.
+let descTarget = null; // { obj } while the description editor is open
+
 modal.querySelector('[data-a="save"]').onclick = async () => {
-  writeInputs();
+  if (descTarget) {
+    descTarget.obj.tip = bodyEl.querySelector('#sm-desc').value.replace(/[<>]/g, '').trim().slice(0, 300);
+  } else {
+    writeInputs();
+  }
   setStatus('Se salvează…');
   const res = await saveBalance('save-balance.php');
   if (res === 'ok') { setStatus('Salvat ✓ (activ la pornirea jocului)', 'ok'); refreshNames(); }
@@ -535,6 +544,11 @@ modal.querySelector('[data-a="save"]').onclick = async () => {
 };
 
 modal.querySelector('[data-a="reset"]').onclick = () => {
+  if (descTarget) {
+    bodyEl.querySelector('#sm-desc').value = '';
+    setStatus('Golit — apasă Salvează ca să revii la textul din cod.');
+    return;
+  }
   const { ent, kind } = current;
   if (kind === 'unit') resetRaceUnit(RACE, ent); // name + size + stats, this race
   else resetRaceBuilding(RACE, ent);             // name + size + footprint + stats, this race
@@ -612,10 +626,37 @@ function wireMusicVolume() {
 // Wire the gears once the saved balance is applied, so saving preserves it. If
 // the load genuinely failed, bail out (banner shown) — editing/saving now would
 // overwrite the real config with code defaults.
+// ---- 📝 hover-description editor (next to each ⚙ gear) --------------------
+// Opens the same modal with a single textarea bound to the entity's `tip`
+// (the free text shown in the in-game hover popup); saving publishes balance.
+function openDesc(ent, kind) {
+  const obj = kind === 'unit' ? statsUnit(RACE, ent) : statsBuilding(RACE, ent);
+  if (!obj) return;
+  descTarget = { obj }; // the shared Save/Reset handlers route on this flag
+  titleEl.textContent = `📝 ${obj.name || ent}`;
+  subEl.textContent = ` — ${RACE} · descriere (tooltip în joc)`;
+  bodyEl.innerHTML = `
+    <div class="sm-sec"><div class="sm-sec-h">Descriere la hover</div>
+      <textarea id="sm-desc" rows="5" style="width:100%;box-sizing:border-box;padding:8px 10px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:7px;font-size:13px;resize:vertical"></textarea>
+      <p class="sm-note">Textul apare în chenarul de descriere când ții mouse-ul peste card în joc. Gol = textul standard din cod. Max 300 caractere.</p>
+    </div>`;
+  bodyEl.querySelector('#sm-desc').value = obj.tip || '';
+  statusEl.textContent = '';
+  statusEl.className = 'sm-status';
+  modal.classList.add('on');
+}
+
 loadBalance('../assets/').then(() => {
   if (!ensureBalanceLoadedUI()) return;
   for (const g of document.querySelectorAll('.stat-gear')) {
     g.addEventListener('click', () => open(g.dataset.ent, g.dataset.kind));
+    // 📝 sibling button: edit the hover description of the same entity
+    const d = document.createElement('span');
+    d.className = 'stat-gear';
+    d.textContent = '📝 descriere';
+    d.style.marginLeft = '6px';
+    d.addEventListener('click', () => openDesc(g.dataset.ent, g.dataset.kind));
+    g.insertAdjacentElement('afterend', d);
   }
   refreshNames();
   wireReorder();

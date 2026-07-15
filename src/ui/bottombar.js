@@ -43,7 +43,7 @@ const BUILDING_CARDS = [
 // the units/upgrades toggle at slot 8, and the page entries in cells 0..6 —
 // each at its admin-chosen `slot` (0..6) when free, otherwise auto-filling the
 // first empty cell. Entries whose slot collides or is out of range auto-fill.
-function layoutCardPage(entries, sellItem, toggleItem) {
+function layoutCardPage(entries, toggleItem) {
   const grid = new Array(9).fill(null);
   // cards claim their admin-chosen cell first (any of the 9 cells)…
   const auto = [];
@@ -52,10 +52,9 @@ function layoutCardPage(entries, sellItem, toggleItem) {
     if (s >= 0 && s <= 8 && grid[s] == null) grid[s] = it;
     else auto.push(it);
   }
-  // …then Vinde + the ⬆/⬇ pages toggle take the HIGHEST free cells (they used
-  // to own 7/8 outright, which locked those cells out of the admin's slot
-  // picker), and auto cards fill whatever is left, first free cell up.
-  for (let i = 8; i >= 0; i--) if (grid[i] == null) { grid[i] = sellItem; break; }
+  // …the ⬆/⬇ pages toggle takes the HIGHEST free cell (Vinde moved out of the
+  // grid — it's the dedicated red button under the tabs, bottom-right), and
+  // auto cards fill whatever is left, first free cell up.
   if (toggleItem) {
     for (let i = 8; i >= 0; i--) if (grid[i] == null) { grid[i] = toggleItem; break; }
   }
@@ -279,6 +278,7 @@ export class BottomBar {
     if (this.mode === 'inspect' && !info) this.mode = this.tab;
 
     this.refreshPanel(game, info);
+    this.updateSellButton(game, info);
 
     const sig = this.buildSig(game, info);
     if (sig !== this.sig) {
@@ -330,6 +330,46 @@ export class BottomBar {
       s += `:${info.kind}:${info.type}:${info.team}:t${game.tier[info.team]}:${toggles}:${upgs}:${spawned}:bv${this.bldgView}`;
     }
     return s;
+  }
+
+  // Vinde: the dedicated button under the tabs (bottom-right). Visible only
+  // while the selection is the player's own sellable template / building;
+  // shows the refund and issues the sell command on click.
+  updateSellButton(game, info) {
+    const btn = document.getElementById('bb-sell');
+    if (!btn) return;
+    if (!this.sellWired) {
+      this.sellWired = true;
+      btn.addEventListener('click', () => {
+        const g = this.getGame();
+        const sel = this.uiState.inspect;
+        const s = this.sellable;
+        if (!g || !sel || !s) return;
+        if (s.what === 'unit') g.issueCommand({ type: 'sellUnit', team: 0, index: sel.index });
+        else g.issueCommand({ type: 'sellBuilding', team: 0, id: sel.id });
+        this.uiState.inspect = null;
+      });
+    }
+    let sell = null;
+    if (game && info && info.team === 0 && this.mode === 'inspect') {
+      if (info.kind === 'template') {
+        const stats = game.ustat(0, info.type);
+        const full = !info.tpl.spawned;
+        sell = { what: 'unit', cost: Math.round(stats.cost * (full ? 1 : CONFIG.SELL_REFUND)), full };
+      } else if (info.kind === 'structure' && CONFIG.BUILDINGS[info.type]) {
+        const stats = game.bstat(0, info.type);
+        sell = { what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) };
+      }
+    }
+    this.sellable = sell;
+    btn.classList.toggle('hidden', !sell);
+    if (sell) {
+      const cost = document.getElementById('bb-sell-cost');
+      if (cost) cost.textContent = `Vinde ◆ ${sell.cost}`;
+      btn.title = sell.what === 'unit'
+        ? `Vinde acest șablon de unitate — primești ◆ ${sell.cost}${sell.full ? ' (100%, nespawnat)' : ''}`
+        : `Vinde această clădire — primești ◆ ${sell.cost}`;
+    }
   }
 
   // ------------------------------------------------------ portrait + details
@@ -643,14 +683,16 @@ export class BottomBar {
     // your own Main Base: the tier upgrade + the Hero (one per team, bought here
     // and placed like a unit; units + their upgrades live in the tech buildings)
     if (own && isStruct && info.type === 'main') {
-      items.push({ kind: 'upgradeBase', id: 'upgrade' });
+      // the tier upgrade is ALWAYS the last cell; the hero fills from the front
+      const grid = new Array(9).fill(null);
+      grid[8] = { kind: 'upgradeBase', id: 'upgrade' };
       const race = raceOf(0);
       const hero = resolvedHeroId(race);
       if (hero) {
         const h = statsUnit(race, hero);
-        items.push({ kind: 'unit', id: hero, cost: h.cost, tier: h.tier, isHero: true });
+        grid[0] = { kind: 'unit', id: hero, cost: h.cost, tier: h.tier, isHero: true };
       }
-      return items;
+      return grid;
     }
 
     // your own tech building: units and their upgrades live on SEPARATE pages
@@ -679,19 +721,14 @@ export class BottomBar {
       // Fixed cells: sell at slot 7, the ⬆/⬇ toggle at slot 8. The units /
       // upgrades occupy cells 0..6 at their admin-chosen slot (or auto-fill the
       // first free cell when slot is -1).
-      const sell = { kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) };
       const toggle = upgrades.length ? { kind: 'bldgView', to: onUpg ? 'units' : 'upgrades' } : null;
-      return layoutCardPage(page, sell, toggle);
+      return layoutCardPage(page, toggle);
     }
 
     // your own hero: its 3 skills + ultimate, each rankable with talent points
     if (!isStruct && own && stats.isHero) {
       for (const slot of heroAbilitySlots(raceOf(0))) {
         if (slot.id) items.push({ kind: 'heroAbility', id: slot.id, ult: slot.ult });
-      }
-      if (info.kind === 'template') {
-        const full = !info.tpl.spawned;
-        items.push({ kind: 'sell', what: 'unit', cost: Math.round(stats.cost * (full ? 1 : CONFIG.SELL_REFUND)), full });
       }
       return items;
     }
@@ -710,12 +747,6 @@ export class BottomBar {
           items.push({ kind: 'upgrade', id, team: info.team, own, cost: up.params.cost || 0 });
         }
       }
-    }
-    if (own && info.kind === 'template') {
-      const full = !info.tpl.spawned;
-      items.push({ kind: 'sell', what: 'unit', cost: Math.round(stats.cost * (full ? 1 : CONFIG.SELL_REFUND)), full });
-    } else if (own && isStruct && CONFIG.BUILDINGS[info.type]) {
-      items.push({ kind: 'sell', what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) });
     }
     return items;
   }
@@ -869,10 +900,13 @@ export class BottomBar {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
           const bs = game.bstat(0, d.id);
+          const price = game.buildCost(0, d.id); // mines get pricier each time
           if (game.tier[0] < (bs.tier || 1)) { el.classList.add('locked'); this.setLockTier(el, bs.tier); }
           else if (game.countKind(0, d.id) >= bs.cap) el.classList.add('disabled');
-          else if (game.money[0] < bs.cost) el.classList.add('disabled');
+          else if (game.money[0] < price) el.classList.add('disabled');
           cd = game.buildCdLeft(0, d.id);
+          const c = el.querySelector('.s-cost');
+          if (c && c.textContent !== String(price)) c.textContent = price;
         }
       } else if (d.kind === 'upgradeBase') {
         if (game) {
@@ -1064,9 +1098,11 @@ export class BottomBar {
             ? `<div class="p-dim" style="color:#ff9a6a">Se construiește de la Tier ${'I'.repeat(req)}</div>`
             : `<div class="p-dim">Necesită Tier ${'I'.repeat(req)}</div>`)
         : '';
-      return `<div class="p-title">${buildingNameOf(race, d.id)} · ◆ ${s.cost}</div>
+      const price = game ? game.buildCost(0, d.id) : s.cost;
+      const stepNote = d.id === 'generator' && (s.costStep || 0) > 0 ? ` (+${s.costStep}/mină)` : '';
+      return `<div class="p-title">${buildingNameOf(race, d.id)} · ◆ ${price}${stepNote}</div>
         <div class="p-dim">${b ? b.role : ''}</div>
-        <div>${b ? b.tip : ''}</div>
+        <div>${s.tip || (b ? b.tip : '')}</div>
         ${unlocks}
         ${tierNote}
         <div class="p-dim">${extra} · max ${s.cap}</div>`;

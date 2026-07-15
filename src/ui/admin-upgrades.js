@@ -28,7 +28,8 @@ function unitOpts() {
 // butonul de comutare). Value = slot index; -1 = auto.
 const SLOT_LABELS = [
   [-1, 'Auto'], [0, 'Rând 1 · Col 1'], [1, 'Rând 1 · Col 2'], [2, 'Rând 1 · Col 3'],
-  [3, 'Rând 2 · Col 1'], [4, 'Rând 2 · Col 2'], [5, 'Rând 2 · Col 3'], [6, 'Rând 3 · Col 1'],
+  [3, 'Rând 2 · Col 1'], [4, 'Rând 2 · Col 2'], [5, 'Rând 2 · Col 3'],
+  [6, 'Rând 3 · Col 1'], [7, 'Rând 3 · Col 2'], [8, 'Rând 3 · Col 3'],
 ];
 function slotOpts(cur) {
   const c = Number.isInteger(cur) ? cur : -1;
@@ -46,7 +47,7 @@ function render() {
       `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`).join('');
     html += `<div class="group">
       <h3>${base.name}</h3>
-      <div class="desc">${base.desc}</div>
+      <textarea class="desc-edit" data-updesc="${id}" rows="2" title="Descrierea afișată la hover în joc (gol = textul din cod)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#b9c4d4;border:1px solid #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(up.desc || base.desc || '').replace(/</g, '')}</textarea>
       <div class="unit-row"><span>Se aplică unității:</span>
         <select data-up="${id}" data-unit="1">${opts}</select></div>
       <div class="unit-row"><span>Poziție grilă clădire:</span>
@@ -63,6 +64,11 @@ function render() {
 }
 
 function collect() {
+  // hover descriptions (free text, saved with the balance)
+  for (const el of app.querySelectorAll('textarea[data-updesc]')) {
+    const up = resolvedUpgrade(el.dataset.updesc);
+    if (up) up.desc = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
+  }
   for (const sel of app.querySelectorAll('select[data-unit]')) {
     const up = resolvedUpgrade(sel.dataset.up);
     if (!up) continue;
@@ -73,7 +79,7 @@ function collect() {
   for (const sel of app.querySelectorAll('select[data-slot]')) {
     const up = resolvedUpgrade(sel.dataset.up);
     const n = parseInt(sel.value, 10);
-    if (up && isFinite(n)) up.slot = Math.max(-1, Math.min(6, n));
+    if (up && isFinite(n)) up.slot = Math.max(-1, Math.min(8, n));
   }
   for (const el of app.querySelectorAll('input[data-up]')) {
     const up = resolvedUpgrade(el.dataset.up);

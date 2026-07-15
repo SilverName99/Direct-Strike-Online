@@ -129,7 +129,7 @@ export class AIController {
     const wantGens = Math.min(genCap,
       game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : Math.max(3, this.g.maxGens));
     if (gens < wantGens && game.buildCdLeft(t, 'generator') === 0) {
-      const gc = game.bstat(t, 'generator').cost;
+      const gc = game.buildCost(t, 'generator'); // mines get pricier each time
       if (money >= gc) {
         this.intent = '🏭 Generator (economie)';
         if (this.tryBuild(game, 'generator')) return; // built one — done this think

@@ -199,6 +199,16 @@ export class Game {
     return this.structures.some((s) => s.team === team && s.kind === kind && s.hp > 0 && !s.building);
   }
 
+  // Effective build price for a structure: mines (generator) get costStep more
+  // expensive with every one you already have (⚙ stats: "Scumpire per mină").
+  buildCost(team, kind) {
+    const bs = this.bstat(team, kind);
+    if (kind === 'generator' && (bs.costStep || 0) > 0) {
+      return bs.cost + bs.costStep * this.countKind(team, 'generator');
+    }
+    return bs.cost;
+  }
+
   // Living, finished structures of a kind (income; caps use countKind, which
   // includes construction sites so you can't over-queue past the cap).
   countBuilt(team, kind) {
@@ -506,7 +516,8 @@ export class Game {
       const stats = this.bstat(cmd.team, cmd.kind);
       if (this.tier[cmd.team] < (stats.tier || 1)) return { ok: false, reason: 'tier-locked' };
       if (this.buildCdLeft(cmd.team, cmd.kind) > 0) return { ok: false, reason: 'cooldown' };
-      if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
+      const price = this.buildCost(cmd.team, cmd.kind); // mines get pricier each time
+      if (this.money[cmd.team] < price) return { ok: false, reason: 'money' };
       if (this.countKind(cmd.team, cmd.kind) >= stats.cap)
         return { ok: false, reason: 'cap' };
       let bx = cmd.x;
@@ -521,8 +532,8 @@ export class Game {
       }
       if (!this.isValidBuildPlacement(cmd.team, cmd.kind, bx, by))
         return { ok: false, reason: 'zone' };
-      this.money[cmd.team] -= stats.cost;
-      this.spent[cmd.team] += stats.cost;
+      this.money[cmd.team] -= price;
+      this.spent[cmd.team] += price;
       if (stats.buildCd > 0) this.buildReadyAt[cmd.team][cmd.kind] = this.time + stats.buildCd;
       makeStructure(this, cmd.team, cmd.kind, bx, by);
       return { ok: true };
