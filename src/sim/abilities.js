@@ -335,7 +335,22 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     return caster.maxHp > 0 && caster.hp / caster.maxHp < (p.threshold || 100) / 100 ? caster : null;
   }
   if (aid === 'holynova') {
-    return caster; // ultimate: self-invuln + team heal, cast while engaged
+    // The ultimate must FEEL its moment, not fire the second a fight starts on
+    // a full-HP army (all that healing would be wasted). Cast only when the
+    // allies inside the dome are missing at least ~a third of the total HP the
+    // nova can restore (hps × duration per ally) — or when the Paladin himself
+    // is in real danger.
+    if (caster.maxHp > 0 && caster.hp / caster.maxHp < 0.35) return caster; // emergency
+    const healPerAlly = (p.hps || 0) * (p.duration || 0);
+    let missing = 0;
+    let healable = 0;
+    for (const u of game.entities) {
+      if (u.hp <= 0 || u.team !== caster.team || !inRadius(u, caster, p.radius)) continue;
+      missing += Math.min(u.maxHp - u.hp, healPerAlly);
+      healable += healPerAlly;
+    }
+    if (healable <= 0) return null;
+    return missing >= Math.max(healPerAlly, healable * 0.33) ? caster : null;
   }
   if (aid === 'hasteaura') {
     // only worth casting when at least one *other* ally is in range to buff

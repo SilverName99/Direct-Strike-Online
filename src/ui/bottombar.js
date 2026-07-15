@@ -830,6 +830,7 @@ export class BottomBar {
       const el = slot.el;
       el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell');
       let cd = 0;
+      let cdTotal = 0; // full cooldown length (for the radial sweep overlay)
       if (d.kind === 'unit') {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
@@ -864,6 +865,7 @@ export class BottomBar {
         else el.classList.add('on');
         if (info && info.kind === 'entity' && info.u.abilityCd) {
           cd = (info.u.abilityCd[d.id] || 0) - game.time;
+          cdTotal = (ab && ab.params.cooldown) || 0;
         }
       } else if (d.kind === 'upgrade' && game) {
         const owned = game.upgrades[d.team].has(d.id);
@@ -894,10 +896,17 @@ export class BottomBar {
         else if (rank >= max) el.classList.add('owned-upg');    // maxed out
         else if (pts > 0) el.classList.add('on');               // a point is available
         else el.classList.add('off');                           // learned but no point
+        // live cooldown sweep when the inspected target is the LIVE hero
+        if (rank > 0 && info && info.kind === 'entity' && info.u.hero && info.u.abilityCd) {
+          cd = (info.u.abilityCd[d.id] || 0) - game.time;
+          const ab = resolvedAbility(d.id);
+          cdTotal = (ab && ab.params.cooldown) || 0;
+        }
       } else if (d.kind === 'sell') {
         el.classList.add('sell');
       }
-      // cooldown overlay
+      // cooldown overlay: WC3-style radial sweep (the dark wedge covers the
+      // REMAINING fraction and unwinds clockwise) + seconds left in the middle
       let cdEl = el.querySelector('.s-cd');
       if (cd > 0.05) {
         if (!cdEl) {
@@ -906,6 +915,13 @@ export class BottomBar {
           el.appendChild(cdEl);
         }
         cdEl.textContent = `${Math.ceil(cd)}`;
+        if (cdTotal > 0) {
+          const frac = Math.max(0, Math.min(1, cd / cdTotal));
+          cdEl.style.background =
+            `conic-gradient(rgba(0,0,0,0.68) ${(frac * 100).toFixed(1)}%, rgba(0,0,0,0.18) 0)`;
+        } else {
+          cdEl.style.background = 'rgba(0,0,0,0.55)';
+        }
       } else if (cdEl) {
         cdEl.remove();
       }

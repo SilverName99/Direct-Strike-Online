@@ -326,6 +326,8 @@ html, body {
   text-shadow: 0 1px 2px #000; pointer-events: none; }
 .slot .s-lock { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold);
   font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* cooldown: a WC3-style radial sweep (set as a conic-gradient from JS with the
+   remaining fraction) + the seconds left in the middle */
 .slot .s-cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.55); font-size: 14px; color: var(--gold); font-weight: 700; pointer-events: none; }
 
@@ -452,3 +454,7 @@ html, body {
 #hero-badge-lvl { font-size: 11px; font-weight: 700; color: var(--gold, #ffd35c); margin-top: 3px; letter-spacing: 0.5px; }
 #hero-badge-bar { height: 5px; margin-top: 3px; background: #0a0e14; border: 1px solid #2a3446; border-radius: 3px; overflow: hidden; }
 #hero-badge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #58d68d, #9be7b8); }
+
+/* Custom race cursor covers the WHOLE page (bottom bar and buttons included),
+   overriding per-element cursor styles while a custom cursor is uploaded. */
+body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !important; }

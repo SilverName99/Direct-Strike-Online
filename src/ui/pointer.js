@@ -160,8 +160,23 @@ export class PointerManager {
     this.applyOsCursor(url);
   }
 
+  // Apply a cursor CSS value to the WHOLE page (canvas, top bar, bottom bar,
+  // buttons — everything), not just the battlefield. The body.custom-cursor
+  // rule in style.css forces it over per-element cursor styles (pointer etc.).
+  setPageCursor(css) {
+    if (css) {
+      document.body.style.setProperty('--game-cursor', css);
+      document.body.classList.add('custom-cursor');
+      this.canvas.style.cursor = css;
+    } else {
+      document.body.style.removeProperty('--game-cursor');
+      document.body.classList.remove('custom-cursor');
+      this.canvas.style.cursor = 'crosshair';
+    }
+  }
+
   applyOsCursor(url) {
-    if (!url) { this.canvas.style.cursor = 'crosshair'; return; }
+    if (!url) { this.setPageCursor(null); return; }
     const img = new Image();
     img.onload = () => {
       const s = Math.min(1, 40 / Math.max(img.width, img.height));
@@ -171,12 +186,12 @@ export class PointerManager {
       c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       try {
-        this.canvas.style.cursor = `url("${c.toDataURL('image/png')}") 0 0, crosshair`;
+        this.setPageCursor(`url("${c.toDataURL('image/png')}") 0 0, crosshair`);
       } catch (e) {
-        this.canvas.style.cursor = `url("${url}") 0 0, crosshair`;
+        this.setPageCursor(`url("${url}") 0 0, crosshair`);
       }
     };
-    img.onerror = () => { this.canvas.style.cursor = `url("${url}") 0 0, crosshair`; };
+    img.onerror = () => { this.setPageCursor(`url("${url}") 0 0, crosshair`); };
     img.src = url;
   }
 

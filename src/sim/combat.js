@@ -232,12 +232,12 @@ function updateTurret(game, turret, stats, dt, shots = 1) {
 }
 
 // Effective attack range: a unit can always strike what it is physically
-// touching. Bodies never overlap (the separation pass holds centers at
-// radius+radius apart), so a configured range below the unit's own radius —
-// e.g. an admin-set 0 for "melee" — would otherwise NEVER be reached and the
-// unit would chase its target forever without landing a hit.
+// Attack reach, compared against effDist (a box-edge GAP): the configured
+// range is the honest edge-to-edge reach. The +4 floor lets an admin-set
+// "0 range" melee unit still land hits while the separation pass holds the
+// bodies apart (they can touch but never overlap).
 function atkRange(u, stats) {
-  return Math.max(stats.range || 0, (u.radius || 0) + 4);
+  return Math.max(stats.range || 0, 4);
 }
 
 // Drive a caster's prepare -> release FSM and its between-cast hold. Returns
@@ -758,10 +758,20 @@ function dmgVsTarget(dmg, buildingDmg, target) {
 }
 
 // Distance minus the target's radius, so melee can strike large bodies/bases.
+// Gap between two bodies' BOXES (units carry hw/hh footprint half-extents;
+// 1x1 units and round structures fall back to their radius). The old
+// center-minus-one-radius model spanned a tall unit's LARGEST dimension in
+// every direction — a 1x2 hero "reached" 40 units sideways with a 20-wide
+// body, so two range-25 melee heroes stood a full cell apart. The box gap is
+// honest on both axes and both bodies count.
 function effDist(a, b) {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return Math.sqrt(dx * dx + dy * dy) - (b.radius || 0);
+  const ax = a.hw ?? a.radius ?? 0;
+  const ay = a.hh ?? a.radius ?? 0;
+  const bx = b.hw ?? b.radius ?? 0;
+  const by = b.hh ?? b.radius ?? 0;
+  const dx = Math.max(0, Math.abs(a.x - b.x) - ax - bx);
+  const dy = Math.max(0, Math.abs(a.y - b.y) - ay - by);
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {

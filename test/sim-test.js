@@ -663,8 +663,10 @@ console.log('abilities (casters, auras, status effects)');
         if (e.type === 'shot' && e.team === 1 && rider.dismounted) shotsOnFoot++;
       }
     }
+    // combat distance is BOX-EDGE gap now: the center-to-center distance at
+    // dismount = dmRange + both bodies' extents (+ dash overshoot), not <80
     check('rider dismounts NEXT TO the enemy (on-foot range, not mounted)',
-      dismountDist !== null && dismountDist < 80, `dist=${Math.round(dismountDist ?? -1)}`);
+      dismountDist !== null && dismountDist < 130, `dist=${Math.round(dismountDist ?? -1)}`);
     check('dismounted orc never fires ranged shots', shotsOnFoot === 0, `shots=${shotsOnFoot}`);
     check('dismounted orc lands melee damage', archer.hp < archer.maxHp);
     applyBalance({});
