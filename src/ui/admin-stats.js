@@ -141,16 +141,17 @@ function fieldsFor(ent, kind) {
         ...TECH_BUILDINGS.map((bk) => ({ v: bk, label: buildingNameOf(RACE, bk) }))],
       apply: (v) => { u.building = TECH_BUILDINGS.includes(v) ? v : ''; },
     });
-    // Fixed cell on the building's UNITS page (0-8). Vinde + butonul de
-    // Upgrade-uri se mută automat pe ultimele căsuțe libere. "Auto" = prima liberă.
+    // Fixed cell (0-8) in BOTH the main UNITS shop and this unit's tech-building
+    // page. "Auto" = first free cell. (Bugfix: used to clamp to 6, so Rând 3
+    // Col 2/3 silently failed.)
     out.push({
-      group: G, label: 'Poziție grilă clădire', type: 'selkv',
+      group: G, label: 'Poziție grilă', type: 'selkv',
       value: String(Number.isInteger(u.slot) ? u.slot : -1),
       opts: [{ v: '-1', label: 'Auto' },
         { v: '0', label: 'Rând 1 · Col 1' }, { v: '1', label: 'Rând 1 · Col 2' }, { v: '2', label: 'Rând 1 · Col 3' },
         { v: '3', label: 'Rând 2 · Col 1' }, { v: '4', label: 'Rând 2 · Col 2' }, { v: '5', label: 'Rând 2 · Col 3' },
         { v: '6', label: 'Rând 3 · Col 1' }, { v: '7', label: 'Rând 3 · Col 2' }, { v: '8', label: 'Rând 3 · Col 3' }],
-      apply: (v) => { const n = parseInt(v, 10); u.slot = isFinite(n) ? Math.max(-1, Math.min(6, n)) : -1; },
+      apply: (v) => { const n = parseInt(v, 10); u.slot = isFinite(n) ? Math.max(-1, Math.min(8, n)) : -1; },
     });
     // idle/walk frame flip rate (flips per second). Attack animation is NOT
     // set here — it follows the unit's Attack period (one Attack 1<->2 cycle

@@ -652,15 +652,26 @@ export class BottomBar {
     const race = raceOf(0);
     // only units whose tech building is built (unassigned units always show);
     // tier-gating still shows as a lock badge in the grid
-    return resolvedUnitOrder(race)
+    const shown = resolvedUnitOrder(race)
       .filter((id) => {
         const b = (statsUnit(race, id) || {}).building;
         return !b || !game || game.hasBuilding(0, b);
       })
-      .map((id, i) => {
+      .map((id) => {
         const u = statsUnit(race, id);
-        return { kind: 'unit', id, cost: u.cost, hotkey: i < 9 ? String(i + 1) : '' };
+        return { kind: 'unit', id, cost: u.cost, slot: Number.isInteger(u.slot) ? u.slot : -1 };
       });
+    // place each unit at its admin-chosen cell (Poziție grilă, 0-8); the rest
+    // auto-fill the first free cells. Hotkey = the cell number (1-9).
+    const grid = new Array(9).fill(null);
+    const auto = [];
+    for (const it of shown) {
+      if (it.slot >= 0 && it.slot <= 8 && grid[it.slot] == null) grid[it.slot] = it;
+      else auto.push(it);
+    }
+    for (let i = 0; i <= 8 && auto.length; i++) if (grid[i] == null) grid[i] = auto.shift();
+    for (let i = 0; i < 9; i++) if (grid[i]) grid[i].hotkey = String(i + 1);
+    return grid;
   }
 
   buildingItems() {
