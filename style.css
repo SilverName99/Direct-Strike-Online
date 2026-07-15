@@ -320,8 +320,11 @@ html, body {
 .slot.off { opacity: 0.55; }
 .slot.owned-upg { border-color: #ffb35c; }
 .slot.sell { border-color: #7a2a33; }
-.slot .s-cost { position: absolute; bottom: 1px; right: 3px; font-size: 10px; color: var(--gold);
-  font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.slot .s-cost { position: absolute; bottom: 1px; right: 3px; font-size: 13px; color: var(--gold);
+  font-weight: 800; pointer-events: none;
+  /* bolder + black outline so the price reads clearly over any thumbnail */
+  -webkit-text-stroke: 0.6px #000;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000, 1px 0 1px #000, -1px 0 1px #000; }
 .slot .s-key { position: absolute; top: 1px; left: 4px; font-size: 10px; color: var(--dim);
   text-shadow: 0 1px 2px #000; pointer-events: none; }
 .slot .s-lock { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold);

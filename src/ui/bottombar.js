@@ -66,9 +66,8 @@ function layoutCardPage(entries, toggleItem) {
 // panel: cost 💰 · HP ❤️ · damage ⚔️ · armor 🛡️ · damage-type 🗡️ (+ Hits air /
 // Caster tags). Cost/armor/type are skipped when absent (e.g. summoned beasts).
 function unitStatBits(s) {
-  const bits = [];
-  if (s.cost != null) bits.push(`${s.cost} 💰`);
-  bits.push(`${Math.round(s.hp)} ❤️`, `${s.damage} ⚔️`);
+  // (cost lives on the card thumbnail badge now, not in the stat line)
+  const bits = [`${Math.round(s.hp)} ❤️`, `${s.damage} ⚔️`];
   if (s.armor) bits.push(`${s.armor} 🛡️`);
   if (s.dmgType) bits.push(`${s.dmgType} 🗡️`);
   if (s.targetsAir) bits.push('Hits air');
@@ -1112,12 +1111,12 @@ export class BottomBar {
             ? `<div class="p-dim" style="color:#ff9a6a">Se construiește de la Tier ${'I'.repeat(req)}</div>`
             : `<div class="p-dim">Necesită Tier ${'I'.repeat(req)}</div>`)
         : '';
-      const price = game ? game.buildCost(0, d.id) : s.cost;
-      const stepNote = d.id === 'generator' && (s.costStep || 0) > 0 ? ` (+${s.costStep}/mină)` : '';
-      // name → editable description → a clean emoji stat line
-      const bits = [`${price} 💰${stepNote}`, `${s.hp} ❤️`];
+      // name → editable description → a clean emoji stat line (cost lives on the
+      // card thumbnail badge now, not here)
+      const bits = [`${s.hp} ❤️`];
       if (d.id === 'tower') bits.push(`${s.damage} ⚔️`);
       if (d.id === 'generator') bits.push(`+${s.income} aur/20s`);
+      if (d.id === 'generator' && (s.costStep || 0) > 0) bits.push(`+${s.costStep}/mină`);
       if (d.id === 'farm') bits.push(`+${s.food} food`);
       return `<div class="p-title">${buildingNameOf(race, d.id)}</div>
         <div>${s.tip || (b ? b.tip : '')}</div>
