@@ -183,7 +183,7 @@ html, body {
   pointer-events: none;
 }
 #bb-bg path { fill: rgba(16, 21, 30, 0.93); stroke: var(--border); stroke-width: 1; }
-#bottombar > *:not(#bb-bg):not(#bb-over) { position: relative; z-index: 1; }
+#bottombar > *:not(#bb-bg):not(#bb-over):not(#bb-sell-col) { position: relative; z-index: 1; }
 
 /* per-race decorative overlay drawn ON TOP of the UI elements (frames,
    ornaments, rivets…). Click-through so it never blocks the controls. */
@@ -474,15 +474,18 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
    (own template / own building). The column sits at the bottom, aligned with
    the tab buttons. */
 #bb-sell-col {
-  /* fixed width, reserved even while the button is hidden, so the centered bar
-     never jumps sideways when a selection appears/disappears */
-  flex: 0 0 104px;
-  width: 104px;
+  /* ABSOLUTE so it is OUT of the flex flow: it must not widen the (centered)
+     bar or it would shove the command grid + UNITS/CLĂDIRI tabs off the skin's
+     painted frames. It floats just past the bar's right edge, bottom-aligned. */
+  position: absolute;
+  left: 100%;
+  bottom: 8px;
+  margin-left: 8px;
+  z-index: 6;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* bottom-aligned with the tabs column */
-  height: 182px;
-  padding: 6px 4px;
+  justify-content: flex-end;
+  padding: 6px 0;
 }
 #bb-sell {
   width: 96px;
