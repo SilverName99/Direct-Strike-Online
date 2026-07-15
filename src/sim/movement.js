@@ -40,6 +40,9 @@ export function updateMovement(game, dt) {
         const step = Math.min(speed * dt, d);
         u.x += (dx / d) * step;
         u.y += (dy / d) * step;
+        // remember the ACTUAL heading (may be vertical when chasing up/down!)
+        // — flowAround/separate steer perpendicular to it, whatever it is
+        u.mvx = dx / d; u.mvy = dy / d; u.mvSpeed = speed;
       }
       continue;
     }
@@ -47,6 +50,7 @@ export function updateMovement(game, dt) {
     const enemyMain = game.mainOf(1 - u.team);
     const dir = enemyMain ? Math.sign(enemyMain.x - u.x) || 1 : u.team === 0 ? 1 : -1;
     u.x += speed * dt * dir;
+    u.mvx = dir; u.mvy = 0; u.mvSpeed = speed; // base-march: heading is horizontal
 
     // Once past midfield, home vertically toward the enemy main base — but
     // each unit keeps its OWN lane (stable id-hashed offset around the base),
@@ -70,6 +74,22 @@ export function updateMovement(game, dt) {
   for (const u of game.entities) {
     u.x = clamp(u.x, 12, CONFIG.FIELD_W - 12);
     u.y = clamp(u.y, 12, CONFIG.FIELD_H - 12);
+  }
+
+  // Stuck detection: a marcher whose NET displacement (after all the pushing
+  // and colliding above) stays far below its speed is wedged behind bodies.
+  // blockedT feeds two escapes: flowAround sidesteps harder, and combat.js
+  // lets the unit retarget to any closer reachable enemy (no hysteresis).
+  for (const u of game.entities) {
+    if (u.state === 'march' && u.blkPX != null) {
+      const dx = u.x - u.blkPX;
+      const dy = u.y - u.blkPY;
+      const want = (u.mvSpeed || 0) * dt;
+      if (want > 0.001 && Math.sqrt(dx * dx + dy * dy) < want * 0.35) {
+        u.blockedT = (u.blockedT || 0) + dt;
+      } else u.blockedT = 0;
+    } else u.blockedT = 0;
+    u.blkPX = u.x; u.blkPY = u.y;
   }
 }
 
@@ -121,25 +141,26 @@ function collideBox(u, s) {
   else u.y = s.y + (dy < 0 ? -1 : 1) * ey;
 }
 
-// Marching units that catch up behind a slower / stopped unit in their own lane
+// Marching units that catch up behind a slower / stopped unit in their path
 // step to the side and flow AROUND it instead of piling up nose-to-tail. This
 // matters most for wide bodies (catapults, 1x2 units): their big footprint used
-// to dam the whole column behind them. Deterministic — the side is chosen from
-// the blocker's offset, ties broken by unit id.
+// to dam the whole column behind them. Works on the unit's ACTUAL heading
+// (u.mvx/mvy) — vertical chases sidestep in X exactly like horizontal marches
+// sidestep in Y. Deterministic — the side is chosen from the blockers' offsets,
+// ties broken by unit id.
 function flowAround(game, dt) {
   const ents = game.entities;
   for (let i = 0; i < ents.length; i++) {
     const u = ents[i];
-    if (u.state !== 'march' || u.isAir) continue;
-    const stats = game.ustatOf(u);
-    const enemyMain = game.mainOf(1 - u.team);
-    const tgt = u.targetId != null ? game.byId.get(u.targetId) : null;
-    // marching direction in x (toward the current target, else the enemy base)
-    const aimX = tgt && tgt.hp > 0 ? tgt.x
-      : enemyMain ? enemyMain.x : (u.team === 0 ? CONFIG.FIELD_W : 0);
-    const dir = Math.sign(aimX - u.x) || (u.team === 0 ? 1 : -1);
+    if (u.state !== 'march' || u.isAir || u.dashing) continue;
+    const mx = u.mvx ?? (u.team === 0 ? 1 : -1);
+    const my = u.mvy ?? 0;
+    // box half-extents projected onto the heading and its perpendicular
+    // (axis-aligned boxes, so |mx|/|my| weigh the two extents)
     const uhw = u.hw || u.radius;
     const uhh = u.hh || u.radius;
+    const uAlong = Math.abs(mx) * uhw + Math.abs(my) * uhh;
+    const uPerp = Math.abs(my) * uhw + Math.abs(mx) * uhh;
     let side = 0;
     let blocked = false;
     for (let j = 0; j < ents.length; j++) {
@@ -147,20 +168,29 @@ function flowAround(game, dt) {
       const o = ents[j];
       if (o.isAir) continue;
       const dx = o.x - u.x;
-      if (dir > 0 ? dx <= 0.5 : dx >= -0.5) continue;   // only units AHEAD of us
+      const dy = o.y - u.y;
+      const fwd = dx * mx + dy * my;                     // distance AHEAD along heading
+      if (fwd <= 0.5) continue;
       const ohw = o.hw || o.radius;
       const ohh = o.hh || o.radius;
-      if (Math.abs(dx) > uhw + ohw + 8) continue;        // ...and right in front
-      const dy = o.y - u.y;
-      if (Math.abs(dy) > uhh + ohh) continue;            // ...and in our lane
+      const oAlong = Math.abs(mx) * ohw + Math.abs(my) * ohh;
+      if (fwd > uAlong + oAlong + 8) continue;           // ...right in front
+      const oPerp = Math.abs(my) * ohw + Math.abs(mx) * ohh;
+      const lat = dx * -my + dy * mx;                    // offset across the heading
+      if (Math.abs(lat) > uPerp + oPerp) continue;       // ...and in our corridor
       blocked = true;
-      side += dy >= 0 ? -1 : 1;                          // steer away from it
+      side += lat >= 0 ? -1 : 1;                         // steer away from it
     }
     if (!blocked) continue;
-    const dirY = side !== 0 ? Math.sign(side)
+    const dirS = side !== 0 ? Math.sign(side)
       : (((u.id * 2654435761) >>> 0) & 1 ? 1 : -1);
+    const stats = game.ustatOf(u);
     const speed = stats.speed * moveSpeedMult(u, game.time);
-    u.y += dirY * speed * dt * 0.75;                      // gentle sidestep
+    // sidestep along the perpendicular; a unit stuck for a while pushes at
+    // full speed so it actually rounds the blocker instead of hugging it
+    const k = (u.blockedT || 0) > 0.5 ? 1.0 : 0.75;
+    u.x += -my * dirS * speed * dt * k;
+    u.y += mx * dirS * speed * dt * k;
   }
 }
 
@@ -182,36 +212,47 @@ function separate(game) {
         else if (b.state === 'march' && a.state !== 'march') mover = b;
       }
       // ROOT-CAUSE FIX for "units can't get past each other": when same-team
-      // units are marching, resolve their overlap SIDEWAYS (perpendicular to the
-      // march), never nose-to-tail along the lane. Pushing along the lane just
-      // shoves the trailing unit backward, so a column — and especially a WIDE
-      // body whose long axis lies across the lane — can never file past a
-      // slow/stopped unit ahead. Fanning them out laterally lets the column flow
-      // around. Stopped/fighting units (state != march) keep tight formation.
+      // units are marching, resolve their overlap SIDEWAYS (perpendicular to
+      // the mover's actual heading), never nose-to-tail along it. Pushing along
+      // the path just shoves the trailing unit backward, so a column — and
+      // especially a WIDE body whose long axis lies across the path — can never
+      // file past a slow/stopped unit ahead. Fanning them out laterally lets
+      // the column flow around; this works for vertical chases too (then the
+      // fan-out axis is X). Stopped/fighting pairs keep tight formation.
       const lateral = a.team === b.team && (a.state === 'march' || b.state === 'march');
+      // which axis clears the pair "sideways"? perpendicular to the heading of
+      // the marching unit (mover if set): mostly-horizontal travel fans out in
+      // Y, mostly-vertical travel fans out in X.
+      let crossAxis = null;
+      if (lateral) {
+        const ref = mover || (a.state === 'march' ? a : b);
+        crossAxis = Math.abs(ref.mvx ?? 1) >= Math.abs(ref.mvy ?? 0) ? 'y' : 'x';
+      }
       // rectangular units (2x1 etc.) separate as boxes so a neat formation
       // stays put instead of the wide bodies shoving apart on their long axis
-      if (a.footprint || b.footprint) { separateBox(a, b, mover, lateral); continue; }
+      if (a.footprint || b.footprint) { separateBox(a, b, mover, crossAxis); continue; }
       const minD = a.radius + b.radius;
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       const d2 = dx * dx + dy * dy;
       if (d2 >= minD * minD) continue;
       let d = Math.sqrt(d2);
-      if (lateral) {
-        // clear the overlap purely along Y (the cross-march axis): fan the lane out
-        let sy = dy;
-        if (Math.abs(sy) < 0.001) sy = a.id < b.id ? 1 : -1;
-        const dir = sy < 0 ? -1 : 1;                    // side b should move to
-        const need = Math.sqrt(Math.max(0.01, minD * minD - dx * dx)); // |dy| for no overlap
-        const gap = need - Math.abs(dy);
+      if (crossAxis) {
+        // clear the overlap purely along the cross axis: fan the column out
+        const along = crossAxis === 'y' ? dx : dy;   // offset along the heading
+        let s = crossAxis === 'y' ? dy : dx;         // offset across it
+        if (Math.abs(s) < 0.001) s = a.id < b.id ? 1 : -1;
+        const dir = s < 0 ? -1 : 1;                  // side b should move to
+        const need = Math.sqrt(Math.max(0.01, minD * minD - along * along));
+        const gap = need - Math.abs(crossAxis === 'y' ? dy : dx);
         if (gap <= 0) continue;
         if (mover) {
-          const push = Math.min(gap, 3);
-          if (mover === b) b.y += dir * push; else a.y -= dir * push;
+          const push = Math.min(gap, 3) * dir * (mover === b ? 1 : -1);
+          if (crossAxis === 'y') mover.y += push; else mover.x += push;
         } else {
-          const push = Math.min(gap / 2, 3);
-          a.y -= dir * push; b.y += dir * push;
+          const push = Math.min(gap / 2, 3) * dir;
+          if (crossAxis === 'y') { a.y -= push; b.y += push; }
+          else { a.x -= push; b.x += push; }
         }
         continue;
       }
@@ -241,8 +282,10 @@ function separate(game) {
 // (splitting the push), using each unit's half-extents. Units placed flush on
 // the grid have zero overlap and never move. With `mover` set (a marching unit
 // against a stationary teammate) the mover absorbs the whole push — same total
-// separation, but the standing formation is never displaced.
-function separateBox(a, b, mover = null, lateral = false) {
+// separation, but the standing formation is never displaced. `forceAxis`
+// ('x' | 'y', from the marching pair's heading) pins the split to the cross
+// axis so columns fan out and file past instead of shoving nose-to-tail.
+function separateBox(a, b, mover = null, forceAxis = null) {
   const ex = (a.hw || a.radius) + (b.hw || b.radius);
   const ey = (a.hh || a.radius) + (b.hh || b.radius);
   let dx = b.x - a.x;
@@ -250,23 +293,22 @@ function separateBox(a, b, mover = null, lateral = false) {
   const px = ex - Math.abs(dx); // x-overlap (>0 => overlapping)
   const py = ey - Math.abs(dy); // y-overlap
   if (px <= 0 || py <= 0) return;
-  // marching same-team pairs always split along Y so the column fans out and
-  // files past instead of shoving each other back along the lane
-  if (!lateral && px < py) {
+  const capM = forceAxis ? 3.5 : 2.5; // marchers clear sideways a touch faster
+  const capS = forceAxis ? 3.5 : 2;
+  const useX = forceAxis ? forceAxis === 'x' : px < py;
+  if (useX) {
     if (dx === 0) dx = a.id < b.id ? 1 : -1;
     const sgn = dx < 0 ? -1 : 1;
     if (mover) {
-      const push = Math.min(px, 2.5) * sgn;
+      const push = Math.min(px, capM) * sgn;
       if (mover === a) mover.x -= push; else mover.x += push;
     } else {
-      const push = Math.min(px / 2, 2) * sgn;
+      const push = Math.min(px / 2, capS) * sgn;
       a.x -= push; b.x += push;
     }
   } else {
     if (dy === 0) dy = a.id < b.id ? 1 : -1;
     const sgn = dy < 0 ? -1 : 1;
-    const capM = lateral ? 3.5 : 2.5;   // marchers clear sideways a touch faster
-    const capS = lateral ? 3.5 : 2;
     if (mover) {
       const push = Math.min(py, capM) * sgn;
       if (mover === a) mover.y -= push; else mover.y += push;
