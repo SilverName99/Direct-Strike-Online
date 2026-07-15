@@ -64,6 +64,73 @@ export class Game {
       // middle — the field extends lower as a scenic apron with no gameplay
       makeStructure(this, t, 'turret', CONFIG.TURRET_X[t], CONFIG.MAIN.y);
     }
+
+    // Predefined MINE plots: generators can ONLY be built on these. `cap`
+    // grid-aligned spots are rolled from the seeded RNG in each team's
+    // construction zone, keeping the 3 grid columns nearest the enemy free
+    // (that's where walls and towers go). Mines rise instantly on a plot.
+    this.mineSpots = [[], []];
+    for (const t of [0, 1]) this.generateMineSpots(t);
+  }
+
+  generateMineSpots(team) {
+    const bs = this.bstat(team, 'generator');
+    const n = Math.max(0, Math.round(bs.cap || 0));
+    const zone = CONFIG.CONSTRUCTION_ZONE[team];
+    const ext = structureExtents('generator', bs);
+    const G = CONFIG.GRID;
+    const reserve = 3 * G; // front columns stay free for walls/towers
+    const x0 = team === 0 ? zone.x0 : zone.x0 + reserve;
+    const x1 = team === 0 ? zone.x1 - reserve : zone.x1;
+    // candidate footprint centers, grid-aligned exactly like the build snap
+    const cands = [];
+    for (let cx = x0 + ext.hw; cx <= x1 - ext.hw + 0.01; cx += G) {
+      for (let cy = zone.y0 + ext.hh; cy <= zone.y1 - ext.hh + 0.01; cy += G) {
+        cands.push({ x: cx, y: cy });
+      }
+    }
+    // seeded shuffle, then keep the first N that don't clash with anything
+    for (let i = cands.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [cands[i], cands[j]] = [cands[j], cands[i]];
+    }
+    const spots = [];
+    for (const c of cands) {
+      if (spots.length >= n) break;
+      let ok = true;
+      for (const s of this.structures) { // clear of the main base (and anything else)
+        if (s.hp <= 0) continue;
+        if (Math.abs(s.x - c.x) < ext.hw + (s.hw || s.radius) &&
+            Math.abs(s.y - c.y) < ext.hh + (s.hh || s.radius)) { ok = false; break; }
+      }
+      if (ok) {
+        for (const p of spots) { // and of the other plots
+          if (Math.abs(p.x - c.x) < ext.hw * 2 && Math.abs(p.y - c.y) < ext.hh * 2) { ok = false; break; }
+        }
+      }
+      if (ok) spots.push({ x: c.x, y: c.y });
+    }
+    this.mineSpots[team] = spots;
+  }
+
+  // Is this mine plot free (no living structure standing on it)?
+  mineSpotFree(p) {
+    for (const s of this.structures) {
+      if (s.hp > 0 && Math.abs(s.x - p.x) < 1 && Math.abs(s.y - p.y) < 1) return false;
+    }
+    return true;
+  }
+
+  // The nearest FREE mine plot within maxDist of a point, or null.
+  nearestFreeMineSpot(team, x, y, maxDist = 140) {
+    let best = null;
+    let bestD = maxDist * maxDist;
+    for (const p of this.mineSpots[team]) {
+      if (!this.mineSpotFree(p)) continue;
+      const d = (p.x - x) ** 2 + (p.y - y) ** 2;
+      if (d <= bestD) { bestD = d; best = p; }
+    }
+    return best;
   }
 
   // Resolved unit stats for a team, per its race.
@@ -359,6 +426,14 @@ export class Game {
       if (Math.abs(s.x - x) < ext.hw + sw + gap &&
           Math.abs(s.y - y) < ext.hh + sh + gap) return false;
     }
+    // free mine plots are RESERVED ground — only the mine itself may cover one
+    if (kind !== 'generator' && this.mineSpots) {
+      const gext = structureExtents('generator', this.bstat(team, 'generator'));
+      for (const p of this.mineSpots[team]) {
+        if (!this.mineSpotFree(p)) continue;
+        if (Math.abs(p.x - x) < ext.hw + gext.hw && Math.abs(p.y - y) < ext.hh + gext.hh) return false;
+      }
+    }
     return true;
   }
 
@@ -431,12 +506,22 @@ export class Game {
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.countKind(cmd.team, cmd.kind) >= stats.cap)
         return { ok: false, reason: 'cap' };
-      if (!this.isValidBuildPlacement(cmd.team, cmd.kind, cmd.x, cmd.y))
+      let bx = cmd.x;
+      let by = cmd.y;
+      // mines rise ONLY on their predefined plots: snap the click to the
+      // nearest free plot (or refuse when none is near / all are taken)
+      if (cmd.kind === 'generator') {
+        const spot = this.nearestFreeMineSpot(cmd.team, cmd.x, cmd.y);
+        if (!spot) return { ok: false, reason: 'no-spot' };
+        bx = spot.x;
+        by = spot.y;
+      }
+      if (!this.isValidBuildPlacement(cmd.team, cmd.kind, bx, by))
         return { ok: false, reason: 'zone' };
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
       if (stats.buildCd > 0) this.buildReadyAt[cmd.team][cmd.kind] = this.time + stats.buildCd;
-      makeStructure(this, cmd.team, cmd.kind, cmd.x, cmd.y);
+      makeStructure(this, cmd.team, cmd.kind, bx, by);
       return { ok: true };
     }
 

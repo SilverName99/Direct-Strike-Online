@@ -235,6 +235,7 @@ export class Renderer {
     this.drawGrid(ctx, uiState);
     this.drawFireZones(ctx, game); // burning ground sits on the terrain, under everything
     this.drawTemplates(ctx, game, uiState);
+    this.drawMineSpots(ctx, game); // ghost plots where the player's mines can rise
     this.drawStructures(ctx, game);
     effects.drawStructureCorpses(ctx); // toppled towers crumble where they stood
     this.drawWorkers(ctx, game); // little miners shuttling gold to the base
@@ -590,6 +591,34 @@ export class Renderer {
     ctx.translate(dx, dy);
     drawTowerSprite(ctx, s.team, tier, hw * scale, hh * scale, 'camp', frame);
     ctx.restore();
+  }
+
+  // The player's free mine plots: the mine art drawn as a faded ghost (or a
+  // dashed footprint + pick glyph with no art), so you always see where your
+  // mines can rise. Occupied plots draw nothing — the real mine stands there.
+  drawMineSpots(ctx, game) {
+    if (!game.mineSpots) return;
+    const ext = structureExtents('generator', game.bstat(0, 'generator'));
+    for (const p of game.mineSpots[0]) {
+      if (!game.mineSpotFree(p)) continue;
+      if (!this.visible(p.x, p.y, 160)) continue;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.globalAlpha = 0.35;
+      const drawn = drawBuildingSprite(ctx, 'generator', 0, ext.hw, ext.hh, 0);
+      if (!drawn) {
+        ctx.strokeStyle = '#ffd35c';
+        ctx.setLineDash([6, 5]);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-ext.hw, -ext.hh, ext.hw * 2, ext.hh * 2);
+        ctx.setLineDash([]);
+        ctx.font = `${Math.round(ext.hh)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('⛏', 0, 2);
+      }
+      ctx.restore();
+    }
   }
 
   drawStructures(ctx, game) {

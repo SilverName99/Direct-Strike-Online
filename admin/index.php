@@ -330,7 +330,13 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots['construct_1'] = 'Construcție 60%';
       return $slots;
     }
-    $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2', 'construct_0' => 'Construcție 30%', 'construct_1' => 'Construcție 60%'];
+    $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
+    // no construction frames for: mines (rise instantly on predefined plots)
+    // and the mid turret (pre-placed, standing from the first second)
+    if ($ent !== 'generator' && $ent !== 'turret') {
+      $slots['construct_0'] = 'Construcție 30%';
+      $slots['construct_1'] = 'Construcție 60%';
+    }
     if (in_array($ent, ARMED_BUILDINGS, true)) {
       $slots['attack_0'] = 'Attack 1';
       $slots['attack_1'] = 'Attack 2';

@@ -441,6 +441,13 @@ export class AIController {
 
   // Try a handful of candidate spots; the sim validates zone/overlap.
   tryBuild(game, kind) {
+    // mines go only on their predefined plots — aim straight at a free one
+    if (kind === 'generator' && game.mineSpots) {
+      for (const p of game.mineSpots[this.team]) {
+        if (game.issueCommand({ type: 'build', team: this.team, kind, x: p.x, y: p.y }).ok) return true;
+      }
+      return false;
+    }
     const zone = CONFIG.CONSTRUCTION_ZONE[this.team];
     const w = zone.x1 - zone.x0;
     for (let i = 0; i < 12; i++) {

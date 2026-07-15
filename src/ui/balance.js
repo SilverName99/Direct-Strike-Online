@@ -42,7 +42,8 @@ export const BUILDING_FIELDS = {
     ['campfireDelay', 'Secunde inactiv → foc de tabără'],
   ],
   generator: [
-    ['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable'],
+    // no buildTime: mines rise instantly on their predefined plots
+    ['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable (nr. de locuri de mină)'],
     ['income', 'Extra gold every 20 seconds'],
     ['buildCd', 'Cooldown construire (s)'],
   ],

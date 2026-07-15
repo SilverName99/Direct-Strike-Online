@@ -161,17 +161,31 @@ console.log('buildings');
   game.money[0] = 5000;
 
   const base = game.incomePerTick(0);
-  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 200 });
-  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 300 });
-  check('generators build in construction zone', g1.ok && g2.ok);
+  // mines rise only on their predefined plots — clicks snap to the nearest one
+  check('mine plots generated (cap of them)', game.mineSpots[0].length === CONFIG.BUILDINGS.generator.cap);
+  const reserve = CONFIG.CONSTRUCTION_ZONE[0].x1 - 3 * CONFIG.GRID;
+  check('plots keep the 3 front columns free', game.mineSpots[0].every((p) => p.x < reserve));
+  const s1 = game.mineSpots[0][0];
+  const s2 = game.mineSpots[0][1];
+  const g1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: s1.x, y: s1.y });
+  const g2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: s2.x, y: s2.y });
+  check('generators build on their plots', g1.ok && g2.ok);
+  const gOff = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 480 });
+  if (gOff.ok) {
+    const gLast = game.structures.filter((s) => s.kind === 'generator').pop();
+    check('off-plot click snapped onto a plot', game.mineSpots[0].some((p) => p.x === gLast.x && p.y === gLast.y));
+  } else {
+    check('off-plot click with no near plot refuses', gOff.reason === 'no-spot');
+  }
   // income amounts are per 20s; each tick pays the proportional slice
   const tickShare = CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW;
+  const builtGens = game.countBuilt(0, 'generator');
   check(
     'each generator adds income',
-    game.incomePerTick(0) === base + Math.round(2 * CONFIG.BUILDINGS.generator.income * tickShare)
+    game.incomePerTick(0) === base + Math.round(builtGens * CONFIG.BUILDINGS.generator.income * tickShare)
   );
 
-  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 850, y: 205 });
+  const overlap = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: s1.x, y: s1.y + 5 });
   check('overlapping build rejected', !overlap.ok);
   const badZone = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 500, y: 700 });
   check('building in army zone rejected', !badZone.ok);
@@ -948,16 +962,21 @@ console.log('abilities (casters, auras, status effects)');
     applyBalance({ races: { humans: { buildings: { generator: { buildCd: 10 } } } } });
     const game = new Game(3, { races: ['humans', 'orcs'] });
     game.money[0] = 5000;
-    const b1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 200 });
-    const b2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 300 });
+    // mines build only on their predefined plots
+    const [p1, p2] = game.mineSpots[0];
+    const b1 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: p1.x, y: p1.y });
+    const b2 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: p2.x, y: p2.y });
     check('first generator builds', b1.ok);
     check('second generator blocked by build cooldown', !b2.ok && b2.reason === 'cooldown');
     run(game, 10.1);
-    const b3 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: 850, y: 300 });
+    const b3 = game.issueCommand({ type: 'build', team: 0, kind: 'generator', x: p2.x, y: p2.y });
     check('cooldown over -> generator builds again', b3.ok, JSON.stringify(b3));
-    // walls are unaffected (no buildCd on them)
-    const w = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 780, y: 200 });
-    const w2 = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 780, y: 300 });
+    // walls are unaffected (no buildCd on them) — placed on the front columns,
+    // which mine plots never occupy
+    const zone = CONFIG.CONSTRUCTION_ZONE[0];
+    const wx = zone.x1 - CONFIG.GRID / 2;
+    const w = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: wx, y: 200 });
+    const w2 = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: wx, y: 300 });
     check('other buildings have no cooldown', w.ok && w2.ok);
   }
 

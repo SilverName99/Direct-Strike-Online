@@ -142,9 +142,10 @@ export function makeStructure(game, team, kind, x, y) {
   const ext = structureExtents(kind, bs);
   // Player-built structures can take time to raise (buildTime, admin-set;
   // 0 = instant). While `building`, the structure is INERT: towers don't
-  // shoot, generators pay nothing, farms grant no food, tech unlocks nothing —
-  // but it counts toward caps and can already be attacked.
-  const buildTime = (kind !== 'main' && kind !== 'turret') ? (bs.buildTime || 0) : 0;
+  // shoot, farms grant no food, tech unlocks nothing — but it counts toward
+  // caps and can already be attacked. Mines (generator) are exempt: they rise
+  // instantly on their predefined plots.
+  const buildTime = (kind !== 'main' && kind !== 'turret' && kind !== 'generator') ? (bs.buildTime || 0) : 0;
   const s = {
     id: game.nextId++,
     team, kind,
