@@ -535,7 +535,19 @@ export class Game {
       this.money[cmd.team] -= price;
       this.spent[cmd.team] += price;
       if (stats.buildCd > 0) this.buildReadyAt[cmd.team][cmd.kind] = this.time + stats.buildCd;
-      makeStructure(this, cmd.team, cmd.kind, bx, by);
+      const built = makeStructure(this, cmd.team, cmd.kind, bx, by);
+      // Wall chain: one build auto-extends into up to chainMax walls, adding a
+      // fresh one every chainDelay seconds, stacked ACROSS the lane (vertically)
+      // and centered on this first one. Extras are free (that's the mechanic).
+      if (cmd.kind === 'wall' && Math.round(stats.chainMax || 1) > 1) {
+        const ext = structureExtents('wall', stats);
+        built.wallChainLeft = Math.round(stats.chainMax) - 1;
+        built.wallChainAt = this.time + Math.max(0.1, stats.chainDelay || 3);
+        built.wallChainK = 0;
+        built.wallOrigX = bx;
+        built.wallOrigY = by;
+        built.wallStep = ext.hh * 2 + (CONFIG.BUILD_GAP || 0);
+      }
       return { ok: true };
     }
 
@@ -641,6 +653,33 @@ export class Game {
       if (this.time >= s.buildDone) {
         s.building = false;
         this.events.push({ type: 'built', team: s.team, kind: s.kind, x: s.x, y: s.y });
+      }
+    }
+
+    // Wall chains: an origin wall keeps auto-adding walls next to it, one every
+    // chainDelay seconds, until it has placed chainMax-1 extras (or runs out of
+    // room). Slots alternate below/above the origin, closest-first.
+    for (const s of this.structures) {
+      if (s.hp <= 0 || !(s.wallChainLeft > 0) || this.time < s.wallChainAt) continue;
+      const step = s.wallStep || CONFIG.GRID;
+      let k = s.wallChainK || 0;
+      let placed = false;
+      for (let tries = 0; tries < 8 && !placed; tries++) {
+        k++;
+        const mag = Math.ceil(k / 2);
+        const ny = s.wallOrigY + (k % 2 === 1 ? 1 : -1) * mag * step;
+        if (this.isValidBuildPlacement(s.team, 'wall', s.wallOrigX, ny)) {
+          makeStructure(this, s.team, 'wall', s.wallOrigX, ny);
+          this.events.push({ type: 'built', team: s.team, kind: 'wall', x: s.wallOrigX, y: ny });
+          placed = true;
+        }
+      }
+      s.wallChainK = k;
+      if (placed) {
+        s.wallChainLeft--;
+        s.wallChainAt = this.time + Math.max(0.1, this.bstat(s.team, 'wall').chainDelay || 3);
+      } else {
+        s.wallChainLeft = 0; // no room found -> stop the chain
       }
     }
 

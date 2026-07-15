@@ -934,6 +934,28 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Slim rounded-pill bar (HP / mana): dark inset + hairline border + rounded
+  // inner fill. (bx, by) is the top-left; the fill never shrinks below a dot.
+  pillBar(ctx, bx, by, w, h, ratio, color) {
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, w, h, h / 2); else ctx.rect(bx, by, w, h);
+    ctx.fillStyle = 'rgba(6,9,14,0.78)';
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.stroke();
+    const r = Math.max(0, Math.min(1, ratio));
+    if (r > 0.01) {
+      ctx.beginPath();
+      const iw = Math.max(h - 2, (w - 2) * r);
+      if (ctx.roundRect) ctx.roundRect(bx + 1, by + 1, iw, h - 2, (h - 2) / 2); else ctx.rect(bx + 1, by + 1, iw, h - 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   drawTemplates(ctx, game, uiState) {
     // Which of the player's templates is hovered (for drag/sell affordance)?
     const hoverIdx = uiState.drag
@@ -1123,23 +1145,19 @@ export class Renderer {
       // dismounted size), so a big unit doesn't overlap its own HP/mana bar
       const drawR = stats.radius * Math.max(1, vScale);
 
+      // HP + mana as slim rounded pills (matching the building bars): dark inset
+      // with a hairline border and a rounded inner fill — clean, not chunky
       if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
-        const w = drawR * 2.4;
+        const w = Math.max(20, drawR * 2.4);
         const ratio = Math.max(0, u.hp / u.maxHp);
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(x - w / 2, y - drawR - 9, w, 3.5);
-        ctx.fillStyle = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
-        ctx.fillRect(x - w / 2, y - drawR - 9, w * ratio, 3.5);
+        const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
+        this.pillBar(ctx, x - w / 2, y - drawR - 10, w, 4, ratio, color);
       }
-
       // mana bar (casters only), right under the HP bar slot
       if (u.manaMax > 0) {
-        const w = drawR * 2.4;
+        const w = Math.max(20, drawR * 2.4);
         const mratio = Math.max(0, Math.min(1, u.mana / u.manaMax));
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(x - w / 2, y - drawR - 5, w, 2.5);
-        ctx.fillStyle = '#4da6ff';
-        ctx.fillRect(x - w / 2, y - drawR - 5, w * mratio, 2.5);
+        this.pillBar(ctx, x - w / 2, y - drawR - 5, w, 3, mratio, '#4da6ff');
       }
 
       // status-effect indicators (slow swirl, haste sparks, regen cross...)

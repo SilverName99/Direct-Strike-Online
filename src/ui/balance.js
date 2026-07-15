@@ -31,7 +31,7 @@ export const UNIT_SELECT_FIELDS = {
   dmgType: ['normal', 'piercing', 'explosive'],
 };
 export const BUILDING_FIELDS = {
-  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable']],
+  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable'], ['chainMax', 'Wall-uri în lanț (auto, incl. primul)'], ['chainDelay', 'Secunde între wall-uri în lanț']],
   tower: [
     ['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['cap', 'Max buildable'], ['range', 'Range'],
     ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'],
@@ -295,7 +295,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'costStep', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'costStep', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'chainMax', 'chainDelay', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
