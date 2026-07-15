@@ -306,6 +306,8 @@ export class AIController {
     const t = this.team;
     const heroId = resolvedHeroId(game.races[t]);
     if (!heroId) return false; // no hero defined for this race
+    // heroes still time-locked (⚙ Balance) — don't buy or save toward one yet
+    if (game.time < (CONFIG.HERO_UNLOCK_TIME || 0) && !game.heroTemplate(t)) return false;
 
     const tpl = game.heroTemplate(t);
     if (tpl) {

@@ -853,7 +853,14 @@ export class BottomBar {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
           const u = game.ustat(0, d.id);
+          const heroWait = d.isHero ? (CONFIG.HERO_UNLOCK_TIME || 0) - game.time : 0;
           if (u.tier > game.tier[0]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
+          else if (heroWait > 0) {
+            // hero still time-locked (⚙ Balance): radial countdown on the card
+            el.classList.add('disabled');
+            cd = heroWait;
+            cdTotal = CONFIG.HERO_UNLOCK_TIME || 0;
+          }
           else if (d.isHero && game.hasHero(0)) el.classList.add('disabled'); // one hero per team
           else if (game.money[0] < u.cost) el.classList.add('disabled');
           else if (game.foodUsed(0) + (u.food || 0) > game.foodCap(0)) el.classList.add('disabled'); // over food cap

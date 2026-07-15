@@ -448,6 +448,9 @@ export class Game {
       if (stats.building && !this.hasBuilding(cmd.team, stats.building)) return { ok: false, reason: 'no-building' };
       // only ONE hero per team
       if (stats.isHero && this.hasHero(cmd.team)) return { ok: false, reason: 'hero-cap' };
+      // heroes can be gated behind a match timer (⚙ Balance: HERO_UNLOCK_TIME)
+      if (stats.isHero && this.time < (CONFIG.HERO_UNLOCK_TIME || 0))
+        return { ok: false, reason: 'hero-locked' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.foodUsed(cmd.team) + (stats.food || 0) > this.foodCap(cmd.team))
         return { ok: false, reason: 'food' };

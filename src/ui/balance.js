@@ -61,6 +61,7 @@ export const GENERAL_FIELDS = [
   ['FIRST_WAVE_INTERVAL', 'Seconds until first wave (round 1)'],
   ['WAVE_INTERVAL', 'Seconds between waves'],
   ['FOOD_CAP_BASE', 'Food de bază (fără ferme)'],
+  ['HERO_UNLOCK_TIME', 'Secunde până eroii pot fi cumpărați (0 = de la start)'],
   ['SELL_REFUND', 'Unit sell refund (0-1)'],
   ['SELL_BUILDING_REFUND', 'Building sell refund (0-1)'],
 ];
