@@ -305,12 +305,7 @@ function updateFighter(game, u, stats, dt) {
     u.targetId = target ? target.id : null;
   } else if (u.windup <= 0 && effDist(u, target) > atkRange(u, stats) + 14) {
     const nearest = acquireTarget(game, u, stats);
-    // A unit WEDGED behind teammates (blockedT, from movement.js) drops the
-    // hysteresis entirely: instead of tunnel-visioning on the blocked target it
-    // takes ANY strictly closer enemy it meets on the way around — it fights
-    // what it can reach and unclogs the column.
-    const margin = (u.blockedT || 0) > 0.6 ? 0 : 24;
-    if (nearest && nearest !== target && effDist(u, nearest) < effDist(u, target) - margin) {
+    if (nearest && nearest !== target && effDist(u, nearest) < effDist(u, target) - 24) {
       target = nearest;
       u.targetId = target.id;
     }
