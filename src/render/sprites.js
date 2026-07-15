@@ -224,7 +224,7 @@ function tint(img, hex) {
 }
 
 // Which image variant to draw for a team, per the team-tint setting.
-function pickImg(entry, team) {
+export function pickImg(entry, team) {
   const mode = CONFIG.TEAM_TINT || 'enemy';
   if (mode === 'none') return entry.img;
   if (mode === 'team') return team === 1 ? entry.red : entry.blue;

@@ -2,8 +2,7 @@
 // base upgrades included (click your Main Base). The Hud keeps the top bar,
 // the hero badge (left edge) and the menu / game-over overlay.
 
-import { drawThumb } from '../render/characters.js';
-import { raceOf } from '../render/sprites.js';
+import { raceOf, getThumb, pickImg } from '../render/sprites.js';
 
 export class Hud {
   constructor(uiState) {
@@ -103,25 +102,38 @@ export class Hud {
     b.lvl.title = level >= 10 ? 'Nivel maxim' : `${Math.floor(tpl.xp || 0)} / ${need} XP`;
 
     // (re)draw the thumb when the hero type/race changes, and periodically so
-    // a thumb that finishes loading after match start still shows up
+    // a thumb that finishes loading after match start still shows up.
+    // SQUARE + SHARP: the backing store runs at the real device resolution
+    // (devicePixelRatio) and the thumb image cover-fills the square (center
+    // crop, biased toward the top so the head never gets cut).
     const key = `${raceOf(0)}:${tpl.type}`;
     const now = performance.now();
     if (key !== b.key || now >= b.redrawAt) {
       b.key = key;
       b.redrawAt = now + 1500;
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const size = Math.round(64 * dpr);
+      if (b.thumb.width !== size) { b.thumb.width = size; b.thumb.height = size; }
       const ctx = b.thumb.getContext('2d');
-      ctx.clearRect(0, 0, 64, 64);
-      ctx.save();
-      ctx.translate(32, 34); // drawThumb draws centered on the origin
-      const drawn = drawThumb(ctx, tpl.type, 0, 58);
-      ctx.restore();
-      if (!drawn) {
+      ctx.clearRect(0, 0, size, size);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      const entry = getThumb(raceOf(0), tpl.type);
+      const img = entry ? pickImg(entry, 0) : null;
+      if (img && img.width) {
+        const scale = Math.max(size / img.width, size / img.height); // cover
+        const cropW = size / scale;
+        const cropH = size / scale;
+        const sx = (img.width - cropW) / 2;          // center horizontally
+        const sy = (img.height - cropH) * 0.25;      // bias toward the top
+        ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, size, size);
+      } else {
         // no uploaded thumb: a simple star placeholder so the badge still reads
         ctx.fillStyle = '#ffd35c';
-        ctx.font = 'bold 40px sans-serif';
+        ctx.font = `bold ${Math.round(40 * dpr)}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('★', 32, 34);
+        ctx.fillText('★', size / 2, size / 2 + 2 * dpr);
       }
     }
   }
