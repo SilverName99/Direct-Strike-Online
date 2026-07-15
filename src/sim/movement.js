@@ -165,7 +165,7 @@ function separate(game) {
       // through a knot of small enemies to reach its target) instead of both
       // splitting 50/50 and stalling. Cap the TOTAL resolution (not each unit)
       // so the mass ratio holds even on a big first-contact overlap.
-      const total = Math.min(minD - d, 3.5);
+      const total = Math.min(minD - d, 2.5);
       const ma = massOf(a), mb = massOf(b);
       const pa = total * mb / (ma + mb); // a yields more when b is heavier
       const pb = total * ma / (ma + mb);
@@ -207,7 +207,7 @@ function shoveAside(a, b) {
   const px = -hy * s, py = hx * s; // unit vector toward L's side
   const need = perpExtent(H, px, py) + perpExtent(L, px, py) - Math.abs(lat);
   if (need <= 0) return true; // already clear to the side — leave them be
-  const total = Math.min(need, 3.5);
+  const total = Math.min(need, 2.5);
   const mH = massOf(H), mL = massOf(L);
   L.x += px * total * mH / (mH + mL);
   L.y += py * total * mH / (mH + mL);
@@ -238,13 +238,13 @@ function separateBox(a, b) {
   if (px < py) {
     if (dx === 0) dx = a.id < b.id ? 1 : -1;
     const sgn = dx < 0 ? -1 : 1;
-    const total = Math.min(px, 3.5);
+    const total = Math.min(px, 2.5);
     a.x -= total * fa * sgn;
     b.x += total * fb * sgn;
   } else {
     if (dy === 0) dy = a.id < b.id ? 1 : -1;
     const sgn = dy < 0 ? -1 : 1;
-    const total = Math.min(py, 3.5);
+    const total = Math.min(py, 2.5);
     a.y -= total * fa * sgn;
     b.y += total * fb * sgn;
   }

@@ -367,6 +367,11 @@ html, body {
   text-shadow: 0 1px 2px #000; pointer-events: none; }
 .slot .s-lock { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold);
   font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* top-right "how many left to build" counter */
+.slot .s-rem { position: absolute; top: 1px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
+  color: #eaf1fb; background: rgba(6,9,14,0.8); border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 7px; pointer-events: none; text-shadow: 0 1px 2px #000; }
 /* cooldown: a WC3-style radial sweep (set as a conic-gradient from JS with the
    remaining fraction) + the seconds left in the middle */
 .slot .s-cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;

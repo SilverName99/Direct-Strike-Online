@@ -929,9 +929,14 @@ export class BottomBar {
         if (game) {
           const bs = game.bstat(0, d.id);
           const price = game.buildCost(0, d.id); // mines get pricier each time
-          if (game.tier[0] < (bs.tier || 1)) { el.classList.add('locked'); this.setLockTier(el, bs.tier); }
-          else if (game.countKind(0, d.id) >= bs.cap) el.classList.add('disabled');
+          const cap = bs.cap || 0;
+          const remaining = Math.max(0, cap - game.countKind(0, d.id));
+          const tierLocked = game.tier[0] < (bs.tier || 1);
+          if (tierLocked) { el.classList.add('locked'); this.setLockTier(el, bs.tier); }
+          else if (remaining <= 0) el.classList.add('disabled');
           else if (game.money[0] < price) el.classList.add('disabled');
+          // top-right counter: how many more of this building you may still place
+          this.setRemaining(el, cap > 0 && !tierLocked ? String(remaining) : null);
           cd = game.buildCdLeft(0, d.id);
           const c = el.querySelector('.s-cost');
           if (c && c.textContent !== String(price)) c.textContent = price;
@@ -1053,6 +1058,14 @@ export class BottomBar {
   }
 
   setLockTier(el, tier) { this.setLock(el, `T${tier}`); }
+
+  // top-right "how many more you can build" counter (null removes it)
+  setRemaining(el, text) {
+    let r = el.querySelector('.s-rem');
+    if (text == null) { if (r) r.remove(); return; }
+    if (!r) { r = document.createElement('span'); r.className = 's-rem'; el.appendChild(r); }
+    if (r.textContent !== text) r.textContent = text;
+  }
 
   setRankBadge(el, text) {
     let r = el.querySelector('.s-cost');

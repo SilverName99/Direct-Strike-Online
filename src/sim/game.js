@@ -661,6 +661,9 @@ export class Game {
     // room). Slots alternate below/above the origin, closest-first.
     for (const s of this.structures) {
       if (s.hp <= 0 || !(s.wallChainLeft > 0) || this.time < s.wallChainAt) continue;
+      // the chain still obeys the wall CAP: total walls never exceed it
+      const wcap = this.bstat(s.team, 'wall').cap || 0;
+      if (wcap > 0 && this.countKind(s.team, 'wall') >= wcap) { s.wallChainLeft = 0; continue; }
       const step = s.wallStep || CONFIG.GRID;
       let k = s.wallChainK || 0;
       let placed = false;
