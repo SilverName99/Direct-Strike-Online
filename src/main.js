@@ -66,11 +66,6 @@ document.getElementById('fs-btn').addEventListener('click', () => {
   console.log('fullscreen toggle requested');
   pointer.toggle();
 });
-document.getElementById('grid-btn').addEventListener('click', () => {
-  uiState.gridOn = !uiState.gridOn;
-  document.getElementById('grid-btn').classList.toggle('off', !uiState.gridOn);
-  toast(uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
-});
 // Bottom-bar zoom: cycle the whole bottom interface through 1× / 2× / 3×.
 const uiScaleBtn = document.getElementById('uiscale-btn');
 const UI_SCALES = [1, 1.2, 1.4, 1.6];

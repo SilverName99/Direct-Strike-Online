@@ -153,13 +153,6 @@ export class Input {
         this.uiState.inspect = null;
         return;
       }
-      if (e.key === 'g' || e.key === 'G') {
-        this.uiState.gridOn = !this.uiState.gridOn;
-        const btn = document.getElementById('grid-btn');
-        if (btn) btn.classList.toggle('off', !this.uiState.gridOn);
-        toast(this.uiState.gridOn ? 'Grid: ON (snap to cells)' : 'Grid: OFF (free placement)');
-        return;
-      }
       // hotkeys: 1-9 units, Z/X/C buildings, 0 base upgrade
       if (e.key >= '1' && e.key <= '9') {
         const id = UNIT_IDS[Number(e.key) - 1];
