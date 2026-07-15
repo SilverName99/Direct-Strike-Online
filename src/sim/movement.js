@@ -167,11 +167,25 @@ function separate(game) {
         mover.y += s * ny * push;
         continue;
       }
-      const push = Math.min((minD - d) / 2, 2);
-      a.x -= nx * push; a.y -= ny * push;
-      b.x += nx * push; b.y += ny * push;
+      // MASS-BASED split: the heavier (bigger footprint) body barely moves, the
+      // lighter one yields — a big unit shoulders a small one aside (and shoves
+      // through a knot of small enemies to reach its target) instead of both
+      // splitting 50/50 and stalling. Cap the TOTAL resolution (not each unit)
+      // so the mass ratio holds even on a big first-contact overlap.
+      const total = Math.min(minD - d, 6);
+      const ma = massOf(a), mb = massOf(b);
+      const pa = total * mb / (ma + mb); // a yields more when b is heavier
+      const pb = total * ma / (ma + mb);
+      a.x -= nx * pa; a.y -= ny * pa;
+      b.x += nx * pb; b.y += ny * pb;
     }
   }
+}
+
+// A body's "mass" for separation = its box area (footprint). A 2x2 outweighs a
+// 1x1 several-fold, so the small one does almost all the yielding.
+function massOf(u) {
+  return (u.hw || u.radius || 1) * (u.hh || u.radius || 1);
 }
 
 // AABB separation: push the pair apart along the axis of SMALLEST overlap
@@ -187,6 +201,10 @@ function separateBox(a, b, mover = null) {
   const px = ex - Math.abs(dx); // x-overlap (>0 => overlapping)
   const py = ey - Math.abs(dy); // y-overlap
   if (px <= 0 || py <= 0) return;
+  // mass-based fractions: the lighter body does most of the yielding (see separate)
+  const ma = massOf(a), mb = massOf(b);
+  const fa = mb / (ma + mb); // a's share (bigger b => a moves more)
+  const fb = ma / (ma + mb);
   if (px < py) {
     if (dx === 0) dx = a.id < b.id ? 1 : -1;
     const sgn = dx < 0 ? -1 : 1;
@@ -194,8 +212,9 @@ function separateBox(a, b, mover = null) {
       const push = Math.min(px, 2.5) * sgn;
       if (mover === a) mover.x -= push; else mover.x += push;
     } else {
-      const push = Math.min(px / 2, 2) * sgn;
-      a.x -= push; b.x += push;
+      const total = Math.min(px, 6);
+      a.x -= total * fa * sgn;
+      b.x += total * fb * sgn;
     }
   } else {
     if (dy === 0) dy = a.id < b.id ? 1 : -1;
@@ -204,8 +223,9 @@ function separateBox(a, b, mover = null) {
       const push = Math.min(py, 2.5) * sgn;
       if (mover === a) mover.y -= push; else mover.y += push;
     } else {
-      const push = Math.min(py / 2, 2) * sgn;
-      a.y -= push; b.y += push;
+      const total = Math.min(py, 6);
+      a.y -= total * fa * sgn;
+      b.y += total * fb * sgn;
     }
   }
 }
