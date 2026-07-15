@@ -1175,10 +1175,19 @@ export class Renderer {
       px = p.x;
       py = p.y;
     }
+    // mines build ONLY on their plots: the cursor ghost jumps onto the plot
+    // the click would land on (red when no free plot is near the cursor)
+    let mineOk = true;
+    if (sel === 'generator') {
+      const spot = game.nearestFreeMineSpot
+        ? game.nearestFreeMineSpot(0, uiState.mouseX, uiState.mouseY)
+        : null;
+      if (spot) { px = spot.x; py = spot.y; } else mineOk = false;
+    }
 
-    const valid = isBuilding
+    const valid = mineOk && (isBuilding
       ? game.isValidBuildPlacement(0, sel, px, py)
-      : game.isValidPlacement(0, px, py, -1, sel);
+      : game.isValidPlacement(0, px, py, -1, sel));
 
     ctx.save();
     ctx.translate(px, py);

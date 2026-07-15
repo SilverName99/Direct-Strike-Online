@@ -320,8 +320,10 @@ function updateFighter(game, u, stats, dt) {
   // Dash (charge): while a target sits inside dashRange but out of attack
   // range, the unit commits to a dash and closes at dashSpeed (movement.js
   // reads u.dashing); on arrival it lands a one-off dashDamage burst.
+  // NEVER at a structure: charging a tower/base yanked the hero past the
+  // building it was hitting and left it stranded (it stopped attacking).
   u.dashing = false;
-  if (stats.dash && target) {
+  if (stats.dash && target && !target.isStructure) {
     const ready = game.time >= (u.dashReadyAt || 0);
     if (!inRange && ready && effDist(u, target) <= (stats.dashRange || 0)) {
       u.dashing = true;
