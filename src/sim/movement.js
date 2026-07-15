@@ -3,6 +3,9 @@ import { moveSpeedMult } from './abilities.js';
 
 // Marching + boids-lite separation. Attacking units hold position.
 export function updateMovement(game, dt) {
+  // pass-start snapshot: the speed clamp below measures ONLY what this pass
+  // (march + steering + separation) moved each unit
+  for (const u of game.entities) { u.blkPX = u.x; u.blkPY = u.y; }
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
     const stats = game.ustatOf(u);
@@ -69,27 +72,37 @@ export function updateMovement(game, dt) {
 
   flowAround(game, dt);
   separate(game);
+
+  // HARD SPEED CAP: a marching unit's NET move this pass (march step + side
+  // steering + all the separation pushes, which used to STACK into 2-3x bursts)
+  // never exceeds its configured speed. Steering thus REDIRECTS the step, it
+  // no longer adds to it. Dashes are exempt — dashSpeed is its own setting.
+  // Runs BEFORE structure collision so wall ejection is never undone.
+  for (const u of game.entities) {
+    if (u.state !== 'march' || u.dashing) { u.blockedT = 0; continue; }
+    const dx = u.x - u.blkPX;
+    const dy = u.y - u.blkPY;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    const maxStep = (u.mvSpeed || 0) * dt;
+    if (maxStep > 0 && d > maxStep) {
+      const s = maxStep / d;
+      u.x = u.blkPX + dx * s;
+      u.y = u.blkPY + dy * s;
+    }
+    // Stuck detection: a marcher whose net move stays far below its speed is
+    // wedged behind bodies. blockedT feeds two escapes: flowAround treats it
+    // as a dam (others route around it) and sidesteps harder itself, and
+    // combat.js lets it retarget to any closer reachable enemy.
+    if (maxStep > 0.001 && Math.min(d, maxStep) < maxStep * 0.35) {
+      u.blockedT = (u.blockedT || 0) + dt;
+    } else u.blockedT = 0;
+  }
+
   collideStructures(game);
 
   for (const u of game.entities) {
     u.x = clamp(u.x, 12, CONFIG.FIELD_W - 12);
     u.y = clamp(u.y, 12, CONFIG.FIELD_H - 12);
-  }
-
-  // Stuck detection: a marcher whose NET displacement (after all the pushing
-  // and colliding above) stays far below its speed is wedged behind bodies.
-  // blockedT feeds two escapes: flowAround sidesteps harder, and combat.js
-  // lets the unit retarget to any closer reachable enemy (no hysteresis).
-  for (const u of game.entities) {
-    if (u.state === 'march' && u.blkPX != null) {
-      const dx = u.x - u.blkPX;
-      const dy = u.y - u.blkPY;
-      const want = (u.mvSpeed || 0) * dt;
-      if (want > 0.001 && Math.sqrt(dx * dx + dy * dy) < want * 0.35) {
-        u.blockedT = (u.blockedT || 0) + dt;
-      } else u.blockedT = 0;
-    } else u.blockedT = 0;
-    u.blkPX = u.x; u.blkPY = u.y;
   }
 }
 
@@ -166,7 +179,13 @@ function flowAround(game, dt) {
     for (let j = 0; j < ents.length; j++) {
       if (j === i) continue;
       const o = ents[j];
-      if (o.isAir) continue;
+      // Only TEAMMATES that are actually standing (fighting/holding) or wedged
+      // dam the lane. Enemies are targets, not obstacles (armies must press
+      // into each other, and the hero must fight the foe in front — not dance
+      // around it). Teammates marching along at full flow don't count either:
+      // steering around a same-speed column mate made whole formations tremble.
+      if (o.isAir || o.team !== u.team) continue;
+      if (o.state === 'march' && (o.blockedT || 0) < 0.3) continue;
       const dx = o.x - u.x;
       const dy = o.y - u.y;
       const fwd = dx * mx + dy * my;                     // distance AHEAD along heading
@@ -181,13 +200,21 @@ function flowAround(game, dt) {
       blocked = true;
       side += lat >= 0 ? -1 : 1;                         // steer away from it
     }
-    if (!blocked) continue;
-    const dirS = side !== 0 ? Math.sign(side)
-      : (((u.id * 2654435761) >>> 0) & 1 ? 1 : -1);
+    if (!blocked) { u.sideUntil = 0; continue; }
+    // COMMIT to a side for a while: re-picking every tick made units dither
+    // left-right (the "front-back dance") instead of actually going around
+    let dirS;
+    if (u.sideDir && (u.sideUntil || 0) > game.time) dirS = u.sideDir;
+    else {
+      dirS = side !== 0 ? Math.sign(side)
+        : (((u.id * 2654435761) >>> 0) & 1 ? 1 : -1);
+      u.sideDir = dirS;
+      u.sideUntil = game.time + 0.6;
+    }
     const stats = game.ustatOf(u);
     const speed = stats.speed * moveSpeedMult(u, game.time);
-    // sidestep along the perpendicular; a unit stuck for a while pushes at
-    // full speed so it actually rounds the blocker instead of hugging it
+    // steer onto the perpendicular (the speed cap in updateMovement blends
+    // this with the forward step — total never exceeds the unit's speed)
     const k = (u.blockedT || 0) > 0.5 ? 1.0 : 0.75;
     u.x += -my * dirS * speed * dt * k;
     u.y += mx * dirS * speed * dt * k;
