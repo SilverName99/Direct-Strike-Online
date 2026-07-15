@@ -127,9 +127,19 @@ function separate(game) {
     for (let j = i + 1; j < ents.length; j++) {
       const b = ents[j];
       if (a.isAir !== b.isAir) continue; // air passes over ground
+      // A marching unit must not SHOVE a stationary TEAMMATE around (an
+      // engaged artillery line was getting displaced by troops passing from
+      // behind): the mover absorbs the whole correction, the stander holds.
+      // The total separation is unchanged — only who moves. Enemy pairs keep
+      // the mutual push (armies must be able to press into each other).
+      let mover = null;
+      if (a.team === b.team) {
+        if (a.state === 'march' && b.state !== 'march') mover = a;
+        else if (b.state === 'march' && a.state !== 'march') mover = b;
+      }
       // rectangular units (2x1 etc.) separate as boxes so a neat formation
       // stays put instead of the wide bodies shoving apart on their long axis
-      if (a.footprint || b.footprint) { separateBox(a, b); continue; }
+      if (a.footprint || b.footprint) { separateBox(a, b, mover); continue; }
       const minD = a.radius + b.radius;
       let dx = b.x - a.x;
       let dy = b.y - a.y;
@@ -142,9 +152,16 @@ function separate(game) {
         dy = 0;
         d = 1;
       }
-      const push = Math.min((minD - d) / 2, 2);
       const nx = dx / d;
       const ny = dy / d;
+      if (mover) {
+        const push = Math.min(minD - d, 2.5);
+        const s = mover === a ? -1 : 1;
+        mover.x += s * nx * push;
+        mover.y += s * ny * push;
+        continue;
+      }
+      const push = Math.min((minD - d) / 2, 2);
       a.x -= nx * push; a.y -= ny * push;
       b.x += nx * push; b.y += ny * push;
     }
@@ -153,8 +170,10 @@ function separate(game) {
 
 // AABB separation: push the pair apart along the axis of SMALLEST overlap
 // (splitting the push), using each unit's half-extents. Units placed flush on
-// the grid have zero overlap and never move.
-function separateBox(a, b) {
+// the grid have zero overlap and never move. With `mover` set (a marching unit
+// against a stationary teammate) the mover absorbs the whole push — same total
+// separation, but the standing formation is never displaced.
+function separateBox(a, b, mover = null) {
   const ex = (a.hw || a.radius) + (b.hw || b.radius);
   const ey = (a.hh || a.radius) + (b.hh || b.radius);
   let dx = b.x - a.x;
@@ -164,12 +183,24 @@ function separateBox(a, b) {
   if (px <= 0 || py <= 0) return;
   if (px < py) {
     if (dx === 0) dx = a.id < b.id ? 1 : -1;
-    const push = Math.min(px / 2, 2) * (dx < 0 ? -1 : 1);
-    a.x -= push; b.x += push;
+    const sgn = dx < 0 ? -1 : 1;
+    if (mover) {
+      const push = Math.min(px, 2.5) * sgn;
+      if (mover === a) mover.x -= push; else mover.x += push;
+    } else {
+      const push = Math.min(px / 2, 2) * sgn;
+      a.x -= push; b.x += push;
+    }
   } else {
     if (dy === 0) dy = a.id < b.id ? 1 : -1;
-    const push = Math.min(py / 2, 2) * (dy < 0 ? -1 : 1);
-    a.y -= push; b.y += push;
+    const sgn = dy < 0 ? -1 : 1;
+    if (mover) {
+      const push = Math.min(py, 2.5) * sgn;
+      if (mover === a) mover.y -= push; else mover.y += push;
+    } else {
+      const push = Math.min(py / 2, 2) * sgn;
+      a.y -= push; b.y += push;
+    }
   }
 }
 
