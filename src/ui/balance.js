@@ -566,14 +566,48 @@ export function currentBalance() {
   return snapshot();
 }
 
+// Per-entity fields the admin hand-tunes on THIS install that an Import must
+// never clobber: visual size, grid footprint, shop-grid slot, animation speeds,
+// food, hero-XP bounty, and the hero's assigned ability kit. An import brings
+// BALANCE numbers (cost/hp/damage/...); these stay exactly as configured here.
+const IMPORT_KEEP_UNIT = ['name', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
+const IMPORT_KEEP_BUILDING = ['name', 'size', 'cw', 'ch', 'idleSpeed',
+  'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed',
+  'campSize', 'campSize2', 'campSize3', 'campSpeed', 'campfireDelay', 'attackHold'];
+
 // Load a full balance object from outside the server (admin Import). Applies it,
 // seeds the local cache, and clears the "not loaded" guard — so Import doubles as
 // a recovery path even if the initial fetch failed. Caller then saves to server.
 // Throws if `data` isn't a usable object, so the caller can report a bad file.
 export function importBalance(data) {
   if (!data || typeof data !== 'object') throw new Error('balans invalid');
+  // snapshot the protected fields as they are RIGHT NOW (pre-import)
+  const keep = {};
+  for (const race of RACES) {
+    keep[race] = { units: {}, buildings: {} };
+    for (const [id, u] of Object.entries(resolvedUnits[race] || {})) {
+      const k = {};
+      for (const f of IMPORT_KEEP_UNIT) if (u[f] !== undefined) k[f] = Array.isArray(u[f]) ? [...u[f]] : u[f];
+      keep[race].units[id] = k;
+    }
+    for (const [kind, b] of Object.entries(resolvedBuildings[race] || {})) {
+      const k = {};
+      for (const f of IMPORT_KEEP_BUILDING) if (b[f] !== undefined) k[f] = b[f];
+      keep[race].buildings[kind] = k;
+    }
+  }
   applyBalance(data);
-  cacheBalanceText(JSON.stringify(data));
+  // restore them over whatever the imported file said
+  for (const race of RACES) {
+    for (const [id, k] of Object.entries(keep[race].units)) {
+      if (resolvedUnits[race][id]) Object.assign(resolvedUnits[race][id], k);
+    }
+    for (const [kind, k] of Object.entries(keep[race].buildings)) {
+      if (resolvedBuildings[race][kind]) Object.assign(resolvedBuildings[race][kind], k);
+    }
+  }
+  // cache the MERGED result (what a subsequent Save writes), not the raw file
+  cacheBalanceText(JSON.stringify(currentBalance()));
   balanceLoadFailed = false;
 }
 

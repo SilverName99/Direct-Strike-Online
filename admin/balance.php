@@ -78,7 +78,10 @@ $authed = !empty($_SESSION['auth']);
     <div class="sub" style="margin:2px 0 10px">Salvează sau încarcă întreg config-ul (<code>balance.json</code>) ca fișier.
       <b>Export</b> descarcă un backup al balansului curent. <b>Import</b> aplică un fișier și îl salvează pe server
       dintr-o mișcare — util ca să aplici un rework complet (ex: fișierul <code>backups/balance-20260715.json</code> din repo).
-      Import merge și dacă balansul nu s-a încărcat (recuperare).</div>
+      Import merge și dacă balansul nu s-a încărcat (recuperare).
+      <b>Importul aduce doar cifrele de balans</b> — NU atinge setările tale locale: denumiri, Size (%),
+      lățime/înălțime (celule), poziția în grila clădirii, viteze de animație, food, XP-ul dat eroului,
+      abilitățile alocate eroilor și cosmetica clădirilor (muncitori, foc de tabără).</div>
     <button id="export-btn" class="ghost">⬇ Export (descarcă balance.json)</button>
     <button id="import-btn" class="ghost">⬆ Import (încarcă fișier)</button>
     <input id="import-file" type="file" accept="application/json,.json" style="display:none">
