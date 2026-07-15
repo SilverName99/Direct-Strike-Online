@@ -62,6 +62,20 @@ function layoutCardPage(entries, toggleItem) {
   return grid;
 }
 
+// The clean emoji stat line shared by the shop hover popup AND the selection
+// panel: cost 💰 · HP ❤️ · damage ⚔️ · armor 🛡️ · damage-type 🗡️ (+ Hits air /
+// Caster tags). Cost/armor/type are skipped when absent (e.g. summoned beasts).
+function unitStatBits(s) {
+  const bits = [];
+  if (s.cost != null) bits.push(`${s.cost} 💰`);
+  bits.push(`${Math.round(s.hp)} ❤️`, `${s.damage} ⚔️`);
+  if (s.armor) bits.push(`${s.armor} 🛡️`);
+  if (s.dmgType) bits.push(`${s.dmgType} 🗡️`);
+  if (s.targetsAir) bits.push('Hits air');
+  if (s.caster) bits.push('Caster');
+  return bits;
+}
+
 const STATUS_LABELS = {
   atkslow: ['🐌', 'Atac încetinit', '#7fb4ff'],
   moveslow: ['❄', 'Mișcare încetinită', '#8fe3ff'],
@@ -433,8 +447,8 @@ export class BottomBar {
     } else if (info.kind === 'entity' && info.u.summon) {
       sub = 'Animal invocat';
     } else {
-      sub = `Tier ${stats.tier} · ◆ ${stats.cost}` +
-        (info.kind === 'template' && !info.tpl.spawned ? ' · nou (100% la vânzare)' : '');
+      // units: no "Tier X · ◆ cost" subtitle — the stats sit in the emoji line
+      sub = info.kind === 'template' && !info.tpl.spawned ? 'nou (100% la vânzare)' : '';
     }
 
     // live numbers
@@ -449,13 +463,9 @@ export class BottomBar {
 
     const rows = [];
     if (!isStruct) {
-      rows.push(stats.heal
-        ? `✚ <b>${(stats.damage / Math.max(0.1, stats.period)).toFixed(0)}</b> HP/s vindecare`
-        : `⚔ <b>${stats.damage}</b> (${stats.dmgType}) · <b>${(stats.damage / Math.max(0.1, stats.period)).toFixed(1)}</b> DPS`);
-      rows.push(`🛡 <b>${stats.armor}</b>`, `➹ <b>${stats.range}</b>`, `🥾 <b>${stats.speed}</b>`);
-      if (stats.isAir) rows.push('☁ zburător');
-      if (stats.targetsAir) rows.push('🎯 lovește aer');
-      if (stats.targetsGround === false) rows.push('⛔ nu lovește sol');
+      // units: the same clean emoji line as the shop popup (cost/HP/damage/
+      // armor/damage-type + Hits air / Caster) — no DPS / Tier / speed / range
+      rows.push(...unitStatBits(stats));
     } else {
       // towers scale their damage AND attack period with the owner's base tier
       const tst = info.type === 'tower' ? towerStatForTier(stats, game.tier[info.team]) : null;
@@ -1069,12 +1079,9 @@ export class BottomBar {
     if (d.kind === 'unit') {
       const u = statsUnit(race, d.id);
       // name → editable description → a clean emoji stat line
-      const bits = [`${u.cost} 💰`, `${u.hp} ❤️`, `${u.damage} ⚔️`];
-      if (u.targetsAir) bits.push('Hits air');
-      if (u.caster) bits.push('Caster');
       return `<div class="p-title">${u.name}</div>
         <div>${u.tip || ''}</div>
-        <div class="p-dim">${bits.join(' · ')}</div>`;
+        <div class="p-dim">${unitStatBits(u).join(' · ')}</div>`;
     }
     if (d.kind === 'building') {
       const b = BUILDING_CARDS.find((x) => x.id === d.id);
