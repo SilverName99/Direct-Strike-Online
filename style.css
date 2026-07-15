@@ -58,6 +58,7 @@ html, body {
   min-height: 34px;
 }
 .chip-ico { font-size: 17px; line-height: 1; }
+.money-icon .gold-img { width: 19px; height: 19px; object-fit: contain; display: block; }
 #chip-gold .chip-ico { color: var(--gold); }
 .chip-body { display: flex; flex-direction: column; line-height: 1.05; }
 .chip-main { font-size: 17px; font-weight: 800; color: var(--text); }

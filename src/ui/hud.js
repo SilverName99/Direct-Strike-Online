@@ -2,6 +2,7 @@
 // base upgrades included (click your Main Base). The Hud keeps the top bar,
 // the hero badge (left edge) and the menu / game-over overlay.
 
+import { CONFIG } from '../config.js';
 import { raceOf, getThumb, pickImg } from '../render/sprites.js';
 
 export class Hud {
@@ -29,6 +30,7 @@ export class Hud {
     }
     this.el = {
       money: document.getElementById('money'),
+      moneyIcon: document.querySelector('#chip-gold .money-icon'),
       income: document.getElementById('income'),
       food: document.getElementById('food'),
       tier: document.getElementById('tier'),
@@ -44,7 +46,6 @@ export class Hud {
   }
 
   update(game, dt = 0) {
-    const gens = game.countKind(0, 'generator');
     // Smoothly count the gold up so it climbs continuously at the income rate
     // (matching the "+X/s" label) instead of jumping in big chunks each tick.
     // Spends snap down immediately; any gap is closed within ~2s.
@@ -59,8 +60,27 @@ export class Hud {
       this.displayMoney = Math.min(real, this.displayMoney + rate * dt);
     }
     this.el.money.textContent = Math.floor(this.displayMoney);
-    const mid = game.midBonusPerTick(0) > 0 ? ' · +mid' : '';
-    this.el.income.textContent = `+${game.incomePerSecond(0).toFixed(1).replace(/\.0$/, '')}/s · ${gens} gen${mid}`;
+    // custom gold icon (admin-uploaded data URL) replaces the ◆ glyph
+    if (this.el.moneyIcon && this.goldIconKey !== CONFIG.GOLD_ICON) {
+      this.goldIconKey = CONFIG.GOLD_ICON;
+      this.el.moneyIcon.textContent = '';
+      if (CONFIG.GOLD_ICON) {
+        const img = document.createElement('img');
+        img.className = 'gold-img';
+        img.src = CONFIG.GOLD_ICON;
+        img.alt = '';
+        this.el.moneyIcon.appendChild(img);
+      } else {
+        this.el.moneyIcon.textContent = '◆';
+      }
+    }
+    // income line: total per second (mid folded in) with the mid share in parens
+    const fmt = (v) => v.toFixed(1).replace(/\.0$/, '');
+    const total = game.incomePerSecond(0);
+    const midPerSec = game.midBonusPerTick(0) / CONFIG.INCOME_TICK;
+    this.el.income.textContent = midPerSec > 0
+      ? `+${fmt(total)}/s (${fmt(midPerSec)}/s mid)`
+      : `+${fmt(total)}/s`;
     this.el.tier.textContent = `TIER ${'I'.repeat(game.tier[0])}`;
     if (this.el.food) {
       const used = game.foodUsed(0);

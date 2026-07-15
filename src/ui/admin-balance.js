@@ -66,8 +66,57 @@ function render() {
   html += `<div class="group"><h3>Bare de viață</h3>
     <label class="fld" style="width:100%"><span>Afișare</span>
       <select data-scope="healthbar" style="width:auto;flex:1;max-width:340px">${hbOpts}</select></label></div>`;
+  // custom HUD gold icon (uploaded here, shown next to the player's gold)
+  html += `<div class="group"><h3>Iconiță aur (bara de sus)</h3>
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Imaginea de lângă aurul tău, sus în HUD. Gol = rombul ◆ implicit. Recomandat: PNG/SVG mic, pătrat (~64px).</p>
+    <div class="fields" style="align-items:center;gap:14px">
+      <div id="gold-preview" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:#0d1219;border:1px solid #2a3444;border-radius:8px;font-size:22px;color:#ffd35c"></div>
+      <button type="button" id="gold-pick" style="padding:8px 14px;background:#1d2c42;color:#dfe8f4;border:1px solid #33507a;border-radius:8px;cursor:pointer">Alege imagine…</button>
+      <button type="button" id="gold-clear" style="padding:8px 14px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:8px;cursor:pointer">Fără (◆)</button>
+      <input type="file" id="gold-file" accept="image/*" style="display:none">
+    </div></div>`;
   html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (nume, dimensiune, footprint, HP-ul bazei, turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
   app.innerHTML = html;
+  wireGoldIcon();
+}
+
+// gold-icon controls (re-wired after every render since app.innerHTML resets)
+function updateGoldPreview() {
+  const p = document.getElementById('gold-preview');
+  if (!p) return;
+  p.textContent = '';
+  if (CONFIG.GOLD_ICON) {
+    const img = document.createElement('img');
+    img.src = CONFIG.GOLD_ICON;
+    img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.objectFit = 'contain';
+    p.appendChild(img);
+  } else p.textContent = '◆';
+}
+function wireGoldIcon() {
+  const pick = document.getElementById('gold-pick');
+  const clear = document.getElementById('gold-clear');
+  const file = document.getElementById('gold-file');
+  if (!pick || !file || !clear) return;
+  updateGoldPreview();
+  pick.addEventListener('click', () => file.click());
+  clear.addEventListener('click', () => {
+    CONFIG.GOLD_ICON = '';
+    updateGoldPreview();
+    setStatus('Iconiță aur eliminată (apasă Salvează ca să publici).');
+  });
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    if (f.size > 512 * 1024) { setStatus('Imaginea e prea mare (max ~500KB).', 'bad'); file.value = ''; return; }
+    const rd = new FileReader();
+    rd.onload = () => {
+      CONFIG.GOLD_ICON = String(rd.result || '');
+      updateGoldPreview();
+      setStatus('Iconiță aur setată (apasă Salvează ca să publici).');
+    };
+    rd.readAsDataURL(f);
+    file.value = '';
+  });
 }
 
 // Write the general/tier inputs back into CONFIG (this page only holds

@@ -181,15 +181,40 @@ function separate(game) {
         if (a.state === 'march' && b.state !== 'march') mover = a;
         else if (b.state === 'march' && a.state !== 'march') mover = b;
       }
+      // ROOT-CAUSE FIX for "units can't get past each other": when same-team
+      // units are marching, resolve their overlap SIDEWAYS (perpendicular to the
+      // march), never nose-to-tail along the lane. Pushing along the lane just
+      // shoves the trailing unit backward, so a column — and especially a WIDE
+      // body whose long axis lies across the lane — can never file past a
+      // slow/stopped unit ahead. Fanning them out laterally lets the column flow
+      // around. Stopped/fighting units (state != march) keep tight formation.
+      const lateral = a.team === b.team && (a.state === 'march' || b.state === 'march');
       // rectangular units (2x1 etc.) separate as boxes so a neat formation
       // stays put instead of the wide bodies shoving apart on their long axis
-      if (a.footprint || b.footprint) { separateBox(a, b, mover); continue; }
+      if (a.footprint || b.footprint) { separateBox(a, b, mover, lateral); continue; }
       const minD = a.radius + b.radius;
       let dx = b.x - a.x;
       let dy = b.y - a.y;
       const d2 = dx * dx + dy * dy;
       if (d2 >= minD * minD) continue;
       let d = Math.sqrt(d2);
+      if (lateral) {
+        // clear the overlap purely along Y (the cross-march axis): fan the lane out
+        let sy = dy;
+        if (Math.abs(sy) < 0.001) sy = a.id < b.id ? 1 : -1;
+        const dir = sy < 0 ? -1 : 1;                    // side b should move to
+        const need = Math.sqrt(Math.max(0.01, minD * minD - dx * dx)); // |dy| for no overlap
+        const gap = need - Math.abs(dy);
+        if (gap <= 0) continue;
+        if (mover) {
+          const push = Math.min(gap, 3);
+          if (mover === b) b.y += dir * push; else a.y -= dir * push;
+        } else {
+          const push = Math.min(gap / 2, 3);
+          a.y -= dir * push; b.y += dir * push;
+        }
+        continue;
+      }
       if (d < 0.001) {
         // perfectly stacked: push apart deterministically by id parity
         dx = a.id < b.id ? 1 : -1;
@@ -217,7 +242,7 @@ function separate(game) {
 // the grid have zero overlap and never move. With `mover` set (a marching unit
 // against a stationary teammate) the mover absorbs the whole push — same total
 // separation, but the standing formation is never displaced.
-function separateBox(a, b, mover = null) {
+function separateBox(a, b, mover = null, lateral = false) {
   const ex = (a.hw || a.radius) + (b.hw || b.radius);
   const ey = (a.hh || a.radius) + (b.hh || b.radius);
   let dx = b.x - a.x;
@@ -225,7 +250,9 @@ function separateBox(a, b, mover = null) {
   const px = ex - Math.abs(dx); // x-overlap (>0 => overlapping)
   const py = ey - Math.abs(dy); // y-overlap
   if (px <= 0 || py <= 0) return;
-  if (px < py) {
+  // marching same-team pairs always split along Y so the column fans out and
+  // files past instead of shoving each other back along the lane
+  if (!lateral && px < py) {
     if (dx === 0) dx = a.id < b.id ? 1 : -1;
     const sgn = dx < 0 ? -1 : 1;
     if (mover) {
@@ -238,11 +265,13 @@ function separateBox(a, b, mover = null) {
   } else {
     if (dy === 0) dy = a.id < b.id ? 1 : -1;
     const sgn = dy < 0 ? -1 : 1;
+    const capM = lateral ? 3.5 : 2.5;   // marchers clear sideways a touch faster
+    const capS = lateral ? 3.5 : 2;
     if (mover) {
-      const push = Math.min(py, 2.5) * sgn;
+      const push = Math.min(py, capM) * sgn;
       if (mover === a) mover.y -= push; else mover.y += push;
     } else {
-      const push = Math.min(py / 2, 2) * sgn;
+      const push = Math.min(py / 2, capS) * sgn;
       a.y -= push; b.y += push;
     }
   }

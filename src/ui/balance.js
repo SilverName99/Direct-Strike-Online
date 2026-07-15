@@ -371,6 +371,7 @@ function snapshot() {
     middleEmpty: CONFIG.MIDDLE_EMPTY,
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
+    goldIcon: CONFIG.GOLD_ICON || '',
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
     unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
     music: Object.fromEntries(RACES.map((r) => [r, musicVol[r]])),
@@ -412,6 +413,7 @@ export function applyBalance(data) {
   }
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
+  CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
 
   // ---- middle-of-map terrain effects (per strip variant) ----
   CONFIG.MIDDLE_EMPTY = num(data.middleEmpty) !== undefined ? clamp(data.middleEmpty, 0, 20) : DEFAULTS.middleEmpty;
@@ -617,7 +619,11 @@ export function importBalance(data) {
   for (const [id, ab] of Object.entries(resolvedAbilities)) keepAbDesc[id] = ab.desc;
   const keepUpDesc = {};
   for (const [id, up] of Object.entries(resolvedUpgrades)) keepUpDesc[id] = up.desc;
+  // the custom gold icon is this install's own cosmetic — an imported design
+  // file (which won't carry one) must not wipe it
+  const keepGoldIcon = CONFIG.GOLD_ICON;
   applyBalance(data);
+  if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
   // restore them over whatever the imported file said
   for (const race of RACES) {
     for (const [id, k] of Object.entries(keep[race].units)) {
