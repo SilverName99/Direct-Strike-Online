@@ -9,35 +9,40 @@
 <body>
   <div id="app">
     <header id="topbar">
-      <div class="tb-group" id="eco">
-        <span class="money-icon">◆</span>
-        <span id="money">0</span>
-        <span id="income" class="dim">+10/s</span>
-        <span id="food" class="dim" title="Food folosit / plafon (crește-l cu Ferme)">🍖 0/20</span>
+      <div class="hud-side hud-left">
+        <div class="hud-chip" id="chip-gold" title="Aur · venit pe secundă">
+          <span class="chip-ico money-icon">◆</span>
+          <div class="chip-body">
+            <span id="money" class="chip-main">0</span>
+            <span id="income" class="chip-sub">+10/s</span>
+          </div>
+        </div>
+        <div class="hud-chip" id="chip-food" title="Food folosit / plafon (crește-l cu Ferme)">
+          <span class="chip-ico">🍖</span>
+          <div class="chip-body">
+            <span id="food" class="chip-main">0/20</span>
+            <span class="chip-sub">food</span>
+          </div>
+        </div>
         <span id="tier" class="tier-badge">TIER I</span>
       </div>
-      <div class="tb-group" id="wave-info">
-        <span id="wave-label">Wave <b id="wave-num">0</b> in <b id="wave-timer">20</b>s</span>
+
+      <div class="hud-center">
+        <div class="hud-chip wave-chip" id="chip-wave">
+          <span class="wave-main">WAVE <b id="wave-num">0</b></span>
+          <span class="wave-sub">următorul val în <b id="wave-timer">20</b>s</span>
+        </div>
       </div>
-      <span id="version" class="dim" style="font-size:11px"></span>
-      <button id="uiscale-btn" title="Mărește bara de jos (1× / 1.2× / 1.4× / 1.6×)">1×</button>
-      <button id="fs-btn" title="Fullscreen (F)">⛶</button>
-      <div class="tb-group" id="base-bars">
-        <div class="base-bar-wrap">
-          <span class="base-label you">YOU</span>
-          <div class="base-bar"><div id="base-hp-0" class="base-fill blue"></div></div>
-          <span id="base-hp-0-num" class="base-num">3000</span>
-        </div>
-        <div class="base-bar-wrap">
-          <span class="base-label enemy">ENEMY</span>
-          <div class="base-bar"><div id="base-hp-1" class="base-fill red"></div></div>
-          <span id="base-hp-1-num" class="base-num">3000</span>
-        </div>
+
+      <div class="hud-side hud-right">
+        <button id="uiscale-btn" class="hud-btn" title="Mărește bara de jos (1× / 1.2× / 1.4× / 1.6×)">1×</button>
+        <button id="fs-btn" class="hud-btn" title="Fullscreen (F)">⛶</button>
       </div>
     </header>
 
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
+      <span id="version" class="dim"></span>
       <!-- Hero badge: pinned to the left edge once the hero is bought; shows
            its thumb, level and % progress to the next level at all times -->
       <div id="hero-badge" class="hidden" title="Eroul tău — click pentru panou">

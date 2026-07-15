@@ -28,43 +28,57 @@ html, body {
   height: 100vh;
 }
 
-/* ---------- Top bar ---------- */
+/* ---------- Top bar (HUD) ---------- */
 #topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 8px 16px;
-  background: var(--panel);
+  gap: 12px;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, #10151d 0%, #0b0f16 100%);
   border-bottom: 1px solid var(--border);
-  min-height: 48px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  min-height: 46px;
 }
-
-.tb-group { display: flex; align-items: center; gap: 8px; }
-
-#eco { font-size: 20px; font-weight: 700; color: var(--gold); min-width: 180px; }
-.money-icon { font-size: 16px; }
-#income { font-size: 13px; font-weight: 500; }
-#food { font-size: 13px; font-weight: 600; color: #cfe0f5; }
-#food.food-full { color: #ff8090; }
 .dim { color: var(--dim); }
 
-#wave-info { font-size: 16px; color: var(--text); }
-#wave-info b { color: var(--gold); }
+.hud-side { display: flex; align-items: center; gap: 10px; flex: 1; }
+.hud-right { justify-content: flex-end; }
+.hud-center { display: flex; align-items: center; justify-content: center; }
 
-#base-bars { display: flex; flex-direction: column; gap: 3px; min-width: 260px; }
-.base-bar-wrap { display: flex; align-items: center; gap: 8px; }
-.base-label { font-size: 10px; font-weight: 700; width: 46px; text-align: right; letter-spacing: 1px; }
-.base-label.you { color: var(--blue); }
-.base-label.enemy { color: var(--red); }
-.base-bar {
-  flex: 1; height: 10px; background: #0a0e14;
-  border: 1px solid var(--border); border-radius: 5px; overflow: hidden;
+/* stat chips: rounded dark pills with an icon and a two-line body */
+.hud-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 34px;
 }
-.base-fill { height: 100%; width: 100%; transition: width 0.3s; }
-.base-fill.blue { background: linear-gradient(90deg, #2d7dd2, var(--blue)); }
-.base-fill.red { background: linear-gradient(90deg, #c0392b, var(--red)); }
-.base-num { font-size: 11px; color: var(--dim); width: 36px; }
+.chip-ico { font-size: 17px; line-height: 1; }
+#chip-gold .chip-ico { color: var(--gold); }
+.chip-body { display: flex; flex-direction: column; line-height: 1.05; }
+.chip-main { font-size: 17px; font-weight: 800; color: var(--text); }
+#chip-gold .chip-main { color: var(--gold); }
+.chip-sub { font-size: 10.5px; font-weight: 600; color: var(--dim); margin-top: 1px; }
+#chip-food.food-full .chip-main,
+#food.food-full { color: #ff8090; }
+
+/* wave chip in the center — the countdown reads at a glance */
+.wave-chip {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 4px 22px;
+  border-color: #3a4b66;
+  background: rgba(45, 125, 210, 0.10);
+}
+.wave-main { font-size: 15px; font-weight: 800; letter-spacing: 1.5px; color: var(--text); }
+.wave-main b { color: var(--gold); }
+.wave-sub { font-size: 11px; font-weight: 600; color: var(--dim); margin-top: 1px; }
+.wave-sub b { color: #cfe0f5; }
 
 /* ---------- Canvas ---------- */
 #canvas-wrap {
@@ -87,30 +101,45 @@ html, body {
 }
 
 .tier-badge {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
   color: #ffd35c;
+  background: rgba(255, 211, 92, 0.08);
   border: 1px solid #5a4a1e;
-  border-radius: 5px;
-  padding: 2px 7px;
-  margin-left: 8px;
+  border-radius: 8px;
+  padding: 6px 11px;
 }
 
-#grid-btn,
+#uiscale-btn,
 #fs-btn {
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1;
-  padding: 6px 10px;
-  background: var(--panel-2);
+  min-width: 40px;
+  height: 34px;
+  padding: 0 11px;
+  background: rgba(255, 255, 255, 0.035);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
 }
-#grid-btn:hover,
+#uiscale-btn:hover,
 #fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
-#grid-btn.off { opacity: 0.4; }
+
+/* version tag pinned to the bottom-right corner of the play field */
+#version {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(207, 224, 245, 0.5);
+  text-shadow: 0 1px 2px #000, 0 0 2px #000;
+  pointer-events: none;
+  z-index: 5;
+}
 
 /* transient status message (e.g. fullscreen refused) */
 #toast {

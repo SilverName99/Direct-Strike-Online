@@ -63,6 +63,7 @@ export function updateMovement(game, dt) {
     }
   }
 
+  flowAround(game, dt);
   separate(game);
   collideStructures(game);
 
@@ -118,6 +119,49 @@ function collideBox(u, s) {
   if (px <= 0 || py <= 0) return;
   if (px < py) u.x = s.x + (dx < 0 ? -1 : 1) * ex; // eject along smaller overlap
   else u.y = s.y + (dy < 0 ? -1 : 1) * ey;
+}
+
+// Marching units that catch up behind a slower / stopped unit in their own lane
+// step to the side and flow AROUND it instead of piling up nose-to-tail. This
+// matters most for wide bodies (catapults, 1x2 units): their big footprint used
+// to dam the whole column behind them. Deterministic — the side is chosen from
+// the blocker's offset, ties broken by unit id.
+function flowAround(game, dt) {
+  const ents = game.entities;
+  for (let i = 0; i < ents.length; i++) {
+    const u = ents[i];
+    if (u.state !== 'march' || u.isAir) continue;
+    const stats = game.ustatOf(u);
+    const enemyMain = game.mainOf(1 - u.team);
+    const tgt = u.targetId != null ? game.byId.get(u.targetId) : null;
+    // marching direction in x (toward the current target, else the enemy base)
+    const aimX = tgt && tgt.hp > 0 ? tgt.x
+      : enemyMain ? enemyMain.x : (u.team === 0 ? CONFIG.FIELD_W : 0);
+    const dir = Math.sign(aimX - u.x) || (u.team === 0 ? 1 : -1);
+    const uhw = u.hw || u.radius;
+    const uhh = u.hh || u.radius;
+    let side = 0;
+    let blocked = false;
+    for (let j = 0; j < ents.length; j++) {
+      if (j === i) continue;
+      const o = ents[j];
+      if (o.isAir) continue;
+      const dx = o.x - u.x;
+      if (dir > 0 ? dx <= 0.5 : dx >= -0.5) continue;   // only units AHEAD of us
+      const ohw = o.hw || o.radius;
+      const ohh = o.hh || o.radius;
+      if (Math.abs(dx) > uhw + ohw + 8) continue;        // ...and right in front
+      const dy = o.y - u.y;
+      if (Math.abs(dy) > uhh + ohh) continue;            // ...and in our lane
+      blocked = true;
+      side += dy >= 0 ? -1 : 1;                          // steer away from it
+    }
+    if (!blocked) continue;
+    const dirY = side !== 0 ? Math.sign(side)
+      : (((u.id * 2654435761) >>> 0) & 1 ? 1 : -1);
+    const speed = stats.speed * moveSpeedMult(u, game.time);
+    u.y += dirY * speed * dt * 0.75;                      // gentle sidestep
+  }
 }
 
 function separate(game) {

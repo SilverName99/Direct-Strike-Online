@@ -65,17 +65,20 @@ export class Hud {
     if (this.el.food) {
       const used = game.foodUsed(0);
       const cap = game.foodCap(0);
-      this.el.food.textContent = `🍖 ${used}/${cap}`;
+      this.el.food.textContent = `${used}/${cap}`;
       this.el.food.classList.toggle('food-full', used >= cap);
     }
     this.el.waveNum.textContent = game.waveCount + 1;
     this.el.waveTimer.textContent = Math.ceil(game.waveTimer);
 
+    // (the top-bar base HP bars were removed — the mains show their HP over the
+    // buildings in-world; guard in case the elements are still wired elsewhere)
     for (const t of [0, 1]) {
+      if (!this.el.baseFill[t]) continue;
       const main = game.mainOf(t);
       const ratio = main ? Math.max(0, main.hp / main.maxHp) : 0;
       this.el.baseFill[t].style.width = `${ratio * 100}%`;
-      this.el.baseNum[t].textContent = main ? Math.ceil(main.hp) : 0;
+      if (this.el.baseNum[t]) this.el.baseNum[t].textContent = main ? Math.ceil(main.hp) : 0;
     }
 
     this.game = game; // for the badge click handler
