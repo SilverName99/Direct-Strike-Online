@@ -906,6 +906,7 @@ export class BottomBar {
       el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell');
       let cd = 0;
       let cdTotal = 0; // full cooldown length (for the radial sweep overlay)
+      let tog = null;  // toggle state: true = ✔ activ, false = ✖ oprit, null = no badge
       if (d.kind === 'unit') {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
@@ -947,8 +948,7 @@ export class BottomBar {
         const ab = resolvedAbility(d.id);
         const req = Math.max(1, (ab && ab.params.tier) || 1);
         if (game.tier[d.team] < req) { el.classList.add('locked'); this.setLockTier(el, req); }
-        else if (game.abilityOff[d.team].has(`${d.unit}/${d.id}`)) el.classList.add('off');
-        else el.classList.add('on');
+        else tog = !game.abilityOff[d.team].has(`${d.unit}/${d.id}`); // ✔ autocast / ✖ oprit
         if (info && info.kind === 'entity' && info.u.abilityCd) {
           cd = (info.u.abilityCd[d.id] || 0) - game.time;
           cdTotal = (ab && ab.params.cooldown) || 0;
@@ -956,16 +956,14 @@ export class BottomBar {
       } else if (d.kind === 'upgrade' && game) {
         const owned = game.upgrades[d.team].has(d.id);
         if (owned) {
-          el.classList.add('owned-upg');
-          el.classList.add(game.upgradeOff[d.team].has(d.id) ? 'off' : 'on');
+          tog = !game.upgradeOff[d.team].has(d.id); // ✔ activ / ✖ dezactivat
         } else {
           el.classList.add('disabled');
         }
       } else if (d.kind === 'buyUpgrade' && game) {
         const owned = game.upgrades[0].has(d.id);
         if (owned) {
-          el.classList.add('owned-upg');
-          el.classList.add(game.upgradeOff[0].has(d.id) ? 'off' : 'on');
+          tog = !game.upgradeOff[0].has(d.id); // ✔ activ / ✖ dezactivat
         } else if (d.tier && d.tier > game.tier[0]) {
           el.classList.add('locked'); this.setLockTier(el, d.tier); // needs the unit's tier
         } else if (game.money[0] < d.cost) {
@@ -1010,6 +1008,25 @@ export class BottomBar {
         }
       } else if (cdEl) {
         cdEl.remove();
+      }
+      // explicit toggle badge (abilities autocast + owned upgrades): a green ✔
+      // top-right when active, a red ✖ when switched off — clearer than the
+      // old colored borders
+      let togEl = el.querySelector('.s-tog');
+      if (tog != null) {
+        if (!togEl) {
+          togEl = document.createElement('span');
+          togEl.className = 's-tog';
+          el.appendChild(togEl);
+        }
+        const txt = tog ? '✔' : '✖';
+        if (togEl.textContent !== txt) togEl.textContent = txt;
+        togEl.classList.toggle('ok', tog);
+        togEl.classList.toggle('no', !tog);
+        el.classList.toggle('tog-off', !tog);
+      } else if (togEl) {
+        togEl.remove();
+        el.classList.remove('tog-off');
       }
     }
   }

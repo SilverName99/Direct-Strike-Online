@@ -348,7 +348,12 @@ html, body {
 .slot.locked { opacity: 0.35; filter: grayscale(0.7); cursor: not-allowed; }
 .slot.on { border-color: var(--green); box-shadow: 0 0 7px rgba(88, 214, 141, 0.35); }
 .slot.off { opacity: 0.55; }
-.slot.owned-upg { border-color: #ffb35c; }
+/* toggleable abilities/upgrades: explicit ✔/✖ badge instead of colored borders */
+.slot.tog-off { opacity: 0.6; }
+.slot .s-tog { position: absolute; top: 0; right: 3px; font-size: 12px; font-weight: 900;
+  pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.slot .s-tog.ok { color: var(--green); }
+.slot .s-tog.no { color: #ff5f6e; }
 .slot.sell { border-color: #7a2a33; }
 .slot .s-cost { position: absolute; bottom: 1px; right: 3px; font-size: 13px; color: var(--gold);
   font-weight: 800; pointer-events: none;
