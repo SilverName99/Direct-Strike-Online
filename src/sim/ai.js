@@ -121,15 +121,23 @@ export class AIController {
       if (this.manageArmy(game)) return;
     }
 
-    // 1. Economy first: rush 2 generators, grow to 5 as the game develops.
-    // While the generator build-cooldown runs, don't stall — spend elsewhere.
+    // 1. Economy first: rush 2 generators, grow toward the target as the game
+    // develops — but never past the generator's build cap, or we'd loop forever
+    // trying to place an impossible 5th and hoard gold instead of spending it.
     const gens = game.countKind(t, 'generator');
-    const wantGens = game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : Math.max(3, this.g.maxGens);
+    const genCap = game.bstat(t, 'generator').cap || 99;
+    const wantGens = Math.min(genCap,
+      game.waveCount < 1 ? 2 : game.waveCount < 4 ? 3 : Math.max(3, this.g.maxGens));
     if (gens < wantGens && game.buildCdLeft(t, 'generator') === 0) {
       const gc = game.bstat(t, 'generator').cost;
-      this.intent = money >= gc ? '🏭 Generator (economie)' : `💰 economisește ${Math.ceil(gc)} → Generator`;
-      if (money >= gc) this.tryBuild(game, 'generator');
-      return; // save for economy
+      if (money >= gc) {
+        this.intent = '🏭 Generator (economie)';
+        if (this.tryBuild(game, 'generator')) return; // built one — done this think
+        // couldn't place it (zone full) — fall through and spend, don't stall
+      } else {
+        this.intent = `💰 economisește ${Math.ceil(gc)} → Generator`;
+        return; // save for economy
+      }
     }
 
     // 1.2 Food: build a farm when we're within a few food of the cap, so the
@@ -178,10 +186,14 @@ export class AIController {
           this.intent = '🏰 Upgrade Bază (tier up)';
           if (game.issueCommand({ type: 'upgradeBase', team: t }).ok) return;
         } else {
-          // commit to saving for the tier when it's within reach of income, so
-          // the AI actually upgrades instead of forever dribbling gold on units
+          // Commit to saving for the tier once it's due — tiering unlocks the
+          // whole higher-tier roster, so it's worth pausing unit buys. The window
+          // is generous (and scales with the base cadence) so a SLOW economy can
+          // still commit: a tight 20s window meant a 400g tier at ~7g/s income
+          // never got saved for, stranding the AI at tier 2 all match.
           const income = Math.max(1, game.incomePerSecond(t));
-          if ((upCost - money) / income <= 20) {
+          const saveWindow = Math.max(45, (CONFIG.WAVE_INTERVAL || 20) * 2);
+          if ((upCost - money) / income <= saveWindow) {
             this.intent = `💰 economisește ${Math.ceil(upCost)} → tier up`;
             return; // save toward the upgrade
           }
