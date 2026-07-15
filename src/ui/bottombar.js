@@ -1068,21 +1068,17 @@ export class BottomBar {
     const race = raceOf(0);
     if (d.kind === 'unit') {
       const u = statsUnit(race, d.id);
-      const dps = u.heal
-        ? `${(u.damage / Math.max(0.1, u.period)).toFixed(0)} HP/s vindecare`
-        : `${(u.damage / Math.max(0.1, u.period)).toFixed(1)} DPS (${u.dmgType})`;
-      return `<div class="p-title">${u.name} · Tier ${u.tier} · ◆ ${u.cost} · 🍖 ${u.food ?? 1}</div>
-        <div class="p-dim">${u.role || ''}</div>
+      // name → editable description → a clean emoji stat line
+      const bits = [`${u.cost} 💰`, `${u.hp} ❤️`, `${u.damage} ⚔️`];
+      if (u.targetsAir) bits.push('Hits air');
+      if (u.caster) bits.push('Caster');
+      return `<div class="p-title">${u.name}</div>
         <div>${u.tip || ''}</div>
-        <div class="p-dim">${u.hp} HP · ${u.armor} · ${dps} · rază ${u.range} · viteză ${u.speed}</div>`;
+        <div class="p-dim">${bits.join(' · ')}</div>`;
     }
     if (d.kind === 'building') {
       const b = BUILDING_CARDS.find((x) => x.id === d.id);
       const s = statsBuilding(race, d.id);
-      const extra = d.id === 'tower'
-        ? `${s.hp} HP · ${(s.damage / Math.max(0.1, s.period)).toFixed(1)} DPS · rază ${s.range}`
-        : d.id === 'generator' ? `${s.hp} HP · +${s.income} aur/20s`
-        : d.id === 'farm' ? `${s.hp} HP · +${s.food} food` : `${s.hp} HP`;
       let unlocks = '';
       if (TECH_BUILDINGS.includes(d.id)) {
         const names = resolvedUnitOrder(race)
@@ -1100,12 +1096,16 @@ export class BottomBar {
         : '';
       const price = game ? game.buildCost(0, d.id) : s.cost;
       const stepNote = d.id === 'generator' && (s.costStep || 0) > 0 ? ` (+${s.costStep}/mină)` : '';
-      return `<div class="p-title">${buildingNameOf(race, d.id)} · ◆ ${price}${stepNote}</div>
-        <div class="p-dim">${b ? b.role : ''}</div>
+      // name → editable description → a clean emoji stat line
+      const bits = [`${price} 💰${stepNote}`, `${s.hp} ❤️`];
+      if (d.id === 'tower') bits.push(`${s.damage} ⚔️`);
+      if (d.id === 'generator') bits.push(`+${s.income} aur/20s`);
+      if (d.id === 'farm') bits.push(`+${s.food} food`);
+      return `<div class="p-title">${buildingNameOf(race, d.id)}</div>
         <div>${s.tip || (b ? b.tip : '')}</div>
         ${unlocks}
         ${tierNote}
-        <div class="p-dim">${extra} · max ${s.cap}</div>`;
+        <div class="p-dim">${bits.join(' · ')}</div>`;
     }
     if (d.kind === 'upgradeBase') {
       const maxed = game && game.tier[0] >= CONFIG.TIER_MAX;
