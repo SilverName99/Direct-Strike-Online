@@ -78,8 +78,12 @@ export class Game {
     if (u.summonStats) return u.summonStats;
     const s = statsUnit(this.races[u.team], u.type);
     // the hero fights AND casts its LEARNED abilities (rank >= 1); its ability
-    // list is synced onto the entity from the template's ranks
-    if (u.hero) return { ...s, caster: true, abilities: u.heroAbilities || [] };
+    // list is synced onto the entity from the template's ranks.
+    // autoAttackBetween: a hero is a FIGHTER first — it must swing between
+    // spell cooldowns, never idle in the caster "wait for the next spell" hold
+    // (that hold made heroes stand doing nothing whenever they had mana but
+    // Holy Light / War Stomp was on cooldown or had no valid target).
+    if (u.hero) return { ...s, caster: true, autoAttackBetween: true, abilities: u.heroAbilities || [] };
     return s;
   }
 

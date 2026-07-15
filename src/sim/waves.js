@@ -6,6 +6,9 @@ export function spawnWave(game) {
   game.waveCount++;
   for (const team of [0, 1]) {
     for (const tpl of game.templates[team]) {
+      // Only ONE live hero of a kind on the field: while the previous hero is
+      // still alive, its template skips the wave instead of stacking a copy.
+      if (tpl.hero && game.entities.some((e) => e.team === team && e.hero && e.hp > 0)) continue;
       const jx = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       const jy = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       const u = spawnUnit(game, team, tpl.type, tpl.x + jx, tpl.y + jy);
