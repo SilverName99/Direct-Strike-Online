@@ -334,6 +334,15 @@ export class BottomBar {
     let s = `${this.mode}:${race}:${resolvedUnitOrder(race).join(',')}`;
     if (!game) return s;
     s += `:t${game.tier[0]}`;
+    // finished tech buildings gate which units the shop offers — fold them into
+    // the signature so the units grid rebuilds the instant one finishes building
+    // (otherwise you'd have to leave and re-enter the tab to see new units)
+    if (this.mode === 'units' || this.mode === 'buildings') {
+      const built = new Set();
+      for (const st of game.structures)
+        if (st.team === 0 && st.hp > 0 && !st.building) built.add(st.kind);
+      s += `:b${[...built].sort().join(',')}`;
+    }
     if (this.mode === 'inspect' && info) {
       const toggles = [...game.abilityOff[info.team]]
         .filter((k) => k.startsWith(`${info.type}/`)).sort().join(',');

@@ -676,12 +676,9 @@ export class Renderer {
           ctx.setLineDash([]);
           ctx.globalAlpha = 1;
         }
-        // progress bar (gold) just above the footprint
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(-hw, -hh - 12, hw * 2, 5);
-        ctx.fillStyle = '#ffd35c';
-        ctx.fillRect(-hw, -hh - 12, hw * 2 * p, 5);
         spriteDrawn = true; // skip the normal idle/attack art paths below
+        // (the construction progress bar is drawn near the HP bar below, as a
+        // matching rounded pill stacked above it, so the two never overlap)
       }
       if (!s.building) {
         ctx.save();
@@ -861,6 +858,29 @@ export class Renderer {
           ctx.fill();
         }
         ctx.restore();
+
+        // Construction progress: a matching gold pill stacked just ABOVE the
+        // HP bar (never overlapping it) so both read at a glance while building
+        if (s.building) {
+          const p = Math.min(1, Math.max(0, (game.time - s.buildStart) / Math.max(0.01, s.buildDone - s.buildStart)));
+          const by2 = by - h - 3;
+          ctx.save();
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(bx, by2, w, h, h / 2); else ctx.rect(bx, by2, w, h);
+          ctx.fillStyle = 'rgba(6,9,14,0.75)';
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+          ctx.stroke();
+          if (p > 0.01) {
+            ctx.beginPath();
+            const iw = Math.max(h - 2, (w - 2) * p);
+            if (ctx.roundRect) ctx.roundRect(bx + 1, by2 + 1, iw, h - 2, (h - 2) / 2); else ctx.rect(bx + 1, by2 + 1, iw, h - 2);
+            ctx.fillStyle = '#ffd35c';
+            ctx.fill();
+          }
+          ctx.restore();
+        }
       }
     }
   }
