@@ -138,10 +138,17 @@ function separate(game) {
       // behind): the mover absorbs the whole correction, the stander holds.
       // The total separation is unchanged — only who moves. Enemy pairs keep
       // the mutual push (armies must be able to press into each other).
+      // A marching unit normally doesn't shove a STANDING teammate (it slips
+      // around it, so engaged artillery/caster lines aren't displaced by troops
+      // passing from behind). BUT a much HEAVIER marcher (a big hero pushing
+      // through its own footmen to reach the front) still shoulders the light
+      // stander aside via the mass split below — otherwise it wedges behind its
+      // own column forever.
       let mover = null;
       if (a.team === b.team) {
-        if (a.state === 'march' && b.state !== 'march') mover = a;
-        else if (b.state === 'march' && a.state !== 'march') mover = b;
+        const heavier = (m, o) => massOf(m) > massOf(o) * 1.4; // clearly bigger
+        if (a.state === 'march' && b.state !== 'march' && !heavier(a, b)) mover = a;
+        else if (b.state === 'march' && a.state !== 'march' && !heavier(b, a)) mover = b;
       }
       // rectangular units (2x1 etc.) separate as boxes so a neat formation
       // stays put instead of the wide bodies shoving apart on their long axis
