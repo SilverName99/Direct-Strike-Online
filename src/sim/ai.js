@@ -8,7 +8,7 @@
 import { CONFIG } from '../config.js';
 import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
-import { resolvedUpgrade, TECH_BUILDINGS } from '../ui/balance.js';
+import { resolvedUpgrade, TECH_BUILDINGS, resolvedHeroId, heroAbilitySlots } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 
 // Target army-cost share per role. Tuned toward a solid frontline so the AI
@@ -143,6 +143,11 @@ export class AIController {
       else return; // save for the farm — nothing else to field until food frees up
     }
 
+    // 1.4 Hero: a big power spike that also earns XP all match, so field it
+    // early and spend its talent points. Handled apart from the unit brain
+    // (which excludes heroes). Returns true if it bought/ranked or is saving.
+    if (this.manageHero(game)) return;
+
     // 1.5 Upgrades configured for our race: grab them once the army exists.
     if (game.waveCount >= 2) {
       for (const id of UPGRADE_IDS) {
@@ -164,7 +169,11 @@ export class AIController {
       const due =
         (game.tier[t] === 1 && game.waveCount >= this.g.tier2Wave) ||
         (game.tier[t] === 2 && game.waveCount >= this.g.tier3Wave);
-      if (due) {
+      // Flush with cash (e.g. a rich start or fat economy) → tier up NOW instead
+      // of waiting for the wave gate: a higher tier unlocks stronger units and
+      // heals the base. The buffer keeps enough spare to still field an army.
+      const rich = money >= upCost + 250;
+      if (due || rich) {
         if (money >= upCost) {
           this.intent = '🏰 Upgrade Bază (tier up)';
           if (game.issueCommand({ type: 'upgradeBase', team: t }).ok) return;
@@ -276,6 +285,59 @@ export class AIController {
       this.intent = `⚔ ${stats.name}${this.aggro ? ' (ofensiv → mijloc)' : ''}`;
       this.purchases++;
     }
+  }
+
+  // Field the hero and spend its talent points. One action per call; returns
+  // true if it bought the hero, ranked an ability, or is deliberately saving
+  // toward the hero (so the caller stops there this think).
+  manageHero(game) {
+    const t = this.team;
+    const heroId = resolvedHeroId(game.races[t]);
+    if (!heroId) return false; // no hero defined for this race
+
+    const tpl = game.heroTemplate(t);
+    if (tpl) {
+      // Already fielded — invest any unspent talent points (one per think).
+      if ((tpl.points || 0) <= 0) return false;
+      const slots = heroAbilitySlots(game.races[t]).filter((s) => s.id);
+      const ranks = tpl.ranks || {};
+      const level = tpl.level || 1;
+      // take the ultimate as soon as it's available (level 6, still unranked)…
+      const ult = slots.find((s) => s.ult && level >= 6 && (ranks[s.id] || 0) < 1);
+      // …otherwise pour into the lowest-ranked non-maxed skill (spread then max)
+      const skills = slots.filter((s) => !s.ult && (ranks[s.id] || 0) < 3)
+        .sort((a, b) => (ranks[a.id] || 0) - (ranks[b.id] || 0));
+      const pick = ult || skills[0];
+      if (!pick) return false;
+      if (game.issueCommand({ type: 'rankHero', team: t, ability: pick.id }).ok) {
+        this.intent = `⭐ Erou: învață ${pick.id}`;
+        return true;
+      }
+      return false;
+    }
+
+    // Not fielded yet: buy it when tier/tech/food/gold allow. Save toward it if
+    // it's within income reach; don't hard-block if it's far out of budget.
+    const hs = game.ustat(t, heroId);
+    if (!hs) return false;
+    if (hs.tier > game.tier[t]) return false;                      // tier-locked
+    if (hs.building && !game.hasBuilding(t, hs.building)) return false; // tech not up yet
+    if (game.foodUsed(t) + (hs.food || 0) > game.foodCap(t)) return false; // no food room
+    const money = game.money[t];
+    if (money >= hs.cost) {
+      const { x, y } = this.pickPlacement(game, heroId);
+      if (game.issueCommand({ type: 'buy', team: t, unitId: heroId, x, y }).ok) {
+        this.intent = `⭐ Erou: ${hs.name || heroId}`;
+        return true;
+      }
+      return false;
+    }
+    const income = Math.max(1, game.incomePerSecond(t));
+    if ((hs.cost - money) / income <= this.g.savePatience) {
+      this.intent = `💰 economisește ${Math.ceil(hs.cost)} → Erou`;
+      return true; // save a few ticks toward the hero
+    }
+    return false;
   }
 
   // One army-management action per call: sell a unit that can't contribute
@@ -426,16 +488,18 @@ export class AIController {
     }
     if (total === 0) return null;
 
-    // strongest own unit matching a predicate that we can afford now (falls
-    // back to the cheapest match so the AI still saves toward it)
+    // The STRONGEST (most expensive) own unit matching a predicate. We return the
+    // ideal counter regardless of affordability and let think()'s save/fallback
+    // logic decide — otherwise the AI grabs the cheapest affordable counter every
+    // think (e.g. spamming a 100g anti-air) and never saves for the real answer
+    // (a 300g flier), which is exactly why it drowned in tier-1 units.
     const bestOwn = (pred) => {
       const pool = UNIT_IDS
         .map((id) => ({ id, s: game.ustat(t, id) }))
         .filter(({ s }) => s.tier <= game.tier[t] && this.unlocked(game, s) && pred(s));
       if (pool.length === 0) return null;
       pool.sort((a, b) => b.s.cost - a.s.cost);
-      const affordable = pool.find(({ s }) => s.cost <= game.money[t]);
-      return (affordable || pool[pool.length - 1]).id;
+      return pool[0].id;
     };
 
     if (air / total > 0.15) {
@@ -488,7 +552,15 @@ export class AIController {
           return s.tier <= tier && this.unlocked(game, s);
         });
     if (pool.length === 0) return null;
-    return pool[Math.floor(this.rng() * pool.length)];
+    // Prefer stronger (higher-tier) units so a well-off AI stops spamming tier 1
+    // once tier 2/3 is unlocked — weight each candidate by tier² (t1=1, t2=4,
+    // t3=9), still leaving room for the occasional cheap filler.
+    const weighted = [];
+    for (const id of pool) {
+      const tw = game.ustat(this.team, id).tier || 1;
+      for (let k = 0; k < tw * tw; k++) weighted.push(id);
+    }
+    return weighted[Math.floor(this.rng() * weighted.length)];
   }
 
   pickPlacement(game, unitId) {
