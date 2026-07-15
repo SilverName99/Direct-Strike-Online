@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v11.25';
+export const VERSION = 'v11.26';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -44,6 +44,10 @@ export const CONFIG = {
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
+  // How units behave when they try to pass one another (⚙ Balance):
+  PUSH_MODE: 'mass',    // 'mass' = big units push small units; 'equal' = all friendly units push the same
+  PUSH_CROSS_TEAM: false, // false = "Blue can't push Red" (a unit passes THROUGH enemy units)
+  PUSH_FORCE: 2.5,      // how hard units push apart per tick (separation strength)
   GRID_MAJOR: 2,        // draw a grid line every N cells (the fine cell still snaps)
   // Layout (back -> front, toward the enemy):
   //   [army formation][construction: base + buildings][open field]

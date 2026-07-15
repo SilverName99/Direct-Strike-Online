@@ -372,6 +372,9 @@ function snapshot() {
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     goldIcon: CONFIG.GOLD_ICON || '',
+    pushMode: CONFIG.PUSH_MODE,
+    pushCrossTeam: CONFIG.PUSH_CROSS_TEAM,
+    pushForce: CONFIG.PUSH_FORCE,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
     unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
     music: Object.fromEntries(RACES.map((r) => [r, musicVol[r]])),
@@ -414,6 +417,9 @@ export function applyBalance(data) {
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
+  if (data.pushMode === 'mass' || data.pushMode === 'equal') CONFIG.PUSH_MODE = data.pushMode;
+  if (typeof data.pushCrossTeam === 'boolean') CONFIG.PUSH_CROSS_TEAM = data.pushCrossTeam;
+  if (num(data.pushForce) !== undefined) CONFIG.PUSH_FORCE = clamp(data.pushForce, 0.2, 50);
 
   // ---- middle-of-map terrain effects (per strip variant) ----
   CONFIG.MIDDLE_EMPTY = num(data.middleEmpty) !== undefined ? clamp(data.middleEmpty, 0, 20) : DEFAULTS.middleEmpty;

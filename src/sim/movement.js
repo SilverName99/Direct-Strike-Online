@@ -134,20 +134,25 @@ function collideBox(u, s) {
 }
 
 function separate(game) {
+  // ⚙ Balance push settings:
+  //  PUSH_MODE 'mass'  -> big units push small ones (mass-weighted + shove-aside)
+  //  PUSH_MODE 'equal' -> all friendly units push the same (50/50, no size edge)
+  //  PUSH_CROSS_TEAM false -> "Blue can't push Red": units pass THROUGH enemies
+  //  PUSH_FORCE -> how hard the push is (per-tick separation cap)
+  const massMode = (CONFIG.PUSH_MODE || 'mass') !== 'equal';
+  const crossTeam = !!CONFIG.PUSH_CROSS_TEAM;
+  const force = CONFIG.PUSH_FORCE > 0 ? CONFIG.PUSH_FORCE : 2.5;
   const ents = game.entities;
   for (let i = 0; i < ents.length; i++) {
     const a = ents[i];
     for (let j = i + 1; j < ents.length; j++) {
       const b = ents[j];
       if (a.isAir !== b.isAir) continue; // air passes over ground
-      // ONLY TEAMMATES push each other. A unit passes right THROUGH enemy units
-      // (a footman doesn't shove an enemy grunt) — so a hero reaches the foe
-      // behind an enemy screen, and the two armies interpenetrate and fight
-      // wherever they meet. Among teammates the mass split still applies, so a
-      // big body shoulders small allies aside to reach the front.
-      if (a.team !== b.team) continue;
+      // enemies only collide when cross-team pushing is enabled; otherwise a
+      // unit passes right through enemy units (armies interpenetrate and fight)
+      if (a.team !== b.team && !crossTeam) continue;
       // rectangular units (2x1 etc.) separate as boxes
-      if (a.footprint || b.footprint) { separateBox(a, b); continue; }
+      if (a.footprint || b.footprint) { separateBox(a, b, massMode, force); continue; }
       const minD = a.radius + b.radius;
       let dx = b.x - a.x;
       let dy = b.y - a.y;
@@ -162,19 +167,23 @@ function separate(game) {
       }
       const nx = dx / d;
       const ny = dy / d;
-      // a heavy marcher shoulders a light ALLY in its path to the SIDE
-      if (shoveAside(a, b)) continue;
-      // MASS-BASED split: the heavier (bigger footprint) body barely moves, the
-      // lighter one yields — a big unit shoulders a small one aside (and shoves
-      // through a knot of small enemies to reach its target) instead of both
-      // splitting 50/50 and stalling. Cap the TOTAL resolution (not each unit)
-      // so the mass ratio holds even on a big first-contact overlap.
-      const total = Math.min(minD - d, 2.5);
-      const ma = massOf(a), mb = massOf(b);
-      const pa = total * mb / (ma + mb); // a yields more when b is heavier
-      const pb = total * ma / (ma + mb);
-      a.x -= nx * pa; a.y -= ny * pa;
-      b.x += nx * pb; b.y += ny * pb;
+      const total = Math.min(minD - d, force);
+      if (massMode) {
+        // a heavy marcher shoulders a light body in its path to the SIDE
+        if (shoveAside(a, b, force)) continue;
+        // mass split: the heavier (bigger footprint) body barely moves, the
+        // lighter one yields most of the correction
+        const ma = massOf(a), mb = massOf(b);
+        const pa = total * mb / (ma + mb);
+        const pb = total * ma / (ma + mb);
+        a.x -= nx * pa; a.y -= ny * pa;
+        b.x += nx * pb; b.y += ny * pb;
+      } else {
+        // equal split: both bodies yield the same, regardless of size
+        const p = total / 2;
+        a.x -= nx * p; a.y -= ny * p;
+        b.x += nx * p; b.y += ny * p;
+      }
     }
   }
 }
@@ -194,7 +203,7 @@ function perpExtent(u, dirx, diry) {
 // (perpendicular to its heading) so its route clears — instead of just shoving
 // it straight forward. The light body does almost all the moving; the heavy one
 // barely budges and keeps advancing. Returns true when it handled the pair.
-function shoveAside(a, b) {
+function shoveAside(a, b, force = 2.5) {
   let H, L;
   if (massOf(a) > massOf(b) * 1.4) { H = a; L = b; }
   else if (massOf(b) > massOf(a) * 1.4) { H = b; L = a; }
@@ -218,7 +227,7 @@ function shoveAside(a, b) {
   const latGap = Math.abs((other.x - M.x) * -my + (other.y - M.y) * mx);
   const need = perpExtent(M, dirx, diry) + perpExtent(other, dirx, diry) - latGap;
   if (need <= 0) return true;                 // already clear to the side
-  const total = Math.min(need, 2.5);
+  const total = Math.min(need, force);
   L.x += dirx * total;                        // only the light body moves aside
   L.y += diry * total;
   return true;
@@ -229,7 +238,7 @@ function shoveAside(a, b) {
 // the grid have zero overlap and never move. With `mover` set (a marching unit
 // against a stationary teammate) the mover absorbs the whole push — same total
 // separation, but the standing formation is never displaced.
-function separateBox(a, b) {
+function separateBox(a, b, massMode = true, force = 2.5) {
   const ex = (a.hw || a.radius) + (b.hw || b.radius);
   const ey = (a.hh || a.radius) + (b.hh || b.radius);
   let dx = b.x - a.x;
@@ -237,22 +246,21 @@ function separateBox(a, b) {
   const px = ex - Math.abs(dx); // x-overlap (>0 => overlapping)
   const py = ey - Math.abs(dy); // y-overlap
   if (px <= 0 || py <= 0) return;
-  // a heavy marcher shoulders a light ALLY in its path to the SIDE
-  if (shoveAside(a, b)) return;
-  // mass-based fractions: the lighter body does most of the yielding (see separate)
+  if (massMode && shoveAside(a, b, force)) return; // heavy shoulders light aside
+  // mass mode: the lighter body does most of the yielding; equal mode: 50/50
   const ma = massOf(a), mb = massOf(b);
-  const fa = mb / (ma + mb); // a's share (bigger b => a moves more)
-  const fb = ma / (ma + mb);
+  const fa = massMode ? mb / (ma + mb) : 0.5;
+  const fb = massMode ? ma / (ma + mb) : 0.5;
   if (px < py) {
     if (dx === 0) dx = a.id < b.id ? 1 : -1;
     const sgn = dx < 0 ? -1 : 1;
-    const total = Math.min(px, 2.5);
+    const total = Math.min(px, force);
     a.x -= total * fa * sgn;
     b.x += total * fb * sgn;
   } else {
     if (dy === 0) dy = a.id < b.id ? 1 : -1;
     const sgn = dy < 0 ? -1 : 1;
-    const total = Math.min(py, 2.5);
+    const total = Math.min(py, force);
     a.y -= total * fa * sgn;
     b.y += total * fb * sgn;
   }

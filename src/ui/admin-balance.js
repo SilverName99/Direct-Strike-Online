@@ -66,6 +66,16 @@ function render() {
   html += `<div class="group"><h3>Bare de viață</h3>
     <label class="fld" style="width:100%"><span>Afișare</span>
       <select data-scope="healthbar" style="width:auto;flex:1;max-width:340px">${hbOpts}</select></label></div>`;
+  // how units behave when they try to pass one another
+  const pmOpts = [['mass', 'Big units push small units'], ['equal', 'All friendly units push the same']]
+    .map(([v, l]) => `<option value="${v}" ${((CONFIG.PUSH_MODE || 'mass') === v) ? 'selected' : ''}>${l}</option>`).join('');
+  html += `<div class="group"><h3>Împingerea unităților</h3>
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Cum se comportă unitățile când vor să treacă una de alta.</p>
+    <label class="fld" style="width:100%"><span>Mod</span>
+      <select data-scope="pushmode" style="width:auto;flex:1;max-width:340px">${pmOpts}</select></label>
+    <label class="fld" style="width:100%;margin-top:8px"><span>Blue can't push Red (o unitate de-a mea nu împinge una inamică)</span>
+      <input type="checkbox" data-scope="pushcross" ${!CONFIG.PUSH_CROSS_TEAM ? 'checked' : ''}></label>
+    <div class="fields" style="margin-top:8px">${numField('pushforce', '', '', 'Push force (cât de tare se împing, ~2.5)', CONFIG.PUSH_FORCE)}</div></div>`;
   // custom HUD gold icon (uploaded here, shown next to the player's gold)
   html += `<div class="group"><h3>Iconiță aur (bara de sus)</h3>
     <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Imaginea de lângă aurul tău, sus în HUD. Gol = rombul ◆ implicit. Recomandat: PNG/SVG mic, pătrat (~64px).</p>
@@ -133,6 +143,9 @@ function collect() {
     const { scope, id, field } = el.dataset;
     if (scope === 'tint') { CONFIG.TEAM_TINT = el.value; continue; }
     if (scope === 'healthbar') { CONFIG.HEALTHBAR_ALWAYS = el.value === '1'; continue; }
+    if (scope === 'pushmode') { CONFIG.PUSH_MODE = el.value === 'equal' ? 'equal' : 'mass'; continue; }
+    if (scope === 'pushcross') { CONFIG.PUSH_CROSS_TEAM = !el.checked; continue; } // checkbox = "Blue can't push Red"
+    if (scope === 'pushforce') { const v = Number(el.value); if (isFinite(v)) CONFIG.PUSH_FORCE = Math.max(0.2, v); continue; }
     if (scope === 'middleEmpty') { if (isFinite(Number(el.value))) CONFIG.MIDDLE_EMPTY = Math.max(0, Math.round(Number(el.value))); continue; }
     if (scope === 'middle') {
       const m = CONFIG.MIDDLES[Number(id)];
