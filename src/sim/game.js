@@ -40,6 +40,10 @@ export class Game {
 
     this.templates = [[], []]; // per team: {type, x, y}
     this.buildReadyAt = [{}, {}]; // per team: building kind -> game.time it can be built again
+    // Wall "charges": you start with 0 buildable walls; the stock refills by 1
+    // every chainDelay seconds up to chainMax, and each wall built spends one.
+    this.wallStock = [0, 0];
+    this.wallStockAt = [0, 0];    // game.time of the next +1 (0 = timer not running)
     this.midOwner = null;      // control point: team currently holding the middle
     // Middle-of-map terrain: pick one uploaded variant (with its effect) at
     // random from the seeded RNG so it is deterministic. options.middles is a
@@ -520,6 +524,10 @@ export class Game {
       if (this.money[cmd.team] < price) return { ok: false, reason: 'money' };
       if (this.countKind(cmd.team, cmd.kind) >= stats.cap)
         return { ok: false, reason: 'cap' };
+      // Wall charges: when the charge system is on (chainMax > 1) you can only
+      // build a wall if you have one in stock (it refills over time in update()).
+      const wallCharged = cmd.kind === 'wall' && Math.round(stats.chainMax || 1) > 1;
+      if (wallCharged && this.wallStock[cmd.team] <= 0) return { ok: false, reason: 'no-charge' };
       let bx = cmd.x;
       let by = cmd.y;
       // mines rise ONLY on their predefined plots: snap the click to the
@@ -535,19 +543,8 @@ export class Game {
       this.money[cmd.team] -= price;
       this.spent[cmd.team] += price;
       if (stats.buildCd > 0) this.buildReadyAt[cmd.team][cmd.kind] = this.time + stats.buildCd;
-      const built = makeStructure(this, cmd.team, cmd.kind, bx, by);
-      // Wall chain: one build auto-extends into up to chainMax walls, adding a
-      // fresh one every chainDelay seconds, stacked ACROSS the lane (vertically)
-      // and centered on this first one. Extras are free (that's the mechanic).
-      if (cmd.kind === 'wall' && Math.round(stats.chainMax || 1) > 1) {
-        const ext = structureExtents('wall', stats);
-        built.wallChainLeft = Math.round(stats.chainMax) - 1;
-        built.wallChainAt = this.time + Math.max(0.1, stats.chainDelay || 3);
-        built.wallChainK = 0;
-        built.wallOrigX = bx;
-        built.wallOrigY = by;
-        built.wallStep = ext.hh * 2 + (CONFIG.BUILD_GAP || 0);
-      }
+      makeStructure(this, cmd.team, cmd.kind, bx, by);
+      if (wallCharged) this.wallStock[cmd.team]--; // spend a charge
       return { ok: true };
     }
 
@@ -656,33 +653,20 @@ export class Game {
       }
     }
 
-    // Wall chains: an origin wall keeps auto-adding walls next to it, one every
-    // chainDelay seconds, until it has placed chainMax-1 extras (or runs out of
-    // room). Slots alternate below/above the origin, closest-first.
-    for (const s of this.structures) {
-      if (s.hp <= 0 || !(s.wallChainLeft > 0) || this.time < s.wallChainAt) continue;
-      // the chain still obeys the wall CAP: total walls never exceed it
-      const wcap = this.bstat(s.team, 'wall').cap || 0;
-      if (wcap > 0 && this.countKind(s.team, 'wall') >= wcap) { s.wallChainLeft = 0; continue; }
-      const step = s.wallStep || CONFIG.GRID;
-      let k = s.wallChainK || 0;
-      let placed = false;
-      for (let tries = 0; tries < 8 && !placed; tries++) {
-        k++;
-        const mag = Math.ceil(k / 2);
-        const ny = s.wallOrigY + (k % 2 === 1 ? 1 : -1) * mag * step;
-        if (this.isValidBuildPlacement(s.team, 'wall', s.wallOrigX, ny)) {
-          makeStructure(this, s.team, 'wall', s.wallOrigX, ny);
-          this.events.push({ type: 'built', team: s.team, kind: 'wall', x: s.wallOrigX, y: ny });
-          placed = true;
-        }
-      }
-      s.wallChainK = k;
-      if (placed) {
-        s.wallChainLeft--;
-        s.wallChainAt = this.time + Math.max(0.1, this.bstat(s.team, 'wall').chainDelay || 3);
-      } else {
-        s.wallChainLeft = 0; // no room found -> stop the chain
+    // Wall charges: the stock of buildable walls refills by 1 every chainDelay
+    // seconds, up to chainMax. It idles once full and resumes as soon as you
+    // spend one (build a wall). chainMax <= 1 turns the whole system off.
+    for (const t of [0, 1]) {
+      const wb = this.bstat(t, 'wall');
+      const max = Math.round(wb.chainMax || 1);
+      if (max <= 1) { this.wallStock[t] = 0; this.wallStockAt[t] = 0; continue; }
+      if (this.wallStock[t] > max) this.wallStock[t] = max; // admin lowered the cap
+      if (this.wallStock[t] >= max) { this.wallStockAt[t] = 0; continue; } // full: timer idle
+      const delay = Math.max(0.1, wb.chainDelay || 3);
+      if (this.wallStockAt[t] <= 0) this.wallStockAt[t] = this.time + delay; // (re)start the timer
+      else if (this.time >= this.wallStockAt[t]) {
+        this.wallStock[t]++;
+        this.wallStockAt[t] = this.wallStock[t] >= max ? 0 : this.time + delay;
       }
     }
 

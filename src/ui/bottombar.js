@@ -930,13 +930,19 @@ export class BottomBar {
           const bs = game.bstat(0, d.id);
           const price = game.buildCost(0, d.id); // mines get pricier each time
           const cap = bs.cap || 0;
-          const remaining = Math.max(0, cap - game.countKind(0, d.id));
+          // walls with the charge system show their STOCK (buildable-right-now);
+          // every other building shows how many more fit under its cap
+          const chargeWall = d.id === 'wall' && Math.round(bs.chainMax || 1) > 1;
+          const remaining = chargeWall ? (game.wallStock ? game.wallStock[0] : 0)
+            : Math.max(0, cap - game.countKind(0, d.id));
+          const showCounter = chargeWall || cap > 0;
           const tierLocked = game.tier[0] < (bs.tier || 1);
           if (tierLocked) { el.classList.add('locked'); this.setLockTier(el, bs.tier); }
           else if (remaining <= 0) el.classList.add('disabled');
+          else if (cap > 0 && game.countKind(0, d.id) >= cap) el.classList.add('disabled');
           else if (game.money[0] < price) el.classList.add('disabled');
-          // top-right counter: how many more of this building you may still place
-          this.setRemaining(el, cap > 0 && !tierLocked ? String(remaining) : null);
+          // top-right counter: how many you can build right now
+          this.setRemaining(el, showCounter && !tierLocked ? String(remaining) : null);
           cd = game.buildCdLeft(0, d.id);
           const c = el.querySelector('.s-cost');
           if (c && c.textContent !== String(price)) c.textContent = price;

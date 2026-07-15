@@ -315,7 +315,12 @@ function updateFighter(game, u, stats, dt) {
   // otherwise back-row units shoved across the range boundary by the
   // separation pass flicker between attack and march every tick.
   const rangeBonus = u.state === 'attack' ? 14 : 0;
-  const inRange = !!target && effDist(u, target) <= atkRange(u, stats) + rangeBonus;
+  // Structures are big, static objectives crowded by many attackers. Give a
+  // melee reach bonus vs a structure so a unit stuck one body-row back (behind
+  // teammates packed on the perimeter) still connects instead of idling at the
+  // fringe of its range. Doesn't affect unit-vs-unit combat.
+  const structBonus = target && target.isStructure ? 18 : 0;
+  const inRange = !!target && effDist(u, target) <= atkRange(u, stats) + rangeBonus + structBonus;
 
   // Dash (charge): while a target sits inside dashRange but out of attack
   // range, the unit commits to a dash and closes at dashSpeed (movement.js

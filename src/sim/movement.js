@@ -28,9 +28,13 @@ export function updateMovement(game, dt) {
       if (target.kind) {
         const h = ((u.id * 2654435761) >>> 0) / 4294967296; // deterministic per-unit
         const side = u.team === 0 ? Math.PI : 0;            // approach from our half
-        const ang = side + (h - 0.5) * 3.0;
+        const ang = side + (h - 0.5) * 3.4;                 // ±~100° fan on our side
         const ux = Math.abs(Math.cos(ang)) * (u.hw || u.radius) + Math.abs(Math.sin(ang)) * (u.hh || u.radius);
-        const ring = (target.radius || Math.max(target.hw || 0, target.hh || 0)) + ux + 3;
+        // aim SLIGHTLY INSIDE the box-touch point so the attacker presses right
+        // up against the structure (collision then rests it at effDist ~0) —
+        // this keeps big bodies solidly in range even when a crowd jostles them,
+        // instead of parking them at the fringe where a nudge drops the hit
+        const ring = (target.radius || Math.max(target.hw || 0, target.hh || 0)) + ux - 4;
         gx = target.x + Math.cos(ang) * ring;
         gy = target.y + Math.sin(ang) * ring;
       }
@@ -195,24 +199,28 @@ function shoveAside(a, b) {
   if (massOf(a) > massOf(b) * 1.4) { H = a; L = b; }
   else if (massOf(b) > massOf(a) * 1.4) { H = b; L = a; }
   else return false;
-  if (H.state !== 'march') return false;
-  const hx = H.mvx || 0, hy = H.mvy || 0;
-  if (!hx && !hy) return false;
-  // only shove what is actually AHEAD of the heavy unit
-  if ((L.x - H.x) * hx + (L.y - H.y) * hy <= 0) return false;
-  // lateral (perpendicular) axis; push L toward the side it already leans to
-  let lat = (L.x - H.x) * -hy + (L.y - H.y) * hx;
-  if (Math.abs(lat) < 0.001) lat = H.id < L.id ? 1 : -1;
+  // Whose path are we clearing? The MARCHING one (prefer the heavy one when both
+  // march). This covers BOTH directions: a big marcher plowing through a small
+  // ally, AND a small marcher slipping past a big ally standing in its way.
+  const M = (H.state === 'march' && (H.mvx || H.mvy)) ? H
+    : (L.state === 'march' && (L.mvx || L.mvy)) ? L : null;
+  if (!M) return false;
+  const mx = M.mvx || 0, my = M.mvy || 0;
+  if (!mx && !my) return false;
+  const other = M === H ? L : H;              // the body sitting in M's way
+  if ((other.x - M.x) * mx + (other.y - M.y) * my <= 0) return false; // must be AHEAD of M
+  // Always the LIGHT body (L) slides to one side of M's heading — the heavy one
+  // holds. Side chosen from L's current lean, ties broken by id.
+  let lat = (L.x - M.x) * -my + (L.y - M.y) * mx;
+  if (Math.abs(lat) < 0.001) lat = L.id < M.id ? 1 : -1;
   const s = lat < 0 ? -1 : 1;
-  const px = -hy * s, py = hx * s; // unit vector toward L's side
-  const need = perpExtent(H, px, py) + perpExtent(L, px, py) - Math.abs(lat);
-  if (need <= 0) return true; // already clear to the side — leave them be
+  const dirx = -my * s, diry = mx * s;        // unit vector toward L's side
+  const latGap = Math.abs((other.x - M.x) * -my + (other.y - M.y) * mx);
+  const need = perpExtent(M, dirx, diry) + perpExtent(other, dirx, diry) - latGap;
+  if (need <= 0) return true;                 // already clear to the side
   const total = Math.min(need, 2.5);
-  const mH = massOf(H), mL = massOf(L);
-  L.x += px * total * mH / (mH + mL);
-  L.y += py * total * mH / (mH + mL);
-  H.x -= px * total * mL / (mH + mL);
-  H.y -= py * total * mL / (mH + mL);
+  L.x += dirx * total;                        // only the light body moves aside
+  L.y += diry * total;
   return true;
 }
 

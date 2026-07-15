@@ -31,7 +31,7 @@ export const UNIT_SELECT_FIELDS = {
   dmgType: ['normal', 'piercing', 'explosive'],
 };
 export const BUILDING_FIELDS = {
-  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable'], ['chainMax', 'Wall-uri în lanț (auto, incl. primul)'], ['chainDelay', 'Secunde între wall-uri în lanț']],
+  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max pe teren'], ['chainMax', 'Stoc max wall-uri (0/1 = oprit)'], ['chainDelay', 'Secunde pentru +1 în stoc']],
   tower: [
     ['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['cap', 'Max buildable'], ['range', 'Range'],
     ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'],
