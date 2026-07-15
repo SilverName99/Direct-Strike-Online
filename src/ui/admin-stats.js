@@ -174,6 +174,8 @@ function fieldsFor(ent, kind) {
       const H = 'Erou (nivelare)';
       out.push({ group: H, label: 'HP +/nivel', type: 'num', value: u.hpPerLevel ?? 40, apply: (v) => { u.hpPerLevel = clamp(Math.round(v), 0, 100000); } });
       out.push({ group: H, label: 'Damage +/nivel', type: 'num', value: u.dmgPerLevel ?? 4, apply: (v) => { u.dmgPerLevel = clamp(Math.round(v), 0, 100000); } });
+      out.push({ group: H, label: 'Mana +/nivel', type: 'num', value: u.manaPerLevel ?? 10, apply: (v) => { u.manaPerLevel = clamp(Math.round(v), 0, 100000); } });
+      out.push({ group: H, label: 'Mana regen +/nivel (mana/s)', type: 'num', value: u.manaRegenPerLevel ?? 0.2, apply: (v) => { u.manaRegenPerLevel = clamp(v, 0, 1000); } });
       out.push({ group: H, type: 'note', label: 'XP necesar pentru fiecare nivel (cumulat de la nivelul anterior):' });
       const lx = Array.isArray(u.levelXp) ? u.levelXp : [];
       for (let i = 0; i < 9; i++) {

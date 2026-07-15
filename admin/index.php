@@ -314,6 +314,8 @@ function slotsFor(string $ent, string $race = 'humans'): array {
         $slots["tier{$t}-camp_0"]      = "T$t Soldați foc 1";
         $slots["tier{$t}-camp_1"]      = "T$t Soldați foc 2";
       }
+      $slots['construct_0'] = 'Construcție 30%';
+      $slots['construct_1'] = 'Construcție 60%';
       $slots['projectile'] = 'Proiectil';
       return $slots;
     }
@@ -324,9 +326,11 @@ function slotsFor(string $ent, string $race = 'humans'): array {
         $slots["tier{$t}-idle_0"] = "T$t Idle 1";
         $slots["tier{$t}-idle_1"] = "T$t Idle 2";
       }
+      $slots['construct_0'] = 'Construcție 30%';
+      $slots['construct_1'] = 'Construcție 60%';
       return $slots;
     }
-    $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
+    $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2', 'construct_0' => 'Construcție 30%', 'construct_1' => 'Construcție 60%'];
     if (in_array($ent, ARMED_BUILDINGS, true)) {
       $slots['attack_0'] = 'Attack 1';
       $slots['attack_1'] = 'Attack 2';

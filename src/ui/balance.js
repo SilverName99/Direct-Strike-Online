@@ -31,9 +31,9 @@ export const UNIT_SELECT_FIELDS = {
   dmgType: ['normal', 'piercing', 'explosive'],
 };
 export const BUILDING_FIELDS = {
-  wall: [['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable']],
+  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable']],
   tower: [
-    ['cost', 'Cost'], ['cap', 'Max buildable'], ['range', 'Range'],
+    ['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['cap', 'Max buildable'], ['range', 'Range'],
     ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'],
     ['damage', 'Damage Tier 1'], ['damage2', 'Damage Tier 2'], ['damage3', 'Damage Tier 3'],
     ['period', 'Attack period Tier 1 (s)'], ['period2', 'Attack period Tier 2 (s)'], ['period3', 'Attack period Tier 3 (s)'],
@@ -42,14 +42,14 @@ export const BUILDING_FIELDS = {
     ['campfireDelay', 'Secunde inactiv → foc de tabără'],
   ],
   generator: [
-    ['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable'],
+    ['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable'],
     ['income', 'Extra gold every 20 seconds'],
     ['buildCd', 'Cooldown construire (s)'],
   ],
-  bldg1: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
-  bldg2: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
-  bldg3: [['cost', 'Cost'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
-  farm: [['cost', 'Cost'], ['hp', 'HP'], ['cap', 'Max buildable'], ['food', 'Food adăugat']],
+  bldg1: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
+  bldg2: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
+  bldg3: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
+  farm: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable'], ['food', 'Food adăugat']],
 };
 // The 3 tech/unlock buildings (build one of each to unlock its assigned units).
 export const TECH_BUILDINGS = ['bldg1', 'bldg2', 'bldg3'];
@@ -197,6 +197,8 @@ function baseUnits(race) {
       t[id].levelXp = [...DEFAULT_HERO_XP]; // XP needed to reach levels 2..10
       t[id].hpPerLevel = 40;
       t[id].dmgPerLevel = 4;
+      t[id].manaPerLevel = 10;      // max-mana growth per level
+      t[id].manaRegenPerLevel = 0.2; // mana-regen growth per level (mana/s)
       // per-race default kit (editable per race in admin)
       const kit = HERO_DEFAULT_KITS[race] || { skills: ['', '', ''], ult: '' };
       t[id].heroAbilities = [...kit.skills];
@@ -289,7 +291,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'buildTime', 'hp', 'cap', 'tier', 'food', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -322,6 +324,8 @@ function raceUnitsSnapshot(race) {
       out[id].levelXp = [...(u.levelXp || [])];
       out[id].hpPerLevel = u.hpPerLevel;
       out[id].dmgPerLevel = u.dmgPerLevel;
+      out[id].manaPerLevel = u.manaPerLevel;
+      out[id].manaRegenPerLevel = u.manaRegenPerLevel;
       out[id].heroAbilities = [...(u.heroAbilities || ['', '', ''])];
       out[id].heroUltimate = u.heroUltimate || '';
     }
@@ -482,6 +486,8 @@ function applyRaceUnits(race, unitsData) {
       }
       if (num(vals.hpPerLevel) !== undefined) u.hpPerLevel = clamp(vals.hpPerLevel, 0, 100000);
       if (num(vals.dmgPerLevel) !== undefined) u.dmgPerLevel = clamp(vals.dmgPerLevel, 0, 100000);
+      if (num(vals.manaPerLevel) !== undefined) u.manaPerLevel = clamp(vals.manaPerLevel, 0, 100000);
+      if (num(vals.manaRegenPerLevel) !== undefined) u.manaRegenPerLevel = clamp(vals.manaRegenPerLevel, 0, 1000);
       if (Array.isArray(vals.heroAbilities)) {
         u.heroAbilities = [0, 1, 2].map((i) => (ABILITY_IDS.includes(vals.heroAbilities[i]) ? vals.heroAbilities[i] : ''));
       }

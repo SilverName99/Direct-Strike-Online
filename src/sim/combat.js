@@ -156,9 +156,9 @@ export function updateCombat(game, dt) {
   }
 
   // Armed structures (starting turret + built towers) shoot the nearest
-  // enemy unit in range.
+  // enemy unit in range. A tower still under construction can't shoot yet.
   for (const s of game.structures) {
-    if (s.hp <= 0) continue;
+    if (s.hp <= 0 || s.building) continue;
     if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
     else if (s.kind === 'tower') {
       // towers scale their HP / damage / period / projectile-count with the

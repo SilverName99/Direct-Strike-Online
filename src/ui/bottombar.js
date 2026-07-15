@@ -287,9 +287,10 @@ export class BottomBar {
     const sel = this.uiState.inspect;
     if (!sel || !game) return null;
     if (sel.kind === 'template') {
-      const tpl = game.templates[0][sel.index];
+      const team = sel.team || 0; // enemy formations are inspectable read-only
+      const tpl = game.templates[team][sel.index];
       if (!tpl) return null;
-      return { kind: 'template', team: 0, type: tpl.type, tpl };
+      return { kind: 'template', team, type: tpl.type, tpl };
     }
     if (sel.kind === 'entity') {
       const u = game.byId.get(sel.id);

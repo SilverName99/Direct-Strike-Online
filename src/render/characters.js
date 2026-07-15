@@ -190,6 +190,17 @@ export function drawStructureSprite(ctx, kind, team, hw, hh, clock, idSeed = 0) 
   return true;
 }
 
+// Construction-site art while a building raises (buildTime): 2 uploaded
+// frames per building — frame 0 shows from 30% progress, frame 1 from 60%.
+// False -> caller falls back to a ghosted finished building.
+export function drawConstructSprite(ctx, kind, team, hw, hh, frame) {
+  const race = raceOf(team);
+  const entry = getSprite(race, kind, 'construct', frame) || getSprite(race, kind, 'construct', 0);
+  if (!entry) return false;
+  drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
+  return true;
+}
+
 // A single fixed idle frame (default frame 0 = "idle 1") for the build ghost
 // on the cursor. False -> caller draws vector only.
 export function drawBuildingSprite(ctx, kind, team, hw, hh, frame = 0) {

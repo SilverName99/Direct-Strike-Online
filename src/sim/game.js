@@ -126,9 +126,20 @@ export class Game {
     return n;
   }
 
-  // Does this team have a living building of `kind`? (unlock check for units)
+  // Does this team have a living, FINISHED building of `kind`? (unlock check
+  // for units — a construction site doesn't unlock anything yet)
   hasBuilding(team, kind) {
-    return this.structures.some((s) => s.team === team && s.kind === kind && s.hp > 0);
+    return this.structures.some((s) => s.team === team && s.kind === kind && s.hp > 0 && !s.building);
+  }
+
+  // Living, finished structures of a kind (income; caps use countKind, which
+  // includes construction sites so you can't over-queue past the cap).
+  countBuilt(team, kind) {
+    let n = 0;
+    for (const s of this.structures) {
+      if (s.team === team && s.kind === kind && s.hp > 0 && !s.building) n++;
+    }
+    return n;
   }
 
   // This team's hero template (persistent record: level/xp/points), or null.
@@ -165,7 +176,8 @@ export class Game {
   foodCap(team) {
     let cap = CONFIG.FOOD_CAP_BASE || 0;
     for (const s of this.structures) {
-      if (s.team === team && s.kind === 'farm' && s.hp > 0) cap += this.bstat(team, 'farm').food || 0;
+      // a farm still under construction feeds nobody yet
+      if (s.team === team && s.kind === 'farm' && s.hp > 0 && !s.building) cap += this.bstat(team, 'farm').food || 0;
     }
     return cap;
   }
@@ -201,6 +213,10 @@ export class Game {
         ent.heroLevel = tpl.level;
         ent.maxHp = s.hp + (tpl.level - 1) * (s.hpPerLevel || 0);
         ent.hp += ent.maxHp - oldMax; // gain the fresh HP chunk on ding
+        // mana pool grows with the level too (regen growth is applied live)
+        const oldManaMax = ent.manaMax || 0;
+        ent.manaMax = (s.mana || 0) + (tpl.level - 1) * (s.manaPerLevel || 0);
+        ent.mana = (ent.mana || 0) + Math.max(0, ent.manaMax - oldManaMax);
       }
     }
     if (tpl.level >= 10) tpl.xp = 0;
@@ -209,7 +225,7 @@ export class Game {
   // Income amounts are configured per INCOME_WINDOW (20s); each INCOME_TICK
   // pays the proportional slice so gold still flows in smoothly.
   incomePer20s(team) {
-    const gens = this.countKind(team, 'generator');
+    const gens = this.countBuilt(team, 'generator'); // sites don't pay yet
     return (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team];
   }
 
@@ -515,6 +531,14 @@ export class Game {
       if (s.kind !== 'turret' || s.hp <= 0 || s.hp >= s.maxHp) continue;
       const regen = this.bstat(s.team, 'turret').regen || 0;
       if (regen > 0) s.hp = Math.min(s.maxHp, s.hp + regen * dt);
+    }
+
+    // Construction sites finish raising (buildTime elapsed -> fully working)
+    for (const s of this.structures) {
+      if (s.building && s.hp > 0 && this.time >= s.buildDone) {
+        s.building = false;
+        this.events.push({ type: 'built', team: s.team, kind: s.kind, x: s.x, y: s.y });
+      }
     }
 
     // Waves

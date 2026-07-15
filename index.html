@@ -39,6 +39,13 @@
 
     <div id="canvas-wrap">
       <canvas id="game"></canvas>
+      <!-- Hero badge: pinned to the left edge once the hero is bought; shows
+           its thumb, level and % progress to the next level at all times -->
+      <div id="hero-badge" class="hidden" title="Eroul tău — click pentru panou">
+        <canvas id="hero-badge-thumb" width="64" height="64"></canvas>
+        <div id="hero-badge-lvl">LVL 1</div>
+        <div id="hero-badge-bar"><div id="hero-badge-fill"></div></div>
+      </div>
     </div>
 
     <!-- WC3-style bottom bar: map | portrait | details | 4x4 command grid | tabs -->

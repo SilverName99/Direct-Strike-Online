@@ -140,9 +140,12 @@ export function updateAbilities(game, dt) {
     const stats = game.ustatOf(u);
     if (!stats.caster || !stats.abilities || stats.abilities.length === 0) continue;
 
-    // mana regen (capped at the unit's configured pool)
+    // mana regen (capped at the unit's configured pool); a hero's regen grows
+    // with its level (manaRegenPerLevel, set in admin under Nivelare)
     if (u.manaMax > 0 && u.mana < u.manaMax) {
-      u.mana = Math.min(u.manaMax, u.mana + (stats.manaRegen || 0) * dt);
+      let regen = stats.manaRegen || 0;
+      if (u.hero && (u.heroLevel || 1) > 1) regen += (u.heroLevel - 1) * (stats.manaRegenPerLevel || 0);
+      u.mana = Math.min(u.manaMax, u.mana + regen * dt);
     }
 
     // Cast buff-zones (castaura) tick every frame while their cast is still

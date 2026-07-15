@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v10.91';
+export const VERSION = 'v10.92';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -109,9 +109,9 @@ export const CONFIG = {
   // Footprint is a rectangle of cw x ch grid cells; idleSpeed sets how fast
   // the uploaded idle 1↔2 frames alternate (flips per second).
   BUILDINGS: {
-    wall: { cost: 40, hp: 450, cw: 1, ch: 1, cap: 24, idleSpeed: 2, name: 'Wall' },
+    wall: { cost: 40, buildTime: 0, hp: 450, cw: 1, ch: 1, cap: 24, idleSpeed: 2, name: 'Wall' },
     tower: {
-      cost: 200, hp: 350, cw: 1, ch: 1, cap: 6, idleSpeed: 2, name: 'Tower',
+      cost: 200, buildTime: 0, hp: 350, cw: 1, ch: 1, cap: 6, idleSpeed: 2, name: 'Tower',
       range: 200, damage: 18, period: 0.9, dmgType: 'normal',
       projectileSpeed: 480, targetsAir: true,
       // Towers scale with the OWNER's base tier (1..3). hp/damage are the tier-1
@@ -133,7 +133,7 @@ export const CONFIG = {
     // income = extra gold every 20s (= +4/s each); buildCd = seconds you must
     // wait after building one before you can build the next (0 = none)
     generator: {
-      cost: 150, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, buildCd: 0, idleSpeed: 2, name: 'Generator',
+      cost: 150, buildTime: 0, hp: 200, cw: 1, ch: 1, cap: 8, income: 80, buildCd: 0, idleSpeed: 2, name: 'Generator',
       // cosmetic gold-miners shuttling to the base (need uploaded worker art):
       workerSize: 1,     // visual scale (1 = 100%)
       workerSpeed: 100,  // world units / second
@@ -145,12 +145,12 @@ export const CONFIG = {
     // it (admin: per-unit "Clădire"). A unit is buyable only when ITS building
     // is built AND the base is at the unit's tier. Destructible — lose it and
     // you lose access (already-placed units stay). One of each (cap 1).
-    bldg1: { cost: 120, hp: 500, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire I' },
-    bldg2: { cost: 160, hp: 550, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire II' },
-    bldg3: { cost: 200, hp: 600, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire III' },
+    bldg1: { cost: 120, buildTime: 0, hp: 500, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire I' },
+    bldg2: { cost: 160, buildTime: 0, hp: 550, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire II' },
+    bldg3: { cost: 200, buildTime: 0, hp: 600, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Clădire III' },
     // Farm: raises your FOOD cap so you can field more units. Destructible —
     // if destroyed you keep placed units but can't buy more until under cap.
-    farm: { cost: 100, hp: 300, cw: 2, ch: 2, cap: 12, food: 10, idleSpeed: 2, name: 'Fermă' },
+    farm: { cost: 100, buildTime: 0, hp: 300, cw: 2, ch: 2, cap: 12, food: 10, idleSpeed: 2, name: 'Fermă' },
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)

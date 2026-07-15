@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -491,10 +491,11 @@ export class Renderer {
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 5]);
     if (sel.kind === 'template') {
-      const tpl = game.templates[0][sel.index];
+      const team = sel.team || 0;
+      const tpl = game.templates[team][sel.index];
       if (tpl) {
-        const us = game.ustat(0, tpl.type);
-        const r = Math.max(14, (us.radius || 10) * Math.max(1, sizeOf(raceOf(0), tpl.type) || 1) + 8);
+        const us = game.ustat(team, tpl.type);
+        const r = Math.max(14, (us.radius || 10) * Math.max(1, sizeOf(raceOf(team), tpl.type) || 1) + 8);
         ctx.beginPath();
         ctx.arc(tpl.x, tpl.y, r, 0, Math.PI * 2);
         ctx.stroke();
@@ -623,7 +624,37 @@ export class Renderer {
       // The sprite helper sizes itself (footprint buildings contain-fit their
       // cw×ch box; main/turret use their radius) and applies the size setting.
       let spriteDrawn = false;
-      {
+      // Construction site: while `building`, draw the 2 șantier frames instead
+      // of the finished art (frame 1 from 30% progress, frame 2 from 60%);
+      // before 30% the first frame shows faded-in. No uploaded construct art ->
+      // the finished building rises as a ghost. A gold bar tracks progress.
+      if (s.building) {
+        const p = Math.min(1, Math.max(0, (game.time - s.buildStart) / Math.max(0.01, s.buildDone - s.buildStart)));
+        ctx.save();
+        if (s.team === 1) ctx.scale(-1, 1);
+        ctx.globalAlpha = p < 0.3 ? 0.45 : 1;
+        let cDrawn = drawConstructSprite(ctx, s.kind, s.team, hw, hh, p < 0.6 ? 0 : 1);
+        if (!cDrawn) {
+          ctx.globalAlpha = 0.3 + 0.5 * p;
+          cDrawn = drawBuildingSprite(ctx, s.kind, s.team, hw, hh, 0);
+        }
+        ctx.restore();
+        if (!cDrawn) { // no art at all: dashed outline so the site still reads
+          ctx.strokeStyle = color;
+          ctx.setLineDash([5, 4]);
+          ctx.globalAlpha = 0.7;
+          ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+        }
+        // progress bar (gold) just above the footprint
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(-hw, -hh - 12, hw * 2, 5);
+        ctx.fillStyle = '#ffd35c';
+        ctx.fillRect(-hw, -hh - 12, hw * 2 * p, 5);
+        spriteDrawn = true; // skip the normal idle/attack art paths below
+      }
+      if (!s.building) {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
         if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;

@@ -140,6 +140,11 @@ export function makeStructure(game, team, kind, x, y) {
   const bs = game.bstat(team, kind);
   const hp = structureHp(kind, bs, (game.tier && game.tier[team]) || 1);
   const ext = structureExtents(kind, bs);
+  // Player-built structures can take time to raise (buildTime, admin-set;
+  // 0 = instant). While `building`, the structure is INERT: towers don't
+  // shoot, generators pay nothing, farms grant no food, tech unlocks nothing —
+  // but it counts toward caps and can already be attacked.
+  const buildTime = (kind !== 'main' && kind !== 'turret') ? (bs.buildTime || 0) : 0;
   const s = {
     id: game.nextId++,
     team, kind,
@@ -153,6 +158,9 @@ export function makeStructure(game, team, kind, x, y) {
     isAir: false,
     isStructure: true,
     isBase: kind === 'main',
+    building: buildTime > 0,
+    buildStart: game.time,
+    buildDone: game.time + buildTime,
   };
   game.structures.push(s);
   game.byId.set(s.id, s);
