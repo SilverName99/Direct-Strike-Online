@@ -10,6 +10,7 @@ import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure } from '../src/sim/entity.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
+import { statsBuilding } from '../src/ui/balance.js';
 
 const DT = CONFIG.FIXED_DT;
 const MID_Y = CONFIG.MAIN.y; // lane center (field extends lower as a scenic apron)
@@ -38,15 +39,17 @@ function run(game, seconds, extra = null) {
 // The base goes "busy" for TIER_UP_TIME seconds before the new tier lands.
 console.log('base tier upgrade wait');
 {
-  const WAIT = 12;
-  const saved = CONFIG.TIER_UP_TIME;
-  CONFIG.TIER_UP_TIME = WAIT;
+  const WAIT = 12, WAIT3 = 8;
+  const saved = [...(statsBuilding('humans', 'main').upgradeTime || [20, 20])];
+  statsBuilding('humans', 'main').upgradeTime = [WAIT, WAIT3];
   const game = new Game(3, { races: ['humans', 'orcs'] });
   game.money[0] = 5000;
+  check('duration reads per-tier (1->2)', game.baseUpgradeDuration(0) === WAIT);
   const up = game.issueCommand({ type: 'upgradeBase', team: 0 });
   check('upgradeBase accepted', up.ok);
   check('tier not advanced immediately', game.tier[0] === 1);
   check('base reports busy', game.baseUpgrading(0) === true);
+  check('target tier is 2', game.baseUpgradeToTier(0) === 2);
   // a second upgrade while busy is refused
   const again = game.issueCommand({ type: 'upgradeBase', team: 0 });
   check('second upgrade refused while busy', !again.ok && again.reason === 'busy');
@@ -56,12 +59,16 @@ console.log('base tier upgrade wait');
   run(game, 3);
   check('tier advances after the wait', game.tier[0] === 2);
   check('no longer busy', game.baseUpgrading(0) === false);
-  CONFIG.TIER_UP_TIME = saved;
+  // the 2->3 step uses the second entry of the array
+  check('duration reads per-tier (2->3)', game.baseUpgradeDuration(0) === WAIT3);
+  statsBuilding('humans', 'main').upgradeTime = saved;
 }
 
 // The remaining tier-gating tests were written before the wait existed and
-// assume an instant upgrade — keep them instant so they stay focused.
-CONFIG.TIER_UP_TIME = 0;
+// assume an instant upgrade — keep them instant so they stay focused. Set the
+// CONFIG template too, so any later applyBalance()/rebuild stays instant.
+CONFIG.MAIN.upgradeTime = [0, 0];
+for (const r of ['humans', 'orcs']) statsBuilding(r, 'main').upgradeTime = [0, 0];
 
 // ---------------------------------------------------------------- purity
 console.log('sim purity audit');

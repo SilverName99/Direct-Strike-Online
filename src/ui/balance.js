@@ -230,6 +230,7 @@ function baseBuildings() {
       hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name,
       damage: CONFIG.MAIN.damage, range: CONFIG.MAIN.range, period: CONFIG.MAIN.period,
       dmgType: CONFIG.MAIN.dmgType, projectileSpeed: CONFIG.MAIN.projectileSpeed, targetsAir: CONFIG.MAIN.targetsAir,
+      upgradeTime: [...(CONFIG.MAIN.upgradeTime || [20, 20])],
       size: 1, projSize: 1,
     },
     turret: { ...CONFIG.TURRET, size: 1, projSize: 1 },
@@ -347,6 +348,7 @@ function raceBuildingsSnapshot(race) {
     const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed, projSize: b.projSize, tip: b.tip || '' };
     if (kind === 'main') {
       o.hp = [...b.hp];
+      if (Array.isArray(b.upgradeTime)) o.upgradeTime = [...b.upgradeTime];
       for (const f of ['damage', 'range', 'period', 'projectileSpeed']) if (b[f] !== undefined) o[f] = b[f];
       o.dmgType = b.dmgType; o.targetsAir = !!b.targetsAir;
     } else for (const f of BUILDING_SCALARS) if (b[f] !== undefined) o[f] = b[f];
@@ -395,7 +397,6 @@ function snapshot() {
     pushCrossTeam: CONFIG.PUSH_CROSS_TEAM,
     pushForce: CONFIG.PUSH_FORCE,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
-    tierUpTime: CONFIG.TIER_UP_TIME,
     unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
     music: Object.fromEntries(RACES.map((r) => [r, musicVol[r]])),
     abilities,
@@ -434,7 +435,6 @@ export function applyBalance(data) {
   if (data.tierCosts && typeof data.tierCosts === 'object') {
     for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
   }
-  if (num(data.tierUpTime) !== undefined) CONFIG.TIER_UP_TIME = clamp(data.tierUpTime, 0, 600);
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
@@ -615,6 +615,10 @@ function applyBuilding(b, kind, vals) {
   if (num(vals.projSize) !== undefined) b.projSize = clamp(vals.projSize, 0.1, 6);
   if (kind === 'main') {
     if (Array.isArray(vals.hp)) for (let i = 0; i < 3; i++) if (num(vals.hp[i]) !== undefined) b.hp[i] = vals.hp[i];
+    if (Array.isArray(vals.upgradeTime)) {
+      if (!Array.isArray(b.upgradeTime)) b.upgradeTime = [20, 20];
+      for (let i = 0; i < 2; i++) if (num(vals.upgradeTime[i]) !== undefined) b.upgradeTime[i] = clamp(vals.upgradeTime[i], 0, 600);
+    }
     for (const f of ['damage', 'range', 'period', 'projectileSpeed']) if (num(vals[f]) !== undefined) b[f] = clamp(vals[f], 0, 100000);
     if (['normal', 'piercing', 'explosive'].includes(vals.dmgType)) b.dmgType = vals.dmgType;
     if (typeof vals.targetsAir === 'boolean') b.targetsAir = vals.targetsAir;

@@ -58,8 +58,9 @@ const pointer = new PointerManager(canvas);
 console.log(`Fangs & Honor ${VERSION}`);
 document.getElementById('version').textContent = VERSION;
 
-// user-uploaded unit sprites (via /admin) override the built-in art
-loadSprites('assets/units/', () => bottombar.refresh());
+// user-uploaded unit sprites (via /admin) override the built-in art. Once the
+// manifest is in, the custom cursors exist too, so roll the random menu cursor.
+loadSprites('assets/units/', () => { bottombar.refresh(); applyRandomMenuCursor(); });
 
 // Boot loader: hold the golden splash (index.html #boot) until the menu is
 // fully ready, then fade it out — so the logo/background/buttons don't pop in
@@ -233,6 +234,19 @@ function applyCursor(race) {
   pointer.setCursorImage(getCursorUrl(race));
 }
 
+// First menu entry: pick a RANDOM race cursor (human/orc) — more fun than the
+// plain arrow. Rolls only among races that actually have a cursor uploaded,
+// and only once. Must run AFTER the sprite manifest loads (that's when the
+// cursor URLs exist), so it's driven from the loadSprites callback below.
+let menuCursorRolled = false;
+function applyRandomMenuCursor() {
+  if (menuCursorRolled || state !== 'menu') return;
+  const withCursor = RACES.filter((r) => getCursorUrl(r));
+  if (!withCursor.length) return; // no cursors uploaded yet — try again next call
+  menuCursorRolled = true;
+  applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
+}
+
 function newGame(playerRace, enemyRace, difficulty) {
   if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
   uiState.myTeam = 0;
@@ -364,10 +378,9 @@ window.__menu = menu; // debug/test handle (drive the entry menu in tests)
 // seed the behind-the-menu preview with the default matchup
 setTeamRaces(['humans', 'orcs']);
 bottombar.refresh();
-// first entry: pick a RANDOM race cursor (human or orc) — more fun than the
-// plain arrow. Only rolls among races that actually have a cursor uploaded.
-const cursorRaces = RACES.filter((r) => getCursorUrl(r));
-applyCursor(cursorRaces.length ? cursorRaces[Math.floor(Math.random() * cursorRaces.length)] : 'humans');
+// try the random menu cursor now in case the sprite manifest already resolved
+// (cached); otherwise the loadSprites callback above rolls it when ready.
+applyRandomMenuCursor();
 
 window.addEventListener('resize', () => renderer.resize());
 // entering/leaving fullscreen resizes the wrapper over a couple of frames —

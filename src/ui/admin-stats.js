@@ -403,6 +403,12 @@ function fieldsFor(ent, kind) {
     ['Tier 1 HP', 'Tier 2 HP', 'Tier 3 HP'].forEach((label, i) => {
       out.push({ group: S, f: `hp${i}`, label, value: b.hp[i], type: 'num', apply: (v) => { b.hp[i] = v; } });
     });
+    // per-tier upgrade wait: how long the base is "busy" upgrading to the next
+    // tier ([0] = 1→2, [1] = 2→3). 0 = instant.
+    if (!Array.isArray(b.upgradeTime)) b.upgradeTime = [20, 20];
+    ['Timp upgrade → Tier 2 (s)', 'Timp upgrade → Tier 3 (s)'].forEach((label, i) => {
+      out.push({ group: S, label, type: 'num', value: b.upgradeTime[i] ?? 20, apply: (v) => { b.upgradeTime[i] = clamp(v, 0, 600); } });
+    });
     // optional base attack — 0 damage means the base doesn't shoot
     out.push({ group: S, label: 'Damage (0 = fără atac)', type: 'num', value: b.damage ?? 0, apply: (v) => { b.damage = clamp(v, 0, 100000); } });
     out.push({ group: S, label: 'Rază atac', type: 'num', value: b.range ?? 300, apply: (v) => { b.range = clamp(v, 0, 4000); } });

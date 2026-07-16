@@ -384,9 +384,22 @@ export class Game {
     return CONFIG.TIER_COSTS[this.tier[team] + 1] ?? null;
   }
 
-  // Is the base mid-upgrade? / seconds still left / 0..1 progress (for the UI).
+  // Seconds this base takes to upgrade OUT of its current tier (1→2 uses
+  // index 0, 2→3 uses index 1). Per race, editable in ⚙ stats. 0 = instant.
+  baseUpgradeDuration(team) {
+    const arr = this.bstat(team, 'main').upgradeTime;
+    const idx = this.tier[team] - 1;
+    const v = Array.isArray(arr) ? arr[idx] : arr;
+    return Math.max(0, Number(v) || 0);
+  }
+
+  // Is the base mid-upgrade? / seconds still left / 0..1 progress / target tier.
   baseUpgrading(team) {
     return this.baseUpgrade[team] != null;
+  }
+  baseUpgradeToTier(team) {
+    const u = this.baseUpgrade[team];
+    return u ? u.toTier : this.tier[team];
   }
   baseUpgradeLeft(team) {
     const u = this.baseUpgrade[team];
@@ -609,7 +622,7 @@ export class Game {
       if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };
       this.money[cmd.team] -= cost;
       this.spent[cmd.team] += cost;
-      const wait = Math.max(0, CONFIG.TIER_UP_TIME || 0);
+      const wait = this.baseUpgradeDuration(cmd.team);
       if (wait <= 0) {
         this.applyTierUp(cmd.team); // instant (wait disabled)
       } else {

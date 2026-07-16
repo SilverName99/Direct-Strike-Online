@@ -971,7 +971,7 @@ export class BottomBar {
           // base is upgrading: radial timer over the cell (same sweep as CDs)
           if (busy) {
             cd = game.baseUpgradeLeft(this.team);
-            cdTotal = Math.max(0.001, CONFIG.TIER_UP_TIME || 0);
+            cdTotal = Math.max(0.001, game.baseUpgradeDuration(this.team));
           }
         }
       } else if (d.kind === 'ability' && game) {
@@ -1212,7 +1212,7 @@ export class BottomBar {
       const next = !game || game.tier[this.team] === 1
         ? 'Tier 2 deblochează unitățile de tier 2'
         : 'Tier 3 deblochează unitățile de tier 3';
-      const wait = Math.max(0, CONFIG.TIER_UP_TIME || 0);
+      const wait = game ? game.baseUpgradeDuration(this.team) : 0;
       const timing = wait > 0 ? `Durează ${wait}s (baza e ocupată în timpul upgrade-ului).` : 'Instant.';
       if (busy) {
         return `<div class="p-title">Upgrade Bază — în curs…</div>
