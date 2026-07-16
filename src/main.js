@@ -10,7 +10,9 @@ import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
 import { Menu } from './ui/menu.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl, availableMiddleSlots } from './render/sprites.js';
+import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getCursorUrl, availableMiddleSlots } from './render/sprites.js';
+import { NetClient } from './net/netclient.js';
+import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
 
 const canvas = document.getElementById('game');
@@ -20,6 +22,7 @@ renderer.camera = camera;
 const minimap = new Minimap(document.getElementById('minimap'), camera);
 const effects = new Effects();
 const uiState = {
+  myTeam: 0, // the team this player commands (0 in single player; assigned online)
   selected: null,
   drag: null,
   inspect: null, // selection-panel target: {kind:'template'|'entity'|'structure', ...}
@@ -37,6 +40,8 @@ const hud = new Hud(uiState);
 let game = null;
 let ai = null;
 let state = 'menu'; // 'menu' | 'playing' | 'over'
+let net = null;      // NetClient — one connection, reused across lobby visits
+let netmatch = null; // NetMatch while an online game is live
 
 const input = new Input(canvas, renderer, camera, uiState, () =>
   state === 'playing' ? game : null
@@ -190,6 +195,9 @@ function applyCursor(race) {
 }
 
 function newGame(playerRace, enemyRace, difficulty) {
+  if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
+  uiState.myTeam = 0;
+  setViewerTeam(0);
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const diff = CONFIG.DIFFICULTY[difficulty] || CONFIG.DIFFICULTY.normal;
   setTeamRaces([playerRace, enemyRace]);
@@ -214,6 +222,86 @@ function newGame(playerRace, enemyRace, difficulty) {
   applyCursor(playerRace);
 }
 
+// ---------------- online 1v1 (lockstep through the VPS relay) ----------------
+function netUrl() {
+  if (window.__NET_URL) return window.__NET_URL;          // tests override this
+  if (CONFIG.NET_URL) return CONFIG.NET_URL;              // optional admin override
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') return `ws://${h}:8080/ws`; // local dev
+  return 'wss://play.fangs-and-honor.com/ws';
+}
+const NET_ERRORS = {
+  'no-room': 'Camera nu există (cod greșit sau expirat).',
+  'own-room': 'Acela e codul TĂU — dă-i-l prietenului.',
+  'in-match': 'Ești deja într-un meci.',
+};
+async function ensureNet() {
+  if (net && net.ws && net.ws.readyState === 1) return net;
+  net = new NetClient(netUrl());
+  net.on('queued', () => menu.netWaiting('Se caută adversar…', 'Ține pagina deschisă'));
+  net.on('room', (m) => menu.netWaiting('Așteaptă-ți prietenul', 'Dă-i acest cod să intre:', m.code));
+  net.on('error', (m) => menu.netError(NET_ERRORS[m.reason] || `Eroare: ${m.reason}`));
+  net.on('start', (m) => startNetMatch(m));
+  await net.connect('Player');
+  return net;
+}
+async function netAction({ action, race, code }) {
+  menu.netWaiting('Mă conectez…');
+  try {
+    const n = await ensureNet();
+    if (action === 'quick') n.quickmatch(race);
+    else if (action === 'create') n.createRoom(race);
+    else if (action === 'join') n.joinRoom(code, race);
+  } catch {
+    menu.netError('Nu mă pot conecta la serverul de joc. Încearcă din nou.');
+  }
+}
+// Opponent found: build the SAME deterministic Game on both clients and start
+// the lockstep loop immediately (it runs behind the countdown/loading screens,
+// so a player whose loading ends earlier can't get ahead).
+function startNetMatch(m) {
+  setTeamRaces(m.races);
+  uiState.myTeam = m.youAre;
+  setViewerTeam(m.youAre);
+  bottombar.refresh();
+  applyCursor(m.races[m.youAre]);
+  const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
+  for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
+  game = new Game(m.seed, { races: m.races, incomeMult: [1, 1], middles });
+  window.__game = game;
+  window.__ui = uiState;
+  window.__bb = bottombar;
+  ai = null; // the opponent is a human — their commands arrive over the wire
+  netmatch = new NetMatch(net, m, game);
+  window.__netmatch = netmatch; // debug/test handle
+  netmatch.onEnd = (kind) => {
+    if (kind === 'opp_left' && game && game.winner === null && state !== 'over') {
+      state = 'over';
+      stopMusic();
+      toast('Adversarul a părăsit meciul');
+      endNetMatch();
+      setTimeout(() => menu.showGameOver(game, true, uiState.myTeam, true), 600);
+    } else if (kind === 'closed' && state !== 'over') {
+      // dropped mid-match OR mid-countdown — back to the menu either way
+      stopMusic();
+      toast('Conexiune pierdută cu serverul');
+      endNetMatch();
+      state = 'menu';
+      menu.show();
+    }
+  };
+  effects.reset();
+  uiState.selected = null;
+  uiState.drag = null;
+  uiState.inspect = null;
+  camera.reset(CONFIG.MAIN.x[m.youAre], CONFIG.MAIN.y);
+  menu.startNetCountdown(); // 5s countdown + loading, then onNetReveal below
+}
+function endNetMatch() {
+  if (netmatch) { netmatch.dispose(); netmatch = null; }
+  if (net) net.leave();
+}
+
 // The entry menu owns #overlay: main → format → setup → 5s countdown → loading.
 const menu = new Menu(document.getElementById('overlay'), {
   // live shop / cursor preview follows the race picked in match setup
@@ -223,6 +311,14 @@ const menu = new Menu(document.getElementById('overlay'), {
     applyCursor(player);
   },
   onStart: ({ player, enemy, difficulty }) => newGame(player, enemy, difficulty),
+  onNet: (a) => netAction(a),             // quick / create / join from the lobby
+  onNetCancel: () => { if (net) net.leave(); },
+  onNetReveal: () => {                    // loading done — show the live net match
+    state = 'playing';
+    const race = game ? game.races[uiState.myTeam] : 'humans';
+    startMusic(race);
+    applyCursor(race);
+  },
   enterFullscreen: () => pointer.enter(), // from the Play click (a user gesture)
 });
 window.__menu = menu; // debug/test handle (drive the entry menu in tests)
@@ -261,12 +357,21 @@ function frame(now) {
     if (state === 'playing' && uiState.drag) input.dragTo(w.x, w.y);
   }
 
+  // the online sim advances even while the countdown/loading screens still
+  // cover it, so neither player's sim can fall behind the server clock
+  if (netmatch && !netmatch.done && game) {
+    netmatch.update();
+    if (state !== 'playing') game.drainEvents(); // discard pre-reveal events
+  }
+
   if (state === 'playing' && game) {
-    accumulator += delta;
-    while (accumulator >= CONFIG.FIXED_DT) {
-      accumulator -= CONFIG.FIXED_DT;
-      ai.update(game, CONFIG.FIXED_DT);
-      game.update(CONFIG.FIXED_DT);
+    if (!netmatch) {
+      accumulator += delta;
+      while (accumulator >= CONFIG.FIXED_DT) {
+        accumulator -= CONFIG.FIXED_DT;
+        ai.update(game, CONFIG.FIXED_DT);
+        game.update(CONFIG.FIXED_DT);
+      }
     }
     const events = game.drainEvents();
     effects.spawnFromEvents(events);
@@ -277,8 +382,10 @@ function frame(now) {
     if (game.winner !== null) {
       state = 'over';
       stopMusic();
-      const won = game.winner === 0;
-      setTimeout(() => menu.showGameOver(game, won), 900);
+      const won = game.winner === uiState.myTeam;
+      const wasNet = !!netmatch;
+      if (wasNet) endNetMatch();
+      setTimeout(() => menu.showGameOver(game, won, uiState.myTeam, wasNet), 900);
     }
   } else if (state === 'over' && game) {
     // keep drawing the frozen battlefield behind the overlay
@@ -287,7 +394,7 @@ function frame(now) {
 
   bottombar.update(state === 'playing' ? game : null); // grid + panel follow the selection
   if (game) {
-    const alpha = state === 'playing' ? accumulator / CONFIG.FIXED_DT : 1;
+    const alpha = state === 'playing' ? (netmatch ? netmatch.alpha() : accumulator / CONFIG.FIXED_DT) : 1;
     renderer.draw(game, alpha, uiState, effects);
   }
   minimap.draw(game);

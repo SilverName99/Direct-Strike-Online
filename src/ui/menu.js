@@ -45,8 +45,9 @@ export class Menu {
 
   onClick(e) {
     this.ensureMusic(); // first click unlocks + starts the menu music
-    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd]');
+    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp]');
     if (!t || t.disabled) return;
+    if (t.dataset.mp) { this.onMp(t.dataset.mp); return; }
     if (t.hasAttribute('data-opt-fs')) {
       if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
       else if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
@@ -82,6 +83,43 @@ export class Menu {
     if (name === 'options') this.syncOptions();
     if (name === 'setup') this.renderSetup();
   }
+
+  // ---- multiplayer lobby (the network itself lives in main.js hooks) ----
+  onMp(action) {
+    if (action === 'cancel') {
+      if (this.hooks.onNetCancel) this.hooks.onNetCancel();
+      this.go('format-mp');
+      return;
+    }
+    const race = this.sel.player;
+    if (action === 'join') {
+      const inp = this.el.querySelector('#mp-code');
+      const code = (inp && inp.value ? inp.value : '').toUpperCase().trim();
+      if (code.length !== 4) { if (inp) inp.focus(); return; }
+      if (this.hooks.onNet) this.hooks.onNet({ action: 'join', code, race });
+      return;
+    }
+    if (this.hooks.onNet) this.hooks.onNet({ action, race }); // 'quick' | 'create'
+  }
+  // waiting screen: matchmaking / room code / connection errors
+  netWaiting(title, sub = '', code = '') {
+    this.go('mp-wait');
+    const t = this.el.querySelector('#mp-wait-title');
+    const s = this.el.querySelector('#mp-wait-sub');
+    const c = this.el.querySelector('#mp-wait-code');
+    if (t) t.textContent = title;
+    if (s) { s.textContent = sub; s.style.color = ''; }
+    if (c) { c.textContent = code; c.classList.toggle('hidden', !code); }
+  }
+  netError(msg) {
+    this.netWaiting('Nu a mers…');
+    const s = this.el.querySelector('#mp-wait-sub');
+    if (s) { s.textContent = msg; s.style.color = '#ff8090'; }
+  }
+  // opponent found: the same countdown+loading as single player, but at the
+  // end main.js reveals the ALREADY-RUNNING network match instead of starting
+  // a fresh one
+  startNetCountdown() { this.netPending = true; this.play(); }
 
   // reflect current settings in the Options screen
   syncOptions() {
@@ -343,7 +381,8 @@ export class Menu {
     fill.style.transition = 'width 1.4s cubic-bezier(.4,.5,.2,1)';
     fill.style.width = '100%';
     this.later(() => {
-      if (this.hooks.onStart) this.hooks.onStart({ ...this.sel });
+      if (this.netPending) { this.netPending = false; if (this.hooks.onNetReveal) this.hooks.onNetReveal(); }
+      else if (this.hooks.onStart) this.hooks.onStart({ ...this.sel });
       this.hide();
     }, 1550);
   }
@@ -354,14 +393,17 @@ export class Menu {
   show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); this.armMusic(); }
   hide() { this.clearTimers(); this.stopMusic(); this.el.classList.remove('visible'); }
 
-  showGameOver(game, playerWon) {
+  showGameOver(game, playerWon, team = 0, isNet = false) {
     this.clearTimers();
     const t = this.el.querySelector('#over-title');
     t.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
     t.className = 'm-title ' + (playerWon ? 'victory' : 'defeat');
     this.el.querySelector('#over-stats').innerHTML =
-      `Valuri: <b>${game.waveCount}</b> · Aur cheltuit: <b>${game.spent[0]}</b> · ` +
-      `Tier atins: <b>${'I'.repeat(game.tier[0])}</b>`;
+      `Valuri: <b>${game.waveCount}</b> · Aur cheltuit: <b>${Math.floor(game.spent[team])}</b> · ` +
+      `Tier atins: <b>${'I'.repeat(game.tier[team])}</b>`;
+    // no instant rematch online (the opponent is gone) — back to the menu
+    const rematch = this.el.querySelector('.m-screen[data-screen="over"] [data-play]');
+    if (rematch) rematch.classList.toggle('hidden', !!isNet);
     this.go('over');
     this.el.classList.add('visible');
   }
@@ -408,14 +450,42 @@ const TEMPLATE = `
 
   <section class="m-screen hidden" data-screen="format-mp">
     <h2 class="m-title">Multiplayer</h2>
-    <p class="m-hint">Jocul online e pe drum</p>
     <div class="m-cards">
-      <button class="m-card locked" disabled><span class="m-card-t">1v1</span><span class="soon">Coming soon</span></button>
+      <button class="m-card" data-go="mp-setup"><span class="m-card-t">1v1</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
-      <button class="m-card locked wide pwf-card" disabled><span class="m-card-t">👥 Play with friends</span><span class="soon">Coming soon</span></button>
+      <button class="m-card wide pwf-card" data-go="mp-friends"><span class="m-card-t">👥 Play with friends</span></button>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="mp-setup">
+    <h2 class="m-title">1v1 Online</h2>
+    <div class="m-setup">
+      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
+    </div>
+    <button class="m-btn primary big play-btn" data-mp="quick"><span class="m-play-txt">⚔&nbsp;&nbsp;Caută meci</span></button>
+    <button class="m-back" data-go="format-mp"><span class="m-back-txt">◄ Înapoi</span></button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="mp-friends">
+    <h2 class="m-title">Play with friends</h2>
+    <div class="m-setup">
+      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
+    </div>
+    <button class="m-btn primary big play-btn" data-mp="create"><span class="m-play-txt">➕&nbsp;&nbsp;Creează cameră</span></button>
+    <div class="m-row mp-join-row">
+      <input id="mp-code" class="mp-code-input" maxlength="4" placeholder="COD" autocomplete="off" spellcheck="false">
+      <button class="m-btn" data-mp="join">Intră</button>
+    </div>
+    <button class="m-back" data-go="format-mp"><span class="m-back-txt">◄ Înapoi</span></button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="mp-wait">
+    <h2 class="m-title" id="mp-wait-title">Se caută adversar…</h2>
+    <p class="m-hint" id="mp-wait-sub"></p>
+    <div id="mp-wait-code" class="hidden"></div>
+    <button class="m-back" data-mp="cancel"><span class="m-back-txt">✖ Anulează</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="setup">

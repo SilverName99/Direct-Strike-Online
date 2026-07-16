@@ -7,7 +7,7 @@ import { toast } from './pointer.js';
 const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm'];
 
 // Mouse + keyboard input. Owns uiState.selected / drag / grid / mouse
-// position; translates gestures into game commands for team 0.
+// position; translates gestures into game commands for the LOCAL team (uiState.myTeam; 0 in single player).
 //   - shop card selected + click                -> buy unit / build (Shift = repeat)
 //   - drag a placed unit template               -> moveUnit (snapped, clamped)
 //   - right-click a template                    -> sellUnit (75% refund)
@@ -22,6 +22,8 @@ export class Input {
     this.uiState = uiState;
     this.getGame = getGame;
     this.keys = new Set();
+    // the team this player commands: 0 in single player, assigned online
+    Object.defineProperty(this, 'team', { get: () => this.uiState.myTeam || 0 });
 
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -77,12 +79,12 @@ export class Input {
       const p = this.placePoint(this.renderer.toSim(e), sel);
 
       if (sel && BUILDING_IDS.includes(sel)) {
-        const res = game.issueCommand({ type: 'build', team: 0, kind: sel, x: p.x, y: p.y });
+        const res = game.issueCommand({ type: 'build', team: this.team, kind: sel, x: p.x, y: p.y });
         if (res.ok && !e.shiftKey) this.uiState.selected = null;
         return;
       }
       if (sel && sel !== 'upgrade') {
-        const res = game.issueCommand({ type: 'buy', team: 0, unitId: sel, x: p.x, y: p.y });
+        const res = game.issueCommand({ type: 'buy', team: this.team, unitId: sel, x: p.x, y: p.y });
         if (res.ok && !e.shiftKey) this.uiState.selected = null;
         return;
       }
@@ -90,7 +92,7 @@ export class Input {
       // no shop selection: grab a placed unit template to drag it around
       // (selecting it for the inspect panel at the same time)
       const raw = this.renderer.toSim(e);
-      const idx = hitTestTemplate(game, 0, raw.x, raw.y);
+      const idx = hitTestTemplate(game, this.team, raw.x, raw.y);
       if (idx !== -1) {
         this.uiState.drag = { index: idx };
         this.uiState.inspect = { kind: 'template', index: idx };
@@ -101,9 +103,9 @@ export class Input {
       if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
       // click an ENEMY formation unit (template) -> inspect it read-only
       // (no drag — you can't move the opponent's army)
-      const eidx = hitTestTemplate(game, 1, raw.x, raw.y);
+      const eidx = hitTestTemplate(game, 1 - this.team, raw.x, raw.y);
       if (eidx !== -1) {
-        this.uiState.inspect = { kind: 'template', team: 1, index: eidx };
+        this.uiState.inspect = { kind: 'template', team: 1 - this.team, index: eidx };
         return;
       }
       // click a structure (either team) -> inspect it; your own Main Base
@@ -144,7 +146,7 @@ export class Input {
       if (e.key === ' ') {
         e.preventDefault();
         if (document.activeElement) document.activeElement.blur();
-        this.camera.centerOn(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
+        this.camera.centerOn(CONFIG.MAIN.x[this.team], CONFIG.MAIN.y);
         return;
       }
       if (e.key === 'Escape') {
@@ -190,16 +192,16 @@ export class Input {
     const game = this.getGame();
     if (!game || game.winner !== null) return;
     const { x, y } = this.renderer.toSim(e);
-    const idx = hitTestTemplate(game, 0, x, y);
-    if (idx !== -1) { game.issueCommand({ type: 'sellUnit', team: 0, index: idx }); return; }
+    const idx = hitTestTemplate(game, this.team, x, y);
+    if (idx !== -1) { game.issueCommand({ type: 'sellUnit', team: this.team, index: idx }); return; }
     // sell an own building under the cursor (box hit test for footprints)
     const s = game.structures.find(
       (st) =>
-        st.team === 0 && st.hp > 0 &&
+        st.team === this.team && st.hp > 0 &&
         Math.abs(st.x - x) <= (st.hw || st.radius) + 4 &&
         Math.abs(st.y - y) <= (st.hh || st.radius) + 4
     );
-    if (s) game.issueCommand({ type: 'sellBuilding', team: 0, id: s.id });
+    if (s) game.issueCommand({ type: 'sellBuilding', team: this.team, id: s.id });
   }
 
   // Snap to the appropriate zone's grid when the grid is on. Buildings snap
@@ -212,12 +214,12 @@ export class Input {
     // the placed position matches exactly where the preview showed it
     let cw = 1, ch = 1;
     if (CONFIG.BUILDINGS[selected]) {
-      const bs = game.bstat(0, selected); cw = bs.cw; ch = bs.ch;
+      const bs = game.bstat(this.team, selected); cw = bs.cw; ch = bs.ch;
     } else if (UNITS[selected]) {
-      const us = game.ustat(0, selected);
+      const us = game.ustat(this.team, selected);
       cw = us.cw > 1 ? us.cw : 1; ch = us.ch > 1 ? us.ch : 1;
     }
-    return snapToZone(zoneFor(selected, p.x, p.y), p.x, p.y, cw, ch);
+    return snapToZone(zoneFor(selected, p.x, p.y, this.team), p.x, p.y, cw, ch);
   }
 
   // While dragging, keep the template pinned under the cursor (snapped by its
@@ -225,14 +227,14 @@ export class Input {
   dragTo(x, y) {
     const game = this.getGame();
     if (!game || !this.uiState.drag) return;
-    const z = CONFIG.ARMY_ZONE[0];
-    const tpl = game.templates[0][this.uiState.drag.index];
-    const us = tpl ? game.ustat(0, tpl.type) : null;
+    const z = CONFIG.ARMY_ZONE[this.team];
+    const tpl = game.templates[this.team][this.uiState.drag.index];
+    const us = tpl ? game.ustat(this.team, tpl.type) : null;
     const cw = us && us.cw > 1 ? us.cw : 1;
     const ch = us && us.ch > 1 ? us.ch : 1;
     let p = { x: clamp(x, z.x0, z.x1), y: clamp(y, z.y0, z.y1) };
     if (this.uiState.gridOn) p = snapToZone(z, p.x, p.y, cw, ch);
-    game.issueCommand({ type: 'moveUnit', team: 0, index: this.uiState.drag.index, x: p.x, y: p.y });
+    game.issueCommand({ type: 'moveUnit', team: this.team, index: this.uiState.drag.index, x: p.x, y: p.y });
   }
 
   // Camera pan intent for this frame: -1 | 0 | 1 per axis.
@@ -262,22 +264,22 @@ export class Input {
     if (!game || game.winner !== null) return;
 
     if (id === 'upgrade') {
-      game.issueCommand({ type: 'upgradeBase', team: 0 });
+      game.issueCommand({ type: 'upgradeBase', team: this.team });
       return;
     }
     if (!UNITS[id] && !BUILDING_IDS.includes(id)) return;
     // Tier lock uses the RESOLVED per-race tier (the admin can retier a unit),
     // matching the shop's lock badge and the sim's buy gate — not the static
     // UNITS[id].tier, which would wrongly block a unit retiered down to T1.
-    if (UNITS[id] && game.ustat(0, id).tier > game.tier[0]) return; // tier-locked
+    if (UNITS[id] && game.ustat(this.team, id).tier > game.tier[this.team]) return; // tier-locked
     // gated behind its tech building — must be built to select/place it
     if (UNITS[id]) {
-      const s = game.ustat(0, id);
-      if (s.building && !game.hasBuilding(0, s.building)) return;
-      if (s.isHero && game.hasHero(0)) return; // one hero per team
+      const s = game.ustat(this.team, id);
+      if (s.building && !game.hasBuilding(this.team, s.building)) return;
+      if (s.isHero && game.hasHero(this.team)) return; // one hero per team
     }
     // some buildings can only be built from a given base tier
-    if (BUILDING_IDS.includes(id) && game.tier[0] < (game.bstat(0, id).tier || 1)) return;
+    if (BUILDING_IDS.includes(id) && game.tier[this.team] < (game.bstat(this.team, id).tier || 1)) return;
     this.uiState.selected = this.uiState.selected === id ? null : id;
   }
 }

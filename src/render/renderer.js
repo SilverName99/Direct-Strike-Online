@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleImage, getSprite, raceOf } from './sprites.js';
+import { getBackground, getMiddleImage, getSprite, raceOf, getViewerTeam } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -9,6 +9,9 @@ import { effectVal } from '../sim/abilities.js';
 import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo, drawLightShield } from './vfx.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
+// viewer-relative team color: MY team is always blue, the enemy always red —
+// online the local player can be team 1 and must still read as friendly
+export const teamColor = (t) => TEAM_COLORS[t === getViewerTeam() ? 0 : 1];
 
 // The unit's on-screen body radius: its DRAWN-body radius scaled by the unit
 // Size % (or the on-foot / beast override size). Used for both the selection
@@ -23,6 +26,7 @@ export function visualRadiusOf(u) {
   return base * Math.max(1, scale || 1);
 }
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
+export const teamColorDark = (t) => TEAM_COLORS_DARK[t === getViewerTeam() ? 0 : 1];
 
 // Draws a unit shape centered at (0,0) in a pre-transformed context.
 // Tower attack period for a base tier (mirrors balance.towerStatForTier).
@@ -264,7 +268,8 @@ export class Renderer {
     this.drawMiddleStrip(ctx, getMiddleImage(game.middleSlot != null ? game.middleSlot : -1), mid);
 
     // per-team base quadrant: army zone (back) + construction zone (front)
-    const tints = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
+    const tints0 = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
+    const tints = [tints0[getViewerTeam() === 0 ? 0 : 1], tints0[getViewerTeam() === 0 ? 1 : 0]]; // my side always blue
     for (const team of [0, 1]) {
       const cz = CONFIG.CONSTRUCTION_ZONE[team];
       const az = CONFIG.ARMY_ZONE[team];
@@ -460,7 +465,7 @@ export class Renderer {
   drawGrid(ctx, uiState) {
     if (!uiState.gridOn) return;
     let zone = null;
-    if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected, uiState.mouseX, uiState.mouseY);
+    if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected, uiState.mouseX, uiState.mouseY, uiState.myTeam || 0);
     else if (uiState.drag) zone = CONFIG.ARMY_ZONE[0];
     if (!zone) return;
     const step = CONFIG.GRID * (CONFIG.GRID_MAJOR || 4);
@@ -599,8 +604,9 @@ export class Renderer {
   // mines can rise. Occupied plots draw nothing — the real mine stands there.
   drawMineSpots(ctx, game) {
     if (!game.mineSpots) return;
-    const ext = structureExtents('generator', game.bstat(0, 'generator'));
-    for (const p of game.mineSpots[0]) {
+    const my = getViewerTeam();
+    const ext = structureExtents('generator', game.bstat(my, 'generator'));
+    for (const p of game.mineSpots[my]) {
       if (!game.mineSpotFree(p)) continue;
       if (!this.visible(p.x, p.y, 160)) continue;
       ctx.save();
@@ -630,8 +636,8 @@ export class Renderer {
     const ordered = [...game.structures].sort((a, b) => baseY(a) - baseY(b));
     for (const s of ordered) {
       if (!this.visible(s.x, s.y, s.radius + 320)) continue;
-      const color = TEAM_COLORS[s.team];
-      const dark = TEAM_COLORS_DARK[s.team];
+      const color = teamColor(s.team);
+      const dark = teamColorDark(s.team);
       const r = s.radius;
       const hw = s.hw || r;
       const hh = s.hh || r;
@@ -909,7 +915,7 @@ export class Renderer {
       ctx.strokeStyle = 'rgba(255,255,255,0.55)';
       ctx.strokeRect(u.x - hw, u.y - hh, hw * 2, hh * 2);
       const r = Math.max(s.range || 0, 4); // reach floor matches atkRange()
-      ctx.strokeStyle = u.team === 0 ? 'rgba(88,214,141,0.85)' : 'rgba(255,95,110,0.85)';
+      ctx.strokeStyle = u.team === getViewerTeam() ? 'rgba(88,214,141,0.85)' : 'rgba(255,95,110,0.85)';
       contour(u.x, u.y, hw, hh, r);
     }
     ctx.setLineDash([6, 4]);
@@ -927,7 +933,7 @@ export class Renderer {
         ctx.stroke();
       }
       if ((bs.damage || 0) > 0 && (bs.range || 0) > 0) {
-        ctx.strokeStyle = st.team === 0 ? 'rgba(88,214,141,0.7)' : 'rgba(255,95,110,0.7)';
+        ctx.strokeStyle = st.team === getViewerTeam() ? 'rgba(88,214,141,0.7)' : 'rgba(255,95,110,0.7)';
         contour(st.x, st.y, hw, hh, bs.range);
       }
     }
@@ -964,19 +970,19 @@ export class Renderer {
 
     ctx.save();
     for (const team of [0, 1]) {
-      ctx.strokeStyle = TEAM_COLORS[team];
+      ctx.strokeStyle = teamColor(team);
       ctx.lineWidth = 1.5;
       const rot = team === 0 ? 0 : Math.PI;
       game.templates[team].forEach((tpl, i) => {
         if (!this.visible(tpl.x, tpl.y)) return;
         const stats = UNITS[tpl.type];
-        const hot = team === 0 && i === hoverIdx && !uiState.selected;
-        const dragging = team === 0 && uiState.drag && i === uiState.drag.index;
+        const hot = team === getViewerTeam() && i === hoverIdx && !uiState.selected;
+        const dragging = team === getViewerTeam() && uiState.drag && i === uiState.drag.index;
         ctx.save();
         ctx.translate(tpl.x, tpl.y);
         if (dragging && uiState.gridOn) {
           // moving a placed unit: highlight the grid cells it will occupy
-          const us = game.ustat(0, tpl.type);
+          const us = game.ustat(team, tpl.type);
           const cw = us && us.cw > 1 ? us.cw : 1;
           const ch = us && us.ch > 1 ? us.ch : 1;
           const g = CONFIG.GRID;
@@ -987,7 +993,7 @@ export class Renderer {
           ctx.strokeStyle = '#58d68d';
           ctx.lineWidth = 2;
           ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
-          ctx.strokeStyle = TEAM_COLORS[team];
+          ctx.strokeStyle = teamColor(team);
           ctx.lineWidth = 1.5;
         }
         // (no white hover ring — hovering only brightens the unit below; the
@@ -1015,7 +1021,7 @@ export class Renderer {
       const x = u.prevX + (u.x - u.prevX) * alpha;
       const y = u.prevY + (u.y - u.prevY) * alpha;
       if (!this.visible(x, y)) continue;
-      const color = TEAM_COLORS[u.team];
+      const color = teamColor(u.team);
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
       let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
@@ -1248,7 +1254,7 @@ export class Renderer {
           ctx.fill();
           ctx.globalAlpha = 1;
         }
-        ctx.fillStyle = abColor || (p.splash > 0 ? '#ffb347' : TEAM_COLORS[p.team]);
+        ctx.fillStyle = abColor || (p.splash > 0 ? '#ffb347' : teamColor(p.team));
         ctx.beginPath();
         ctx.arc(x, y, (p.splash > 0 ? 5 : 3.5) * ps, 0, Math.PI * 2);
         ctx.fill();
@@ -1263,7 +1269,8 @@ export class Renderer {
 
     const isBuilding = !!CONFIG.BUILDINGS[sel];
     // units also carry a cw×ch footprint (physical size in grid cells)
-    const us = isBuilding ? null : game.ustat(0, sel);
+    const my = uiState.myTeam || 0;
+    const us = isBuilding ? null : game.ustat(my, sel);
     const uw = us && us.cw > 1 ? us.cw : 1;
     const uh = us && us.ch > 1 ? us.ch : 1;
 
@@ -1272,10 +1279,10 @@ export class Renderer {
     let px = uiState.mouseX;
     let py = uiState.mouseY;
     if (uiState.gridOn) {
-      const bs = isBuilding ? game.bstat(0, sel) : null;
+      const bs = isBuilding ? game.bstat(my, sel) : null;
       const cw = isBuilding ? bs.cw : uw;
       const ch = isBuilding ? bs.ch : uh;
-      const p = snapToZone(zoneFor(sel, px, py), px, py, cw, ch);
+      const p = snapToZone(zoneFor(sel, px, py, uiState.myTeam || 0), px, py, cw, ch);
       px = p.x;
       py = p.y;
     }
@@ -1284,14 +1291,14 @@ export class Renderer {
     let mineOk = true;
     if (sel === 'generator') {
       const spot = game.nearestFreeMineSpot
-        ? game.nearestFreeMineSpot(0, uiState.mouseX, uiState.mouseY)
+        ? game.nearestFreeMineSpot(my, uiState.mouseX, uiState.mouseY)
         : null;
       if (spot) { px = spot.x; py = spot.y; } else mineOk = false;
     }
 
     const valid = mineOk && (isBuilding
-      ? game.isValidBuildPlacement(0, sel, px, py)
-      : game.isValidPlacement(0, px, py, -1, sel));
+      ? game.isValidBuildPlacement(my, sel, px, py)
+      : game.isValidPlacement(my, px, py, -1, sel));
 
     ctx.save();
     ctx.translate(px, py);
@@ -1301,7 +1308,7 @@ export class Renderer {
     ctx.lineWidth = 2;
 
     if (isBuilding) {
-      const b = game.bstat(0, sel);
+      const b = game.bstat(my, sel);
       const ext = structureExtents(sel, b);
       // colored footprint cells (the "patratele de dedesubt")
       drawFootprintCells(ctx, ext.hw, ext.hh, valid ? '#58d68d' : '#ff5566', 0.22);

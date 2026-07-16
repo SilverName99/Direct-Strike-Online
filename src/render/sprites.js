@@ -224,11 +224,17 @@ function tint(img, hex) {
 }
 
 // Which image variant to draw for a team, per the team-tint setting.
+// Which team is "mine" for tinting purposes — 0 in single player; online the
+// local player may be team 1, and their units must still read as friendly.
+let viewerTeam = 0;
+export function setViewerTeam(t) { viewerTeam = t === 1 ? 1 : 0; }
+export function getViewerTeam() { return viewerTeam; }
+
 export function pickImg(entry, team) {
   const mode = CONFIG.TEAM_TINT || 'enemy';
   if (mode === 'none') return entry.img;
-  if (mode === 'team') return team === 1 ? entry.red : entry.blue;
-  return team === 1 ? entry.red : entry.img; // 'enemy': mine native, enemy red
+  if (mode === 'team') return team === viewerTeam ? entry.blue : entry.red;
+  return team === viewerTeam ? entry.img : entry.red; // 'enemy': mine native, enemy red
 }
 
 export function getBackground(race) {

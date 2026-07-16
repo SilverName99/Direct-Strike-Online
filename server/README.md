@@ -83,10 +83,13 @@ cd server && npm install --omit=dev
 sudo systemctl restart fh-server
 ```
 
-## Protocol (v1)
+## Protocol (v2)
 
-Client → server: `hello{name}`, `quickmatch`, `create`, `join{code}`,
-`cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`.
+Client → server: `hello{name}`, `quickmatch{race}`, `create{race}`,
+`join{code,race}`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`.
 Server → client: `welcome{id}`, `queued`, `room{code}`, `start{seed,youAre,
-inputDelay,tickHz}`, `cmd{tick,team,cmd}`, `clock{tick}`, `desync{tick}`,
+races,inputDelay,tickHz}`, `cmd{tick,team,cmd}`, `clock{tick}`, `desync{tick}`,
 `opp_left`, `error{reason}`, `pong`.
+
+`races` is `[raceOfTeam0, raceOfTeam1]` — the race each player picked in the
+lobby; both clients construct the identical Game from `seed` + `races`.

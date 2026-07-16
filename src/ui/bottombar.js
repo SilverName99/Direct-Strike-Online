@@ -87,6 +87,8 @@ const STATUS_LABELS = {
 export class BottomBar {
   constructor(uiState, getGame, onShopClick) {
     this.uiState = uiState;
+    // the team this bar commands: 0 in single player, assigned online
+    Object.defineProperty(this, 'team', { get: () => this.uiState.myTeam || 0 });
     this.getGame = getGame;
     this.onShopClick = onShopClick; // (id) -> route through Input.select (tier gate)
 
@@ -208,7 +210,7 @@ export class BottomBar {
       const cv = btn.querySelector('canvas');
       const ctx = cv.getContext('2d');
       ctx.clearRect(0, 0, cv.width, cv.height);
-      const img = getTabIcon(raceOf(0), tab);
+      const img = getTabIcon(raceOf(this.team), tab);
       if (img) {
         const s = Math.min(cv.width / img.width, cv.height / img.height);
         ctx.drawImage(img, (cv.width - img.width * s) / 2, (cv.height - img.height * s) / 2,
@@ -237,7 +239,7 @@ export class BottomBar {
   //     slots); click-through so it never blocks the controls.
   applyBarSkin() {
     if (!this.bar) return;
-    const skin = getBarSkin(raceOf(0));
+    const skin = getBarSkin(raceOf(this.team));
     if (skin) {
       this.bar.style.backgroundImage = `url("${skin}")`;
       this.bar.style.backgroundSize = '100% 100%';
@@ -246,13 +248,13 @@ export class BottomBar {
       this.bar.style.backgroundImage = '';
       this.bar.classList.remove('skinned');
     }
-    const over = getBarOverlay(raceOf(0));
+    const over = getBarOverlay(raceOf(this.team));
     const overEl = document.getElementById('bb-over');
     if (overEl) overEl.style.backgroundImage = over ? `url("${over}")` : '';
     this.bar.classList.toggle('overlaid', !!over);
     // race tag so a per-race design can nudge details/status for its own frame
-    this.bar.classList.toggle('race-orcs', raceOf(0) === 'orcs');
-    this.bar.classList.toggle('race-humans', raceOf(0) === 'humans');
+    this.bar.classList.toggle('race-orcs', raceOf(this.team) === 'orcs');
+    this.bar.classList.toggle('race-humans', raceOf(this.team) === 'humans');
   }
 
 
@@ -330,17 +332,17 @@ export class BottomBar {
   }
 
   buildSig(game, info) {
-    const race = raceOf(0);
+    const race = raceOf(this.team);
     let s = `${this.mode}:${race}:${resolvedUnitOrder(race).join(',')}`;
     if (!game) return s;
-    s += `:t${game.tier[0]}`;
+    s += `:t${game.tier[this.team]}`;
     // finished tech buildings gate which units the shop offers — fold them into
     // the signature so the units grid rebuilds the instant one finishes building
     // (otherwise you'd have to leave and re-enter the tab to see new units)
     if (this.mode === 'units' || this.mode === 'buildings') {
       const built = new Set();
       for (const st of game.structures)
-        if (st.team === 0 && st.hp > 0 && !st.building) built.add(st.kind);
+        if (st.team === this.team && st.hp > 0 && !st.building) built.add(st.kind);
       s += `:b${[...built].sort().join(',')}`;
     }
     if (this.mode === 'inspect' && info) {
@@ -367,19 +369,19 @@ export class BottomBar {
         const sel = this.uiState.inspect;
         const s = this.sellable;
         if (!g || !sel || !s) return;
-        if (s.what === 'unit') g.issueCommand({ type: 'sellUnit', team: 0, index: sel.index });
-        else g.issueCommand({ type: 'sellBuilding', team: 0, id: sel.id });
+        if (s.what === 'unit') g.issueCommand({ type: 'sellUnit', team: this.team, index: sel.index });
+        else g.issueCommand({ type: 'sellBuilding', team: this.team, id: sel.id });
         this.uiState.inspect = null;
       });
     }
     let sell = null;
-    if (game && info && info.team === 0 && this.mode === 'inspect') {
+    if (game && info && info.team === this.team && this.mode === 'inspect') {
       if (info.kind === 'template') {
-        const stats = game.ustat(0, info.type);
+        const stats = game.ustat(this.team, info.type);
         const full = !info.tpl.spawned;
         sell = { what: 'unit', cost: Math.round(stats.cost * (full ? 1 : CONFIG.SELL_REFUND)), full };
       } else if (info.kind === 'structure' && CONFIG.BUILDINGS[info.type]) {
-        const stats = game.bstat(0, info.type);
+        const stats = game.bstat(this.team, info.type);
         sell = { what: 'building', cost: Math.round(stats.cost * CONFIG.SELL_BUILDING_REFUND) };
       }
     }
@@ -416,7 +418,7 @@ export class BottomBar {
           ctx.drawImage(im, 56 - (im.width * s) / 2, 56 - (im.height * s) / 2, im.width * s, im.height * s);
         }
       }
-      const own = info.team === 0;
+      const own = info.team === this.team;
       const inc = game.bstat(info.team, 'generator').income;
       this.details.innerHTML = `
         <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">Muncitor</span><span class="d-sub">Miner${own ? '' : ' · INAMIC'}</span></div>
@@ -438,7 +440,7 @@ export class BottomBar {
     this.setPortraitVideo(vid);
     if (!vid) this.drawPortrait(ctx, game, info);
 
-    const own = info.team === 0;
+    const own = info.team === this.team;
     const isStruct = info.kind === 'structure';
     // a summoned animal shows its OWN stats (its type only hosts sprites)
     const stats = isStruct ? game.bstat(info.team, info.type)
@@ -657,7 +659,7 @@ export class BottomBar {
   }
 
   unitItems(game) {
-    const race = raceOf(0);
+    const race = raceOf(this.team);
     // EVERY unit always occupies its cell. Ones whose tech building isn't up yet
     // (or that are tier-gated) just render locked (grayed, 🔒) instead of
     // vanishing — the lock clears the instant the building finishes.
@@ -680,7 +682,7 @@ export class BottomBar {
   }
 
   buildingItems() {
-    const race = raceOf(0);
+    const race = raceOf(this.team);
     // the base tier upgrade now lives on the Main Base selection, not here.
     // Each building may carry an admin-chosen grid cell (slot 0-8, -1 = auto),
     // laid out exactly like the unit cards in a tech building.
@@ -702,7 +704,7 @@ export class BottomBar {
   inspectItems(game, info) {
     if (!info || !game || info.kind === 'worker') return [];
     const items = [];
-    const own = info.team === 0;
+    const own = info.team === this.team;
     const isStruct = info.kind === 'structure';
     const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
 
@@ -712,7 +714,7 @@ export class BottomBar {
       // the tier upgrade is ALWAYS the last cell; the hero fills from the front
       const grid = new Array(9).fill(null);
       grid[8] = { kind: 'upgradeBase', id: 'upgrade' };
-      const race = raceOf(0);
+      const race = raceOf(this.team);
       const hero = resolvedHeroId(race);
       if (hero) {
         const h = statsUnit(race, hero);
@@ -726,7 +728,7 @@ export class BottomBar {
     // switches to the upgrades page (⬇ toggles back). A unit still needs the
     // base at its tier.
     if (own && isStruct && TECH_BUILDINGS.includes(info.type)) {
-      const race = raceOf(0);
+      const race = raceOf(this.team);
       const myUnits = resolvedUnitOrder(race).filter((id) => (statsUnit(race, id) || {}).building === info.type);
       const upgrades = [];
       for (const uid of myUnits) {
@@ -753,7 +755,7 @@ export class BottomBar {
 
     // your own hero: its 3 skills + ultimate, each rankable with talent points
     if (!isStruct && own && stats.isHero) {
-      for (const slot of heroAbilitySlots(raceOf(0))) {
+      for (const slot of heroAbilitySlots(raceOf(this.team))) {
         if (slot.id) items.push({ kind: 'heroAbility', id: slot.id, ult: slot.ult });
       }
       return items;
@@ -796,7 +798,7 @@ export class BottomBar {
       if (data.kind === 'unit' && hasCharacter(data.id)) {
         ctx.save();
         ctx.translate(23, 24);
-        const u = statsUnit(raceOf(0), data.id);
+        const u = statsUnit(raceOf(this.team), data.id);
         drawCharacter(ctx, data.id, 'idle', 0, 0, Math.min(1.6, 38 / (u.radius * 2.8 + 4)));
         ctx.restore();
         return;
@@ -813,7 +815,7 @@ export class BottomBar {
         if (data.id === 'generator') { ctx.fillStyle = '#ffd35c'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); }
         if (data.id === 'farm') { ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🌾', 0, 1); }
       } else {
-        const u = statsUnit(raceOf(0), data.id);
+        const u = statsUnit(raceOf(this.team), data.id);
         ctx.fillStyle = TEAM_COLORS[0];
         if (u.shape === 'ring') { ctx.strokeStyle = TEAM_COLORS[0]; ctx.lineWidth = 3.5; drawShape(ctx, 'ring', 16); ctx.stroke(); }
         else { drawShape(ctx, u.shape, 16); ctx.fill(); }
@@ -822,7 +824,7 @@ export class BottomBar {
       return;
     }
     if (data.kind === 'upgradeBase') {
-      const img = getBaseUpgradeIcon(raceOf(0));
+      const img = getBaseUpgradeIcon(raceOf(this.team));
       if (img) {
         const sc = Math.min(46 / img.width, 46 / img.height);
         ctx.drawImage(img, (46 - img.width * sc) / 2, (46 - img.height * sc) / 2, img.width * sc, img.height * sc);
@@ -910,40 +912,40 @@ export class BottomBar {
       if (d.kind === 'unit') {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
-          const u = game.ustat(0, d.id);
+          const u = game.ustat(this.team, d.id);
           const heroWait = d.isHero ? (CONFIG.HERO_UNLOCK_TIME || 0) - game.time : 0;
-          if (u.tier > game.tier[0]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
-          else if (d.building && !game.hasBuilding(0, d.building)) { el.classList.add('locked'); this.setLock(el, '🔒'); }
+          if (u.tier > game.tier[this.team]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
+          else if (d.building && !game.hasBuilding(this.team, d.building)) { el.classList.add('locked'); this.setLock(el, '🔒'); }
           else if (heroWait > 0) {
             // hero still time-locked (⚙ Balance): radial countdown on the card
             el.classList.add('disabled');
             cd = heroWait;
             cdTotal = CONFIG.HERO_UNLOCK_TIME || 0;
           }
-          else if (d.isHero && game.hasHero(0)) el.classList.add('disabled'); // one hero per team
-          else if (game.money[0] < u.cost) el.classList.add('disabled');
-          else if (game.foodUsed(0) + (u.food || 0) > game.foodCap(0)) el.classList.add('disabled'); // over food cap
+          else if (d.isHero && game.hasHero(this.team)) el.classList.add('disabled'); // one hero per team
+          else if (game.money[this.team] < u.cost) el.classList.add('disabled');
+          else if (game.foodUsed(this.team) + (u.food || 0) > game.foodCap(this.team)) el.classList.add('disabled'); // over food cap
         }
       } else if (d.kind === 'building') {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
-          const bs = game.bstat(0, d.id);
-          const price = game.buildCost(0, d.id); // mines get pricier each time
+          const bs = game.bstat(this.team, d.id);
+          const price = game.buildCost(this.team, d.id); // mines get pricier each time
           const cap = bs.cap || 0;
           // walls with the charge system show their STOCK (buildable-right-now);
           // every other building shows how many more fit under its cap
           const chargeWall = d.id === 'wall' && Math.round(bs.chainMax || 1) > 1;
-          const remaining = chargeWall ? (game.wallStock ? game.wallStock[0] : 0)
-            : Math.max(0, cap - game.countKind(0, d.id));
+          const remaining = chargeWall ? (game.wallStock ? game.wallStock[this.team] : 0)
+            : Math.max(0, cap - game.countKind(this.team, d.id));
           const showCounter = chargeWall || cap > 0;
-          const tierLocked = game.tier[0] < (bs.tier || 1);
+          const tierLocked = game.tier[this.team] < (bs.tier || 1);
           if (tierLocked) { el.classList.add('locked'); this.setLockTier(el, bs.tier); }
           else if (remaining <= 0) el.classList.add('disabled');
-          else if (cap > 0 && game.countKind(0, d.id) >= cap) el.classList.add('disabled');
-          else if (game.money[0] < price) el.classList.add('disabled');
+          else if (cap > 0 && game.countKind(this.team, d.id) >= cap) el.classList.add('disabled');
+          else if (game.money[this.team] < price) el.classList.add('disabled');
           // top-right counter: how many you can build right now
           this.setRemaining(el, showCounter && !tierLocked ? String(remaining) : null);
-          cd = game.buildCdLeft(0, d.id);
+          cd = game.buildCdLeft(this.team, d.id);
           // charging wall: a radial (like an ability cooldown) counts down the
           // time until the next wall drops into the stock
           const max = Math.round(bs.chainMax || 1);
@@ -956,9 +958,9 @@ export class BottomBar {
         }
       } else if (d.kind === 'upgradeBase') {
         if (game) {
-          const maxed = game.tier[0] >= CONFIG.TIER_MAX;
+          const maxed = game.tier[this.team] >= CONFIG.TIER_MAX;
           const cost = maxed ? Infinity : game.tierUpCost(0);
-          if (maxed || game.money[0] < cost) el.classList.add('disabled');
+          if (maxed || game.money[this.team] < cost) el.classList.add('disabled');
           const c = el.querySelector('.s-cost');
           if (c) c.textContent = maxed ? 'MAX' : cost;
         }
@@ -984,7 +986,7 @@ export class BottomBar {
           el.classList.add('disabled');
         }
       } else if (d.kind === 'buyUpgrade' && game) {
-        const owned = game.upgrades[0].has(d.id);
+        const owned = game.upgrades[this.team].has(d.id);
         // once owned the card stops being a "for sale" item: price off, ✔/✖ on
         const c = el.querySelector('.s-cost');
         if (c) {
@@ -992,14 +994,14 @@ export class BottomBar {
           if (c.textContent !== want) c.textContent = want;
         }
         if (owned) {
-          tog = !game.upgradeOff[0].has(d.id); // ✔ activ / ✖ dezactivat
-        } else if (d.tier && d.tier > game.tier[0]) {
+          tog = !game.upgradeOff[this.team].has(d.id); // ✔ activ / ✖ dezactivat
+        } else if (d.tier && d.tier > game.tier[this.team]) {
           el.classList.add('locked'); this.setLockTier(el, d.tier); // needs the unit's tier
-        } else if (game.money[0] < d.cost) {
+        } else if (game.money[this.team] < d.cost) {
           el.classList.add('disabled');
         }
       } else if (d.kind === 'heroAbility' && game) {
-        const tpl = game.heroTemplate(0);
+        const tpl = game.heroTemplate(this.team);
         const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
         const max = d.ult ? 1 : 3;
         const pts = (tpl && tpl.points) || 0;
@@ -1090,7 +1092,7 @@ export class BottomBar {
     const game = this.getGame();
     if (d.kind === 'unit' || d.kind === 'building') {
       if (el.classList.contains('locked')) return;
-      if (d.isHero && game && game.hasHero(0)) return; // already have your hero
+      if (d.isHero && game && game.hasHero(this.team)) return; // already have your hero
       this.onShopClick(d.id);
       return;
     }
@@ -1105,33 +1107,33 @@ export class BottomBar {
     }
     if (!game) return;
     if (d.kind === 'heroAbility') {
-      game.issueCommand({ type: 'rankHero', team: 0, ability: d.id });
+      game.issueCommand({ type: 'rankHero', team: this.team, ability: d.id });
       return;
     }
     if (d.kind === 'ability' && d.own) {
-      const on = game.abilityOff[0].has(`${d.unit}/${d.id}`); // off -> turn on
-      game.issueCommand({ type: 'toggleAbility', team: 0, unit: d.unit, ability: d.id, on });
+      const on = game.abilityOff[this.team].has(`${d.unit}/${d.id}`); // off -> turn on
+      game.issueCommand({ type: 'toggleAbility', team: this.team, unit: d.unit, ability: d.id, on });
       return;
     }
-    if (d.kind === 'upgrade' && d.own && game.upgrades[0].has(d.id)) {
-      const on = game.upgradeOff[0].has(d.id);
-      game.issueCommand({ type: 'toggleUpgrade', team: 0, id: d.id, on });
+    if (d.kind === 'upgrade' && d.own && game.upgrades[this.team].has(d.id)) {
+      const on = game.upgradeOff[this.team].has(d.id);
+      game.issueCommand({ type: 'toggleUpgrade', team: this.team, id: d.id, on });
       return;
     }
     if (d.kind === 'buyUpgrade') {
-      if (game.upgrades[0].has(d.id)) {
-        const on = game.upgradeOff[0].has(d.id); // owned -> toggle
-        game.issueCommand({ type: 'toggleUpgrade', team: 0, id: d.id, on });
+      if (game.upgrades[this.team].has(d.id)) {
+        const on = game.upgradeOff[this.team].has(d.id); // owned -> toggle
+        game.issueCommand({ type: 'toggleUpgrade', team: this.team, id: d.id, on });
       } else {
-        game.issueCommand({ type: 'buyUpgrade', team: 0, id: d.id });
+        game.issueCommand({ type: 'buyUpgrade', team: this.team, id: d.id });
       }
       return;
     }
     if (d.kind === 'sell') {
       const sel = this.uiState.inspect;
       if (!sel) return;
-      if (d.what === 'unit') game.issueCommand({ type: 'sellUnit', team: 0, index: sel.index });
-      else game.issueCommand({ type: 'sellBuilding', team: 0, id: sel.id });
+      if (d.what === 'unit') game.issueCommand({ type: 'sellUnit', team: this.team, index: sel.index });
+      else game.issueCommand({ type: 'sellBuilding', team: this.team, id: sel.id });
       this.uiState.inspect = null;
     }
   }
@@ -1148,14 +1150,14 @@ export class BottomBar {
 
   tooltipHtml(d) {
     const game = this.getGame();
-    const race = raceOf(0);
+    const race = raceOf(this.team);
     if (d.kind === 'unit') {
       const u = statsUnit(race, d.id);
       // still-locked units spell out what they need after the name, e.g.
       // "(Requires: Barracks & Tier 2)" — drops each part as it's satisfied
       const req = [];
-      if (u.building && game && !game.hasBuilding(0, u.building)) req.push(buildingNameOf(race, u.building));
-      if (u.tier > (game ? game.tier[0] : 1)) req.push(`Tier ${u.tier}`);
+      if (u.building && game && !game.hasBuilding(this.team, u.building)) req.push(buildingNameOf(race, u.building));
+      if (u.tier > (game ? game.tier[this.team] : 1)) req.push(`Tier ${u.tier}`);
       const reqNote = req.length ? ` <span class="p-req">(Requires: ${req.join(' & ')})</span>` : '';
       // name → editable description → a clean emoji stat line
       return `<div class="p-title">${u.name}${reqNote}</div>
@@ -1176,7 +1178,7 @@ export class BottomBar {
       }
       const req = s.tier || 1;
       const tierNote = req > 1
-        ? (game && game.tier[0] < req
+        ? (game && game.tier[this.team] < req
             ? `<div class="p-dim" style="color:#ff9a6a">Se construiește de la Tier ${'I'.repeat(req)}</div>`
             : `<div class="p-dim">Necesită Tier ${'I'.repeat(req)}</div>`)
         : '';
@@ -1194,9 +1196,9 @@ export class BottomBar {
         <div class="p-dim">${bits.join(' · ')}</div>`;
     }
     if (d.kind === 'upgradeBase') {
-      const maxed = game && game.tier[0] >= CONFIG.TIER_MAX;
+      const maxed = game && game.tier[this.team] >= CONFIG.TIER_MAX;
       const cost = game ? (maxed ? 'MAX' : `◆ ${game.tierUpCost(0)}`) : `◆ ${CONFIG.TIER_COSTS[2]}`;
-      const next = !game || game.tier[0] === 1
+      const next = !game || game.tier[this.team] === 1
         ? 'Tier 2 deblochează unitățile de tier 2'
         : 'Tier 3 deblochează unitățile de tier 3';
       return `<div class="p-title">Upgrade Bază · ${cost}</div>
@@ -1227,7 +1229,7 @@ export class BottomBar {
       const ustats = statsUnit(up.race || race, up.unit) || {};
       const uname = ustats.name || up.unit;
       const unitTier = ustats.tier || 1;
-      const tierLocked = !owned && d.kind === 'buyUpgrade' && game && unitTier > game.tier[0];
+      const tierLocked = !owned && d.kind === 'buyUpgrade' && game && unitTier > game.tier[this.team];
       const state = owned
         ? (off ? 'DEZACTIVAT' : 'ACTIV')
         : tierLocked
@@ -1243,7 +1245,7 @@ export class BottomBar {
     if (d.kind === 'heroAbility') {
       const ab = resolvedAbility(d.id);
       if (!ab) return '';
-      const tpl = game && game.heroTemplate(0);
+      const tpl = game && game.heroTemplate(this.team);
       const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
       const max = d.ult ? 1 : 3;
       const lvl = (tpl && tpl.level) || 1;

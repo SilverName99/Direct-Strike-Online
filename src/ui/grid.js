@@ -28,14 +28,14 @@ export function buildZonesFor(team) {
   return zones;
 }
 
-// The zone a placement kind belongs to for the local player (team 0). For
+// The zone a placement kind belongs to for the given team (the local player). For
 // buildings, x/y (world cursor) picks the construction rect the cursor is in
 // (or nearest), so both the base zone and the mid pocket snap correctly.
-export function zoneFor(selected, x = null, y = null) {
+export function zoneFor(selected, x = null, y = null, team = 0) {
   // Any placeable building snaps to a construction rect (base zone or mid
   // pocket); everything else (units) snaps to the army zone.
   if (CONFIG.BUILDINGS[selected]) {
-    const zones = buildZonesFor(0);
+    const zones = buildZonesFor(team);
     if (x == null || y == null) return zones[0];
     for (const z of zones) {
       if (x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1) return z;
@@ -48,7 +48,7 @@ export function zoneFor(selected, x = null, y = null) {
     }
     return best;
   }
-  return CONFIG.ARMY_ZONE[0];
+  return CONFIG.ARMY_ZONE[team];
 }
 
 function clamp(v, lo, hi) {

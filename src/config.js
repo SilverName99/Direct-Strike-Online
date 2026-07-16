@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v11.43';
+export const VERSION = 'v12.00';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -62,6 +62,7 @@ export const CONFIG = {
   LOADING_BGS: ['', '', ''], // up to 3 loading-screen backgrounds; one is picked at random each load
   LOADING_BG: '',       // legacy single loading bg (migrated into LOADING_BGS[0])
   MENU_MUSIC: '',       // main-menu music (data URL, loops); '' = silent
+  NET_URL: '',          // multiplayer server WebSocket URL; '' = auto (play.fangs-and-honor.com, or localhost in dev)
   LOADING_TIPS: [],     // custom loading-screen tips (strings); empty = built-in tips
   // How units behave when they try to pass one another (⚙ Balance):
   PUSH_MODE: 'mass',    // 'mass' = big units push small units; 'equal' = all friendly units push the same

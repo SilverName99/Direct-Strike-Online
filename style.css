@@ -750,6 +750,24 @@ html, body {
   text-transform: uppercase; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); pointer-events: none;
 }
 
+/* ---- multiplayer lobby ---- */
+#mp-wait-code {
+  font-family: "Impact", "Arial Narrow", sans-serif; font-weight: 900; font-size: clamp(44px, 9vw, 72px);
+  letter-spacing: 14px; padding-left: 14px; /* re-center the letter tracking */
+  background: linear-gradient(180deg, #fff2c9, var(--gold) 55%, #b0812c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
+}
+.mp-join-row { justify-content: center; gap: 10px; margin-top: 6px; }
+.mp-code-input {
+  width: 130px; text-transform: uppercase; text-align: center;
+  font: 700 20px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 8px;
+  color: #ffe39a; background: rgba(10, 14, 20, 0.8);
+  border: 1px solid rgba(233, 197, 101, 0.4); border-radius: 10px; padding: 12px 6px 12px 14px;
+}
+.mp-code-input:focus { outline: none; border-color: var(--gold); }
+.mp-code-input::placeholder { color: #7c8ba1; letter-spacing: 4px; }
+
 /* ---- countdown ---- */
 #menu-cd {
   position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;

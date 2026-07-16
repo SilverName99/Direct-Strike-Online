@@ -8,6 +8,8 @@ import { raceOf, getThumb, pickImg } from '../render/sprites.js';
 export class Hud {
   constructor(uiState) {
     this.uiState = uiState;
+    // the team this HUD reports on: 0 in single player, assigned online
+    Object.defineProperty(this, 'team', { get: () => this.uiState.myTeam || 0 });
     this.heroBadge = {
       root: document.getElementById('hero-badge'),
       thumb: document.getElementById('hero-badge-thumb'),
@@ -22,9 +24,9 @@ export class Hud {
       this.heroBadge.root.addEventListener('click', () => {
         const game = this.game;
         if (!game) return;
-        const ent = game.entities.find((e) => e.team === 0 && e.hero && e.hp > 0);
+        const ent = game.entities.find((e) => e.team === this.team && e.hero && e.hp > 0);
         if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
-        const idx = game.templates[0].findIndex((t) => t.hero);
+        const idx = game.templates[this.team].findIndex((t) => t.hero);
         if (idx !== -1) this.uiState.inspect = { kind: 'template', index: idx };
       });
     }
@@ -45,14 +47,14 @@ export class Hud {
     // Smoothly count the gold up so it climbs continuously at the income rate
     // (matching the "+X/s" label) instead of jumping in big chunks each tick.
     // Spends snap down immediately; any gap is closed within ~2s.
-    const real = game.money[0];
+    const real = game.money[this.team];
     if (this.displayMoney == null || real <= this.displayMoney) {
       this.displayMoney = real;
     } else {
       // glide continuously: never slower than the true income rate, with the
       // backlog eased in exponentially (~0.7s) so income ticks never step
       const gap = real - this.displayMoney;
-      const rate = game.incomePerSecond(0) + gap * 1.5;
+      const rate = game.incomePerSecond(this.team) + gap * 1.5;
       this.displayMoney = Math.min(real, this.displayMoney + rate * dt);
     }
     this.el.money.textContent = Math.floor(this.displayMoney);
@@ -72,15 +74,15 @@ export class Hud {
     }
     // income line: total per second (mid folded in) with the mid share in parens
     const fmt = (v) => v.toFixed(1).replace(/\.0$/, '');
-    const total = game.incomePerSecond(0);
-    const midPerSec = game.midBonusPerTick(0) / CONFIG.INCOME_TICK;
+    const total = game.incomePerSecond(this.team);
+    const midPerSec = game.midBonusPerTick(this.team) / CONFIG.INCOME_TICK;
     this.el.income.textContent = midPerSec > 0
       ? `+${fmt(total)}/s (${fmt(midPerSec)}/s mid)`
       : `+${fmt(total)}/s`;
-    this.el.tier.textContent = `TIER ${'I'.repeat(game.tier[0])}`;
+    this.el.tier.textContent = `TIER ${'I'.repeat(game.tier[this.team])}`;
     if (this.el.food) {
-      const used = game.foodUsed(0);
-      const cap = game.foodCap(0);
+      const used = game.foodUsed(this.team);
+      const cap = game.foodCap(this.team);
       this.el.food.textContent = `${used}/${cap}`;
       this.el.food.classList.toggle('food-full', used >= cap);
     }
@@ -106,11 +108,11 @@ export class Hud {
   updateHeroBadge(game) {
     const b = this.heroBadge;
     if (!b.root) return;
-    const tpl = game ? game.heroTemplate(0) : null;
+    const tpl = game ? game.heroTemplate(this.team) : null;
     b.root.classList.toggle('hidden', !tpl);
     if (!tpl) { b.key = ''; return; }
 
-    const s = game.ustat(0, tpl.type);
+    const s = game.ustat(this.team, tpl.type);
     const level = tpl.level || 1;
     const need = (s.levelXp || [])[level - 1];
     const pct = level >= 10 || !(need > 0) ? 100 : Math.min(100, ((tpl.xp || 0) / need) * 100);
@@ -125,7 +127,7 @@ export class Hud {
     // SQUARE + SHARP: the backing store runs at the real device resolution
     // (devicePixelRatio) and the thumb image cover-fills the square (center
     // crop, biased toward the top so the head never gets cut).
-    const key = `${raceOf(0)}:${tpl.type}`;
+    const key = `${raceOf(this.team)}:${tpl.type}`;
     const now = performance.now();
     if (key !== b.key || now >= b.redrawAt) {
       b.key = key;
@@ -137,8 +139,8 @@ export class Hud {
       ctx.clearRect(0, 0, size, size);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      const entry = getThumb(raceOf(0), tpl.type);
-      const img = entry ? pickImg(entry, 0) : null;
+      const entry = getThumb(raceOf(this.team), tpl.type);
+      const img = entry ? pickImg(entry, this.team) : null;
       if (img && img.width) {
         const scale = Math.max(size / img.width, size / img.height); // cover
         const cropW = size / scale;

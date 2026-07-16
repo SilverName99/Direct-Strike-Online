@@ -1,5 +1,6 @@
 import { CONFIG } from '../config.js';
-import { TEAM_COLORS } from '../render/renderer.js';
+import { teamColor } from '../render/renderer.js';
+import { getViewerTeam } from '../render/sprites.js';
 
 // Corner minimap: whole world in miniature + the camera rectangle.
 // Click or drag on it to move the camera there.
@@ -58,7 +59,7 @@ export class Minimap {
       const zonesMM = [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]];
       if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zonesMM.push(CONFIG.MID_BUILD_ZONE[team]);
       for (const z of zonesMM) {
-        ctx.fillStyle = tints[team];
+        ctx.fillStyle = tints[team === getViewerTeam() ? 0 : 1]; // my side always blue
         ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
       }
     }
@@ -67,13 +68,13 @@ export class Minimap {
       // structures
       for (const st of game.structures) {
         if (st.hp <= 0) continue;
-        ctx.fillStyle = TEAM_COLORS[st.team];
+        ctx.fillStyle = teamColor(st.team);
         const r = Math.max(2.5, st.radius * s * 1.6);
         ctx.fillRect(st.x * s - r / 2, st.y * s - r / 2, r, r);
       }
       // live units as dots
       for (const u of game.entities) {
-        ctx.fillStyle = TEAM_COLORS[u.team];
+        ctx.fillStyle = teamColor(u.team);
         ctx.fillRect(u.x * s - 1, u.y * s - 1, 2.5, 2.5);
       }
     }
