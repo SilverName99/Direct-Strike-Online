@@ -98,7 +98,12 @@ function render() {
   html += `<div class="group"><h3>Meniu & Loading</h3>
     <p style="color:#7c8ba1;font-size:12px;margin:0 0 12px">Fundalul meniului, fundalul ecranului de loading, muzica de meniu și tips-urile de pe loading. Toate se salvează pe loc.</p>
     ${uploaderRow('menubg', 'Fundal meniu', 'imagine lată (~1600px)')}
-    ${uploaderRow('menubtn', 'Design buton', 'PNG ornat de buton (banner); gol = butoane simple')}
+    ${uploaderRow('menubtn', 'Design buton principal', 'PNG ornat (banner) — Play/Multiplayer/Options/How to play')}
+    ${uploaderRow('menucard', 'Design card 1v1/2v2/3v3', 'un singur PNG, folosit la toate trei cardurile')}
+    ${uploaderRow('menuback', 'Design buton „Înapoi”', 'PNG pentru butonul de întoarcere')}
+    ${uploaderRow('menuslide', 'Design cutie slide (How to play)', 'ramă PNG în jurul imaginii de tutorial')}
+    ${uploaderRow('menufs', 'Design buton fullscreen', 'PNG pătrat — colțul din dreapta sus + „Ecran complet”')}
+    ${uploaderRow('menusnd', 'Design buton sonor', 'PNG pătrat — controlul de volum din dreapta jos')}
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
@@ -119,6 +124,11 @@ function render() {
   wireMenuLogo();
   wireAsset('MENU_BG', 'menubg', 'image', 3 * 1024 * 1024);
   wireAsset('MENU_BTN', 'menubtn', 'image', 2 * 1024 * 1024);
+  wireAsset('MENU_CARD', 'menucard', 'image', 2 * 1024 * 1024);
+  wireAsset('MENU_BACK', 'menuback', 'image', 2 * 1024 * 1024);
+  wireAsset('MENU_SLIDE_FRAME', 'menuslide', 'image', 3 * 1024 * 1024);
+  wireAsset('MENU_FS_BTN', 'menufs', 'image', 1 * 1024 * 1024);
+  wireAsset('MENU_SOUND_BTN', 'menusnd', 'image', 1 * 1024 * 1024);
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);

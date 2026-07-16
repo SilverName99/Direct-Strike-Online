@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v11.34';
+export const VERSION = 'v11.35';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -46,6 +46,11 @@ export const CONFIG = {
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback
   MENU_BTN: '',         // main-menu button skin (ornate banner PNG, data URL); '' = plain buttons
+  MENU_CARD: '',        // format cards skin (1v1/2v2/3v3, all three share it); '' = plain
+  MENU_BACK: '',        // "Înapoi" back-button skin; '' = plain text button
+  MENU_SLIDE_FRAME: '', // frame around the tutorial slide image (the slide box); '' = plain
+  MENU_FS_BTN: '',      // fullscreen button skin (top-right corner + Options toggle); '' = ⛶ glyph
+  MENU_SOUND_BTN: '',   // sound/volume button skin (bottom-right control); '' = 🔊 glyph
   MENU_BG: '',          // main-menu background image (data URL); '' = plain dark
   TUTORIALS: [],        // "How to play" slider: array of { img, text } slides (set in admin)
   LOADING_BGS: ['', '', ''], // up to 3 loading-screen backgrounds; one is picked at random each load

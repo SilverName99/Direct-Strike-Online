@@ -374,6 +374,11 @@ function snapshot() {
     goldIcon: CONFIG.GOLD_ICON || '',
     menuLogo: CONFIG.MENU_LOGO || '',
     menuBtn: CONFIG.MENU_BTN || '',
+    menuCard: CONFIG.MENU_CARD || '',
+    menuBack: CONFIG.MENU_BACK || '',
+    menuSlideFrame: CONFIG.MENU_SLIDE_FRAME || '',
+    menuFsBtn: CONFIG.MENU_FS_BTN || '',
+    menuSoundBtn: CONFIG.MENU_SOUND_BTN || '',
     menuBg: CONFIG.MENU_BG || '',
     tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
@@ -426,6 +431,11 @@ export function applyBalance(data) {
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
   CONFIG.MENU_LOGO = typeof data.menuLogo === 'string' ? data.menuLogo : '';
   CONFIG.MENU_BTN = typeof data.menuBtn === 'string' ? data.menuBtn : '';
+  CONFIG.MENU_CARD = typeof data.menuCard === 'string' ? data.menuCard : '';
+  CONFIG.MENU_BACK = typeof data.menuBack === 'string' ? data.menuBack : '';
+  CONFIG.MENU_SLIDE_FRAME = typeof data.menuSlideFrame === 'string' ? data.menuSlideFrame : '';
+  CONFIG.MENU_FS_BTN = typeof data.menuFsBtn === 'string' ? data.menuFsBtn : '';
+  CONFIG.MENU_SOUND_BTN = typeof data.menuSoundBtn === 'string' ? data.menuSoundBtn : '';
   CONFIG.TUTORIALS = Array.isArray(data.tutorials)
     ? data.tutorials
         .filter((t) => t && typeof t === 'object')
@@ -659,6 +669,8 @@ export function importBalance(data) {
   // file (which won't carry one) must not wipe it
   const keepGoldIcon = CONFIG.GOLD_ICON;
   const keepMenuLogo = CONFIG.MENU_LOGO, keepMenuBtn = CONFIG.MENU_BTN;
+  const keepMenuCard = CONFIG.MENU_CARD, keepMenuBack = CONFIG.MENU_BACK;
+  const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
   const keepTutorials = CONFIG.TUTORIALS;
@@ -666,6 +678,11 @@ export function importBalance(data) {
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
   if (typeof data.menuLogo !== 'string' || !data.menuLogo) CONFIG.MENU_LOGO = keepMenuLogo;
   if (typeof data.menuBtn !== 'string' || !data.menuBtn) CONFIG.MENU_BTN = keepMenuBtn;
+  if (typeof data.menuCard !== 'string' || !data.menuCard) CONFIG.MENU_CARD = keepMenuCard;
+  if (typeof data.menuBack !== 'string' || !data.menuBack) CONFIG.MENU_BACK = keepMenuBack;
+  if (typeof data.menuSlideFrame !== 'string' || !data.menuSlideFrame) CONFIG.MENU_SLIDE_FRAME = keepMenuSlideFrame;
+  if (typeof data.menuFsBtn !== 'string' || !data.menuFsBtn) CONFIG.MENU_FS_BTN = keepMenuFsBtn;
+  if (typeof data.menuSoundBtn !== 'string' || !data.menuSoundBtn) CONFIG.MENU_SOUND_BTN = keepMenuSoundBtn;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;

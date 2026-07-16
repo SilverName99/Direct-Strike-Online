@@ -550,10 +550,18 @@ html, body {
 /* ---- How-to-play tutorial slider ---- */
 #tut-slider { display: flex; flex-direction: column; align-items: center; gap: 14px; width: min(680px, 92vw); }
 #tut-slider .tut-stage { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 40px; }
+#tut-slider .tut-frame { display: inline-flex; align-items: center; justify-content: center; max-width: 100%; }
 #tut-slider .tut-img {
   max-width: 100%; max-height: 46vh; border-radius: 12px;
   border: 1px solid rgba(233, 197, 101, 0.28); box-shadow: 0 24px 60px -26px rgba(0, 0, 0, 0.8);
 }
+/* framed slide box (admin "Design cutie slide"): the frame PNG stretches to a
+   box and the slide image is contained inside its transparent window */
+.has-slide-skin #tut-slider .tut-frame {
+  background: var(--menu-slide) center / 100% 100% no-repeat;
+  width: min(680px, 92vw); aspect-ratio: 16 / 10; padding: 6.5%;
+}
+.has-slide-skin #tut-slider .tut-img { max-width: 100%; max-height: 100%; object-fit: contain; border: none; box-shadow: none; border-radius: 4px; }
 #tut-slider .tut-nav {
   position: absolute; top: 50%; transform: translateY(-50%);
   width: 46px; height: 46px; border-radius: 50%; z-index: 2;
@@ -643,6 +651,39 @@ html, body {
   background: linear-gradient(180deg, #ffe39a, #c99a34); border: 1px solid #e9c565; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
 .m-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #e9c565;
   background: linear-gradient(180deg, #ffe39a, #c99a34); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+
+/* ---- format cards skin (admin "Design card 1v1/2v2/3v3") ---- */
+.has-card-skin .m-card,
+.has-card-skin .m-card.wide {
+  background: var(--menu-card) center / 100% 100% no-repeat;
+  border: none; box-shadow: none; color: #f4dca0; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.has-card-skin .m-card:not(.locked):hover { background: var(--menu-card) center / 100% 100% no-repeat; filter: brightness(1.12); }
+.has-card-skin .m-card-s { color: #e6d3a0; }
+
+/* ---- "Înapoi" back button skin: icon-only (no text), just the uploaded art ---- */
+.has-back-skin .m-back {
+  width: 58px; height: 58px; padding: 0; border: none; align-self: center;
+  background: var(--menu-back) center / 100% 100% no-repeat;
+}
+.has-back-skin .m-back:hover { filter: brightness(1.13); }
+.has-back-skin .m-back-txt { display: none; }
+
+/* ---- corner buttons (fullscreen top-right, sound bottom-right) ---- */
+.corner-btn {
+  width: 46px; height: 46px; border-radius: 10px; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1;
+  color: var(--gold, #ffd35c); background: rgba(12, 18, 28, 0.72); border: 1px solid rgba(233, 197, 101, 0.4);
+}
+.corner-btn:hover { background: rgba(233, 197, 101, 0.18); }
+.has-fs-skin .fs-btn { background: var(--menu-fs) center / 100% 100% no-repeat; border: none; }
+.has-fs-skin .fs-btn:hover { filter: brightness(1.13); background: var(--menu-fs) center / 100% 100% no-repeat; }
+.has-sound-skin .snd-btn { background: var(--menu-sound) center / 100% 100% no-repeat; border: none; }
+.has-sound-skin .snd-btn:hover { filter: brightness(1.13); background: var(--menu-sound) center / 100% 100% no-repeat; }
+
+#menu-fs-corner { position: absolute; top: 18px; right: 18px; z-index: 3; }
+#menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; align-items: center; gap: 10px; }
+#menu-sound .snd-range { width: 120px; }
 
 /* ---- countdown ---- */
 #menu-cd {

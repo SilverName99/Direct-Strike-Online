@@ -40,18 +40,19 @@ export class Menu {
   }
 
   onInput(e) {
-    if (e.target && e.target.id === 'opt-music') this.setMusicVol(Number(e.target.value) / 100);
+    if (e.target && (e.target.id === 'opt-music' || e.target.id === 'snd-range')) this.setMusicVol(Number(e.target.value) / 100);
   }
 
   onClick(e) {
     this.ensureMusic(); // first click unlocks + starts the menu music
-    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs]');
+    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd]');
     if (!t || t.disabled) return;
     if (t.hasAttribute('data-opt-fs')) {
       if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
       else if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
       return;
     }
+    if (t.hasAttribute('data-snd')) { this.toggleMute(); return; }
     if (t.dataset.tut) { this.tutStep(Number(t.dataset.tut)); return; }
     if (t.dataset.tutgo != null) { this.tutIdx = Number(t.dataset.tutgo); this.renderTut(); return; }
     if (t.dataset.go) {
@@ -89,6 +90,18 @@ export class Menu {
   setMusicVol(v) {
     this.musicVol = Math.max(0, Math.min(1, v));
     if (this.music) this.music.volume = this.musicVol;
+    const pct = String(Math.round(this.musicVol * 100));
+    for (const id of ['opt-music', 'snd-range']) {
+      const el = this.el.querySelector('#' + id);
+      if (el && el.value !== pct) el.value = pct;
+    }
+    const icon = this.el.querySelector('#snd-btn');
+    if (icon && !CONFIG.MENU_SOUND_BTN) icon.textContent = this.musicVol === 0 ? '🔇' : '🔊';
+  }
+  // sound button in the corner: mute / restore the last volume
+  toggleMute() {
+    if (this.musicVol > 0) { this.lastVol = this.musicVol; this.setMusicVol(0); }
+    else { this.setMusicVol(this.lastVol || 0.5); }
   }
 
   // "How to play": a slider over the admin-uploaded tutorial slides, with a
@@ -144,13 +157,29 @@ export class Menu {
     for (const txt of this.el.querySelectorAll('.menu-logo-txt')) txt.classList.toggle('hidden', !!url);
   }
 
-  // ornate button skin (admin-uploaded PNG). When set, the main-menu buttons
-  // use it as their background via the --menu-btn CSS variable.
+  // Admin-uploaded skins (PNGs). Each one, when set, becomes the background of
+  // its menu element via a CSS variable + a toggle class on the menu root.
   applyButtons() {
     if (!this.root) return;
-    const url = CONFIG.MENU_BTN || '';
-    this.root.classList.toggle('has-btn-skin', !!url);
-    this.root.style.setProperty('--menu-btn', url ? `url("${url}")` : 'none');
+    const skins = [
+      ['MENU_BTN', 'has-btn-skin', '--menu-btn'],
+      ['MENU_CARD', 'has-card-skin', '--menu-card'],
+      ['MENU_BACK', 'has-back-skin', '--menu-back'],
+      ['MENU_SLIDE_FRAME', 'has-slide-skin', '--menu-slide'],
+      ['MENU_FS_BTN', 'has-fs-skin', '--menu-fs'],
+      ['MENU_SOUND_BTN', 'has-sound-skin', '--menu-sound'],
+    ];
+    for (const [key, cls, varName] of skins) {
+      const url = CONFIG[key] || '';
+      this.root.classList.toggle(cls, !!url);
+      this.root.style.setProperty(varName, url ? `url("${url}")` : 'none');
+    }
+    // corner buttons show a glyph only when they have no uploaded skin
+    const fsBtn = this.el.querySelector('#menu-fs-corner');
+    if (fsBtn) fsBtn.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
+    for (const b of this.el.querySelectorAll('.fs-btn')) if (b !== fsBtn) b.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
+    const sndBtn = this.el.querySelector('#snd-btn');
+    if (sndBtn) sndBtn.textContent = CONFIG.MENU_SOUND_BTN ? '' : (this.musicVol === 0 ? '🔇' : '🔊');
   }
 
   // logo + admin-uploaded backgrounds (menu / loading). Called once balance loads.
@@ -304,6 +333,12 @@ const TEMPLATE = `
     <h1 class="menu-logo-txt">FANGS <span class="amp">&amp;</span> HONOR</h1>
   </div>
 
+  <button id="menu-fs-corner" class="corner-btn fs-btn" title="Ecran complet" data-opt-fs>⛶</button>
+  <div id="menu-sound">
+    <button id="snd-btn" class="corner-btn snd-btn" title="Volum muzică (click = mute)" data-snd>🔊</button>
+    <input type="range" id="snd-range" class="m-range snd-range" min="0" max="100" value="50">
+  </div>
+
   <section class="m-screen" data-screen="main">
     <div class="m-btns">
       <button class="m-btn primary" data-go="format-ai">⚔&nbsp;&nbsp;Play vs AI</button>
@@ -321,7 +356,7 @@ const TEMPLATE = `
       <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
     </div>
-    <button class="m-back" data-go="main">◄ Înapoi</button>
+    <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="format-mp">
@@ -333,7 +368,7 @@ const TEMPLATE = `
       <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
       <button class="m-card locked wide" disabled><span class="m-card-t">👥 Play with friends</span><span class="soon">Coming soon</span></button>
     </div>
-    <button class="m-back" data-go="main">◄ Înapoi</button>
+    <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="setup">
@@ -349,7 +384,7 @@ const TEMPLATE = `
         </div></div>
     </div>
     <button class="m-btn primary big" data-play>▶&nbsp;&nbsp;Play</button>
-    <button class="m-back" data-go="format-ai">◄ Înapoi</button>
+    <button class="m-back" data-go="format-ai"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="options">
@@ -358,9 +393,9 @@ const TEMPLATE = `
       <div class="m-row"><span class="m-label">Muzică</span>
         <input type="range" class="m-range" id="opt-music" min="0" max="100" value="50"></div>
       <div class="m-row"><span class="m-label">Ecran complet</span>
-        <div class="m-opts"><button class="m-pill" data-opt-fs>Comută</button></div></div>
+        <div class="m-opts"><button class="corner-btn fs-btn" title="Comută ecran complet" data-opt-fs>⛶</button></div></div>
     </div>
-    <button class="m-back" data-go="main">◄ Înapoi</button>
+    <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="help">
@@ -368,7 +403,7 @@ const TEMPLATE = `
     <div id="tut-slider" class="hidden">
       <div class="tut-stage">
         <button class="tut-nav prev" data-tut="-1" aria-label="Înapoi">‹</button>
-        <img class="tut-img hidden" alt="">
+        <div class="tut-frame"><img class="tut-img hidden" alt=""></div>
         <button class="tut-nav next" data-tut="1" aria-label="Înainte">›</button>
       </div>
       <p class="tut-text"></p>
@@ -376,7 +411,7 @@ const TEMPLATE = `
     </div>
     <p class="m-help" id="help-fallback">Construiește-ți baza — <b>ziduri, turnuri, generatoare</b> — în zona de construcție, și <b>formația de armată</b> în banda din față. La fiecare val, toată armata ta reînvie și mărșăluiește spre <b>Baza inamică</b> — distruge-o pe a lui ca să câștigi. <b>Upgrade la Baza principală</b> deblochează tieruri superioare de unități. Generatoarele sunt economia ta — protejează-le!<br><br>
     <b>Cameră:</b> mișcă mouse-ul la margini sau folosește <b>săgeți / WASD</b> · <b>rotița</b> face zoom · <b>Space</b> sare la baza ta · click pe <b>minimap</b>. Cursorul e cel real (fără delay).</p>
-    <button class="m-back" data-go="main">◄ Înapoi</button>
+    <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="over">
