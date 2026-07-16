@@ -25,16 +25,19 @@ export class Menu {
 
   build() {
     this.el.innerHTML = TEMPLATE;
+    this.bg = this.el.querySelector('#menu-bg');
     this.root = this.el.querySelector('#menu-root');
     this.cd = this.el.querySelector('#menu-cd');
     this.load = this.el.querySelector('#menu-load');
+    this.music = null;
     this.el.addEventListener('click', (e) => this.onClick(e));
-    this.applyLogo();
+    this.applyTheme();
     this.reflect();
     this.go('main');
   }
 
   onClick(e) {
+    this.ensureMusic(); // first click unlocks + starts the menu music
     const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play]');
     if (!t || t.disabled) return;
     if (t.dataset.go) {
@@ -81,12 +84,38 @@ export class Menu {
     for (const txt of this.el.querySelectorAll('.menu-logo-txt')) txt.classList.toggle('hidden', !!url);
   }
 
+  // logo + admin-uploaded backgrounds (menu / loading). Called once balance loads.
+  applyTheme() {
+    this.applyLogo();
+    const u = (s) => `url("${s}")`;
+    const mb = CONFIG.MENU_BG || '';
+    if (this.bg) { this.bg.style.backgroundImage = mb ? u(mb) : ''; this.bg.classList.toggle('on', !!mb); }
+    const lb = CONFIG.LOADING_BG || CONFIG.MENU_BG || '';
+    const tint = 'linear-gradient(rgba(6,9,14,0.62), rgba(6,9,14,0.86))';
+    for (const layer of [this.cd, this.load]) {
+      if (!layer) continue;
+      layer.style.backgroundImage = lb ? `${tint}, ${u(lb)}` : '';
+    }
+  }
+
+  ensureMusic() {
+    if (this.music || !CONFIG.MENU_MUSIC) return;
+    try {
+      this.music = new Audio(CONFIG.MENU_MUSIC);
+      this.music.loop = true;
+      this.music.volume = 0.5;
+      this.music.play().catch(() => { /* autoplay blocked until a gesture */ });
+    } catch { this.music = null; }
+  }
+  stopMusic() { if (this.music) { this.music.pause(); this.music = null; } }
+
   clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
   later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
 
   // Play → fullscreen (in the click gesture) → 5s countdown → loading → match
   play() {
     this.clearTimers();
+    this.stopMusic(); // menu music off; the match starts its own
     if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
     // countdown
     this.root.classList.add('hidden');
@@ -109,7 +138,8 @@ export class Menu {
     this.load.classList.remove('hidden');
     const fill = this.load.querySelector('.load-fill');
     const tip = this.load.querySelector('.load-tip');
-    tip.textContent = '💡 ' + TIPS[Math.floor(this.mix() * TIPS.length) % TIPS.length];
+    const tips = (Array.isArray(CONFIG.LOADING_TIPS) && CONFIG.LOADING_TIPS.length) ? CONFIG.LOADING_TIPS : TIPS;
+    tip.textContent = '💡 ' + tips[Math.floor(this.mix() * tips.length) % tips.length];
     fill.style.transition = 'none'; fill.style.width = '0%';
     void fill.offsetWidth;
     fill.style.transition = 'width 1.4s cubic-bezier(.4,.5,.2,1)';
@@ -123,8 +153,8 @@ export class Menu {
   // tiny non-seeded shuffle just for picking a tip (UI only, never the sim)
   mix() { this._m = ((this._m || Date.now()) * 1103515245 + 12345) & 0x7fffffff; return this._m / 0x7fffffff; }
 
-  show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); }
-  hide() { this.clearTimers(); this.el.classList.remove('visible'); }
+  show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); this.ensureMusic(); }
+  hide() { this.clearTimers(); this.stopMusic(); this.el.classList.remove('visible'); }
 
   showGameOver(game, playerWon) {
     this.clearTimers();
@@ -146,6 +176,7 @@ const races = (opt) => `
   </div>`;
 
 const TEMPLATE = `
+<div id="menu-bg"></div>
 <div id="menu-root">
   <div class="menu-brand">
     <img class="menu-logo-img hidden" alt="Fangs & Honor">

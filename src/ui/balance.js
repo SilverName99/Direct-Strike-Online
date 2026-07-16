@@ -373,6 +373,10 @@ function snapshot() {
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     goldIcon: CONFIG.GOLD_ICON || '',
     menuLogo: CONFIG.MENU_LOGO || '',
+    menuBg: CONFIG.MENU_BG || '',
+    loadingBg: CONFIG.LOADING_BG || '',
+    menuMusic: CONFIG.MENU_MUSIC || '',
+    loadingTips: Array.isArray(CONFIG.LOADING_TIPS) ? [...CONFIG.LOADING_TIPS] : [],
     pushMode: CONFIG.PUSH_MODE,
     pushCrossTeam: CONFIG.PUSH_CROSS_TEAM,
     pushForce: CONFIG.PUSH_FORCE,
@@ -419,6 +423,12 @@ export function applyBalance(data) {
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
   CONFIG.MENU_LOGO = typeof data.menuLogo === 'string' ? data.menuLogo : '';
+  CONFIG.MENU_BG = typeof data.menuBg === 'string' ? data.menuBg : '';
+  CONFIG.LOADING_BG = typeof data.loadingBg === 'string' ? data.loadingBg : '';
+  CONFIG.MENU_MUSIC = typeof data.menuMusic === 'string' ? data.menuMusic : '';
+  CONFIG.LOADING_TIPS = Array.isArray(data.loadingTips)
+    ? data.loadingTips.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.slice(0, 200)).slice(0, 40)
+    : [];
   if (data.pushMode === 'mass' || data.pushMode === 'equal') CONFIG.PUSH_MODE = data.pushMode;
   if (typeof data.pushCrossTeam === 'boolean') CONFIG.PUSH_CROSS_TEAM = data.pushCrossTeam;
   if (num(data.pushForce) !== undefined) CONFIG.PUSH_FORCE = clamp(data.pushForce, 0.2, 50);
@@ -631,9 +641,15 @@ export function importBalance(data) {
   // file (which won't carry one) must not wipe it
   const keepGoldIcon = CONFIG.GOLD_ICON;
   const keepMenuLogo = CONFIG.MENU_LOGO;
+  const keepMenuBg = CONFIG.MENU_BG, keepLoadingBg = CONFIG.LOADING_BG;
+  const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
   if (typeof data.menuLogo !== 'string' || !data.menuLogo) CONFIG.MENU_LOGO = keepMenuLogo;
+  if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
+  if (typeof data.loadingBg !== 'string' || !data.loadingBg) CONFIG.LOADING_BG = keepLoadingBg;
+  if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;
+  if (!Array.isArray(data.loadingTips) || !data.loadingTips.length) CONFIG.LOADING_TIPS = keepTips;
   // restore them over whatever the imported file said
   for (const race of RACES) {
     for (const [id, k] of Object.entries(keep[race].units)) {

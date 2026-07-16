@@ -62,7 +62,7 @@ loadBalance().then((loaded) => {
     bottombar.refresh();
     console.log('balance overrides loaded');
   }
-  menu.applyLogo(); // the menu logo lives in balance.json
+  menu.applyTheme(); // logo + menu/loading backgrounds live in balance.json
 });
 
 // 🎯 debug overlay: attack reach + physical body boxes around every unit

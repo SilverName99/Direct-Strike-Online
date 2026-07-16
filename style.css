@@ -480,6 +480,16 @@ html, body {
 .btn.primary:hover { background: #2563a8; }
 
 /* ================= Entry menu ================= */
+#menu-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+#menu-bg.on::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(72% 72% at 50% 44%, rgba(6, 9, 14, 0.32), rgba(6, 9, 14, 0.74));
+}
+#overlay > #menu-root { position: relative; z-index: 1; }
+#menu-cd, #menu-load { background-size: cover; background-position: center; }
 #menu-root {
   width: min(560px, 92vw);
   padding: 30px 34px 34px;

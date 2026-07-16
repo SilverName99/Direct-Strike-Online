@@ -94,10 +94,72 @@ function render() {
       <button type="button" id="logo-clear" style="padding:8px 14px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:8px;cursor:pointer">Fără (text)</button>
       <input type="file" id="logo-file" accept="image/*" style="display:none">
     </div></div>`;
+  // menu & loading-screen cosmetics
+  html += `<div class="group"><h3>Meniu & Loading</h3>
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 12px">Fundalul meniului, fundalul ecranului de loading, muzica de meniu și tips-urile de pe loading. Toate se salvează pe loc.</p>
+    ${uploaderRow('menubg', 'Fundal meniu', 'imagine lată (~1600px)')}
+    ${uploaderRow('loadingbg', 'Fundal loading', 'imagine lată (~1600px)')}
+    ${uploaderRow('menumusic', 'Muzică meniu', 'audio (mp3/ogg), se repetă', 'audio')}
+    <div style="margin-top:8px">
+      <div style="color:#b9c4d4;font-size:13px;margin-bottom:6px">Tips loading <span style="color:#7c8ba1">— un tip pe linie; gol = cele implicite</span></div>
+      <textarea id="tips-area" rows="5" style="width:100%;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:8px;padding:8px 10px;font:13px/1.5 system-ui;resize:vertical" placeholder="Generatoarele sunt economia ta — protejează-le.&#10;Upgrade la Bază deblochează tieruri superioare."></textarea>
+    </div></div>`;
   html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (nume, dimensiune, footprint, HP-ul bazei, turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
   app.innerHTML = html;
   wireGoldIcon();
   wireMenuLogo();
+  wireAsset('MENU_BG', 'menubg', 'image', 3 * 1024 * 1024);
+  wireAsset('LOADING_BG', 'loadingbg', 'image', 3 * 1024 * 1024);
+  wireAsset('MENU_MUSIC', 'menumusic', 'audio', 6 * 1024 * 1024);
+  wireTips();
+}
+
+// build one uploader row (image or audio) for the Meniu & Loading group
+function uploaderRow(slug, label, hint, kind = 'image') {
+  const box = kind === 'audio' ? 'width:120px;height:44px' : 'width:120px;height:64px';
+  return `<div style="margin-bottom:12px">
+    <div style="color:#b9c4d4;font-size:13px;margin-bottom:6px">${label} <span style="color:#7c8ba1">— ${hint}</span></div>
+    <div class="fields" style="align-items:center;gap:14px">
+      <div id="${slug}-preview" style="${box};display:flex;align-items:center;justify-content:center;background:#0d1219;border:1px solid #2a3444;border-radius:8px;font-size:12px;color:#7c8ba1;overflow:hidden">gol</div>
+      <button type="button" id="${slug}-pick" style="padding:8px 14px;background:#1d2c42;color:#dfe8f4;border:1px solid #33507a;border-radius:8px;cursor:pointer">Alege…</button>
+      <button type="button" id="${slug}-clear" style="padding:8px 14px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:8px;cursor:pointer">Fără</button>
+      <input type="file" id="${slug}-file" accept="${kind === 'audio' ? 'audio/*' : 'image/*'}" style="display:none">
+    </div></div>`;
+}
+function assetPreview(el, key, kind) {
+  el.textContent = '';
+  if (!CONFIG[key]) { el.textContent = 'gol'; return; }
+  if (kind === 'audio') { el.textContent = '🎵 setat'; return; }
+  const img = document.createElement('img');
+  img.src = CONFIG[key]; img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.objectFit = 'cover';
+  el.appendChild(img);
+}
+function wireAsset(key, slug, kind, max) {
+  const pick = document.getElementById(slug + '-pick');
+  const file = document.getElementById(slug + '-file');
+  const clear = document.getElementById(slug + '-clear');
+  const prev = document.getElementById(slug + '-preview');
+  if (!pick || !file || !clear || !prev) return;
+  assetPreview(prev, key, kind);
+  pick.addEventListener('click', () => file.click());
+  clear.addEventListener('click', () => { CONFIG[key] = ''; assetPreview(prev, key, kind); autoSaveGoldIcon(`${key} eliminat`); });
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    if (f.size > max) { setStatus(`Fișier prea mare (max ~${Math.round(max / 1048576)}MB).`, 'bad'); file.value = ''; return; }
+    const rd = new FileReader();
+    rd.onload = () => { CONFIG[key] = String(rd.result || ''); assetPreview(prev, key, kind); autoSaveGoldIcon(`${key} setat`); };
+    rd.readAsDataURL(f); file.value = '';
+  });
+}
+function wireTips() {
+  const ta = document.getElementById('tips-area');
+  if (!ta) return;
+  ta.value = (CONFIG.LOADING_TIPS || []).join('\n');
+  ta.addEventListener('change', () => {
+    CONFIG.LOADING_TIPS = ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 40);
+    autoSaveGoldIcon('Tips salvate');
+  });
 }
 
 // main-menu logo controls (auto-saves like the gold icon)
