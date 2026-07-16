@@ -107,6 +107,7 @@ function render() {
     ${uploaderRow('menupwf', 'Design „Play with friends”', 'PNG cu textul deja inclus (ecranul Multiplayer)')}
     ${uploaderRow('menuplay', 'Design buton PLAY', 'PNG buton (ecranul de setup) — la dimensiunea imaginii')}
     ${uploaderRow('menusetup', 'Chenar rase / dificultate', 'ramă PNG în jurul zonei de alegere (setup)')}
+    ${uploaderRow('menuoptions', 'Chenar Options', 'ramă PNG în jurul controalelor din Options')}
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
@@ -135,6 +136,7 @@ function render() {
   wireAsset('MENU_PWF', 'menupwf', 'image', 2 * 1024 * 1024);
   wireAsset('MENU_PLAY', 'menuplay', 'image', 2 * 1024 * 1024);
   wireAsset('MENU_SETUP_FRAME', 'menusetup', 'image', 3 * 1024 * 1024);
+  wireAsset('MENU_OPTIONS_FRAME', 'menuoptions', 'image', 3 * 1024 * 1024);
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);

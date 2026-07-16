@@ -704,8 +704,13 @@ html, body {
 .has-play-skin .m-play-txt { display: none; }
 
 /* ---- frame around the race/difficulty picker (admin "Chenar rase / dificultate") ---- */
-.has-setup-skin .m-setup {
+.has-setup-skin .m-screen[data-screen="setup"] .m-setup {
   background: var(--menu-setup) center / 100% 100% no-repeat;
+  padding: 42px 48px; border-radius: 14px;
+}
+/* ---- frame around the Options controls (admin "Chenar Options") ---- */
+.has-optframe-skin .m-setup-opts {
+  background: var(--menu-optframe) center / 100% 100% no-repeat;
   padding: 42px 48px; border-radius: 14px;
 }
 

@@ -54,7 +54,7 @@ if (!is_array($data)) {
 }
 
 // keep only known top-level sections; re-encode to sanitize
-$clean = array_intersect_key($data, array_flip(['buildings', 'turret', 'mainHp', 'mainIdleSpeed', 'tierCosts', 'general', 'middles', 'middleEmpty', 'buildingSizes', 'tint', 'healthbarAlways', 'goldIcon', 'menuLogo', 'menuBtn', 'menuCard', 'menuBack', 'menuSlideFrame', 'menuFsBtn', 'menuSoundBtn', 'menuPwf', 'menuPlay', 'menuSetupFrame', 'menuBg', 'loadingBg', 'loadingBgs', 'menuMusic', 'loadingTips', 'tutorials', 'unitOrder', 'music', 'abilities', 'upgrades', 'races']));
+$clean = array_intersect_key($data, array_flip(['buildings', 'turret', 'mainHp', 'mainIdleSpeed', 'tierCosts', 'general', 'middles', 'middleEmpty', 'buildingSizes', 'tint', 'healthbarAlways', 'goldIcon', 'menuLogo', 'menuBtn', 'menuCard', 'menuBack', 'menuSlideFrame', 'menuFsBtn', 'menuSoundBtn', 'menuPwf', 'menuPlay', 'menuSetupFrame', 'menuOptionsFrame', 'menuBg', 'loadingBg', 'loadingBgs', 'menuMusic', 'loadingTips', 'tutorials', 'unitOrder', 'music', 'abilities', 'upgrades', 'races']));
 @mkdir(dirname($file), 0755, true);
 if (file_put_contents($file, json_encode($clean, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
   http_response_code(500);

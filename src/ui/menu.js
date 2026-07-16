@@ -172,6 +172,7 @@ export class Menu {
       ['MENU_PWF', 'has-pwf-skin', '--menu-pwf'],
       ['MENU_PLAY', 'has-play-skin', '--menu-play'],
       ['MENU_SETUP_FRAME', 'has-setup-skin', '--menu-setup'],
+      ['MENU_OPTIONS_FRAME', 'has-optframe-skin', '--menu-optframe'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
@@ -233,7 +234,7 @@ export class Menu {
     const title = head.querySelector('.setup-title');
     if (img) { img.classList.toggle('hidden', !hasCard); if (hasCard) img.src = CONFIG.MENU_CARD; }
     if (label) label.textContent = fmt.toLowerCase();
-    if (title) { title.classList.toggle('hidden', hasCard); title.textContent = `${fmt} · vs AI`; }
+    if (title) { title.classList.toggle('hidden', hasCard); title.textContent = fmt; }
   }
 
   loadingVariants() { return (CONFIG.LOADING_BGS || []).filter(Boolean); }
@@ -397,7 +398,7 @@ const TEMPLATE = `
     <h2 class="m-title">Play vs AI</h2>
     <p class="m-hint">Alege formatul</p>
     <div class="m-cards">
-      <button class="m-card" data-fmt="1v1"><span class="m-card-t">1v1</span><span class="m-card-s">Tu vs AI</span></button>
+      <button class="m-card" data-fmt="1v1"><span class="m-card-t">1v1</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
     </div>
@@ -419,7 +420,7 @@ const TEMPLATE = `
   <section class="m-screen hidden" data-screen="setup">
     <div id="setup-head" class="setup-head">
       <div class="setup-card"><img class="setup-card-img hidden" alt=""><span class="setup-card-t">1v1</span></div>
-      <h2 class="m-title setup-title">1V1 · vs AI</h2>
+      <h2 class="m-title setup-title">1V1</h2>
     </div>
     <div class="m-setup">
       <div class="m-row"><span class="m-label">Rasa ta</span>${races('player')}</div>
@@ -436,8 +437,8 @@ const TEMPLATE = `
   </section>
 
   <section class="m-screen hidden" data-screen="options">
-    <h2 class="m-title">Opțiuni</h2>
-    <div class="m-setup">
+    <h2 class="m-title">OPTIONS</h2>
+    <div class="m-setup m-setup-opts">
       <div class="m-row"><span class="m-label">Muzică</span>
         <input type="range" class="m-range" id="opt-music" min="0" max="100" value="50"></div>
       <div class="m-row"><span class="m-label">Ecran complet</span>
