@@ -395,6 +395,7 @@ function snapshot() {
     pushCrossTeam: CONFIG.PUSH_CROSS_TEAM,
     pushForce: CONFIG.PUSH_FORCE,
     tierCosts: { 2: CONFIG.TIER_COSTS[2], 3: CONFIG.TIER_COSTS[3] },
+    tierUpTime: CONFIG.TIER_UP_TIME,
     unitOrder: Object.fromEntries(RACES.map((r) => [r, [...unitOrder[r]]])),
     music: Object.fromEntries(RACES.map((r) => [r, musicVol[r]])),
     abilities,
@@ -433,6 +434,7 @@ export function applyBalance(data) {
   if (data.tierCosts && typeof data.tierCosts === 'object') {
     for (const t of [2, 3]) if (num(data.tierCosts[t]) !== undefined) CONFIG.TIER_COSTS[t] = data.tierCosts[t];
   }
+  if (num(data.tierUpTime) !== undefined) CONFIG.TIER_UP_TIME = clamp(data.tierUpTime, 0, 600);
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';

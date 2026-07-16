@@ -35,6 +35,7 @@ function render() {
   html += '<div class="group"><h3>Tier upgrade costs</h3><div class="fields">';
   html += numField('tier', '2', '', 'Tier 2 cost', CONFIG.TIER_COSTS[2]);
   html += numField('tier', '3', '', 'Tier 3 cost', CONFIG.TIER_COSTS[3]);
+  html += numField('tieruptime', '', '', 'Timp upgrade bază (s)', CONFIG.TIER_UP_TIME);
   html += '</div></div>';
   // middle-of-map terrain effects, one per uploaded strip variant (slots 1-3)
   html += `<div class="group"><h3>Mijloc hartă — efect pe teren</h3>
@@ -394,6 +395,7 @@ function collect() {
     if (!isFinite(raw)) continue;
     if (scope === 'general') CONFIG[field] = raw;
     else if (scope === 'tier') CONFIG.TIER_COSTS[Number(id)] = raw;
+    else if (scope === 'tieruptime') CONFIG.TIER_UP_TIME = Math.max(0, Math.min(600, raw));
   }
 }
 

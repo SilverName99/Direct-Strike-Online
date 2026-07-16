@@ -175,9 +175,10 @@ export class AIController {
       }
     }
 
-    // 2. Tier up at sensible timings.
+    // 2. Tier up at sensible timings. (Skip entirely while a tier-up is already
+    // in progress — can't queue a second one, and no point hoarding for it.)
     const upCost = game.tierUpCost(t);
-    if (upCost !== null) {
+    if (upCost !== null && !game.baseUpgrading(t)) {
       const due =
         (game.tier[t] === 1 && game.waveCount >= this.g.tier2Wave) ||
         (game.tier[t] === 2 && game.waveCount >= this.g.tier3Wave);

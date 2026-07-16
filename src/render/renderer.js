@@ -832,6 +832,41 @@ export class Renderer {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('🌾', 0, 2);
       }
+
+      // Base tier upgrade in progress: a golden progress ring around the base
+      // + the seconds left in the middle-top. No separate build frames — the
+      // base keeps its normal art, just "busy" with this radial on top.
+      if (s.kind === 'main' && game.baseUpgrading && game.baseUpgrading(s.team)) {
+        const size = Math.max(1, sizeOf(raceOf(s.team), s.kind));
+        const p = game.baseUpgradeProgress(s.team);
+        const left = Math.ceil(game.baseUpgradeLeft(s.team));
+        const ringR = r * 1.5 * size + 12;
+        ctx.save();
+        // faint full track
+        ctx.beginPath();
+        ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = 7;
+        ctx.stroke();
+        // gold progress sweep, starting at the top and going clockwise
+        ctx.beginPath();
+        ctx.arc(0, 0, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
+        ctx.strokeStyle = '#ffd35c';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        // countdown seconds in a small dark disc at the top of the ring
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.beginPath();
+        ctx.arc(0, -ringR, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffd35c';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${left}`, 0, -ringR + 1);
+        ctx.restore();
+      }
       ctx.restore();
 
       // HP bar (main always; others when damaged) — sits above the sprite's

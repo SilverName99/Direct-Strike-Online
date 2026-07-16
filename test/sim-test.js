@@ -34,6 +34,35 @@ function run(game, seconds, extra = null) {
   }
 }
 
+// ------------------------------------------------- base upgrade wait time
+// The base goes "busy" for TIER_UP_TIME seconds before the new tier lands.
+console.log('base tier upgrade wait');
+{
+  const WAIT = 12;
+  const saved = CONFIG.TIER_UP_TIME;
+  CONFIG.TIER_UP_TIME = WAIT;
+  const game = new Game(3, { races: ['humans', 'orcs'] });
+  game.money[0] = 5000;
+  const up = game.issueCommand({ type: 'upgradeBase', team: 0 });
+  check('upgradeBase accepted', up.ok);
+  check('tier not advanced immediately', game.tier[0] === 1);
+  check('base reports busy', game.baseUpgrading(0) === true);
+  // a second upgrade while busy is refused
+  const again = game.issueCommand({ type: 'upgradeBase', team: 0 });
+  check('second upgrade refused while busy', !again.ok && again.reason === 'busy');
+  run(game, WAIT - 2);
+  check('still tier 1 mid-wait', game.tier[0] === 1 && game.baseUpgrading(0));
+  check('progress climbs toward 1', game.baseUpgradeProgress(0) > 0.7);
+  run(game, 3);
+  check('tier advances after the wait', game.tier[0] === 2);
+  check('no longer busy', game.baseUpgrading(0) === false);
+  CONFIG.TIER_UP_TIME = saved;
+}
+
+// The remaining tier-gating tests were written before the wait existed and
+// assume an instant upgrade — keep them instant so they stay focused.
+CONFIG.TIER_UP_TIME = 0;
+
 // ---------------------------------------------------------------- purity
 console.log('sim purity audit');
 {

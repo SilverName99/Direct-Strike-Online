@@ -27,6 +27,10 @@ export class Game {
     this.money = [CONFIG.START_MONEY, CONFIG.START_MONEY];
     this.spent = [0, 0];
     this.tier = [1, 1];
+    // Base tier upgrade in progress, per team: null when idle, else
+    // { start, done, toTier } — the tier only advances (and its effects apply)
+    // once game.time reaches `done`. The base stays busy meanwhile.
+    this.baseUpgrade = [null, null];
     this.upgrades = [new Set(), new Set()]; // bought upgrade ids, per team (permanent)
     // Player-facing toggles (via the selection panel). Both are OFF-lists so
     // everything defaults to ON (the AI never toggles — full behavior).
@@ -380,6 +384,43 @@ export class Game {
     return CONFIG.TIER_COSTS[this.tier[team] + 1] ?? null;
   }
 
+  // Is the base mid-upgrade? / seconds still left / 0..1 progress (for the UI).
+  baseUpgrading(team) {
+    return this.baseUpgrade[team] != null;
+  }
+  baseUpgradeLeft(team) {
+    const u = this.baseUpgrade[team];
+    return u ? Math.max(0, u.done - this.time) : 0;
+  }
+  baseUpgradeProgress(team) {
+    const u = this.baseUpgrade[team];
+    if (!u) return 0;
+    const total = Math.max(0.001, u.done - u.start);
+    return Math.max(0, Math.min(1, (this.time - u.start) / total));
+  }
+
+  // Actually advance the base to the next tier and apply all its effects
+  // (base max HP + heal, tower scaling). Called immediately for an instant
+  // upgrade, or from update() when the upgrade timer finishes.
+  applyTierUp(team) {
+    this.tier[team]++;
+    const main = this.mainOf(team);
+    if (main) {
+      main.maxHp = this.bstat(team, 'main').hp[this.tier[team] - 1];
+      main.hp = Math.min(main.maxHp, main.hp + 1000);
+    }
+    // towers scale with the base tier: raise their max HP and heal by the gain
+    const tbs = this.bstat(team, 'tower');
+    for (const s of this.structures) {
+      if (s.team !== team || s.kind !== 'tower' || s.hp <= 0) continue;
+      const nm = towerStatForTier(tbs, this.tier[team]).hp;
+      const gain = nm - s.maxHp;
+      s.maxHp = nm;
+      if (gain > 0) s.hp = Math.min(nm, s.hp + gain);
+    }
+    this.events.push({ type: 'tierUp', team, tier: this.tier[team] });
+  }
+
   inZone(zone, x, y) {
     return x >= zone.x0 && x <= zone.x1 && y >= zone.y0 && y <= zone.y1;
   }
@@ -562,27 +603,21 @@ export class Game {
     }
 
     if (cmd.type === 'upgradeBase') {
+      if (this.baseUpgrade[cmd.team]) return { ok: false, reason: 'busy' };
       if (this.tier[cmd.team] >= CONFIG.TIER_MAX) return { ok: false, reason: 'max-tier' };
       const cost = this.tierUpCost(cmd.team);
       if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };
       this.money[cmd.team] -= cost;
       this.spent[cmd.team] += cost;
-      this.tier[cmd.team]++;
-      const main = this.mainOf(cmd.team);
-      if (main) {
-        main.maxHp = this.bstat(cmd.team, 'main').hp[this.tier[cmd.team] - 1];
-        main.hp = Math.min(main.maxHp, main.hp + 1000);
+      const wait = Math.max(0, CONFIG.TIER_UP_TIME || 0);
+      if (wait <= 0) {
+        this.applyTierUp(cmd.team); // instant (wait disabled)
+      } else {
+        // base goes "busy": the tier only advances when the timer finishes
+        // (in update()). No separate frames — just a radial on the base.
+        this.baseUpgrade[cmd.team] = { start: this.time, done: this.time + wait, toTier: this.tier[cmd.team] + 1 };
+        this.events.push({ type: 'tierUpStart', team: cmd.team, tier: this.tier[cmd.team] + 1 });
       }
-      // towers scale with the base tier: raise their max HP and heal by the gain
-      const tbs = this.bstat(cmd.team, 'tower');
-      for (const s of this.structures) {
-        if (s.team !== cmd.team || s.kind !== 'tower' || s.hp <= 0) continue;
-        const nm = towerStatForTier(tbs, this.tier[cmd.team]).hp;
-        const gain = nm - s.maxHp;
-        s.maxHp = nm;
-        if (gain > 0) s.hp = Math.min(nm, s.hp + gain);
-      }
-      this.events.push({ type: 'tierUp', team: cmd.team, tier: this.tier[cmd.team] });
       return { ok: true };
     }
 
@@ -650,6 +685,16 @@ export class Game {
       if (this.time >= s.buildDone) {
         s.building = false;
         this.events.push({ type: 'built', team: s.team, kind: s.kind, x: s.x, y: s.y });
+      }
+    }
+
+    // Base tier upgrades: while busy, the new tier lands only when the timer
+    // finishes (deterministic — both lockstep clients apply it on the same tick)
+    for (const t of [0, 1]) {
+      const u = this.baseUpgrade[t];
+      if (u && this.time >= u.done) {
+        this.baseUpgrade[t] = null;
+        this.applyTierUp(t);
       }
     }
 

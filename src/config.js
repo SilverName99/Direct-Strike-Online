@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v12.08';
+export const VERSION = 'v12.09';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -112,6 +112,10 @@ export const CONFIG = {
     targetsAir: true,
   },
   TIER_COSTS: { 2: 400, 3: 900 },
+  // Seconds the base is "busy" upgrading before the new tier takes effect
+  // (like a building's buildTime, but no separate construction frames — the
+  // base keeps its current art with a radial timer on top). 0 = instant.
+  TIER_UP_TIME: 20,
   TIER_MAX: 3,
 
   // Starting defensive turret (pre-placed, not buildable, dies for good)

@@ -962,11 +962,17 @@ export class BottomBar {
         }
       } else if (d.kind === 'upgradeBase') {
         if (game) {
+          const busy = game.baseUpgrading(this.team);
           const maxed = game.tier[this.team] >= CONFIG.TIER_MAX;
-          const cost = maxed ? Infinity : game.tierUpCost(0);
-          if (maxed || game.money[this.team] < cost) el.classList.add('disabled');
+          const cost = maxed ? Infinity : game.tierUpCost(this.team);
+          if (busy || maxed || game.money[this.team] < cost) el.classList.add('disabled');
           const c = el.querySelector('.s-cost');
-          if (c) c.textContent = maxed ? 'MAX' : cost;
+          if (c) c.textContent = maxed ? 'MAX' : (busy ? '' : cost);
+          // base is upgrading: radial timer over the cell (same sweep as CDs)
+          if (busy) {
+            cd = game.baseUpgradeLeft(this.team);
+            cdTotal = Math.max(0.001, CONFIG.TIER_UP_TIME || 0);
+          }
         }
       } else if (d.kind === 'ability' && game) {
         const ab = resolvedAbility(d.id);
@@ -1201,12 +1207,20 @@ export class BottomBar {
     }
     if (d.kind === 'upgradeBase') {
       const maxed = game && game.tier[this.team] >= CONFIG.TIER_MAX;
-      const cost = game ? (maxed ? 'MAX' : `◆ ${game.tierUpCost(0)}`) : `◆ ${CONFIG.TIER_COSTS[2]}`;
+      const busy = game && game.baseUpgrading(this.team);
+      const cost = game ? (maxed ? 'MAX' : `◆ ${game.tierUpCost(this.team)}`) : `◆ ${CONFIG.TIER_COSTS[2]}`;
       const next = !game || game.tier[this.team] === 1
         ? 'Tier 2 deblochează unitățile de tier 2'
         : 'Tier 3 deblochează unitățile de tier 3';
+      const wait = Math.max(0, CONFIG.TIER_UP_TIME || 0);
+      const timing = wait > 0 ? `Durează ${wait}s (baza e ocupată în timpul upgrade-ului).` : 'Instant.';
+      if (busy) {
+        return `<div class="p-title">Upgrade Bază — în curs…</div>
+          <div>Baza se îmbunătățește. Mai sunt ${Math.ceil(game.baseUpgradeLeft(this.team))}s.</div>
+          <div class="p-dim">Noul tier se activează când se termină timpul.</div>`;
+      }
       return `<div class="p-title">Upgrade Bază · ${cost}</div>
-        <div>Deblochează următorul tier de unități și adaugă +1000 HP bazei. Instant.</div>
+        <div>Deblochează următorul tier de unități și adaugă +1000 HP bazei. ${timing}</div>
         <div class="p-dim">${maxed ? 'Toate tier-ele deblocate' : next}</div>`;
     }
     if (d.kind === 'ability') {
