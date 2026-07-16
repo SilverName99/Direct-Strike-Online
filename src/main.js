@@ -8,6 +8,7 @@ import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
+import { Menu } from './ui/menu.js';
 import { PointerManager, toast } from './ui/pointer.js';
 import { loadSprites, setTeamRaces, getMusicUrl, getCursorUrl, availableMiddleSlots } from './render/sprites.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
@@ -49,7 +50,7 @@ const bottombar = new BottomBar(
 );
 const pointer = new PointerManager(canvas);
 
-console.log(`Direct Strike Online ${VERSION}`);
+console.log(`Fangs & Honor ${VERSION}`);
 document.getElementById('version').textContent = VERSION;
 
 // user-uploaded unit sprites (via /admin) override the built-in art
@@ -61,6 +62,7 @@ loadBalance().then((loaded) => {
     bottombar.refresh();
     console.log('balance overrides loaded');
   }
+  menu.applyLogo(); // the menu logo lives in balance.json
 });
 
 // 🎯 debug overlay: attack reach + physical body boxes around every unit
@@ -155,34 +157,17 @@ function applyCursor(race) {
   pointer.setCursorImage(getCursorUrl(race));
 }
 
-let playerRace = 'humans';
-for (const btn of document.querySelectorAll('.btn.race')) {
-  btn.addEventListener('click', () => {
-    playerRace = btn.dataset.race;
-    // update the render race NOW so the shop redraws for this race
-    const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
-    setTeamRaces([playerRace, aiRace]);
-    document.querySelectorAll('.btn.race').forEach((b) =>
-      b.classList.toggle('selected', b === btn)
-    );
-    bottombar.refresh(); // shop stats + art follow the chosen race
-    applyCursor(playerRace); // custom mouse for this race
-  });
-}
-
-function newGame(difficulty) {
+function newGame(playerRace, enemyRace, difficulty) {
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const diff = CONFIG.DIFFICULTY[difficulty] || CONFIG.DIFFICULTY.normal;
-  // race is a render-side art choice: the AI plays the other one
-  const aiRace = RACES.find((r) => r !== playerRace) || playerRace;
-  setTeamRaces([playerRace, aiRace]);
+  setTeamRaces([playerRace, enemyRace]);
   bottombar.refresh(); // shop reflects the player race at match start
   // middle-of-map terrain: the available uploaded variants + their effects,
   // plus N "empty" entries so some matches roll a plain middle; the sim picks
   // one at random (seeded) and applies its effect
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
   for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
-  game = new Game(seed, { races: [playerRace, aiRace], incomeMult: [1, diff.incomeMult], middles });
+  game = new Game(seed, { races: [playerRace, enemyRace], incomeMult: [1, diff.incomeMult], middles });
   window.__game = game; // debug/test handle (render side only; sim never reads it)
   window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)
   window.__bb = bottombar; // debug/test handle (inspect the command grid state)
@@ -193,17 +178,25 @@ function newGame(difficulty) {
   uiState.inspect = null;
   camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
   state = 'playing';
-  hud.hideOverlay();
   startMusic(playerRace);
   applyCursor(playerRace);
 }
 
-for (const btn of document.querySelectorAll('.btn.diff')) {
-  btn.addEventListener('click', () => {
-    pointer.enter(); // fullscreen + mouse capture, from the same user gesture
-    newGame(btn.dataset.diff);
-  });
-}
+// The entry menu owns #overlay: main → format → setup → 5s countdown → loading.
+const menu = new Menu(document.getElementById('overlay'), {
+  // live shop / cursor preview follows the race picked in match setup
+  onRaceChange: ({ player, enemy }) => {
+    setTeamRaces([player, enemy]);
+    bottombar.refresh();
+    applyCursor(player);
+  },
+  onStart: ({ player, enemy, difficulty }) => newGame(player, enemy, difficulty),
+  enterFullscreen: () => pointer.enter(), // from the Play click (a user gesture)
+});
+// seed the behind-the-menu preview with the default matchup
+setTeamRaces(['humans', 'orcs']);
+bottombar.refresh();
+applyCursor('humans');
 
 window.addEventListener('resize', () => renderer.resize());
 // entering/leaving fullscreen resizes the wrapper over a couple of frames —
@@ -251,7 +244,8 @@ function frame(now) {
     if (game.winner !== null) {
       state = 'over';
       stopMusic();
-      setTimeout(() => hud.showGameOver(game, game.winner === 0), 900);
+      const won = game.winner === 0;
+      setTimeout(() => menu.showGameOver(game, won), 900);
     }
   } else if (state === 'over' && game) {
     // keep drawing the frozen battlefield behind the overlay

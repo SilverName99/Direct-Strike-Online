@@ -85,9 +85,50 @@ function render() {
       <button type="button" id="gold-clear" style="padding:8px 14px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:8px;cursor:pointer">Fără (◆)</button>
       <input type="file" id="gold-file" accept="image/*" style="display:none">
     </div></div>`;
+  // main-menu logo (shown on the entry screen)
+  html += `<div class="group"><h3>Logo meniu (ecranul de intrare)</h3>
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 10px">Imaginea mare de pe meniul principal. Gol = numele scris cu text. Recomandat: PNG cu fundal transparent, lat (~1000px).</p>
+    <div class="fields" style="align-items:center;gap:14px">
+      <div id="logo-preview" style="width:180px;height:80px;display:flex;align-items:center;justify-content:center;background:#0d1219;border:1px solid #2a3444;border-radius:8px;font-size:12px;color:#7c8ba1">gol</div>
+      <button type="button" id="logo-pick" style="padding:8px 14px;background:#1d2c42;color:#dfe8f4;border:1px solid #33507a;border-radius:8px;cursor:pointer">Alege imagine…</button>
+      <button type="button" id="logo-clear" style="padding:8px 14px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:8px;cursor:pointer">Fără (text)</button>
+      <input type="file" id="logo-file" accept="image/*" style="display:none">
+    </div></div>`;
   html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (nume, dimensiune, footprint, HP-ul bazei, turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
   app.innerHTML = html;
   wireGoldIcon();
+  wireMenuLogo();
+}
+
+// main-menu logo controls (auto-saves like the gold icon)
+function updateLogoPreview() {
+  const p = document.getElementById('logo-preview');
+  if (!p) return;
+  p.textContent = '';
+  if (CONFIG.MENU_LOGO) {
+    const img = document.createElement('img');
+    img.src = CONFIG.MENU_LOGO;
+    img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.objectFit = 'contain';
+    p.appendChild(img);
+  } else p.textContent = 'gol';
+}
+function wireMenuLogo() {
+  const pick = document.getElementById('logo-pick');
+  const clear = document.getElementById('logo-clear');
+  const file = document.getElementById('logo-file');
+  if (!pick || !file || !clear) return;
+  updateLogoPreview();
+  pick.addEventListener('click', () => file.click());
+  clear.addEventListener('click', () => { CONFIG.MENU_LOGO = ''; updateLogoPreview(); autoSaveGoldIcon('Logo meniu eliminat'); });
+  file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) { setStatus('Imaginea e prea mare (max ~2MB).', 'bad'); file.value = ''; return; }
+    const rd = new FileReader();
+    rd.onload = () => { CONFIG.MENU_LOGO = String(rd.result || ''); updateLogoPreview(); autoSaveGoldIcon('Logo meniu setat'); };
+    rd.readAsDataURL(f);
+    file.value = '';
+  });
 }
 
 // gold-icon controls (re-wired after every render since app.innerHTML resets)

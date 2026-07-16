@@ -1,0 +1,228 @@
+// Entry menu: main → format (1v1 live, 2v2/3v3 + multiplayer locked) → match
+// setup (races + difficulty) → 5s countdown → loading screen → the match.
+// Owns the #overlay element (main menu AND the game-over screen).
+
+import { CONFIG } from '../config.js';
+
+const TIPS = [
+  'Generatoarele sunt economia ta — protejează-le cu ziduri și turnuri.',
+  'Upgrade la Bază deblochează tieruri superioare de unități.',
+  'Armata ta reînvie la fiecare val și mărșăluiește singură spre inamic.',
+  'Fiecare unitate are un contra: uită-te la tipul de damage 🗡️ și armură 🛡️.',
+  'Ține mijlocul hărții pentru un bonus de venit.',
+  'Eroul urcă în nivel din kill-urile armatei — ai grijă de el.',
+];
+
+export class Menu {
+  // hooks: { onRaceChange({player, enemy}), onStart({player, enemy, difficulty}), enterFullscreen() }
+  constructor(overlayEl, hooks) {
+    this.el = overlayEl;
+    this.hooks = hooks || {};
+    this.sel = { mode: 'ai', format: '1v1', player: 'humans', enemy: 'orcs', difficulty: 'normal' };
+    this.timers = [];
+    this.build();
+  }
+
+  build() {
+    this.el.innerHTML = TEMPLATE;
+    this.root = this.el.querySelector('#menu-root');
+    this.cd = this.el.querySelector('#menu-cd');
+    this.load = this.el.querySelector('#menu-load');
+    this.el.addEventListener('click', (e) => this.onClick(e));
+    this.applyLogo();
+    this.reflect();
+    this.go('main');
+  }
+
+  onClick(e) {
+    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play]');
+    if (!t || t.disabled) return;
+    if (t.dataset.go) {
+      if (t.dataset.go === 'format-ai') this.sel.mode = 'ai';
+      if (t.dataset.go === 'format-mp') this.sel.mode = 'mp';
+      this.go(t.dataset.go);
+      return;
+    }
+    if (t.dataset.fmt) { this.sel.format = t.dataset.fmt; this.go('setup'); return; }
+    if (t.dataset.race) {
+      const opt = t.closest('[data-opt]').dataset.opt; // 'player' | 'enemy'
+      this.sel[opt] = t.dataset.race;
+      this.reflect();
+      if (this.hooks.onRaceChange) this.hooks.onRaceChange({ player: this.sel.player, enemy: this.sel.enemy });
+      return;
+    }
+    if (t.dataset.diff) { this.sel.difficulty = t.dataset.diff; this.reflect(); return; }
+    if (t.hasAttribute('data-play')) { this.play(); return; }
+  }
+
+  go(name) {
+    for (const s of this.el.querySelectorAll('.m-screen')) s.classList.toggle('hidden', s.dataset.screen !== name);
+    this.cd.classList.add('hidden');
+    this.load.classList.add('hidden');
+    this.root.classList.remove('hidden');
+  }
+
+  // highlight the currently selected race/difficulty pills
+  reflect() {
+    for (const p of this.el.querySelectorAll('.m-opts [data-race]')) {
+      const opt = p.closest('[data-opt]').dataset.opt;
+      p.classList.toggle('on', p.dataset.race === this.sel[opt]);
+    }
+    for (const p of this.el.querySelectorAll('.m-opts [data-diff]'))
+      p.classList.toggle('on', p.dataset.diff === this.sel.difficulty);
+  }
+
+  applyLogo() {
+    const url = CONFIG.MENU_LOGO || '';
+    for (const img of this.el.querySelectorAll('.menu-logo-img')) {
+      img.classList.toggle('hidden', !url);
+      if (url) img.src = url;
+    }
+    for (const txt of this.el.querySelectorAll('.menu-logo-txt')) txt.classList.toggle('hidden', !!url);
+  }
+
+  clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
+  later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
+
+  // Play → fullscreen (in the click gesture) → 5s countdown → loading → match
+  play() {
+    this.clearTimers();
+    if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
+    // countdown
+    this.root.classList.add('hidden');
+    this.load.classList.add('hidden');
+    this.cd.classList.remove('hidden');
+    const num = this.cd.querySelector('.cd-num');
+    let n = 5;
+    const tick = () => {
+      num.textContent = String(n);
+      num.style.animation = 'none'; void num.offsetWidth; num.style.animation = '';
+      if (n <= 1) { this.later(() => this.runLoading(), 1000); return; }
+      n--;
+      this.later(tick, 1000);
+    };
+    tick();
+  }
+
+  runLoading() {
+    this.cd.classList.add('hidden');
+    this.load.classList.remove('hidden');
+    const fill = this.load.querySelector('.load-fill');
+    const tip = this.load.querySelector('.load-tip');
+    tip.textContent = '💡 ' + TIPS[Math.floor(this.mix() * TIPS.length) % TIPS.length];
+    fill.style.transition = 'none'; fill.style.width = '0%';
+    void fill.offsetWidth;
+    fill.style.transition = 'width 1.4s cubic-bezier(.4,.5,.2,1)';
+    fill.style.width = '100%';
+    this.later(() => {
+      if (this.hooks.onStart) this.hooks.onStart({ ...this.sel });
+      this.hide();
+    }, 1550);
+  }
+
+  // tiny non-seeded shuffle just for picking a tip (UI only, never the sim)
+  mix() { this._m = ((this._m || Date.now()) * 1103515245 + 12345) & 0x7fffffff; return this._m / 0x7fffffff; }
+
+  show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); }
+  hide() { this.clearTimers(); this.el.classList.remove('visible'); }
+
+  showGameOver(game, playerWon) {
+    this.clearTimers();
+    const t = this.el.querySelector('#over-title');
+    t.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
+    t.className = 'm-title ' + (playerWon ? 'victory' : 'defeat');
+    this.el.querySelector('#over-stats').innerHTML =
+      `Valuri: <b>${game.waveCount}</b> · Aur cheltuit: <b>${game.spent[0]}</b> · ` +
+      `Tier atins: <b>${'I'.repeat(game.tier[0])}</b>`;
+    this.go('over');
+    this.el.classList.add('visible');
+  }
+}
+
+const races = (opt) => `
+  <div class="m-opts" data-opt="${opt}">
+    <button class="m-pill" data-race="humans">⚔ Humans</button>
+    <button class="m-pill" data-race="orcs">🪓 Orcs</button>
+  </div>`;
+
+const TEMPLATE = `
+<div id="menu-root">
+  <div class="menu-brand">
+    <img class="menu-logo-img hidden" alt="Fangs & Honor">
+    <h1 class="menu-logo-txt">FANGS <span class="amp">&amp;</span> HONOR</h1>
+  </div>
+
+  <section class="m-screen" data-screen="main">
+    <div class="m-btns">
+      <button class="m-btn primary" data-go="format-ai">⚔&nbsp;&nbsp;Play vs AI</button>
+      <button class="m-btn" data-go="format-mp">🌐&nbsp;&nbsp;Multiplayer</button>
+      <button class="m-btn ghost" data-go="help">📖&nbsp;&nbsp;How to play</button>
+    </div>
+  </section>
+
+  <section class="m-screen hidden" data-screen="format-ai">
+    <h2 class="m-title">Play vs AI</h2>
+    <p class="m-hint">Alege formatul</p>
+    <div class="m-cards">
+      <button class="m-card" data-fmt="1v1"><span class="m-card-t">1v1</span><span class="m-card-s">Tu vs AI</span></button>
+      <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
+      <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
+    </div>
+    <button class="m-back" data-go="main">◄ Înapoi</button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="format-mp">
+    <h2 class="m-title">Multiplayer</h2>
+    <p class="m-hint">Jocul online e pe drum</p>
+    <div class="m-cards">
+      <button class="m-card locked" disabled><span class="m-card-t">1v1</span><span class="soon">Coming soon</span></button>
+      <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
+      <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
+      <button class="m-card locked wide" disabled><span class="m-card-t">👥 Play with friends</span><span class="soon">Coming soon</span></button>
+    </div>
+    <button class="m-back" data-go="main">◄ Înapoi</button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="setup">
+    <h2 class="m-title">1v1 · vs AI</h2>
+    <div class="m-setup">
+      <div class="m-row"><span class="m-label">Rasa ta</span>${races('player')}</div>
+      <div class="m-row"><span class="m-label">Rasa inamicului</span>${races('enemy')}</div>
+      <div class="m-row"><span class="m-label">Dificultate</span>
+        <div class="m-opts" data-opt="difficulty">
+          <button class="m-pill" data-diff="easy">Easy</button>
+          <button class="m-pill" data-diff="normal">Normal</button>
+          <button class="m-pill" data-diff="hard">Hard</button>
+        </div></div>
+    </div>
+    <button class="m-btn primary big" data-play>▶&nbsp;&nbsp;Play</button>
+    <button class="m-back" data-go="format-ai">◄ Înapoi</button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="help">
+    <h2 class="m-title">Cum se joacă</h2>
+    <p class="m-help">Construiește-ți baza — <b>ziduri, turnuri, generatoare</b> — în zona de construcție, și <b>formația de armată</b> în banda din față. La fiecare val, toată armata ta reînvie și mărșăluiește spre <b>Baza inamică</b> — distruge-o pe a lui ca să câștigi. <b>Upgrade la Baza principală</b> deblochează tieruri superioare de unități. Generatoarele sunt economia ta — protejează-le!<br><br>
+    <b>Cameră:</b> mișcă mouse-ul la margini sau folosește <b>săgeți / WASD</b> · <b>rotița</b> face zoom · <b>Space</b> sare la baza ta · click pe <b>minimap</b>. Cursorul e cel real (fără delay).</p>
+    <button class="m-back" data-go="main">◄ Înapoi</button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="over">
+    <h2 class="m-title" id="over-title">VICTORY</h2>
+    <div id="over-stats" class="m-help"></div>
+    <div class="m-btns row">
+      <button class="m-btn primary" data-play>▶ Rematch</button>
+      <button class="m-btn" data-go="main">Meniu</button>
+    </div>
+  </section>
+</div>
+
+<div id="menu-cd" class="hidden"><div class="cd-num">5</div><div class="cd-sub">Pregătește-te de luptă</div></div>
+
+<div id="menu-load" class="hidden">
+  <div class="load-brand">
+    <img class="menu-logo-img hidden" alt="Fangs & Honor">
+    <span class="menu-logo-txt">FANGS &amp; HONOR</span>
+  </div>
+  <div class="load-bar"><div class="load-fill"></div></div>
+  <div class="load-tip"></div>
+</div>`;

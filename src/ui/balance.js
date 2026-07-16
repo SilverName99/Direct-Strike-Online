@@ -372,6 +372,7 @@ function snapshot() {
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     goldIcon: CONFIG.GOLD_ICON || '',
+    menuLogo: CONFIG.MENU_LOGO || '',
     pushMode: CONFIG.PUSH_MODE,
     pushCrossTeam: CONFIG.PUSH_CROSS_TEAM,
     pushForce: CONFIG.PUSH_FORCE,
@@ -417,6 +418,7 @@ export function applyBalance(data) {
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
+  CONFIG.MENU_LOGO = typeof data.menuLogo === 'string' ? data.menuLogo : '';
   if (data.pushMode === 'mass' || data.pushMode === 'equal') CONFIG.PUSH_MODE = data.pushMode;
   if (typeof data.pushCrossTeam === 'boolean') CONFIG.PUSH_CROSS_TEAM = data.pushCrossTeam;
   if (num(data.pushForce) !== undefined) CONFIG.PUSH_FORCE = clamp(data.pushForce, 0.2, 50);
@@ -628,8 +630,10 @@ export function importBalance(data) {
   // the custom gold icon is this install's own cosmetic — an imported design
   // file (which won't carry one) must not wipe it
   const keepGoldIcon = CONFIG.GOLD_ICON;
+  const keepMenuLogo = CONFIG.MENU_LOGO;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
+  if (typeof data.menuLogo !== 'string' || !data.menuLogo) CONFIG.MENU_LOGO = keepMenuLogo;
   // restore them over whatever the imported file said
   for (const race of RACES) {
     for (const [id, k] of Object.entries(keep[race].units)) {

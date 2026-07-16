@@ -38,10 +38,6 @@ export class Hud {
       waveTimer: document.getElementById('wave-timer'),
       baseFill: [document.getElementById('base-hp-0'), document.getElementById('base-hp-1')],
       baseNum: [document.getElementById('base-hp-0-num'), document.getElementById('base-hp-1-num')],
-      overlay: document.getElementById('overlay'),
-      overlayTitle: document.getElementById('overlay-title'),
-      overlayMsg: document.getElementById('overlay-msg'),
-      overlayStats: document.getElementById('overlay-stats'),
     };
   }
 
@@ -161,28 +157,4 @@ export class Hud {
     }
   }
 
-  showMenu() {
-    this.el.overlayTitle.innerHTML = 'DIRECT STRIKE <span class="accent">ONLINE</span>';
-    this.el.overlayTitle.className = '';
-    this.el.overlayMsg.classList.remove('hidden');
-    this.el.overlayStats.classList.add('hidden');
-    this.el.overlay.classList.add('visible');
-  }
-
-  showGameOver(game, playerWon) {
-    this.el.overlayTitle.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
-    this.el.overlayTitle.className = playerWon ? 'victory' : 'defeat';
-    this.el.overlayMsg.classList.add('hidden');
-    this.el.overlayStats.innerHTML =
-      `Waves fought: <b>${game.waveCount}</b> · ` +
-      `Money spent: <b>${game.spent[0]}</b> · ` +
-      `Tier reached: <b>${'I'.repeat(game.tier[0])}</b><br>` +
-      `Play again — choose difficulty:`;
-    this.el.overlayStats.classList.remove('hidden');
-    this.el.overlay.classList.add('visible');
-  }
-
-  hideOverlay() {
-    this.el.overlay.classList.remove('visible');
-  }
 }
