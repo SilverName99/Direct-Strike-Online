@@ -27,6 +27,7 @@ export const DEFAULT_GENOME = {
   savePatience: 15,     // seconds-to-afford under which it saves for the wanted unit
   farmBuffer: 4,        // build a farm when (foodCap - foodUsed) drops below this
   maxGens: 5,           // generators to grow to in the late game
+  midTowers: 2,         // towers to plant in the forward pocket by the front turret
 };
 
 export function randomGenome(rand) {
@@ -85,6 +86,9 @@ export class AIController {
     this.purchases = 0;
     this.wallsPlanned = false;
     this.wallQueue = [];
+    this.midWallsPlanned = false; // wall line by the front turret (planned once)
+    this.midWallQueue = [];
+    this.midNextTowerWave = 2;    // earliest wave to commit the next mid tower
     this.manageTick = 0; // army-management cadence (sell / rearrange)
     this.nextSellAt = 0; // game.time before which we won't sell again (anti-churn)
     this.aggro = false;  // "push the middle" posture: muster forward to grab mid
@@ -222,6 +226,30 @@ export class AIController {
           this.intent = `💰 economisește ${Math.ceil(bc)} → clădire`;
           return;
         }
+      }
+    }
+
+    // 2.9 Fortify the FRONT turret: every few waves, COMMIT to one tower in the
+    // forward pocket (saving for it so it actually happens), then thread a wall
+    // line across its enemy-facing edge. Paced + capped so it fortifies the mid
+    // turret without starving the army.
+    if (game.waveCount >= 2 && CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[t]) {
+      const midTowers = this.countMidStructures(game, 'tower');
+      const towerCost = game.bstat(t, 'tower').cost;
+      if (midTowers < this.g.midTowers && game.waveCount >= this.midNextTowerWave && game.buildCdLeft(t, 'tower') === 0) {
+        if (money >= towerCost) {
+          this.intent = '🗼 Tower (turreta din față)';
+          if (this.tryBuildMid(game, 'tower')) { this.midNextTowerWave = game.waveCount + 3; return; }
+        } else if ((towerCost - money) / Math.max(1, game.incomePerSecond(t)) <= 25) {
+          this.intent = '💰 economisește → Tower (turreta din față)';
+          return; // save toward the mid tower
+        }
+      }
+      // once a tower stands out there, thread a cheap wall line across its front
+      if (!this.midWallsPlanned && midTowers >= 1) { this.midWallsPlanned = true; this.midWallQueue = this.midWallLine(); }
+      if (this.midWallQueue && this.midWallQueue.length > 0 && money >= game.bstat(t, 'wall').cost + 60) {
+        const p = this.midWallQueue.shift(); // taken-or-not, drop it
+        if (game.issueCommand({ type: 'build', team: t, kind: 'wall', x: p.x, y: p.y }).ok) return;
       }
     }
 
@@ -469,6 +497,37 @@ export class AIController {
       if (game.issueCommand({ type: 'build', team: this.team, kind, x, y }).ok) return true;
     }
     return false;
+  }
+
+  // How many living structures of `kind` we have inside the forward build
+  // pocket (around the front turret).
+  countMidStructures(game, kind) {
+    const z = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+    if (!z) return 0;
+    return game.structures.filter((s) => s.team === this.team && s.kind === kind && s.hp > 0
+      && s.x >= z.x0 && s.x <= z.x1 && s.y >= z.y0 && s.y <= z.y1).length;
+  }
+
+  // Place a building somewhere free inside the forward pocket (a few tries).
+  tryBuildMid(game, kind) {
+    const z = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+    if (!z) return false;
+    for (let i = 0; i < 14; i++) {
+      const x = z.x0 + 20 + this.rng() * (z.x1 - z.x0 - 40);
+      const y = z.y0 + 20 + this.rng() * (z.y1 - z.y0 - 40);
+      if (game.issueCommand({ type: 'build', team: this.team, kind, x, y }).ok) return true;
+    }
+    return false;
+  }
+
+  // A vertical wall line along the ENEMY-facing edge of the forward pocket.
+  midWallLine() {
+    const z = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+    if (!z) return [];
+    const frontX = this.team === 0 ? z.x1 - 20 : z.x0 + 20; // toward the enemy
+    const pts = [];
+    for (let y = z.y0 + 40; y <= z.y1 - 40; y += 40) pts.push({ x: frontX, y });
+    return pts;
   }
 
   // Arc of wall spots shielding the main base from the enemy side.
