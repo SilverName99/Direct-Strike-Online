@@ -132,6 +132,32 @@ html, body {
 #fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
 #range-btn.active { border-color: var(--gold); background: rgba(255, 211, 92, 0.12); }
 
+/* HUD sound control: a rounded pod with an icon button + a golden volume slider */
+.hud-snd {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 6px;
+  border-radius: 10px; background: rgba(255, 255, 255, 0.035); border: 1px solid var(--border);
+  transition: border-color 0.12s;
+}
+.hud-snd:hover { border-color: rgba(233, 197, 101, 0.5); }
+.hud-snd #mute-btn {
+  min-width: 26px; height: 30px; padding: 0; font-size: 16px; line-height: 1; cursor: pointer;
+  background: none; border: none; color: var(--text); transition: color 0.12s, transform 0.1s;
+}
+.hud-snd #mute-btn:hover { color: var(--gold, #ffd35c); transform: scale(1.08); }
+.hud-snd #mute-btn.off { color: #7c8ba1; }
+.hud-vol {
+  -webkit-appearance: none; appearance: none; width: 92px; height: 5px; border-radius: 4px; cursor: pointer; outline: none;
+  background: linear-gradient(90deg, #ffe39a 0%, var(--gold, #ffd35c) var(--fill, 100%), rgba(255, 255, 255, 0.16) var(--fill, 100%));
+}
+.hud-vol::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); border: 1px solid #e9c565; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.hud-vol::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; border: 1px solid #e9c565;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
 /* version tag pinned to the bottom-right corner of the play field */
 #version {
   position: absolute;

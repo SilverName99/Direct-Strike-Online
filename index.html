@@ -43,7 +43,10 @@
       </div>
 
       <div class="hud-side hud-right">
-        <button id="mute-btn" class="hud-btn" title="Sunet pornit / oprit">🔊</button>
+        <div id="snd-ctl" class="hud-snd" title="Muzică — trage pentru volum, click pe iconiță pentru mute">
+          <button id="mute-btn" title="Sunet on/off">🔊</button>
+          <input type="range" id="game-vol" class="hud-vol" min="0" max="100" value="100" aria-label="Volum muzică">
+        </div>
         <button id="uiscale-btn" class="hud-btn" title="Mărește bara de jos (1× / 1.2× / 1.4× / 1.6×)">1×</button>
         <button id="fs-btn" class="hud-btn" title="Fullscreen (F)">⛶</button>
       </div>

@@ -175,27 +175,48 @@ function updateAiDebug() {
 // loops for the whole match at the admin-set volume. Started from the match
 // button click, so autoplay policies are satisfied.
 let music = null;
+let musicRace = null;                 // race of the current track (to re-scale volume live)
 let musicMuted = false;
+let musicVol = 1;                     // player master volume 0-1 (scales the per-race admin volume)
 try { musicMuted = localStorage.getItem('fh-music-muted') === '1'; } catch { /* private mode */ }
+try { const v = parseFloat(localStorage.getItem('fh-music-vol')); if (isFinite(v)) musicVol = Math.max(0, Math.min(1, v)); } catch { /* private mode */ }
+// Actual playback volume = player master × the race's admin-set music volume.
+function effVol(race) { return musicVol * Math.min(1, Math.max(0, musicVolumeOf(race) / 100)); }
 function startMusic(race) {
   stopMusic();
   const url = getMusicUrl(race);
   if (!url) return;
+  musicRace = race;
   music = new Audio(url);
   music.loop = true;
-  music.volume = Math.min(1, Math.max(0, musicVolumeOf(race) / 100));
+  music.volume = effVol(race);
   music.muted = musicMuted;
   music.play().catch(() => { /* autoplay blocked — stay silent */ });
 }
 function stopMusic() {
   if (music) { music.pause(); music = null; }
 }
-// Top-bar sound toggle: mute/unmute the in-game music (remembered across games).
+
+// Top-bar sound pod: a mute toggle + a live volume slider (both remembered).
 const muteBtn = document.getElementById('mute-btn');
+const gameVol = document.getElementById('game-vol');
+function paintVolFill() {
+  if (gameVol) gameVol.style.setProperty('--fill', `${Math.round(musicVol * 100)}%`);
+}
 function applyMuteBtn() {
-  if (!muteBtn) return;
-  muteBtn.textContent = musicMuted ? '🔇' : '🔊';
-  muteBtn.classList.toggle('off', musicMuted);
+  if (muteBtn) { muteBtn.textContent = (musicMuted || musicVol === 0) ? '🔇' : '🔊'; muteBtn.classList.toggle('off', musicMuted); }
+}
+function setGameVol(v, persist = true) {
+  musicVol = Math.max(0, Math.min(1, v));
+  if (music && musicRace != null) music.volume = effVol(musicRace);
+  if (gameVol && Math.round(Number(gameVol.value)) !== Math.round(musicVol * 100)) gameVol.value = String(Math.round(musicVol * 100));
+  if (persist) { try { localStorage.setItem('fh-music-vol', String(musicVol)); } catch { /* private mode */ } }
+  paintVolFill();
+  applyMuteBtn();
+}
+if (gameVol) {
+  gameVol.value = String(Math.round(musicVol * 100));
+  gameVol.addEventListener('input', () => setGameVol(Number(gameVol.value) / 100));
 }
 if (muteBtn) muteBtn.addEventListener('click', () => {
   musicMuted = !musicMuted;
@@ -203,6 +224,7 @@ if (muteBtn) muteBtn.addEventListener('click', () => {
   try { localStorage.setItem('fh-music-muted', musicMuted ? '1' : '0'); } catch { /* private mode */ }
   applyMuteBtn();
 });
+paintVolFill();
 applyMuteBtn();
 
 // Apply the player race's uploaded custom mouse cursor (falls back to the
