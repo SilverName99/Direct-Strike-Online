@@ -244,6 +244,27 @@ console.log('buildings');
   check('main base not sellable', !noSellMain.ok);
 }
 
+// --------------------------------------------------- tower / wall HP regen
+console.log('structure HP regen');
+{
+  const savedW = statsBuilding('humans', 'wall').regen;
+  const savedT = statsBuilding('humans', 'tower').regen;
+  statsBuilding('humans', 'wall').regen = 10; // HP/s
+  statsBuilding('humans', 'tower').regen = 0; // stays off
+  const game = new Game(21, { races: ['humans', 'orcs'] });
+  game.money[0] = 5000;
+  const wb = game.issueCommand({ type: 'build', team: 0, kind: 'wall', x: 760, y: 720 });
+  check('wall builds for regen test', wb.ok);
+  const wall = game.structures.filter((s) => s.kind === 'wall').pop();
+  wall.hp = wall.maxHp - 100; // wound it
+  run(game, 5);
+  check('wall regenerates ~10 HP/s', wall.hp >= wall.maxHp - 55 && wall.hp <= wall.maxHp - 45, `hp=${Math.round(wall.hp)} of ${wall.maxHp}`);
+  run(game, 20);
+  check('regen never exceeds max HP', wall.hp === wall.maxHp);
+  statsBuilding('humans', 'wall').regen = savedW;
+  statsBuilding('humans', 'tower').regen = savedT;
+}
+
 // -------------------------------------------------- walls block, towers shoot
 console.log('defense structures');
 {

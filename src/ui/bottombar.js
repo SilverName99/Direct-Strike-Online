@@ -485,6 +485,7 @@ export class BottomBar {
       const per = tst ? tst.period : stats.period;
       if (dmg) rows.push(`⚔ <b>${dmg}</b> · <b>${(dmg / Math.max(0.1, per || 1)).toFixed(1)}</b> DPS`, `➹ <b>${stats.range}</b>`);
       if (stats.income) rows.push(`◆ +<b>${stats.income}</b> aur/20s`);
+      if (stats.regen) rows.push(`✚ +<b>${stats.regen}</b> HP/s`);
       if (info.type === 'main') rows.push('🏰 obiectivul principal');
     }
 

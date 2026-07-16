@@ -682,10 +682,12 @@ export class Game {
     // so gold climbs continuously instead of jumping and then sitting still.
     for (const t of [0, 1]) this.money[t] += this.incomePerSecond(t) * dt;
 
-    // Turret HP regen (per-race stat; 0 = off)
+    // Structure HP regen (per-race stat; 0 = off). Turret, tower and wall each
+    // carry their own `regen` (HP/s); a finished, damaged one heals over time.
     for (const s of this.structures) {
-      if (s.kind !== 'turret' || s.hp <= 0 || s.hp >= s.maxHp) continue;
-      const regen = this.bstat(s.team, 'turret').regen || 0;
+      if (s.hp <= 0 || s.hp >= s.maxHp || s.building) continue;
+      if (s.kind !== 'turret' && s.kind !== 'tower' && s.kind !== 'wall') continue;
+      const regen = this.bstat(s.team, s.kind).regen || 0;
       if (regen > 0) s.hp = Math.min(s.maxHp, s.hp + regen * dt);
     }
 
