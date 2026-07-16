@@ -8,9 +8,10 @@ import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure } from '../src/sim/entity.js';
+import { stepCaster } from '../src/sim/abilities.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
-import { statsBuilding } from '../src/ui/balance.js';
+import { statsBuilding, resolvedAbility } from '../src/ui/balance.js';
 
 const DT = CONFIG.FIXED_DT;
 const MID_Y = CONFIG.MAIN.y; // lane center (field extends lower as a scenic apron)
@@ -263,6 +264,40 @@ console.log('structure HP regen');
   check('regen never exceeds max HP', wall.hp === wall.maxHp);
   statsBuilding('humans', 'wall').regen = savedW;
   statsBuilding('humans', 'tower').regen = savedT;
+}
+
+// ------------------------------------------ holy light per-rank heal amount
+console.log('holy light per-rank heal');
+{
+  // Drive one Holy Light cast from a hero at a given rank and return the heal
+  // as a fraction of the ally's MAX hp. `overrides` sets ab.params for the run.
+  const healFracAtRank = (rank, overrides, seed) => {
+    const game = new Game(seed, { races: ['humans', 'orcs'] });
+    game.abilityUsable = () => true; // focus on the heal math, not tier/learn gating
+    const ab = resolvedAbility('holylight');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, overrides);
+    const caster = spawnUnit(game, 0, 'grunt', 600, 400);
+    caster.hero = true; caster.heroRanks = { holylight: rank };
+    caster.mana = 100; caster.abilityCd = {}; caster.castState = undefined;
+    const ally = spawnUnit(game, 0, 'grunt', 640, 400);
+    const start = ally.maxHp * 0.3; // low enough that even a big heal won't cap
+    ally.hp = start;
+    const stats = { caster: true, autoAttackBetween: true, abilities: ['holylight'] };
+    for (let i = 0; i < 90 && ally.hp <= start; i++) {
+      game.time += DT;
+      stepCaster(game, caster, stats, DT, false);
+    }
+    Object.assign(ab.params, saved); // restore for the next runs / other tests
+    return (ally.hp - start) / ally.maxHp;
+  };
+  const f2 = healFracAtRank(2, { healPct2: 40 }, 41);
+  check('holy light rank 2 heals the explicit 40%', Math.abs(f2 - 0.40) < 0.01, `frac=${f2.toFixed(3)}`);
+  const f3 = healFracAtRank(3, { healPct3: 55 }, 42);
+  check('holy light rank 3 heals the explicit 55%', Math.abs(f3 - 0.55) < 0.01, `frac=${f3.toFixed(3)}`);
+  // override 0 -> auto-scaled healPct (15% base, rank 2 = 1.5x = 22.5%)
+  const fAuto = healFracAtRank(2, { healPct: 15, healPct2: 0 }, 43);
+  check('holy light rank 2 auto-scales when override is 0', Math.abs(fAuto - 0.225) < 0.01, `frac=${fAuto.toFixed(3)}`);
 }
 
 // -------------------------------------------------- walls block, towers shoot

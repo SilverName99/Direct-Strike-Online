@@ -463,8 +463,13 @@ function releaseSpell(game, caster, time) {
   }
 
   if (aid === 'holylight') {
-    // heal a % of the target's MAX hp
-    target.hp = Math.min(target.maxHp, target.hp + target.maxHp * (p.healPct || 0) / 100);
+    // heal a % of the target's MAX hp. If the admin set an explicit per-rank
+    // heal (healPct1/2/3 > 0) use exactly that for the caster's rank; otherwise
+    // fall back to the auto-scaled healPct.
+    const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks.holylight || 1) : 1;
+    const perRank = p['healPct' + rank];
+    const pct = (typeof perRank === 'number' && perRank > 0) ? perRank : (p.healPct || 0);
+    target.hp = Math.min(target.maxHp, target.hp + target.maxHp * pct / 100);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
     game.events.push({ type: 'heal', x: target.x, y: target.y });
     return hold;

@@ -213,7 +213,10 @@ export const ABILITIES = {
     params: {
       tier: 1, cooldown: 4, manaCost: 40,
       range: 180,     // how far it reaches an ally
-      healPct: 15,    // % of the target's MAX hp restored (scales with rank)
+      healPct: 15,    // % of the target's MAX hp restored (auto-scales with rank)
+      // Explicit per-rank heal (% of MAX hp). 0 = use the auto-scaled healPct
+      // above for that rank; set one to override the exact heal at that level.
+      healPct1: 0, healPct2: 0, healPct3: 0,
     },
   },
   divineshield: {
@@ -288,7 +291,10 @@ export const ABILITY_PARAM_LABELS = {
   cleavePct: 'Cleave (% din damage)',
   dashSpeed: 'Viteză șarjă',
   stun: 'Stun la impact (s)',
-  healPct: 'Heal (% din HP max)',
+  healPct: 'Heal (% din HP max, auto-scalat pe rang)',
+  healPct1: 'Heal rang 1 (% HP max, 0 = auto)',
+  healPct2: 'Heal rang 2 (% HP max, 0 = auto)',
+  healPct3: 'Heal rang 3 (% HP max, 0 = auto)',
   dmgReduce: 'Reducere damage (%)',
   threshold: 'Prag HP pentru cast (%)',
   // summon params
