@@ -23,11 +23,12 @@ export class PointerManager {
     // edge-scroll otherwise slides the mouse onto the other screen. Defaults
     // ON (the safe default for a fullscreen RTS); a player who prefers the
     // zero-latency hardware cursor can turn it off in Options. Persisted.
-    // Fresh key ('fh-…') so the stale '0' persisted by the old force-off build
-    // is ignored — otherwise machines that ran the old version would start OFF
-    // despite the ON default. Only an explicit opt-out here turns it off.
-    this.captureMouse = true;
-    try { if (localStorage.getItem('fh-capture-mouse') === '0') this.captureMouse = false; } catch { /* private mode */ }
+    // Default OFF: fullscreen uses the real hardware cursor (zero latency).
+    // The virtual cursor that pointer lock needs to keep the mouse inside the
+    // window (multi-monitor) lags ~1 frame, so it's opt-in from OPTIONS. Only
+    // an explicit ON here (stored '1') turns it on.
+    this.captureMouse = false;
+    try { if (localStorage.getItem('fh-capture-mouse') === '1') this.captureMouse = true; } catch { /* private mode */ }
 
     this.cursor = document.createElement('div');
     this.cursor.id = 'vcursor';
