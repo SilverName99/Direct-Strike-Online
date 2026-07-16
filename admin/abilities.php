@@ -75,6 +75,26 @@ $authed = !empty($_SESSION['auth']);
   <p class="sub">Trebuie să fii logat ca admin. <a href="./">Mergi la /admin și loghează-te</a>, apoi revino aici.</p>
 <?php else: ?>
   <?php $navActive = 'abilities'; include __DIR__ . '/nav.php'; ?>
+  <?php
+    // Server-side deploy check (runs fresh on the VPS, ignores any browser
+    // cache): reads the ACTUAL files on disk so we can tell if a `git pull`
+    // really landed the new code, vs. the browser showing a stale JS module.
+    $abJs = @file_get_contents(__DIR__ . '/../src/abilities.js');
+    $cfgJs = @file_get_contents(__DIR__ . '/../src/config.js');
+    $hasNew = $abJs !== false && strpos($abJs, 'healPct1') !== false;
+    $ver = 'necunoscut';
+    if ($cfgJs && preg_match("/VERSION\\s*=\\s*'([^']+)'/", $cfgJs, $m)) $ver = $m[1];
+  ?>
+  <div style="margin:0 0 14px;padding:10px 14px;border-radius:8px;font-size:13px;<?= $hasNew ? 'background:#12251a;border:1px solid #2b4a30;color:#8fe0aa' : 'background:#2a1414;border:1px solid #5a2b2b;color:#ff9a9a' ?>">
+    Fișiere pe server: versiune <b><?= htmlspecialchars($ver) ?></b> ·
+    <?php if ($hasNew): ?>
+      <code>abilities.js</code> conține <b>Heal rang 1/2/3</b> ✓ — codul nou E pe server.
+      Dacă tot nu vezi câmpurile mai jos, e cache de browser: apasă <b>Ctrl+Shift+R</b>.
+    <?php else: ?>
+      <code>abilities.js</code> NU conține câmpurile noi ✗ — <b>git pull</b> nu a actualizat fișierul pe VPS
+      (rulează din nou <code>sudo -u www-data git -C /var/www/fangs-and-honor pull</code>).
+    <?php endif; ?>
+  </div>
   <div class="sub">Catalogul de abilități — comun ambelor rase. <b>Cine</b> le folosește se setează
     per unitate din <b>⚙ stats</b> (bifa „Caster" + selecția de abilități) în pagina de
     <a href="./">sprites</a>. Apasă <b>Salvează</b> — se scrie în <code>assets/balance.json</code>. ·
