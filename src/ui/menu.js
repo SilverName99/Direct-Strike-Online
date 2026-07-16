@@ -178,9 +178,10 @@ export class Menu {
       this.root.classList.toggle(cls, !!url);
       this.root.style.setProperty(varName, url ? `url("${url}")` : 'none');
     }
-    // some skins are shown at the natural pixel size of the uploaded art
-    this.measure('MENU_CARD', '--menu-card-w', '--menu-card-h'); // 1v1/2v2/3v3 cards
-    this.measure('MENU_PLAY', '--menu-play-w', '--menu-play-h'); // setup PLAY button
+    // these skins keep the art's aspect ratio but are capped so a high-res
+    // upload doesn't fill the screen (a small upload still shows at its size)
+    this.measure('MENU_CARD', '--menu-card-w', '--menu-card-h', 172, 200); // 1v1/2v2/3v3 cards
+    this.measure('MENU_PLAY', '--menu-play-w', '--menu-play-h', 360, 104);  // setup PLAY button
     // corner buttons show a glyph only when they have no uploaded skin
     const fsBtn = this.el.querySelector('#menu-fs-corner');
     if (fsBtn) fsBtn.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
@@ -198,13 +199,19 @@ export class Menu {
     this.setLoadingBg(this.firstLoadingBg()); // a static default until play() rolls one
   }
 
-  // measure an uploaded image and expose its natural size as CSS variables, so
-  // the element skinned with it can be sized to the exact art (no distortion)
-  measure(key, wVar, hVar) {
+  // measure an uploaded image and expose its display size as CSS variables, so
+  // the element skinned with it keeps the art's aspect ratio. maxW/maxH cap the
+  // size (a high-res upload is scaled DOWN to fit; a small one stays natural).
+  measure(key, wVar, hVar, maxW, maxH) {
     if (!this.root) return;
     if (CONFIG[key]) {
       const im = new Image();
-      im.onload = () => { this.root.style.setProperty(wVar, im.naturalWidth + 'px'); this.root.style.setProperty(hVar, im.naturalHeight + 'px'); };
+      im.onload = () => {
+        const nw = im.naturalWidth || 1, nh = im.naturalHeight || 1;
+        const scale = (maxW && maxH) ? Math.min(maxW / nw, maxH / nh, 1) : 1;
+        this.root.style.setProperty(wVar, Math.round(nw * scale) + 'px');
+        this.root.style.setProperty(hVar, Math.round(nh * scale) + 'px');
+      };
       im.src = CONFIG[key];
     } else {
       this.root.style.removeProperty(wVar);

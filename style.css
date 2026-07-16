@@ -714,7 +714,7 @@ html, body {
 .setup-head .setup-card { display: none; position: relative; }
 .setup-head.as-card .setup-card { display: inline-flex; align-items: center; justify-content: center; }
 .setup-head.as-card .setup-title { display: none; }
-.setup-card-img { max-height: 120px; max-width: 70vw; display: block; }
+.setup-card-img { max-height: 96px; max-width: 60vw; display: block; }
 .setup-card-t {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: clamp(20px, 4.4vw, 32px); font-weight: 800; letter-spacing: 1px; color: #f4dca0;
