@@ -133,10 +133,9 @@ uiScaleBtn.addEventListener('click', () => {
   toast(`Bară de jos: ${s}×`);
 });
 applyUiScale();
-// Mouse capture is intentionally off: the game uses the real hardware cursor
-// (no delay). The toggle UI was removed, so force it off — this also clears any
-// previously saved "ON" preference for players who had enabled it.
-pointer.setCaptureMouse(false);
+// Mouse capture (pointer lock) keeps the OS cursor inside the window so a
+// fullscreen edge-scroll can't slide onto a second monitor. It defaults ON
+// (see PointerManager) and is toggleable from the menu's OPTIONS screen.
 document.addEventListener('keydown', (e) => {
   if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
   if (e.key === 'f' || e.key === 'F') pointer.toggle();
@@ -151,7 +150,7 @@ let aiDebugOn = false;
 const aiDebugEl = document.createElement('div');
 aiDebugEl.id = 'ai-debug';
 aiDebugEl.style.cssText =
-  'position:fixed;top:8px;left:8px;z-index:9999;display:none;pointer-events:none;' +
+  'position:fixed;top:120px;left:8px;z-index:9999;display:none;pointer-events:none;' +
   'font:12px/1.5 ui-monospace,monospace;color:#ffe9a8;background:rgba(10,14,20,0.82);' +
   'border:1px solid #3a4658;border-radius:8px;padding:8px 11px;max-width:280px;white-space:pre-wrap;';
 document.body.appendChild(aiDebugEl);
@@ -238,12 +237,10 @@ function applyCursor(race) {
 // plain arrow. Rolls only among races that actually have a cursor uploaded,
 // and only once. Must run AFTER the sprite manifest loads (that's when the
 // cursor URLs exist), so it's driven from the loadSprites callback below.
-let menuCursorRolled = false;
 function applyRandomMenuCursor() {
-  if (menuCursorRolled || state !== 'menu') return;
+  if (state !== 'menu') return;
   const withCursor = RACES.filter((r) => getCursorUrl(r));
-  if (!withCursor.length) return; // no cursors uploaded yet — try again next call
-  menuCursorRolled = true;
+  if (!withCursor.length) return; // no cursors uploaded — keep the default arrow
   applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
 }
 
@@ -373,6 +370,11 @@ const menu = new Menu(document.getElementById('overlay'), {
     applyCursor(race);
   },
   enterFullscreen: () => pointer.enter(), // from the Play click (a user gesture)
+  // mouse capture toggle (OPTIONS): keeps the cursor inside the window on
+  // fullscreen so it can't slip onto a second monitor
+  onCaptureMouse: (on) => pointer.setCaptureMouse(on),
+  getCaptureMouse: () => pointer.captureMouse,
+  onMenuMain: () => applyRandomMenuCursor(), // re-roll the menu cursor each visit
 });
 window.__menu = menu; // debug/test handle (drive the entry menu in tests)
 // seed the behind-the-menu preview with the default matchup

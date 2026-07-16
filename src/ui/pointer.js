@@ -18,12 +18,13 @@ export class PointerManager {
     this.vy = 0;
     this.lastTarget = null;
     this.hoverCard = null;
-    // Mouse capture (pointer lock) drives a virtual cursor — needed only to keep
-    // the mouse inside the window for edge-scroll on multi-monitor. It costs a
-    // little cursor latency, so it is OPT-IN; by default fullscreen uses the
-    // real hardware cursor (zero delay). Persisted across sessions.
-    this.captureMouse = false;
-    try { this.captureMouse = localStorage.getItem('ds-capture-mouse') === '1'; } catch { /* private mode */ }
+    // Mouse capture (pointer lock) drives a virtual cursor so the OS cursor
+    // can't leave the window — essential on multi-monitor setups, where an
+    // edge-scroll otherwise slides the mouse onto the other screen. Defaults
+    // ON (the safe default for a fullscreen RTS); a player who prefers the
+    // zero-latency hardware cursor can turn it off in Options. Persisted.
+    this.captureMouse = true;
+    try { if (localStorage.getItem('ds-capture-mouse') === '0') this.captureMouse = false; } catch { /* private mode */ }
 
     this.cursor = document.createElement('div');
     this.cursor.id = 'vcursor';
@@ -179,7 +180,10 @@ export class PointerManager {
     if (!url) { this.setPageCursor(null); return; }
     const img = new Image();
     img.onload = () => {
-      const s = Math.min(1, 40 / Math.max(img.width, img.height));
+      // Browsers silently ignore a CSS cursor bigger than 32×32 (Chrome/Windows
+      // especially) and fall back to the keyword — which is why a large custom
+      // cursor "doesn't change" in the windowed menu. Cap at 32 so it applies.
+      const s = Math.min(1, 32 / Math.max(img.width, img.height));
       const w = Math.max(1, Math.round(img.width * s));
       const h = Math.max(1, Math.round(img.height * s));
       const c = document.createElement('canvas');

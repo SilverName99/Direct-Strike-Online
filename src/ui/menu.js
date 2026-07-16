@@ -41,6 +41,7 @@ export class Menu {
 
   onInput(e) {
     if (e.target && (e.target.id === 'opt-music' || e.target.id === 'snd-range')) this.setMusicVol(Number(e.target.value) / 100);
+    if (e.target && e.target.id === 'opt-capture' && this.hooks.onCaptureMouse) this.hooks.onCaptureMouse(e.target.checked);
   }
 
   onClick(e) {
@@ -82,6 +83,7 @@ export class Menu {
     if (name === 'help') this.renderHelp();
     if (name === 'options') this.syncOptions();
     if (name === 'setup') this.renderSetup();
+    if (name === 'main' && this.hooks.onMenuMain) this.hooks.onMenuMain();
   }
 
   // ---- multiplayer lobby (the network itself lives in main.js hooks) ----
@@ -125,6 +127,8 @@ export class Menu {
   syncOptions() {
     const m = this.el.querySelector('#opt-music');
     if (m) m.value = String(Math.round(this.musicVol * 100));
+    const c = this.el.querySelector('#opt-capture');
+    if (c && this.hooks.getCaptureMouse) c.checked = !!this.hooks.getCaptureMouse();
   }
   setMusicVol(v) {
     this.musicVol = Math.max(0, Math.min(1, v));
@@ -518,6 +522,8 @@ const TEMPLATE = `
         <input type="range" class="m-range" id="opt-music" min="0" max="100" value="50"></div>
       <div class="m-row"><span class="m-label">Fullscreen</span>
         <div class="m-opts"><button class="corner-btn fs-btn" title="Comută ecran complet" data-opt-fs>⛶</button></div></div>
+      <div class="m-row"><span class="m-label">Blochează mouse-ul<br><small class="m-sub">recomandat pe 2 monitoare</small></span>
+        <label class="m-switch"><input type="checkbox" id="opt-capture"><span class="m-slider"></span></label></div>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>

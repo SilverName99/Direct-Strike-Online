@@ -668,6 +668,26 @@ html, body {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
 }
 .m-opts { display: flex; gap: 8px; }
+/* small subtitle under an options label (e.g. the mouse-lock hint) */
+#menu-root .m-sub {
+  display: block; margin-top: 3px; color: var(--dim); font-size: 11px;
+  font-weight: 600; letter-spacing: 0.5px; text-transform: none;
+}
+/* golden on/off switch (OPTIONS) */
+.m-switch { position: relative; display: inline-block; width: 52px; height: 28px; cursor: pointer; flex: none; }
+.m-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.m-switch .m-slider {
+  position: absolute; inset: 0; border-radius: 999px; background: #1b2230;
+  border: 1px solid rgba(233, 197, 101, 0.35); transition: background 0.15s, border-color 0.15s;
+}
+.m-switch .m-slider::before {
+  content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #cbd5e4; transition: transform 0.15s, background 0.15s;
+}
+.m-switch input:checked + .m-slider {
+  background: linear-gradient(180deg, #ffdd80, #e9a53d); border-color: #ffe08a;
+}
+.m-switch input:checked + .m-slider::before { transform: translateX(24px); background: #2a1c05; }
 .m-pill {
   font: 600 13px/1 "Segoe UI", system-ui, sans-serif; padding: 9px 15px; border-radius: 9px; cursor: pointer;
   color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); transition: all 0.1s;
