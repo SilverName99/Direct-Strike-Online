@@ -611,6 +611,7 @@ export class Renderer {
       if (!this.visible(p.x, p.y, 160)) continue;
       ctx.save();
       ctx.translate(p.x, p.y);
+      if (my === 1) ctx.scale(-1, 1);
       ctx.globalAlpha = 0.35;
       const drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
       if (!drawn) {
@@ -1302,6 +1303,7 @@ export class Renderer {
 
     ctx.save();
     ctx.translate(px, py);
+    if (my === 1) ctx.scale(-1, 1); // team 1 faces left, like the placed unit
     ctx.globalAlpha = 0.6;
     ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
     ctx.fillStyle = valid ? 'rgba(88, 214, 141, 0.2)' : 'rgba(255, 85, 102, 0.2)';
