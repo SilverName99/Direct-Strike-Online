@@ -522,7 +522,7 @@ const TEMPLATE = `
         <input type="range" class="m-range" id="opt-music" min="0" max="100" value="50"></div>
       <div class="m-row"><span class="m-label">Fullscreen</span>
         <div class="m-opts"><button class="corner-btn fs-btn" title="Comută ecran complet" data-opt-fs>⛶</button></div></div>
-      <div class="m-row"><span class="m-label">Blochează mouse-ul<br><small class="m-sub">recomandat pe 2 monitoare</small></span>
+      <div class="m-row"><span class="m-label">Block the mouse<br><small class="m-sub">Recommended when using two screens</small></span>
         <label class="m-switch"><input type="checkbox" id="opt-capture"><span class="m-slider"></span></label></div>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
