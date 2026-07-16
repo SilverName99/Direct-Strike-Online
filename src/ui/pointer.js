@@ -23,8 +23,11 @@ export class PointerManager {
     // edge-scroll otherwise slides the mouse onto the other screen. Defaults
     // ON (the safe default for a fullscreen RTS); a player who prefers the
     // zero-latency hardware cursor can turn it off in Options. Persisted.
+    // Fresh key ('fh-…') so the stale '0' persisted by the old force-off build
+    // is ignored — otherwise machines that ran the old version would start OFF
+    // despite the ON default. Only an explicit opt-out here turns it off.
     this.captureMouse = true;
-    try { if (localStorage.getItem('ds-capture-mouse') === '0') this.captureMouse = false; } catch { /* private mode */ }
+    try { if (localStorage.getItem('fh-capture-mouse') === '0') this.captureMouse = false; } catch { /* private mode */ }
 
     this.cursor = document.createElement('div');
     this.cursor.id = 'vcursor';
@@ -256,7 +259,7 @@ export class PointerManager {
   // it on captures now if already in fullscreen.
   setCaptureMouse(on) {
     this.captureMouse = !!on;
-    try { localStorage.setItem('ds-capture-mouse', on ? '1' : '0'); } catch { /* private mode */ }
+    try { localStorage.setItem('fh-capture-mouse', on ? '1' : '0'); } catch { /* private mode */ }
     if (!on && document.pointerLockElement) document.exitPointerLock();
     if (on && document.fullscreenElement && !document.pointerLockElement) this.requestLock();
     return this.captureMouse;
