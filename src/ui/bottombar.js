@@ -68,6 +68,8 @@ function layoutCardPage(entries, toggleItem) {
 function unitStatBits(s) {
   // (cost lives on the card thumbnail badge now, not in the stat line)
   const bits = [`${Math.round(s.hp)} ❤️`, `${s.damage} ⚔️`];
+  // food consumed, right after the damage (summoned/foodless units skip it)
+  if (s.food) bits.push(`${s.food} 🍖`);
   if (s.armor) bits.push(`${s.armor} 🛡️`);
   if (s.dmgType) bits.push(`${s.dmgType} 🗡️`);
   if (s.targetsAir) bits.push('Hits air');

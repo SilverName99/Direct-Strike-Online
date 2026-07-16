@@ -364,7 +364,10 @@ window.__menu = menu; // debug/test handle (drive the entry menu in tests)
 // seed the behind-the-menu preview with the default matchup
 setTeamRaces(['humans', 'orcs']);
 bottombar.refresh();
-applyCursor('humans');
+// first entry: pick a RANDOM race cursor (human or orc) — more fun than the
+// plain arrow. Only rolls among races that actually have a cursor uploaded.
+const cursorRaces = RACES.filter((r) => getCursorUrl(r));
+applyCursor(cursorRaces.length ? cursorRaces[Math.floor(Math.random() * cursorRaces.length)] : 'humans');
 
 window.addEventListener('resize', () => renderer.resize());
 // entering/leaving fullscreen resizes the wrapper over a couple of frames —
