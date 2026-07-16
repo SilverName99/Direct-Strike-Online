@@ -793,13 +793,13 @@ export class BottomBar {
     if (data.kind === 'unit' || data.kind === 'building') {
       ctx.save();
       ctx.translate(23, 24);
-      if (drawThumb(ctx, data.id, 0, 42)) { ctx.restore(); return; }
+      if (drawThumb(ctx, data.id, this.team, 42)) { ctx.restore(); return; }
       ctx.restore();
       if (data.kind === 'unit' && hasCharacter(data.id)) {
         ctx.save();
         ctx.translate(23, 24);
         const u = statsUnit(raceOf(this.team), data.id);
-        drawCharacter(ctx, data.id, 'idle', 0, 0, Math.min(1.6, 38 / (u.radius * 2.8 + 4)));
+        drawCharacter(ctx, data.id, 'idle', 0, this.team, Math.min(1.6, 38 / (u.radius * 2.8 + 4)));
         ctx.restore();
         return;
       }

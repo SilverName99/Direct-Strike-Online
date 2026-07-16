@@ -612,7 +612,7 @@ export class Renderer {
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.globalAlpha = 0.35;
-      const drawn = drawBuildingSprite(ctx, 'generator', 0, ext.hw, ext.hh, 0);
+      const drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
       if (!drawn) {
         ctx.strokeStyle = '#ffd35c';
         ctx.setLineDash([6, 5]);
@@ -1317,7 +1317,7 @@ export class Renderer {
       ctx.strokeRect(-ext.hw, -ext.hh, ext.hw * 2, ext.hh * 2);
       // idle 1 sprite on the cursor (falls back to nothing if not uploaded)
       ctx.globalAlpha = valid ? 0.85 : 0.55;
-      drawBuildingSprite(ctx, sel, 0, ext.hw, ext.hh, 0);
+      drawBuildingSprite(ctx, sel, my, ext.hw, ext.hh, 0);
       if (b.range) {
         ctx.globalAlpha = 0.15;
         ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
@@ -1343,7 +1343,7 @@ export class Renderer {
       ctx.globalAlpha = valid ? 0.85 : 0.55;
     }
     if (hasCharacter(sel)) {
-      drawCharacter(ctx, sel, 'idle', 0, 0, sizeOf(raceOf(0), sel));
+      drawCharacter(ctx, sel, 'idle', 0, my, sizeOf(raceOf(my), sel));
       if (!hasFootprint) {
         ctx.beginPath();
         ctx.arc(0, 0, stats.radius + 6, 0, Math.PI * 2);
