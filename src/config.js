@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v11.40';
+export const VERSION = 'v11.41';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -55,6 +55,7 @@ export const CONFIG = {
   MENU_PLAY: '',        // setup-screen PLAY button skin (natural image size); '' = gold button
   MENU_SETUP_FRAME: '', // frame around the race/difficulty picker on the setup screen; '' = none
   MENU_OPTIONS_FRAME: '', // frame around the Options controls; '' = none
+  MENU_RACE_PILL: '',   // frame skin for the Humans/Orcs race pills; '' = plain pill
   MENU_BG: '',          // main-menu background image (data URL); '' = plain dark
   TUTORIALS: [],        // "How to play" slider: array of { img, text } slides (set in admin)
   LOADING_BGS: ['', '', ''], // up to 3 loading-screen backgrounds; one is picked at random each load

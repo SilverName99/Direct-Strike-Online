@@ -636,6 +636,11 @@ html, body {
 .m-setup { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 420px; }
 .m-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .m-label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+/* setup / options row labels: bigger, bolder, golden */
+#menu-root .m-label {
+  color: #ffd769; font-size: 17px; font-weight: 800; letter-spacing: 1.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+}
 .m-opts { display: flex; gap: 8px; }
 .m-pill {
   font: 600 13px/1 "Segoe UI", system-ui, sans-serif; padding: 9px 15px; border-radius: 9px; cursor: pointer;
@@ -706,7 +711,20 @@ html, body {
 /* ---- frame around the race/difficulty picker (admin "Chenar rase / dificultate") ---- */
 .has-setup-skin .m-screen[data-screen="setup"] .m-setup {
   background: var(--menu-setup) center / 100% 100% no-repeat;
-  padding: 42px 48px; border-radius: 14px;
+  padding: 60px 74px; border-radius: 14px; max-width: 600px; gap: 16px;
+}
+
+/* ---- race pill frame skin (admin "Chenar Humans / Orcs") ---- */
+.has-racepill-skin .m-pill[data-race] {
+  background: var(--menu-racepill) center / 100% 100% no-repeat;
+  border: none; color: #f4dca0; padding: 13px 24px; min-width: 132px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.has-racepill-skin .m-pill[data-race]:hover { border: none; filter: brightness(1.12); }
+.has-racepill-skin .m-pill[data-race].on {
+  border: none; color: #fff2c9;
+  background: var(--menu-racepill) center / 100% 100% no-repeat;
+  filter: brightness(1.22) drop-shadow(0 0 6px rgba(255, 215, 105, 0.6));
 }
 /* ---- frame around the Options controls (admin "Chenar Options") ---- */
 .has-optframe-skin .m-setup-opts {

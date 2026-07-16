@@ -173,6 +173,7 @@ export class Menu {
       ['MENU_PLAY', 'has-play-skin', '--menu-play'],
       ['MENU_SETUP_FRAME', 'has-setup-skin', '--menu-setup'],
       ['MENU_OPTIONS_FRAME', 'has-optframe-skin', '--menu-optframe'],
+      ['MENU_RACE_PILL', 'has-racepill-skin', '--menu-racepill'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
@@ -396,7 +397,6 @@ const TEMPLATE = `
 
   <section class="m-screen hidden" data-screen="format-ai">
     <h2 class="m-title">Play vs AI</h2>
-    <p class="m-hint">Alege formatul</p>
     <div class="m-cards">
       <button class="m-card" data-fmt="1v1"><span class="m-card-t">1v1</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
@@ -423,9 +423,9 @@ const TEMPLATE = `
       <h2 class="m-title setup-title">1V1</h2>
     </div>
     <div class="m-setup">
-      <div class="m-row"><span class="m-label">Rasa ta</span>${races('player')}</div>
-      <div class="m-row"><span class="m-label">Rasa inamicului</span>${races('enemy')}</div>
-      <div class="m-row"><span class="m-label">Dificultate</span>
+      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
+      <div class="m-row"><span class="m-label">AI Race</span>${races('enemy')}</div>
+      <div class="m-row"><span class="m-label">Difficulty</span>
         <div class="m-opts" data-opt="difficulty">
           <button class="m-pill" data-diff="easy">Easy</button>
           <button class="m-pill" data-diff="normal">Normal</button>
@@ -439,9 +439,9 @@ const TEMPLATE = `
   <section class="m-screen hidden" data-screen="options">
     <h2 class="m-title">OPTIONS</h2>
     <div class="m-setup m-setup-opts">
-      <div class="m-row"><span class="m-label">Muzică</span>
+      <div class="m-row"><span class="m-label">Music</span>
         <input type="range" class="m-range" id="opt-music" min="0" max="100" value="50"></div>
-      <div class="m-row"><span class="m-label">Ecran complet</span>
+      <div class="m-row"><span class="m-label">Fullscreen</span>
         <div class="m-opts"><button class="corner-btn fs-btn" title="Comută ecran complet" data-opt-fs>⛶</button></div></div>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
