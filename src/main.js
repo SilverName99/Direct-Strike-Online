@@ -175,6 +175,8 @@ function updateAiDebug() {
 // loops for the whole match at the admin-set volume. Started from the match
 // button click, so autoplay policies are satisfied.
 let music = null;
+let musicMuted = false;
+try { musicMuted = localStorage.getItem('fh-music-muted') === '1'; } catch { /* private mode */ }
 function startMusic(race) {
   stopMusic();
   const url = getMusicUrl(race);
@@ -182,11 +184,26 @@ function startMusic(race) {
   music = new Audio(url);
   music.loop = true;
   music.volume = Math.min(1, Math.max(0, musicVolumeOf(race) / 100));
+  music.muted = musicMuted;
   music.play().catch(() => { /* autoplay blocked — stay silent */ });
 }
 function stopMusic() {
   if (music) { music.pause(); music = null; }
 }
+// Top-bar sound toggle: mute/unmute the in-game music (remembered across games).
+const muteBtn = document.getElementById('mute-btn');
+function applyMuteBtn() {
+  if (!muteBtn) return;
+  muteBtn.textContent = musicMuted ? '🔇' : '🔊';
+  muteBtn.classList.toggle('off', musicMuted);
+}
+if (muteBtn) muteBtn.addEventListener('click', () => {
+  musicMuted = !musicMuted;
+  if (music) music.muted = musicMuted;
+  try { localStorage.setItem('fh-music-muted', musicMuted ? '1' : '0'); } catch { /* private mode */ }
+  applyMuteBtn();
+});
+applyMuteBtn();
 
 // Apply the player race's uploaded custom mouse cursor (falls back to the
 // default arrow when none is uploaded for that race).

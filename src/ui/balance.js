@@ -389,6 +389,7 @@ function snapshot() {
     tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
     menuMusic: CONFIG.MENU_MUSIC || '',
+    menuMusicVol: CONFIG.MENU_MUSIC_VOL,
     loadingTips: Array.isArray(CONFIG.LOADING_TIPS) ? [...CONFIG.LOADING_TIPS] : [],
     pushMode: CONFIG.PUSH_MODE,
     pushCrossTeam: CONFIG.PUSH_CROSS_TEAM,
@@ -470,6 +471,7 @@ export function applyBalance(data) {
   }
   CONFIG.LOADING_BG = typeof data.loadingBg === 'string' ? data.loadingBg : '';
   CONFIG.MENU_MUSIC = typeof data.menuMusic === 'string' ? data.menuMusic : '';
+  CONFIG.MENU_MUSIC_VOL = num(data.menuMusicVol) !== undefined ? clamp(data.menuMusicVol, 0, 100) : 50;
   CONFIG.LOADING_TIPS = Array.isArray(data.loadingTips)
     ? data.loadingTips.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.slice(0, 200)).slice(0, 40)
     : [];
@@ -689,7 +691,7 @@ export function importBalance(data) {
   const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN, keepMenuPwf = CONFIG.MENU_PWF;
   const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRaceHumans = CONFIG.MENU_RACE_HUMANS, keepMenuRaceOrcs = CONFIG.MENU_RACE_ORCS;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
-  const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
+  const keepMenuMusic = CONFIG.MENU_MUSIC, keepMenuMusicVol = CONFIG.MENU_MUSIC_VOL, keepTips = CONFIG.LOADING_TIPS;
   const keepTutorials = CONFIG.TUTORIALS;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
@@ -708,7 +710,7 @@ export function importBalance(data) {
   if (typeof data.menuRaceOrcs !== 'string' || !data.menuRaceOrcs) CONFIG.MENU_RACE_ORCS = keepMenuRaceOrcs;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
-  if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;
+  if (typeof data.menuMusic !== 'string' || !data.menuMusic) { CONFIG.MENU_MUSIC = keepMenuMusic; CONFIG.MENU_MUSIC_VOL = keepMenuMusicVol; }
   if (!Array.isArray(data.loadingTips) || !data.loadingTips.length) CONFIG.LOADING_TIPS = keepTips;
   if (!Array.isArray(data.tutorials) || !data.tutorials.length) CONFIG.TUTORIALS = keepTutorials;
   // restore them over whatever the imported file said

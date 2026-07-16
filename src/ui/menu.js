@@ -235,6 +235,10 @@ export class Menu {
   applyTheme() {
     this.applyLogo();
     this.applyButtons();
+    // starting menu-music volume comes from admin (the player can still change
+    // it live via the Options slider / bottom-right control)
+    const v = Number(CONFIG.MENU_MUSIC_VOL);
+    if (isFinite(v)) this.setMusicVol(Math.max(0, Math.min(100, v)) / 100);
     const mb = CONFIG.MENU_BG || '';
     if (this.bg) { this.bg.style.backgroundImage = mb ? `url("${mb}")` : ''; this.bg.classList.toggle('on', !!mb); }
     this.setLoadingBg(this.firstLoadingBg()); // a static default until play() rolls one

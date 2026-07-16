@@ -114,6 +114,8 @@ function render() {
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
     ${uploaderRow('menumusic', 'Muzică meniu', 'audio (mp3/ogg), se repetă', 'audio')}
+    <div class="fields" style="margin:-4px 0 8px"><label class="fld"><span>Volum start muzică meniu (0-100)</span>
+      <input type="number" min="0" max="100" step="1" data-scope="menumusicvol" value="${CONFIG.MENU_MUSIC_VOL}" style="width:auto;flex:1;max-width:120px"></label></div>
     <div style="margin-top:8px">
       <div style="color:#b9c4d4;font-size:13px;margin-bottom:6px">Tips loading <span style="color:#7c8ba1">— un tip pe linie; gol = cele implicite</span></div>
       <textarea id="tips-area" rows="5" style="width:100%;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:8px;padding:8px 10px;font:13px/1.5 system-ui;resize:vertical" placeholder="Generatoarele sunt economia ta — protejează-le.&#10;Upgrade la Bază deblochează tieruri superioare."></textarea>
@@ -378,6 +380,7 @@ function collect() {
     if (scope === 'pushmode') { CONFIG.PUSH_MODE = el.value === 'equal' ? 'equal' : 'mass'; continue; }
     if (scope === 'pushcross') { CONFIG.PUSH_CROSS_TEAM = !el.checked; continue; } // checkbox = "Blue can't push Red"
     if (scope === 'pushforce') { const v = Number(el.value); if (isFinite(v)) CONFIG.PUSH_FORCE = Math.max(0.2, v); continue; }
+    if (scope === 'menumusicvol') { const v = Number(el.value); if (isFinite(v)) CONFIG.MENU_MUSIC_VOL = Math.max(0, Math.min(100, Math.round(v))); continue; }
     if (scope === 'middleEmpty') { if (isFinite(Number(el.value))) CONFIG.MIDDLE_EMPTY = Math.max(0, Math.round(Number(el.value))); continue; }
     if (scope === 'middle') {
       const m = CONFIG.MIDDLES[Number(id)];
@@ -406,6 +409,17 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   if (res === 'ok') setStatus('Salvat ✓ (activ la următoarea pornire a jocului)', 'ok');
   else if (res === 'auth') setStatus('Sesiune expirată — reloghează-te în /admin', 'bad');
   else setStatus('Salvare eșuată — verifică serverul', 'bad');
+});
+
+// Auto-save Rules & every other Balance field the moment it changes, so nothing
+// is ever lost by forgetting to press Salvează (the image uploaders already
+// auto-save). Debounced so committing several fields in a row sends one save.
+let autoSaveTimer = 0;
+app.addEventListener('change', (e) => {
+  const el = e.target;
+  if (!el || !el.matches || !el.matches('[data-scope]')) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => autoSaveGoldIcon('Setare salvată'), 350);
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
