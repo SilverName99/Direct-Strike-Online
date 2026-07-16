@@ -379,6 +379,7 @@ function snapshot() {
     menuSlideFrame: CONFIG.MENU_SLIDE_FRAME || '',
     menuFsBtn: CONFIG.MENU_FS_BTN || '',
     menuSoundBtn: CONFIG.MENU_SOUND_BTN || '',
+    menuPwf: CONFIG.MENU_PWF || '',
     menuBg: CONFIG.MENU_BG || '',
     tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
@@ -436,6 +437,7 @@ export function applyBalance(data) {
   CONFIG.MENU_SLIDE_FRAME = typeof data.menuSlideFrame === 'string' ? data.menuSlideFrame : '';
   CONFIG.MENU_FS_BTN = typeof data.menuFsBtn === 'string' ? data.menuFsBtn : '';
   CONFIG.MENU_SOUND_BTN = typeof data.menuSoundBtn === 'string' ? data.menuSoundBtn : '';
+  CONFIG.MENU_PWF = typeof data.menuPwf === 'string' ? data.menuPwf : '';
   CONFIG.TUTORIALS = Array.isArray(data.tutorials)
     ? data.tutorials
         .filter((t) => t && typeof t === 'object')
@@ -670,7 +672,7 @@ export function importBalance(data) {
   const keepGoldIcon = CONFIG.GOLD_ICON;
   const keepMenuLogo = CONFIG.MENU_LOGO, keepMenuBtn = CONFIG.MENU_BTN;
   const keepMenuCard = CONFIG.MENU_CARD, keepMenuBack = CONFIG.MENU_BACK;
-  const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN;
+  const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN, keepMenuPwf = CONFIG.MENU_PWF;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
   const keepTutorials = CONFIG.TUTORIALS;
@@ -683,6 +685,7 @@ export function importBalance(data) {
   if (typeof data.menuSlideFrame !== 'string' || !data.menuSlideFrame) CONFIG.MENU_SLIDE_FRAME = keepMenuSlideFrame;
   if (typeof data.menuFsBtn !== 'string' || !data.menuFsBtn) CONFIG.MENU_FS_BTN = keepMenuFsBtn;
   if (typeof data.menuSoundBtn !== 'string' || !data.menuSoundBtn) CONFIG.MENU_SOUND_BTN = keepMenuSoundBtn;
+  if (typeof data.menuPwf !== 'string' || !data.menuPwf) CONFIG.MENU_PWF = keepMenuPwf;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;

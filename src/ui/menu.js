@@ -168,6 +168,7 @@ export class Menu {
       ['MENU_SLIDE_FRAME', 'has-slide-skin', '--menu-slide'],
       ['MENU_FS_BTN', 'has-fs-skin', '--menu-fs'],
       ['MENU_SOUND_BTN', 'has-sound-skin', '--menu-sound'],
+      ['MENU_PWF', 'has-pwf-skin', '--menu-pwf'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
@@ -366,7 +367,7 @@ const TEMPLATE = `
       <button class="m-card locked" disabled><span class="m-card-t">1v1</span><span class="soon">Coming soon</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
       <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
-      <button class="m-card locked wide" disabled><span class="m-card-t">👥 Play with friends</span><span class="soon">Coming soon</span></button>
+      <button class="m-card locked wide pwf-card" disabled><span class="m-card-t">👥 Play with friends</span><span class="soon">Coming soon</span></button>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>

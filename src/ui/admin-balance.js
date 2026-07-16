@@ -104,6 +104,7 @@ function render() {
     ${uploaderRow('menuslide', 'Design cutie slide (How to play)', 'ramă PNG în jurul imaginii de tutorial')}
     ${uploaderRow('menufs', 'Design buton fullscreen', 'PNG pătrat — colțul din dreapta sus + „Ecran complet”')}
     ${uploaderRow('menusnd', 'Design buton sonor', 'PNG pătrat — controlul de volum din dreapta jos')}
+    ${uploaderRow('menupwf', 'Design „Play with friends”', 'PNG cu textul deja inclus (ecranul Multiplayer)')}
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
@@ -129,6 +130,7 @@ function render() {
   wireAsset('MENU_SLIDE_FRAME', 'menuslide', 'image', 3 * 1024 * 1024);
   wireAsset('MENU_FS_BTN', 'menufs', 'image', 1 * 1024 * 1024);
   wireAsset('MENU_SOUND_BTN', 'menusnd', 'image', 1 * 1024 * 1024);
+  wireAsset('MENU_PWF', 'menupwf', 'image', 2 * 1024 * 1024);
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);

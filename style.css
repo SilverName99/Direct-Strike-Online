@@ -661,6 +661,16 @@ html, body {
 .has-card-skin .m-card:not(.locked):hover { background: var(--menu-card) center / 100% 100% no-repeat; filter: brightness(1.12); }
 .has-card-skin .m-card-s { color: #e6d3a0; }
 
+/* ---- "Play with friends" card skin (art already carries the text) ---- */
+.has-pwf-skin .pwf-card {
+  position: relative; width: 280px; aspect-ratio: 3 / 2; padding: 0;
+  background: var(--menu-pwf) center / 100% 100% no-repeat;
+  border: none; box-shadow: none; opacity: 1; filter: none;
+  justify-content: center; align-items: flex-end;
+}
+.has-pwf-skin .pwf-card .m-card-t { display: none; }
+.has-pwf-skin .pwf-card .soon { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); }
+
 /* ---- "Înapoi" back button skin: icon-only (no text), just the uploaded art ---- */
 .has-back-skin .m-back {
   width: 58px; height: 58px; padding: 0; border: none; align-self: center;
