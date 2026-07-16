@@ -35,7 +35,17 @@ if (($_SERVER['HTTP_X_DS_BALANCE'] ?? '') !== '1') {
   exit;
 }
 
-$raw = file_get_contents('php://input', false, null, 0, 2097152);
+// Read the WHOLE body — the balance can carry several MB of uploaded images
+// (logo, menu/loading backgrounds, music) as data URLs. (A previous 2 MB read
+// cap truncated the JSON and made every save with images fail.)
+ini_set('memory_limit', '256M');
+$raw = file_get_contents('php://input');
+if ($raw === '' || $raw === false) {
+  // an empty body usually means the request exceeded the server's post_max_size
+  http_response_code(413);
+  echo '{"error":"too-big"}';
+  exit;
+}
 $data = json_decode($raw, true);
 if (!is_array($data)) {
   http_response_code(400);

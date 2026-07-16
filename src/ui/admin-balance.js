@@ -248,7 +248,7 @@ async function autoSaveGoldIcon(what) {
   const res = await saveBalance('save-balance.php');
   if (res === 'ok') setStatus(`${what} ✓ (activ după reîncărcarea jocului)`, 'ok');
   else if (res === 'auth') setStatus('Sesiune expirată — reloghează-te în /admin', 'bad');
-  else setStatus('Salvare eșuată — verifică serverul', 'bad');
+  else setStatus('Salvare eșuată — probabil imaginile sunt prea mari pentru server (încearcă poze mai mici).', 'bad');
 }
 
 // Write the general/tier inputs back into CONFIG (this page only holds
