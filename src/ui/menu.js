@@ -20,6 +20,8 @@ export class Menu {
     this.hooks = hooks || {};
     this.sel = { mode: 'ai', format: '1v1', player: 'humans', enemy: 'orcs', difficulty: 'normal' };
     this.timers = [];
+    this.musicVol = 0.5;   // menu-music volume (0..1), driven by the Options slider
+    this.musicStarted = false;
     this.build();
   }
 
@@ -31,15 +33,25 @@ export class Menu {
     this.load = this.el.querySelector('#menu-load');
     this.music = null;
     this.el.addEventListener('click', (e) => this.onClick(e));
+    this.el.addEventListener('input', (e) => this.onInput(e));
     this.applyTheme();
     this.reflect();
     this.go('main');
   }
 
+  onInput(e) {
+    if (e.target && e.target.id === 'opt-music') this.setMusicVol(Number(e.target.value) / 100);
+  }
+
   onClick(e) {
     this.ensureMusic(); // first click unlocks + starts the menu music
-    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo]');
+    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs]');
     if (!t || t.disabled) return;
+    if (t.hasAttribute('data-opt-fs')) {
+      if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
+      else if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
+      return;
+    }
     if (t.dataset.tut) { this.tutStep(Number(t.dataset.tut)); return; }
     if (t.dataset.tutgo != null) { this.tutIdx = Number(t.dataset.tutgo); this.renderTut(); return; }
     if (t.dataset.go) {
@@ -66,6 +78,17 @@ export class Menu {
     this.load.classList.add('hidden');
     this.root.classList.remove('hidden');
     if (name === 'help') this.renderHelp();
+    if (name === 'options') this.syncOptions();
+  }
+
+  // reflect current settings in the Options screen
+  syncOptions() {
+    const m = this.el.querySelector('#opt-music');
+    if (m) m.value = String(Math.round(this.musicVol * 100));
+  }
+  setMusicVol(v) {
+    this.musicVol = Math.max(0, Math.min(1, v));
+    if (this.music) this.music.volume = this.musicVol;
   }
 
   // "How to play": a slider over the admin-uploaded tutorial slides, with a
@@ -154,16 +177,39 @@ export class Menu {
     }
   }
 
-  ensureMusic() {
-    if (this.music || !CONFIG.MENU_MUSIC) return;
+  // Preload the menu music during boot (buffer it, don't play yet — autoplay
+  // needs a user gesture). Resolves once enough is loaded, or on timeout so the
+  // boot loader never hangs.
+  preloadMusic(timeoutMs = 3500) {
+    if (!CONFIG.MENU_MUSIC) return Promise.resolve();
     try {
-      this.music = new Audio(CONFIG.MENU_MUSIC);
+      this.music = new Audio();
       this.music.loop = true;
-      this.music.volume = 0.5;
-      this.music.play().catch(() => { /* autoplay blocked until a gesture */ });
-    } catch { this.music = null; }
+      this.music.volume = this.musicVol;
+      this.music.preload = 'auto';
+    } catch { this.music = null; return Promise.resolve(); }
+    const el = this.music;
+    return new Promise((resolve) => {
+      let done = false;
+      const fin = () => { if (!done) { done = true; resolve(); } };
+      el.addEventListener('canplaythrough', fin, { once: true });
+      el.addEventListener('loadeddata', fin, { once: true });
+      el.addEventListener('error', fin, { once: true });
+      setTimeout(fin, timeoutMs);
+      el.src = CONFIG.MENU_MUSIC;
+    });
   }
-  stopMusic() { if (this.music) { this.music.pause(); this.music = null; } }
+  ensureMusic() {
+    if (!CONFIG.MENU_MUSIC) return;
+    if (!this.music) { // no preload ran (e.g. music set after boot)
+      try { this.music = new Audio(CONFIG.MENU_MUSIC); this.music.loop = true; this.music.volume = this.musicVol; }
+      catch { this.music = null; return; }
+    }
+    if (this.musicStarted) return;
+    this.musicStarted = true;
+    this.music.play().catch(() => { this.musicStarted = false; /* autoplay blocked until a gesture */ });
+  }
+  stopMusic() { if (this.music) { this.music.pause(); this.music = null; } this.musicStarted = false; }
 
   clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
   later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
@@ -244,6 +290,7 @@ const TEMPLATE = `
     <div class="m-btns">
       <button class="m-btn primary" data-go="format-ai">⚔&nbsp;&nbsp;Play vs AI</button>
       <button class="m-btn" data-go="format-mp">🌐&nbsp;&nbsp;Multiplayer</button>
+      <button class="m-btn" data-go="options">⚙&nbsp;&nbsp;Options</button>
       <button class="m-btn ghost" data-go="help">📖&nbsp;&nbsp;How to play</button>
     </div>
   </section>
@@ -285,6 +332,17 @@ const TEMPLATE = `
     </div>
     <button class="m-btn primary big" data-play>▶&nbsp;&nbsp;Play</button>
     <button class="m-back" data-go="format-ai">◄ Înapoi</button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="options">
+    <h2 class="m-title">Opțiuni</h2>
+    <div class="m-setup">
+      <div class="m-row"><span class="m-label">Muzică</span>
+        <input type="range" class="m-range" id="opt-music" min="0" max="100" value="50"></div>
+      <div class="m-row"><span class="m-label">Ecran complet</span>
+        <div class="m-opts"><button class="m-pill" data-opt-fs>Comută</button></div></div>
+    </div>
+    <button class="m-back" data-go="main">◄ Înapoi</button>
   </section>
 
   <section class="m-screen hidden" data-screen="help">

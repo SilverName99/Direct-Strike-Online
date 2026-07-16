@@ -523,6 +523,8 @@ html, body {
 }
 .menu-brand { position: absolute; top: 5vh; left: 0; right: 0; margin: 0; }
 #menu-root .m-screen { max-width: min(620px, 92vw); }
+/* main-menu buttons sit lower (shifted 20% of the viewport below center) */
+#menu-root .m-screen[data-screen="main"] { transform: translateY(20vh); }
 /* titles and helper text carry a drop shadow so they read over any image */
 #menu-root .m-title,
 #menu-root .m-hint,
@@ -633,6 +635,14 @@ html, body {
 }
 .m-pill:hover { border-color: var(--blue); }
 .m-pill.on { border-color: var(--gold); background: rgba(233, 197, 101, 0.13); color: var(--gold-lite, #ffe39a); }
+
+/* Options: golden range slider */
+.m-range { -webkit-appearance: none; appearance: none; width: 200px; height: 6px; border-radius: 6px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(233, 197, 101, 0.28); }
+.m-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); border: 1px solid #e9c565; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+.m-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #e9c565;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
 
 /* ---- countdown ---- */
 #menu-cd {

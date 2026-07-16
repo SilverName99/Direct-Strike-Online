@@ -86,8 +86,12 @@ loadBalance().then((loaded) => {
   }
 }).catch((e) => console.warn('balance load failed', e)).finally(() => {
   menu.applyTheme(); // logo + menu/loading backgrounds live in balance.json
-  // warm the decode cache for the menu art, then reveal the finished menu
-  preload([CONFIG.MENU_BG, CONFIG.MENU_LOGO, CONFIG.MENU_BTN], 2500).then(hideBoot);
+  // warm the decode cache for the menu art AND buffer the menu music, then
+  // reveal the finished menu (both capped so a slow asset never hangs boot)
+  Promise.all([
+    preload([CONFIG.MENU_BG, CONFIG.MENU_LOGO, CONFIG.MENU_BTN], 2500),
+    menu.preloadMusic(3500),
+  ]).then(hideBoot);
 });
 
 // 🎯 debug overlay: attack reach + physical body boxes around every unit
