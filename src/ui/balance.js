@@ -383,7 +383,8 @@ function snapshot() {
     menuPlay: CONFIG.MENU_PLAY || '',
     menuSetupFrame: CONFIG.MENU_SETUP_FRAME || '',
     menuOptionsFrame: CONFIG.MENU_OPTIONS_FRAME || '',
-    menuRacePill: CONFIG.MENU_RACE_PILL || '',
+    menuRaceHumans: CONFIG.MENU_RACE_HUMANS || '',
+    menuRaceOrcs: CONFIG.MENU_RACE_ORCS || '',
     menuBg: CONFIG.MENU_BG || '',
     tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
@@ -445,7 +446,12 @@ export function applyBalance(data) {
   CONFIG.MENU_PLAY = typeof data.menuPlay === 'string' ? data.menuPlay : '';
   CONFIG.MENU_SETUP_FRAME = typeof data.menuSetupFrame === 'string' ? data.menuSetupFrame : '';
   CONFIG.MENU_OPTIONS_FRAME = typeof data.menuOptionsFrame === 'string' ? data.menuOptionsFrame : '';
-  CONFIG.MENU_RACE_PILL = typeof data.menuRacePill === 'string' ? data.menuRacePill : '';
+  // per-race pill frames (migrate the old shared menuRacePill onto both)
+  {
+    const legacy = typeof data.menuRacePill === 'string' ? data.menuRacePill : '';
+    CONFIG.MENU_RACE_HUMANS = typeof data.menuRaceHumans === 'string' && data.menuRaceHumans ? data.menuRaceHumans : legacy;
+    CONFIG.MENU_RACE_ORCS = typeof data.menuRaceOrcs === 'string' && data.menuRaceOrcs ? data.menuRaceOrcs : legacy;
+  }
   CONFIG.TUTORIALS = Array.isArray(data.tutorials)
     ? data.tutorials
         .filter((t) => t && typeof t === 'object')
@@ -681,7 +687,7 @@ export function importBalance(data) {
   const keepMenuLogo = CONFIG.MENU_LOGO, keepMenuBtn = CONFIG.MENU_BTN;
   const keepMenuCard = CONFIG.MENU_CARD, keepMenuBack = CONFIG.MENU_BACK;
   const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN, keepMenuPwf = CONFIG.MENU_PWF;
-  const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRacePill = CONFIG.MENU_RACE_PILL;
+  const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRaceHumans = CONFIG.MENU_RACE_HUMANS, keepMenuRaceOrcs = CONFIG.MENU_RACE_ORCS;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
   const keepTutorials = CONFIG.TUTORIALS;
@@ -698,7 +704,8 @@ export function importBalance(data) {
   if (typeof data.menuPlay !== 'string' || !data.menuPlay) CONFIG.MENU_PLAY = keepMenuPlay;
   if (typeof data.menuSetupFrame !== 'string' || !data.menuSetupFrame) CONFIG.MENU_SETUP_FRAME = keepMenuSetupFrame;
   if (typeof data.menuOptionsFrame !== 'string' || !data.menuOptionsFrame) CONFIG.MENU_OPTIONS_FRAME = keepMenuOptionsFrame;
-  if (typeof data.menuRacePill !== 'string' || !data.menuRacePill) CONFIG.MENU_RACE_PILL = keepMenuRacePill;
+  if (typeof data.menuRaceHumans !== 'string' || !data.menuRaceHumans) CONFIG.MENU_RACE_HUMANS = keepMenuRaceHumans;
+  if (typeof data.menuRaceOrcs !== 'string' || !data.menuRaceOrcs) CONFIG.MENU_RACE_ORCS = keepMenuRaceOrcs;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;

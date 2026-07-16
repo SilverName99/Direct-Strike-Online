@@ -173,7 +173,8 @@ export class Menu {
       ['MENU_PLAY', 'has-play-skin', '--menu-play'],
       ['MENU_SETUP_FRAME', 'has-setup-skin', '--menu-setup'],
       ['MENU_OPTIONS_FRAME', 'has-optframe-skin', '--menu-optframe'],
-      ['MENU_RACE_PILL', 'has-racepill-skin', '--menu-racepill'],
+      ['MENU_RACE_HUMANS', 'has-racehum-skin', '--menu-racehum'],
+      ['MENU_RACE_ORCS', 'has-raceorc-skin', '--menu-raceorc'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
