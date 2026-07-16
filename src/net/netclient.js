@@ -50,10 +50,10 @@ export class NetClient {
     }
   }
 
-  // ---- lobby ----
-  quickmatch() { this.send({ t: 'quickmatch' }); }
-  createRoom() { this.send({ t: 'create' }); }
-  joinRoom(code) { this.send({ t: 'join', code: String(code || '').toUpperCase().trim() }); }
+  // ---- lobby ---- (race = the race you picked; the server puts both in `start.races`)
+  quickmatch(race) { this.send({ t: 'quickmatch', race }); }
+  createRoom(race) { this.send({ t: 'create', race }); }
+  joinRoom(code, race) { this.send({ t: 'join', code: String(code || '').toUpperCase().trim(), race }); }
   leave() { this.send({ t: 'leave' }); }
 
   // ---- in match ----

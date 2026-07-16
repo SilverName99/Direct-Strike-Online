@@ -39,14 +39,16 @@ const waitFor = async (c, type, ms = 2000) => {
 // ---- 1) quick match ----
 const a = await connect('Alice');
 const b = await connect('Bob');
-say(a, { t: 'quickmatch' });
-say(b, { t: 'quickmatch' });
+say(a, { t: 'quickmatch', race: 'orcs' });
+say(b, { t: 'quickmatch', race: 'humans' });
 const sa = await waitFor(a, 'start');
 const sb = await waitFor(b, 'start');
 ok(sa && sb, 'both players got a start');
 ok(sa && sb && sa.seed === sb.seed, 'shared seed matches');
 ok(sa && sb && ((sa.youAre === 0 && sb.youAre === 1) || (sa.youAre === 1 && sb.youAre === 0)), 'teams are 0 and 1');
 ok(sa && sa.inputDelay === 6 && sa.tickHz === 30, 'start carries inputDelay + tickHz');
+ok(sa && Array.isArray(sa.races) && sa.races.length === 2 && JSON.stringify(sa.races) === JSON.stringify(sb.races), 'races travel in start, same on both');
+ok(sa && sb && sa.races[sa.youAre] === 'orcs' && sb.races[sb.youAre] === 'humans', "each team got the race its player picked");
 
 // ---- 2) command relay ----
 a.byType.cmd = []; b.byType.cmd = [];

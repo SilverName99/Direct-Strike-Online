@@ -24,7 +24,9 @@ const PORT = Number(process.env.PORT || 8080);
 const TICK_HZ = 30;                 // must match CONFIG.FIXED_DT (1/30) on the client
 const INPUT_DELAY = Number(process.env.INPUT_DELAY || 6); // ticks (~200ms) before a command fires
 const CLOCK_EVERY = 6;              // broadcast the authoritative tick every N ticks (~5 Hz)
-const PROTOCOL = 1;
+const PROTOCOL = 2;                 // v2: races picked in the lobby travel in matchmaking + start
+const RACES = ['humans', 'orcs'];
+const raceOf = (v) => (RACES.includes(v) ? v : 'humans');
 
 let nextId = 1;
 const clients = new Map();          // id -> conn
@@ -59,12 +61,13 @@ class Match {
     this.checks = [new Map(), new Map()]; // per player: tick -> checksum (for desync watch)
     a.match = this; a.team = 0; a.state = 'match';
     b.match = this; b.team = 1; b.state = 'match';
+    this.races = [raceOf(a.race), raceOf(b.race)]; // race per team, picked in the lobby
     const startedAt = now();
     for (const p of this.players) {
       const opp = this.players[1 - p.team];
       send(p, {
         t: 'start', protocol: PROTOCOL, matchId: this.id, seed: this.seed,
-        youAre: p.team, opponent: opp.name || 'Opponent',
+        youAre: p.team, opponent: opp.name || 'Opponent', races: this.races,
         tickHz: TICK_HZ, inputDelay: INPUT_DELAY, startedAt,
       });
     }
@@ -150,6 +153,7 @@ function onMessage(conn, raw) {
     case 'quickmatch':
       if (conn.state === 'match') return err(conn, 'in-match');
       leaveQueueAndRooms(conn);
+      conn.race = raceOf(msg.race);
       conn.state = 'queued';
       if (!queue.includes(conn.id)) queue.push(conn.id);
       send(conn, { t: 'queued' });
@@ -159,6 +163,7 @@ function onMessage(conn, raw) {
     case 'create': {
       if (conn.state === 'match') return err(conn, 'in-match');
       leaveQueueAndRooms(conn);
+      conn.race = raceOf(msg.race);
       let c; do { c = code4(); } while (rooms.has(c));
       rooms.set(c, { hostId: conn.id });
       conn.state = 'room';
@@ -168,6 +173,7 @@ function onMessage(conn, raw) {
 
     case 'join': {
       if (conn.state === 'match') return err(conn, 'in-match');
+      conn.race = raceOf(msg.race);
       const c = String(msg.code || '').toUpperCase().trim();
       const room = rooms.get(c);
       if (!room) return err(conn, 'no-room');
