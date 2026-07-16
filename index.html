@@ -7,6 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Boot loader: shown on first paint (before the modules run) and kept up
+       until the menu is fully ready (balance + logo/background preloaded), so
+       nothing pops in one piece at a time. Golden themed. -->
+  <div id="boot">
+    <div class="boot-ring"></div>
+    <div class="boot-label">Se încarcă</div>
+  </div>
   <div id="app">
     <header id="topbar">
       <div class="hud-side hud-left">

@@ -479,6 +479,30 @@ html, body {
 .btn.primary { background: #1d4e89; border-color: var(--blue); }
 .btn.primary:hover { background: #2563a8; }
 
+/* ================= Boot loader (first paint → menu ready) ================= */
+#boot {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  background: radial-gradient(72% 72% at 50% 44%, #17130a, #070707 86%);
+  transition: opacity 0.55s ease;
+}
+#boot.done { opacity: 0; pointer-events: none; }
+#boot .boot-ring {
+  width: 68px; height: 68px; border-radius: 50%;
+  border: 4px solid rgba(233, 197, 101, 0.16);
+  border-top-color: #ffe09a; border-right-color: #e9c565;
+  box-shadow: 0 0 28px rgba(233, 197, 101, 0.3), inset 0 0 14px rgba(233, 197, 101, 0.12);
+  animation: boot-spin 0.9s linear infinite;
+}
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+#boot .boot-label {
+  font: 700 13px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 5px; text-transform: uppercase;
+  background: linear-gradient(180deg, #fff2c9, #e9c565 60%, #b0812c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: boot-pulse 1.5s ease-in-out infinite;
+}
+@keyframes boot-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
 /* ================= Entry menu ================= */
 #menu-bg {
   position: absolute; inset: 0; z-index: 0;

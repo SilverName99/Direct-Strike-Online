@@ -56,13 +56,38 @@ document.getElementById('version').textContent = VERSION;
 // user-uploaded unit sprites (via /admin) override the built-in art
 loadSprites('assets/units/', () => bottombar.refresh());
 
+// Boot loader: hold the golden splash (index.html #boot) until the menu is
+// fully ready, then fade it out — so the logo/background/buttons don't pop in
+// one at a time. A minimum on-screen time keeps it from flashing.
+const bootEl = document.getElementById('boot');
+const bootStart = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+function preload(urls, timeoutMs) {
+  const list = (urls || []).filter(Boolean);
+  if (!list.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    let left = list.length;
+    const done = () => { if (--left <= 0) resolve(); };
+    for (const u of list) { const img = new Image(); img.onload = done; img.onerror = done; img.src = u; }
+    setTimeout(resolve, timeoutMs); // never hang on a slow/broken image
+  });
+}
+function hideBoot() {
+  if (!bootEl) return;
+  const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const wait = Math.max(0, 700 - (now - bootStart)); // show for at least ~0.7s
+  setTimeout(() => { bootEl.classList.add('done'); setTimeout(() => bootEl.remove(), 650); }, wait);
+}
+
 // apply the balance published from /admin (edit it there, not in-game)
 loadBalance().then((loaded) => {
   if (loaded) {
     bottombar.refresh();
     console.log('balance overrides loaded');
   }
+}).catch((e) => console.warn('balance load failed', e)).finally(() => {
   menu.applyTheme(); // logo + menu/loading backgrounds live in balance.json
+  // warm the decode cache for the menu art, then reveal the finished menu
+  preload([CONFIG.MENU_BG, CONFIG.MENU_LOGO, CONFIG.MENU_BTN], 2500).then(hideBoot);
 });
 
 // 🎯 debug overlay: attack reach + physical body boxes around every unit
