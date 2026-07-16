@@ -205,11 +205,29 @@ export class Menu {
       try { this.music = new Audio(CONFIG.MENU_MUSIC); this.music.loop = true; this.music.volume = this.musicVol; }
       catch { this.music = null; return; }
     }
-    if (this.musicStarted) return;
-    this.musicStarted = true;
-    this.music.play().catch(() => { this.musicStarted = false; /* autoplay blocked until a gesture */ });
+    if (this.musicStarted && !this.music.paused) return;
+    this.music.play()
+      .then(() => { this.musicStarted = true; if (this._disarmMusic) this._disarmMusic(); })
+      .catch(() => { /* autoplay blocked — a user gesture is required (armMusic) */ });
   }
-  stopMusic() { if (this.music) { this.music.pause(); this.music = null; } this.musicStarted = false; }
+  // Try to start the music as soon as the menu is shown. Browsers forbid audio
+  // autoplay before any user interaction, so if the immediate attempt is
+  // blocked we start on the FIRST gesture anywhere on the page (not just a menu
+  // button) — and once the browser trusts the site the eager attempt succeeds.
+  armMusic() {
+    if (!CONFIG.MENU_MUSIC) return;
+    this.ensureMusic(); // plays now if the browser allows it
+    if (this._disarmMusic) return; // already armed
+    const evs = ['pointerdown', 'keydown', 'touchstart', 'click'];
+    const onGesture = () => this.ensureMusic();
+    this._disarmMusic = () => { evs.forEach((e) => window.removeEventListener(e, onGesture, true)); this._disarmMusic = null; };
+    evs.forEach((e) => window.addEventListener(e, onGesture, true));
+  }
+  stopMusic() {
+    if (this.music) { this.music.pause(); this.music = null; }
+    this.musicStarted = false;
+    if (this._disarmMusic) this._disarmMusic();
+  }
 
   clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
   later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
@@ -256,7 +274,7 @@ export class Menu {
   // tiny non-seeded shuffle just for picking a tip (UI only, never the sim)
   mix() { this._m = ((this._m || Date.now()) * 1103515245 + 12345) & 0x7fffffff; return this._m / 0x7fffffff; }
 
-  show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); this.ensureMusic(); }
+  show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); this.armMusic(); }
   hide() { this.clearTimers(); this.stopMusic(); this.el.classList.remove('visible'); }
 
   showGameOver(game, playerWon) {

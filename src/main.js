@@ -91,7 +91,10 @@ loadBalance().then((loaded) => {
   Promise.all([
     preload([CONFIG.MENU_BG, CONFIG.MENU_LOGO, CONFIG.MENU_BTN], 2500),
     menu.preloadMusic(3500),
-  ]).then(hideBoot);
+  ]).then(() => {
+    hideBoot();
+    menu.armMusic(); // start the music now (if allowed) or on the first gesture
+  });
 });
 
 // 🎯 debug overlay: attack reach + physical body boxes around every unit

@@ -534,15 +534,15 @@ html, body {
 /* ---- ornate uploaded button skin (admin "Design buton") ----
    every main-menu button becomes the banner PNG with gold label text; sizes
    unify so the banners stack evenly, matching the mockup layout. */
-.has-btn-skin .m-btns { width: min(460px, 88vw); gap: 14px; }
+.has-btn-skin .m-btns { width: min(391px, 75vw); gap: 12px; }
 .has-btn-skin .m-btns .m-btn,
 .has-btn-skin .m-btns .m-btn.primary,
 .has-btn-skin .m-btns .m-btn.ghost {
   display: flex; align-items: center; justify-content: center;
-  aspect-ratio: 5.6 / 1; min-height: 0; padding: 0 42px;
+  aspect-ratio: 5.6 / 1; min-height: 0; padding: 0 36px;
   background: var(--menu-btn) center / 100% 100% no-repeat;
   border: none; border-radius: 0; box-shadow: none;
-  color: #f4dca0; font-size: clamp(14px, 3.4vw, 18px); letter-spacing: 2px;
+  color: #f4dca0; font-size: clamp(12px, 2.9vw, 15px); letter-spacing: 2px;
   text-shadow: 0 2px 7px rgba(0, 0, 0, 0.92);
 }
 .has-btn-skin .m-btns .m-btn:hover { filter: brightness(1.13); transform: translateY(-1px); }
