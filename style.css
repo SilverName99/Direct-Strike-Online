@@ -673,6 +673,12 @@ html, body {
   border: none; box-shadow: none; opacity: 1; filter: none;
   justify-content: center; align-items: flex-end;
 }
+/* keep the uploaded art on hover (the generic .m-card hover would replace the
+   background with a translucent gold and make the card look like it vanished) */
+.has-pwf-skin .pwf-card:not(.locked):hover {
+  background: var(--menu-pwf) center / 100% 100% no-repeat;
+  filter: brightness(1.08); transform: translateY(-2px);
+}
 .has-pwf-skin .pwf-card .m-card-t { display: none; }
 .has-pwf-skin .pwf-card .soon { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); }
 
