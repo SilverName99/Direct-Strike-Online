@@ -87,14 +87,23 @@ export class Menu {
   // logo + admin-uploaded backgrounds (menu / loading). Called once balance loads.
   applyTheme() {
     this.applyLogo();
-    const u = (s) => `url("${s}")`;
     const mb = CONFIG.MENU_BG || '';
-    if (this.bg) { this.bg.style.backgroundImage = mb ? u(mb) : ''; this.bg.classList.toggle('on', !!mb); }
-    const lb = CONFIG.LOADING_BG || CONFIG.MENU_BG || '';
+    if (this.bg) { this.bg.style.backgroundImage = mb ? `url("${mb}")` : ''; this.bg.classList.toggle('on', !!mb); }
+    this.setLoadingBg(this.firstLoadingBg()); // a static default until play() rolls one
+  }
+
+  loadingVariants() { return (CONFIG.LOADING_BGS || []).filter(Boolean); }
+  firstLoadingBg() { return this.loadingVariants()[0] || CONFIG.LOADING_BG || CONFIG.MENU_BG || ''; }
+  // one of the 3 loading backgrounds, chosen at random each time we load in
+  pickLoadingBg() {
+    const v = this.loadingVariants();
+    if (v.length) return v[Math.floor(this.mix() * v.length) % v.length];
+    return CONFIG.LOADING_BG || CONFIG.MENU_BG || '';
+  }
+  setLoadingBg(url) {
     const tint = 'linear-gradient(rgba(6,9,14,0.62), rgba(6,9,14,0.86))';
     for (const layer of [this.cd, this.load]) {
-      if (!layer) continue;
-      layer.style.backgroundImage = lb ? `${tint}, ${u(lb)}` : '';
+      if (layer) layer.style.backgroundImage = url ? `${tint}, url("${url}")` : '';
     }
   }
 
@@ -116,6 +125,7 @@ export class Menu {
   play() {
     this.clearTimers();
     this.stopMusic(); // menu music off; the match starts its own
+    this.setLoadingBg(this.pickLoadingBg()); // roll one of the 3 loading variants
     if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
     // countdown
     this.root.classList.add('hidden');

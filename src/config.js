@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v11.28';
+export const VERSION = 'v11.29';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -46,7 +46,8 @@ export const CONFIG = {
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback
   MENU_BG: '',          // main-menu background image (data URL); '' = plain dark
-  LOADING_BG: '',       // loading/countdown background image (data URL); '' = plain dark
+  LOADING_BGS: ['', '', ''], // up to 3 loading-screen backgrounds; one is picked at random each load
+  LOADING_BG: '',       // legacy single loading bg (migrated into LOADING_BGS[0])
   MENU_MUSIC: '',       // main-menu music (data URL, loops); '' = silent
   LOADING_TIPS: [],     // custom loading-screen tips (strings); empty = built-in tips
   // How units behave when they try to pass one another (⚙ Balance):

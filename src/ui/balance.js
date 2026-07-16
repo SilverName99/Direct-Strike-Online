@@ -374,7 +374,7 @@ function snapshot() {
     goldIcon: CONFIG.GOLD_ICON || '',
     menuLogo: CONFIG.MENU_LOGO || '',
     menuBg: CONFIG.MENU_BG || '',
-    loadingBg: CONFIG.LOADING_BG || '',
+    loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
     menuMusic: CONFIG.MENU_MUSIC || '',
     loadingTips: Array.isArray(CONFIG.LOADING_TIPS) ? [...CONFIG.LOADING_TIPS] : [],
     pushMode: CONFIG.PUSH_MODE,
@@ -424,6 +424,14 @@ export function applyBalance(data) {
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
   CONFIG.MENU_LOGO = typeof data.menuLogo === 'string' ? data.menuLogo : '';
   CONFIG.MENU_BG = typeof data.menuBg === 'string' ? data.menuBg : '';
+  // 3 loading-screen variants; migrate an old single loadingBg into slot 0
+  if (Array.isArray(data.loadingBgs)) {
+    CONFIG.LOADING_BGS = [0, 1, 2].map((i) => (typeof data.loadingBgs[i] === 'string' ? data.loadingBgs[i] : ''));
+  } else if (typeof data.loadingBg === 'string' && data.loadingBg) {
+    CONFIG.LOADING_BGS = [data.loadingBg, '', ''];
+  } else {
+    CONFIG.LOADING_BGS = ['', '', ''];
+  }
   CONFIG.LOADING_BG = typeof data.loadingBg === 'string' ? data.loadingBg : '';
   CONFIG.MENU_MUSIC = typeof data.menuMusic === 'string' ? data.menuMusic : '';
   CONFIG.LOADING_TIPS = Array.isArray(data.loadingTips)
@@ -641,13 +649,13 @@ export function importBalance(data) {
   // file (which won't carry one) must not wipe it
   const keepGoldIcon = CONFIG.GOLD_ICON;
   const keepMenuLogo = CONFIG.MENU_LOGO;
-  const keepMenuBg = CONFIG.MENU_BG, keepLoadingBg = CONFIG.LOADING_BG;
+  const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
   if (typeof data.menuLogo !== 'string' || !data.menuLogo) CONFIG.MENU_LOGO = keepMenuLogo;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
-  if (typeof data.loadingBg !== 'string' || !data.loadingBg) CONFIG.LOADING_BG = keepLoadingBg;
+  if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;
   if (!Array.isArray(data.loadingTips) || !data.loadingTips.length) CONFIG.LOADING_TIPS = keepTips;
   // restore them over whatever the imported file said

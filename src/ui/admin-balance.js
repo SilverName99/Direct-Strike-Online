@@ -98,7 +98,9 @@ function render() {
   html += `<div class="group"><h3>Meniu & Loading</h3>
     <p style="color:#7c8ba1;font-size:12px;margin:0 0 12px">Fundalul meniului, fundalul ecranului de loading, muzica de meniu și tips-urile de pe loading. Toate se salvează pe loc.</p>
     ${uploaderRow('menubg', 'Fundal meniu', 'imagine lată (~1600px)')}
-    ${uploaderRow('loadingbg', 'Fundal loading', 'imagine lată (~1600px)')}
+    ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
+    ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
+    ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
     ${uploaderRow('menumusic', 'Muzică meniu', 'audio (mp3/ogg), se repetă', 'audio')}
     <div style="margin-top:8px">
       <div style="color:#b9c4d4;font-size:13px;margin-bottom:6px">Tips loading <span style="color:#7c8ba1">— un tip pe linie; gol = cele implicite</span></div>
@@ -109,7 +111,9 @@ function render() {
   wireGoldIcon();
   wireMenuLogo();
   wireAsset('MENU_BG', 'menubg', 'image', 3 * 1024 * 1024);
-  wireAsset('LOADING_BG', 'loadingbg', 'image', 3 * 1024 * 1024);
+  wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
+  wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
+  wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);
   wireAsset('MENU_MUSIC', 'menumusic', 'audio', 6 * 1024 * 1024);
   wireTips();
 }
@@ -126,29 +130,37 @@ function uploaderRow(slug, label, hint, kind = 'image') {
       <input type="file" id="${slug}-file" accept="${kind === 'audio' ? 'audio/*' : 'image/*'}" style="display:none">
     </div></div>`;
 }
-function assetPreview(el, key, kind) {
+// read/write a config asset — a plain string key, or one slot of an array key
+function getAsset(key, index) { return index == null ? CONFIG[key] : (CONFIG[key] || [])[index]; }
+function setAsset(key, index, val) {
+  if (index == null) { CONFIG[key] = val; return; }
+  if (!Array.isArray(CONFIG[key])) CONFIG[key] = [];
+  CONFIG[key][index] = val;
+}
+function assetPreview(el, key, kind, index) {
   el.textContent = '';
-  if (!CONFIG[key]) { el.textContent = 'gol'; return; }
+  const val = getAsset(key, index);
+  if (!val) { el.textContent = 'gol'; return; }
   if (kind === 'audio') { el.textContent = '🎵 setat'; return; }
   const img = document.createElement('img');
-  img.src = CONFIG[key]; img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.objectFit = 'cover';
+  img.src = val; img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.objectFit = 'cover';
   el.appendChild(img);
 }
-function wireAsset(key, slug, kind, max) {
+function wireAsset(key, slug, kind, max, index = null) {
   const pick = document.getElementById(slug + '-pick');
   const file = document.getElementById(slug + '-file');
   const clear = document.getElementById(slug + '-clear');
   const prev = document.getElementById(slug + '-preview');
   if (!pick || !file || !clear || !prev) return;
-  assetPreview(prev, key, kind);
+  assetPreview(prev, key, kind, index);
   pick.addEventListener('click', () => file.click());
-  clear.addEventListener('click', () => { CONFIG[key] = ''; assetPreview(prev, key, kind); autoSaveGoldIcon(`${key} eliminat`); });
+  clear.addEventListener('click', () => { setAsset(key, index, ''); assetPreview(prev, key, kind, index); autoSaveGoldIcon(`${slug} eliminat`); });
   file.addEventListener('change', () => {
     const f = file.files && file.files[0];
     if (!f) return;
     if (f.size > max) { setStatus(`Fișier prea mare (max ~${Math.round(max / 1048576)}MB).`, 'bad'); file.value = ''; return; }
     const rd = new FileReader();
-    rd.onload = () => { CONFIG[key] = String(rd.result || ''); assetPreview(prev, key, kind); autoSaveGoldIcon(`${key} setat`); };
+    rd.onload = () => { setAsset(key, index, String(rd.result || '')); assetPreview(prev, key, kind, index); autoSaveGoldIcon(`${slug} setat`); };
     rd.readAsDataURL(f); file.value = '';
   });
 }
