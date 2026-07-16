@@ -98,6 +98,7 @@ function render() {
   html += `<div class="group"><h3>Meniu & Loading</h3>
     <p style="color:#7c8ba1;font-size:12px;margin:0 0 12px">Fundalul meniului, fundalul ecranului de loading, muzica de meniu și tips-urile de pe loading. Toate se salvează pe loc.</p>
     ${uploaderRow('menubg', 'Fundal meniu', 'imagine lată (~1600px)')}
+    ${uploaderRow('menubtn', 'Design buton', 'PNG ornat de buton (banner); gol = butoane simple')}
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
@@ -106,16 +107,110 @@ function render() {
       <div style="color:#b9c4d4;font-size:13px;margin-bottom:6px">Tips loading <span style="color:#7c8ba1">— un tip pe linie; gol = cele implicite</span></div>
       <textarea id="tips-area" rows="5" style="width:100%;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:8px;padding:8px 10px;font:13px/1.5 system-ui;resize:vertical" placeholder="Generatoarele sunt economia ta — protejează-le.&#10;Upgrade la Bază deblochează tieruri superioare."></textarea>
     </div></div>`;
+  // "How to play" tutorial slider — a list of image + description slides
+  html += `<div class="group"><h3>Tutoriale (How to play)</h3>
+    <p style="color:#7c8ba1;font-size:12px;margin:0 0 12px">Slide-urile din sliderul „How to play” din meniu. Fiecare slide = o imagine + o descriere sub ea. Ordinea de aici e ordinea din slider. Gol = textul implicit „Cum se joacă”.</p>
+    <div id="tut-list"></div>
+    <button type="button" id="tut-add" style="margin-top:6px;padding:9px 16px;background:#123020;color:#cdeede;border:1px solid #2e6a44;border-radius:8px;cursor:pointer">➕ Adaugă slide</button>
+    </div>`;
   html += '<p style="color:#7c8ba1;font-size:12px;margin-top:8px">Statisticile fiecărei unități/clădiri (nume, dimensiune, footprint, HP-ul bazei, turnul inițial) se editează cu <b>⚙ stats</b> în pagina de <a href="./" style="color:#4da6ff">sprites</a>.</p>';
   app.innerHTML = html;
   wireGoldIcon();
   wireMenuLogo();
   wireAsset('MENU_BG', 'menubg', 'image', 3 * 1024 * 1024);
+  wireAsset('MENU_BTN', 'menubtn', 'image', 2 * 1024 * 1024);
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);
   wireAsset('MENU_MUSIC', 'menumusic', 'audio', 6 * 1024 * 1024);
   wireTips();
+  renderTutorials();
+}
+
+// ---- Tutorial slides (image + description) for the "How to play" slider ----
+const TUT_IMG_MAX = 2 * 1024 * 1024;
+function tutList() { if (!Array.isArray(CONFIG.TUTORIALS)) CONFIG.TUTORIALS = []; return CONFIG.TUTORIALS; }
+function renderTutorials() {
+  const wrap = document.getElementById('tut-list');
+  if (!wrap) return;
+  const list = tutList();
+  if (!list.length) {
+    wrap.innerHTML = '<div style="color:#7c8ba1;font-size:12px;margin-bottom:8px">Niciun slide — sliderul arată textul implicit. Apasă „Adaugă slide”.</div>';
+  } else {
+    wrap.innerHTML = list.map((t, i) => `
+      <div class="tut-row" data-i="${i}" style="display:flex;gap:12px;align-items:flex-start;background:#0d1219;border:1px solid #2a3444;border-radius:10px;padding:10px;margin-bottom:10px">
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+          <div id="tutimg-${i}" style="width:120px;height:78px;display:flex;align-items:center;justify-content:center;background:#070b11;border:1px solid #2a3444;border-radius:8px;font-size:11px;color:#7c8ba1;overflow:hidden">gol</div>
+          <button type="button" class="tut-pick" data-i="${i}" style="padding:6px 10px;background:#1d2c42;color:#dfe8f4;border:1px solid #33507a;border-radius:8px;cursor:pointer;font-size:12px">Imagine…</button>
+          <input type="file" class="tut-file" data-i="${i}" accept="image/*" style="display:none">
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+          <textarea class="tut-text" data-i="${i}" rows="3" placeholder="Descriere pentru acest slide…" style="width:100%;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:8px;padding:8px 10px;font:13px/1.5 system-ui;resize:vertical"></textarea>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button type="button" class="tut-up" data-i="${i}" title="Mută sus" style="padding:5px 10px;background:#1a2333;color:#cfe0f5;border:1px solid #33507a;border-radius:7px;cursor:pointer">▲</button>
+            <button type="button" class="tut-down" data-i="${i}" title="Mută jos" style="padding:5px 10px;background:#1a2333;color:#cfe0f5;border:1px solid #33507a;border-radius:7px;cursor:pointer">▼</button>
+            <button type="button" class="tut-del" data-i="${i}" style="padding:5px 12px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:7px;cursor:pointer">Șterge</button>
+          </div>
+        </div>
+      </div>`).join('');
+    list.forEach((t, i) => {
+      const box = document.getElementById(`tutimg-${i}`);
+      if (box) tutImgPreview(box, t.img);
+      const ta = wrap.querySelector(`textarea.tut-text[data-i="${i}"]`);
+      if (ta) ta.value = t.text || '';
+    });
+  }
+  wireTutorials(wrap);
+}
+function tutImgPreview(box, url) {
+  box.textContent = '';
+  if (!url) { box.textContent = 'gol'; return; }
+  const img = document.createElement('img');
+  img.src = url; img.style.maxWidth = '100%'; img.style.maxHeight = '100%'; img.style.objectFit = 'cover';
+  box.appendChild(img);
+}
+function wireTutorials(wrap) {
+  const add = document.getElementById('tut-add');
+  if (add && !add.dataset.wired) {
+    add.dataset.wired = '1';
+    add.addEventListener('click', () => { tutList().push({ img: '', text: '' }); renderTutorials(); });
+  }
+  const list = tutList();
+  wrap.querySelectorAll('.tut-pick').forEach((b) => b.addEventListener('click', () => {
+    const f = wrap.querySelector(`input.tut-file[data-i="${b.dataset.i}"]`);
+    if (f) f.click();
+  }));
+  wrap.querySelectorAll('.tut-file').forEach((inp) => inp.addEventListener('change', () => {
+    const i = Number(inp.dataset.i);
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > TUT_IMG_MAX) { setStatus(`Imaginea e prea mare (max ~${Math.round(TUT_IMG_MAX / 1048576)}MB).`, 'bad'); inp.value = ''; return; }
+    const rd = new FileReader();
+    rd.onload = () => {
+      if (list[i]) list[i].img = String(rd.result || '');
+      const box = document.getElementById(`tutimg-${i}`);
+      if (box) tutImgPreview(box, list[i].img);
+      autoSaveGoldIcon(`Slide ${i + 1} — imagine setată`);
+    };
+    rd.readAsDataURL(f); inp.value = '';
+  }));
+  wrap.querySelectorAll('.tut-text').forEach((ta) => ta.addEventListener('change', () => {
+    const i = Number(ta.dataset.i);
+    if (list[i]) list[i].text = ta.value.slice(0, 600);
+    autoSaveGoldIcon(`Slide ${i + 1} — text salvat`);
+  }));
+  wrap.querySelectorAll('.tut-del').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.i);
+    list.splice(i, 1); renderTutorials(); autoSaveGoldIcon('Slide șters');
+  }));
+  wrap.querySelectorAll('.tut-up').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.i);
+    if (i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; renderTutorials(); autoSaveGoldIcon('Ordine actualizată'); }
+  }));
+  wrap.querySelectorAll('.tut-down').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.i);
+    if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; renderTutorials(); autoSaveGoldIcon('Ordine actualizată'); }
+  }));
 }
 
 // build one uploader row (image or audio) for the Meniu & Loading group

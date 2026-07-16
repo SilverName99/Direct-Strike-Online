@@ -373,7 +373,9 @@ function snapshot() {
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
     goldIcon: CONFIG.GOLD_ICON || '',
     menuLogo: CONFIG.MENU_LOGO || '',
+    menuBtn: CONFIG.MENU_BTN || '',
     menuBg: CONFIG.MENU_BG || '',
+    tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
     menuMusic: CONFIG.MENU_MUSIC || '',
     loadingTips: Array.isArray(CONFIG.LOADING_TIPS) ? [...CONFIG.LOADING_TIPS] : [],
@@ -423,6 +425,14 @@ export function applyBalance(data) {
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
   CONFIG.MENU_LOGO = typeof data.menuLogo === 'string' ? data.menuLogo : '';
+  CONFIG.MENU_BTN = typeof data.menuBtn === 'string' ? data.menuBtn : '';
+  CONFIG.TUTORIALS = Array.isArray(data.tutorials)
+    ? data.tutorials
+        .filter((t) => t && typeof t === 'object')
+        .map((t) => ({ img: typeof t.img === 'string' ? t.img : '', text: typeof t.text === 'string' ? t.text.slice(0, 600) : '' }))
+        .filter((t) => t.img || t.text)
+        .slice(0, 20)
+    : [];
   CONFIG.MENU_BG = typeof data.menuBg === 'string' ? data.menuBg : '';
   // 3 loading-screen variants; migrate an old single loadingBg into slot 0
   if (Array.isArray(data.loadingBgs)) {
@@ -648,16 +658,19 @@ export function importBalance(data) {
   // the custom gold icon is this install's own cosmetic — an imported design
   // file (which won't carry one) must not wipe it
   const keepGoldIcon = CONFIG.GOLD_ICON;
-  const keepMenuLogo = CONFIG.MENU_LOGO;
+  const keepMenuLogo = CONFIG.MENU_LOGO, keepMenuBtn = CONFIG.MENU_BTN;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepTips = CONFIG.LOADING_TIPS;
+  const keepTutorials = CONFIG.TUTORIALS;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
   if (typeof data.menuLogo !== 'string' || !data.menuLogo) CONFIG.MENU_LOGO = keepMenuLogo;
+  if (typeof data.menuBtn !== 'string' || !data.menuBtn) CONFIG.MENU_BTN = keepMenuBtn;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) CONFIG.MENU_MUSIC = keepMenuMusic;
   if (!Array.isArray(data.loadingTips) || !data.loadingTips.length) CONFIG.LOADING_TIPS = keepTips;
+  if (!Array.isArray(data.tutorials) || !data.tutorials.length) CONFIG.TUTORIALS = keepTutorials;
   // restore them over whatever the imported file said
   for (const race of RACES) {
     for (const [id, k] of Object.entries(keep[race].units)) {

@@ -490,16 +490,62 @@ html, body {
 }
 #overlay > #menu-root { position: relative; z-index: 1; }
 #menu-cd, #menu-load { background-size: cover; background-position: center; }
+/* NO panel/box — the logo floats near the TOP, the controls are centered in
+   the viewport, and the uploaded artwork breathes behind everything. */
 #menu-root {
-  width: min(560px, 92vw);
-  padding: 30px 34px 34px;
-  text-align: center;
-  background: radial-gradient(120% 90% at 50% 0%, #16213a 0%, #0d1524 55%, #0a1019 100%);
-  border: 1px solid rgba(233, 197, 101, 0.28);
-  border-radius: 18px;
-  box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  width: 100%; height: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px; text-align: center;
 }
-.menu-brand { margin-bottom: 22px; }
+.menu-brand { position: absolute; top: 5vh; left: 0; right: 0; margin: 0; }
+#menu-root .m-screen { max-width: min(620px, 92vw); }
+/* titles and helper text carry a drop shadow so they read over any image */
+#menu-root .m-title,
+#menu-root .m-hint,
+#menu-root .m-help,
+#menu-root .m-label { text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.7); }
+
+/* ---- ornate uploaded button skin (admin "Design buton") ----
+   every main-menu button becomes the banner PNG with gold label text; sizes
+   unify so the banners stack evenly, matching the mockup layout. */
+.has-btn-skin .m-btns { width: min(460px, 88vw); gap: 14px; }
+.has-btn-skin .m-btns .m-btn,
+.has-btn-skin .m-btns .m-btn.primary,
+.has-btn-skin .m-btns .m-btn.ghost {
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 5.6 / 1; min-height: 0; padding: 0 42px;
+  background: var(--menu-btn) center / 100% 100% no-repeat;
+  border: none; border-radius: 0; box-shadow: none;
+  color: #f4dca0; font-size: clamp(14px, 3.4vw, 18px); letter-spacing: 2px;
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.92);
+}
+.has-btn-skin .m-btns .m-btn:hover { filter: brightness(1.13); transform: translateY(-1px); }
+
+/* ---- How-to-play tutorial slider ---- */
+#tut-slider { display: flex; flex-direction: column; align-items: center; gap: 14px; width: min(680px, 92vw); }
+#tut-slider .tut-stage { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 40px; }
+#tut-slider .tut-img {
+  max-width: 100%; max-height: 46vh; border-radius: 12px;
+  border: 1px solid rgba(233, 197, 101, 0.28); box-shadow: 0 24px 60px -26px rgba(0, 0, 0, 0.8);
+}
+#tut-slider .tut-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 46px; height: 46px; border-radius: 50%; z-index: 2;
+  background: rgba(12, 18, 28, 0.72); color: var(--gold, #ffd35c);
+  border: 1px solid rgba(233, 197, 101, 0.4); font-size: 26px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+#tut-slider .tut-nav:hover { background: rgba(233, 197, 101, 0.18); }
+#tut-slider .tut-nav.prev { left: -8px; }
+#tut-slider .tut-nav.next { right: -8px; }
+#tut-slider .tut-stage.single .tut-nav { display: none; }
+#tut-slider .tut-text { color: #dfe8f4; font-size: 15px; line-height: 1.6; max-width: 60ch; margin: 0; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85); }
+#tut-slider .tut-dots { display: flex; gap: 8px; }
+#tut-slider .tut-dot {
+  width: 10px; height: 10px; border-radius: 50%; padding: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.28); border: 1px solid rgba(233, 197, 101, 0.4);
+}
+#tut-slider .tut-dot.on { background: var(--gold, #ffd35c); }
 .menu-logo-img { max-width: min(460px, 80%); max-height: 240px; height: auto; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55)); }
 .menu-logo-txt {
   margin: 0; font-family: "Impact", "Haettenschweiler", "Arial Narrow", sans-serif;

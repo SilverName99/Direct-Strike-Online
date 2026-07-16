@@ -193,6 +193,7 @@ const menu = new Menu(document.getElementById('overlay'), {
   onStart: ({ player, enemy, difficulty }) => newGame(player, enemy, difficulty),
   enterFullscreen: () => pointer.enter(), // from the Play click (a user gesture)
 });
+window.__menu = menu; // debug/test handle (drive the entry menu in tests)
 // seed the behind-the-menu preview with the default matchup
 setTeamRaces(['humans', 'orcs']);
 bottombar.refresh();

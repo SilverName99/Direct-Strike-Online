@@ -38,8 +38,10 @@ export class Menu {
 
   onClick(e) {
     this.ensureMusic(); // first click unlocks + starts the menu music
-    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play]');
+    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo]');
     if (!t || t.disabled) return;
+    if (t.dataset.tut) { this.tutStep(Number(t.dataset.tut)); return; }
+    if (t.dataset.tutgo != null) { this.tutIdx = Number(t.dataset.tutgo); this.renderTut(); return; }
     if (t.dataset.go) {
       if (t.dataset.go === 'format-ai') this.sel.mode = 'ai';
       if (t.dataset.go === 'format-mp') this.sel.mode = 'mp';
@@ -63,6 +65,41 @@ export class Menu {
     this.cd.classList.add('hidden');
     this.load.classList.add('hidden');
     this.root.classList.remove('hidden');
+    if (name === 'help') this.renderHelp();
+  }
+
+  // "How to play": a slider over the admin-uploaded tutorial slides, with a
+  // text fallback when none are configured.
+  tutorials() { return (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).filter((t) => t && (t.img || t.text)); }
+  renderHelp() {
+    const slider = this.el.querySelector('#tut-slider');
+    const fallback = this.el.querySelector('#help-fallback');
+    if (!slider || !fallback) return;
+    const has = this.tutorials().length > 0;
+    slider.classList.toggle('hidden', !has);
+    fallback.classList.toggle('hidden', has);
+    if (has) { this.tutIdx = 0; this.renderTut(); }
+  }
+  tutStep(d) {
+    const n = this.tutorials().length;
+    if (!n) return;
+    this.tutIdx = ((this.tutIdx || 0) + d + n) % n;
+    this.renderTut();
+  }
+  renderTut() {
+    const list = this.tutorials();
+    if (!list.length) return;
+    this.tutIdx = Math.max(0, Math.min(this.tutIdx || 0, list.length - 1));
+    const cur = list[this.tutIdx];
+    const img = this.el.querySelector('#tut-slider .tut-img');
+    const text = this.el.querySelector('#tut-slider .tut-text');
+    const dots = this.el.querySelector('#tut-slider .tut-dots');
+    const nav = this.el.querySelector('#tut-slider .tut-stage');
+    if (img) { img.classList.toggle('hidden', !cur.img); if (cur.img) img.src = cur.img; }
+    if (text) text.textContent = cur.text || '';
+    if (nav) nav.classList.toggle('single', list.length < 2); // hide arrows for a lone slide
+    if (dots) dots.innerHTML = list.map((_, i) =>
+      `<button class="tut-dot${i === this.tutIdx ? ' on' : ''}" data-tutgo="${i}"></button>`).join('');
   }
 
   // highlight the currently selected race/difficulty pills
@@ -84,9 +121,19 @@ export class Menu {
     for (const txt of this.el.querySelectorAll('.menu-logo-txt')) txt.classList.toggle('hidden', !!url);
   }
 
+  // ornate button skin (admin-uploaded PNG). When set, the main-menu buttons
+  // use it as their background via the --menu-btn CSS variable.
+  applyButtons() {
+    if (!this.root) return;
+    const url = CONFIG.MENU_BTN || '';
+    this.root.classList.toggle('has-btn-skin', !!url);
+    this.root.style.setProperty('--menu-btn', url ? `url("${url}")` : 'none');
+  }
+
   // logo + admin-uploaded backgrounds (menu / loading). Called once balance loads.
   applyTheme() {
     this.applyLogo();
+    this.applyButtons();
     const mb = CONFIG.MENU_BG || '';
     if (this.bg) { this.bg.style.backgroundImage = mb ? `url("${mb}")` : ''; this.bg.classList.toggle('on', !!mb); }
     this.setLoadingBg(this.firstLoadingBg()); // a static default until play() rolls one
@@ -242,7 +289,16 @@ const TEMPLATE = `
 
   <section class="m-screen hidden" data-screen="help">
     <h2 class="m-title">Cum se joacă</h2>
-    <p class="m-help">Construiește-ți baza — <b>ziduri, turnuri, generatoare</b> — în zona de construcție, și <b>formația de armată</b> în banda din față. La fiecare val, toată armata ta reînvie și mărșăluiește spre <b>Baza inamică</b> — distruge-o pe a lui ca să câștigi. <b>Upgrade la Baza principală</b> deblochează tieruri superioare de unități. Generatoarele sunt economia ta — protejează-le!<br><br>
+    <div id="tut-slider" class="hidden">
+      <div class="tut-stage">
+        <button class="tut-nav prev" data-tut="-1" aria-label="Înapoi">‹</button>
+        <img class="tut-img hidden" alt="">
+        <button class="tut-nav next" data-tut="1" aria-label="Înainte">›</button>
+      </div>
+      <p class="tut-text"></p>
+      <div class="tut-dots"></div>
+    </div>
+    <p class="m-help" id="help-fallback">Construiește-ți baza — <b>ziduri, turnuri, generatoare</b> — în zona de construcție, și <b>formația de armată</b> în banda din față. La fiecare val, toată armata ta reînvie și mărșăluiește spre <b>Baza inamică</b> — distruge-o pe a lui ca să câștigi. <b>Upgrade la Baza principală</b> deblochează tieruri superioare de unități. Generatoarele sunt economia ta — protejează-le!<br><br>
     <b>Cameră:</b> mișcă mouse-ul la margini sau folosește <b>săgeți / WASD</b> · <b>rotița</b> face zoom · <b>Space</b> sare la baza ta · click pe <b>minimap</b>. Cursorul e cel real (fără delay).</p>
     <button class="m-back" data-go="main">◄ Înapoi</button>
   </section>
