@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v11.36';
+export const VERSION = 'v11.38';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -52,6 +52,8 @@ export const CONFIG = {
   MENU_FS_BTN: '',      // fullscreen button skin (top-right corner + Options toggle); '' = ⛶ glyph
   MENU_SOUND_BTN: '',   // sound/volume button skin (bottom-right control); '' = 🔊 glyph
   MENU_PWF: '',         // "Play with friends" card skin (text baked into the art); '' = plain card
+  MENU_PLAY: '',        // setup-screen PLAY button skin (natural image size); '' = gold button
+  MENU_SETUP_FRAME: '', // frame around the race/difficulty picker on the setup screen; '' = none
   MENU_BG: '',          // main-menu background image (data URL); '' = plain dark
   TUTORIALS: [],        // "How to play" slider: array of { img, text } slides (set in admin)
   LOADING_BGS: ['', '', ''], // up to 3 loading-screen backgrounds; one is picked at random each load

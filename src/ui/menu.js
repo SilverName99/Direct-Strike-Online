@@ -80,6 +80,7 @@ export class Menu {
     this.root.classList.remove('hidden');
     if (name === 'help') this.renderHelp();
     if (name === 'options') this.syncOptions();
+    if (name === 'setup') this.renderSetup();
   }
 
   // reflect current settings in the Options screen
@@ -169,12 +170,17 @@ export class Menu {
       ['MENU_FS_BTN', 'has-fs-skin', '--menu-fs'],
       ['MENU_SOUND_BTN', 'has-sound-skin', '--menu-sound'],
       ['MENU_PWF', 'has-pwf-skin', '--menu-pwf'],
+      ['MENU_PLAY', 'has-play-skin', '--menu-play'],
+      ['MENU_SETUP_FRAME', 'has-setup-skin', '--menu-setup'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
       this.root.classList.toggle(cls, !!url);
       this.root.style.setProperty(varName, url ? `url("${url}")` : 'none');
     }
+    // some skins are shown at the natural pixel size of the uploaded art
+    this.measure('MENU_CARD', '--menu-card-w', '--menu-card-h'); // 1v1/2v2/3v3 cards
+    this.measure('MENU_PLAY', '--menu-play-w', '--menu-play-h'); // setup PLAY button
     // corner buttons show a glyph only when they have no uploaded skin
     const fsBtn = this.el.querySelector('#menu-fs-corner');
     if (fsBtn) fsBtn.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
@@ -190,6 +196,37 @@ export class Menu {
     const mb = CONFIG.MENU_BG || '';
     if (this.bg) { this.bg.style.backgroundImage = mb ? `url("${mb}")` : ''; this.bg.classList.toggle('on', !!mb); }
     this.setLoadingBg(this.firstLoadingBg()); // a static default until play() rolls one
+  }
+
+  // measure an uploaded image and expose its natural size as CSS variables, so
+  // the element skinned with it can be sized to the exact art (no distortion)
+  measure(key, wVar, hVar) {
+    if (!this.root) return;
+    if (CONFIG[key]) {
+      const im = new Image();
+      im.onload = () => { this.root.style.setProperty(wVar, im.naturalWidth + 'px'); this.root.style.setProperty(hVar, im.naturalHeight + 'px'); };
+      im.src = CONFIG[key];
+    } else {
+      this.root.style.removeProperty(wVar);
+      this.root.style.removeProperty(hVar);
+    }
+  }
+
+  // Setup header: show the format card the player clicked (its art + the format
+  // label) instead of the plain "1v1 · vs AI" text. Falls back to text when no
+  // card art is uploaded.
+  renderSetup() {
+    const head = this.el.querySelector('#setup-head');
+    if (!head) return;
+    const fmt = (this.sel.format || '1v1').toUpperCase();
+    const hasCard = !!CONFIG.MENU_CARD;
+    head.classList.toggle('as-card', hasCard);
+    const img = head.querySelector('.setup-card-img');
+    const label = head.querySelector('.setup-card-t');
+    const title = head.querySelector('.setup-title');
+    if (img) { img.classList.toggle('hidden', !hasCard); if (hasCard) img.src = CONFIG.MENU_CARD; }
+    if (label) label.textContent = fmt.toLowerCase();
+    if (title) { title.classList.toggle('hidden', hasCard); title.textContent = `${fmt} · vs AI`; }
   }
 
   loadingVariants() { return (CONFIG.LOADING_BGS || []).filter(Boolean); }
@@ -373,7 +410,10 @@ const TEMPLATE = `
   </section>
 
   <section class="m-screen hidden" data-screen="setup">
-    <h2 class="m-title">1v1 · vs AI</h2>
+    <div id="setup-head" class="setup-head">
+      <div class="setup-card"><img class="setup-card-img hidden" alt=""><span class="setup-card-t">1v1</span></div>
+      <h2 class="m-title setup-title">1V1 · vs AI</h2>
+    </div>
     <div class="m-setup">
       <div class="m-row"><span class="m-label">Rasa ta</span>${races('player')}</div>
       <div class="m-row"><span class="m-label">Rasa inamicului</span>${races('enemy')}</div>
@@ -384,7 +424,7 @@ const TEMPLATE = `
           <button class="m-pill" data-diff="hard">Hard</button>
         </div></div>
     </div>
-    <button class="m-btn primary big" data-play>▶&nbsp;&nbsp;Play</button>
+    <button class="m-btn primary big play-btn" data-play><span class="m-play-txt">▶&nbsp;&nbsp;Play</span></button>
     <button class="m-back" data-go="format-ai"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 

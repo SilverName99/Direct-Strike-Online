@@ -105,6 +105,8 @@ function render() {
     ${uploaderRow('menufs', 'Design buton fullscreen', 'PNG pătrat — colțul din dreapta sus + „Ecran complet”')}
     ${uploaderRow('menusnd', 'Design buton sonor', 'PNG pătrat — controlul de volum din dreapta jos')}
     ${uploaderRow('menupwf', 'Design „Play with friends”', 'PNG cu textul deja inclus (ecranul Multiplayer)')}
+    ${uploaderRow('menuplay', 'Design buton PLAY', 'PNG buton (ecranul de setup) — la dimensiunea imaginii')}
+    ${uploaderRow('menusetup', 'Chenar rase / dificultate', 'ramă PNG în jurul zonei de alegere (setup)')}
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
@@ -131,6 +133,8 @@ function render() {
   wireAsset('MENU_FS_BTN', 'menufs', 'image', 1 * 1024 * 1024);
   wireAsset('MENU_SOUND_BTN', 'menusnd', 'image', 1 * 1024 * 1024);
   wireAsset('MENU_PWF', 'menupwf', 'image', 2 * 1024 * 1024);
+  wireAsset('MENU_PLAY', 'menuplay', 'image', 2 * 1024 * 1024);
+  wireAsset('MENU_SETUP_FRAME', 'menusetup', 'image', 3 * 1024 * 1024);
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);
