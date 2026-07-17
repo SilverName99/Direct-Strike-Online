@@ -466,7 +466,7 @@ export class Renderer {
     if (!uiState.gridOn) return;
     let zone = null;
     if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected, uiState.mouseX, uiState.mouseY, uiState.myTeam || 0);
-    else if (uiState.drag) zone = CONFIG.ARMY_ZONE[0];
+    else if (uiState.drag) zone = CONFIG.ARMY_ZONE[uiState.myTeam || 0]; // MY army zone (team 1 = right)
     if (!zone) return;
     const step = CONFIG.GRID * (CONFIG.GRID_MAJOR || 4);
     ctx.save();
@@ -498,7 +498,7 @@ export class Renderer {
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 5]);
     if (sel.kind === 'template') {
-      const team = sel.team || 0;
+      const team = sel.team != null ? sel.team : (uiState.myTeam || 0);
       const tpl = game.templates[team][sel.index];
       if (tpl) {
         const us = game.ustat(team, tpl.type);

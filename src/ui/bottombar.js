@@ -310,7 +310,8 @@ export class BottomBar {
     const sel = this.uiState.inspect;
     if (!sel || !game) return null;
     if (sel.kind === 'template') {
-      const team = sel.team || 0; // enemy formations are inspectable read-only
+      // viewer's own formation by default; enemy formations pass their team
+      const team = sel.team != null ? sel.team : this.team;
       const tpl = game.templates[team][sel.index];
       if (!tpl) return null;
       return { kind: 'template', team, type: tpl.type, tpl };
@@ -595,7 +596,7 @@ export class BottomBar {
     if (info.kind !== 'structure' && hasCharacter(info.type)) {
       ctx.save();
       ctx.translate(56, 60);
-      drawCharacter(ctx, info.type, 'idle', 0, 0, 2.4);
+      drawCharacter(ctx, info.type, 'idle', 0, info.team, 2.4);
       ctx.restore();
       return;
     }
@@ -1242,7 +1243,7 @@ export class BottomBar {
     if (d.kind === 'upgrade' || d.kind === 'buyUpgrade') {
       const up = resolvedUpgrade(d.id);
       if (!up) return '';
-      const team = d.team || 0;
+      const team = d.team != null ? d.team : this.team;
       const owned = game && game.upgrades[team].has(d.id);
       const off = owned && game.upgradeOff[team].has(d.id);
       const ustats = statsUnit(up.race || race, up.unit) || {};

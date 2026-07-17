@@ -27,7 +27,7 @@ export class Hud {
         const ent = game.entities.find((e) => e.team === this.team && e.hero && e.hp > 0);
         if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
         const idx = game.templates[this.team].findIndex((t) => t.hero);
-        if (idx !== -1) this.uiState.inspect = { kind: 'template', index: idx };
+        if (idx !== -1) this.uiState.inspect = { kind: 'template', team: this.team, index: idx };
       });
     }
     this.el = {

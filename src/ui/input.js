@@ -95,7 +95,8 @@ export class Input {
       const idx = hitTestTemplate(game, this.team, raw.x, raw.y);
       if (idx !== -1) {
         this.uiState.drag = { index: idx };
-        this.uiState.inspect = { kind: 'template', index: idx };
+        // store the team so the panel/ring look up MY formation list, not team 0
+        this.uiState.inspect = { kind: 'template', team: this.team, index: idx };
         return;
       }
       // click a LIVE unit (either team) -> inspect it
