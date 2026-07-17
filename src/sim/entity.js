@@ -80,25 +80,28 @@ export function spawnUnit(game, team, type, x, y) {
 export function spawnSummon(game, caster, ab, params) {
   const p = params || ab.params; // hero casters pass rank-scaled params
   const animal = ab.animal || 'wolf';
+  const totem = !!ab.totem; // stationary aura totem (no move, no attack)
   const radius = 12;
   const stats = {
     name: ab.animalName || ab.name || animal,
     hp: Math.max(1, p.hp || 1),
-    damage: p.damage || 0, range: p.range || 25, period: p.period || 1,
+    damage: totem ? 0 : (p.damage || 0), range: p.range || 25, period: p.period || 1,
     dmgType: 'normal', armor: p.armored ? 'armored' : 'light',
-    speed: p.speed || 100, radius, shape: 'circle',
+    speed: totem ? 0 : (p.speed || 100), radius, shape: 'circle',
     isAir: !!p.flying, targetsAir: !!p.flying, targetsGround: true,
     projectile: !!p.projectile, ranged: !!p.projectile,
     projectileSpeed: 380, splash: p.splash || 0,
     size: (p.size != null ? p.size : 100) / 100, animSpeed: p.animSpeed || 5,
     caster: false, heal: false, cw: 1, ch: 1, tier: 1, cost: 0,
   };
-  // spawn just behind/beside the caster, nudged toward its own side
+  // Summons appear beside the caster; a totem is PLANTED in front (toward the
+  // enemy) so its slow aura covers the incoming lane.
   const dir = caster.team === 0 ? -1 : 1;
+  const front = caster.team === 0 ? 1 : -1;
   const e = {
     id: game.nextId++,
     team: caster.team, type: caster.type, // type hosts the sprites; stats overridden
-    x: caster.x + dir * 20, y: caster.y + 14, prevX: caster.x, prevY: caster.y,
+    x: totem ? caster.x + front * 55 : caster.x + dir * 20, y: caster.y + (totem ? 0 : 14), prevX: caster.x, prevY: caster.y,
     hp: stats.hp, maxHp: stats.hp,
     cooldown: 0, windup: 0, windupMax: 0,
     effects: [], abilityCd: {}, auraUntil: {},
@@ -113,6 +116,11 @@ export function spawnSummon(game, caster, ab, params) {
     armor: stats.armor, isAir: stats.isAir,
     // summon specifics
     summon: true, summonKind: animal, summonOf: caster.id, summonStats: stats,
+    // stationary aura totem: no move/attack; emits a slow aura each tick and
+    // shows a life bar. maxLife lets the render draw a depleting timer bar.
+    totem: totem,
+    totemAura: totem ? { radius: p.radius || 140, atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0 } : null,
+    maxLife: (p.life != null ? p.life : (p.duration || 0)) || 0,
     despawnAt: (() => { const life = p.life != null ? p.life : (p.duration || 0); return life > 0 ? game.time + life : null; })(),
   };
   game.entities.push(e);

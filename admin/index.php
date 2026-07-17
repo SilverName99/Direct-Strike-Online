@@ -52,6 +52,8 @@ const ABILITY_INFO = [
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
   'beastform' => ['Beast Form', false, false], // transform: no cast frame; uses the morph- sprite set
+  'empower' => ['Empower', true, false],       // "attack" that buffs an ally
+  'slowingtotem' => ['Slowing Totem', true, false], // plants the totem (uses the totem- sprite set)
   // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
   // War Stomp are o animație de 2 cadre, Bloodlust un singur cadru (ținut mai mult).
   'warstomp' => ['War Stomp', true, false, 2],
@@ -65,8 +67,8 @@ const ABILITY_INFO = [
   'holynova' => ['Holy Nova', true, false, 1, true], // 5th: are imagine de efect AoE (cupolă)
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
 const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova']];
@@ -428,6 +430,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   foreach (SUMMON_ANIMALS as $aid => $animal) {
     if (!in_array($aid, $ua, true)) continue;
     $lbl = SUMMON_LABELS[$animal];
+    // a stationary totem only stands (idle); moving summons use walk/attack.
+    $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
+    $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
     $slots["{$animal}-walk_0"] = "$lbl: Mers 1";
     $slots["{$animal}-walk_1"] = "$lbl: Mers 2";
     $slots["{$animal}-attack_0"] = "$lbl: Atac 1";

@@ -180,6 +180,20 @@ export function updateAbilities(game, dt) {
     }
   }
 
+  // Slowing Totems: each living totem slows enemies in its radius (attack +
+  // movement), re-applied every tick while it stands.
+  for (const u of game.entities) {
+    if (u.hp <= 0 || !u.totem || !u.totemAura) continue;
+    const a = u.totemAura;
+    const until = time + AURA_TICK;
+    for (const e of game.entities) {
+      if (e.hp <= 0 || e.team === u.team || e.summon || e.isStructure) continue;
+      if (!inRadius(e, u, a.radius)) continue;
+      if (a.atkSlow) applyEffect(e, 'atkslow', a.atkSlow, until, time);
+      if (a.moveSlow) applyEffect(e, 'moveslow', a.moveSlow, until, time);
+    }
+  }
+
   // regen effects heal their owners
   for (const u of game.entities) {
     const hps = effectVal(u, 'regen', time);
@@ -294,7 +308,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 
 // Support abilities that fire for a wounded/needy ally even when no enemy is in
 // range — they are exempt from the "cast only while engaged" rule.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield']);
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'empower']);
 
 // First castable ability, in the caster's configured order, that is off
 // cooldown, affordable, and has a valid target right now.
@@ -335,6 +349,20 @@ function findAbilityTarget(game, caster, aid, ab, time) {
       if (alive >= cap) return null;
     }
     return caster; // self-cast: the animal appears beside the caster
+  }
+  if (aid === 'empower') {
+    // buff the ally standing furthest toward the enemy (the one most likely
+    // fighting). Excludes self, summons, totems, structures.
+    let best = null, bestAdv = -Infinity;
+    const front = caster.team === 0 ? 1 : -1;
+    for (const u of game.entities) {
+      if (u === caster || u.team !== caster.team || u.hp <= 0) continue;
+      if (u.summon || u.totem || u.isStructure) continue;
+      if (!inRadius(u, caster, p.range)) continue;
+      const adv = u.x * front;
+      if (adv > bestAdv || (adv === bestAdv && best && u.id < best.id)) { bestAdv = adv; best = u; }
+    }
+    return best;
   }
   if (aid === 'regenaura') {
     // self-centered zone worth raising when any ally in range is wounded
@@ -487,6 +515,15 @@ function releaseSpell(game, caster, time) {
     target.hp = Math.min(target.maxHp, target.hp + p.amount);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
     game.events.push({ type: 'heal', x: target.x, y: target.y });
+    return hold;
+  }
+
+  if (aid === 'empower') {
+    // buff the ally: faster attacks + less damage taken for `duration`
+    const until = time + (p.duration || 0);
+    if (p.haste) applyEffect(target, 'haste', p.haste, until, time);
+    if (p.dmgReduce) applyEffect(target, 'dmgReduce', p.dmgReduce, until, time);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });
     return hold;
   }
 

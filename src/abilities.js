@@ -89,6 +89,42 @@ export const ABILITIES = {
       maxTargets: 0, // heal at most N allies (the most-wounded); 0 = everyone
     },
   },
+  // Totemic Shaman "attack": instead of hitting an enemy, it empowers an ally —
+  // faster attacks + damage reduction for a few seconds. Set the unit's damage
+  // low/0 and give it this ability so its "attack" is pure support.
+  empower: {
+    name: 'Empower',
+    kind: 'active',
+    color: '#ffd35c',
+    desc: 'În loc să atace, întărește un aliat: atac mai rapid + damage redus primit, câteva secunde.',
+    params: {
+      tier: 1, cooldown: 2, manaCost: 0,
+      range: 170,
+      haste: 30,      // % faster attacks on the ally
+      dmgReduce: 25,  // % less damage the ally takes
+      duration: 4,    // seconds the buff lasts
+      castPrepare: 0, // instant
+    },
+  },
+  // Slowing Totem: plant a stationary totem in front that slows nearby enemies
+  // (attack + move) while it lives. The totem has HP (killable) and a lifetime.
+  slowingtotem: {
+    name: 'Slowing Totem',
+    kind: 'summon',   // reuses the summon spawner (stationary totem variant)
+    animal: 'totem',  // sprite prefix "totem-" hosted on the caster
+    animalName: 'Totem',
+    totem: true,      // stationary aura totem: no move, no attack
+    color: '#7fb4ff',
+    desc: 'Plantează un totem în față care încetinește inamicii din jur (atac + mișcare) cât trăiește. Are HP și un timer.',
+    params: {
+      tier: 1, manaCost: 40, cooldown: 12,
+      cap: 1, life: 10,          // one totem at a time; 10s lifetime
+      hp: 120,                   // totem HP (can be destroyed early)
+      radius: 150,               // slow-aura radius
+      atkSlow: 30, moveSlow: 30, // % slower attacks / movement for enemies in range
+      size: 120,                 // visual size (%)
+    },
+  },
   summonwolf: {
     name: 'Invocă Lup',
     kind: 'summon',

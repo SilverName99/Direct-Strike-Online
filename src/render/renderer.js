@@ -1206,7 +1206,16 @@ export class Renderer {
 
       // HP + mana as slim rounded pills (matching the building bars): dark inset
       // with a hairline border and a rounded inner fill — clean, not chunky
-      if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
+      // Slowing Totem: always show its HP bar + a depleting lifetime bar above
+      // it (like a construction pill, but counting down).
+      if (u.totem && u.despawnAt != null && u.maxLife > 0) {
+        const w = Math.max(20, drawR * 2.4);
+        const ratio = Math.max(0, u.hp / u.maxHp);
+        const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
+        this.pillBar(ctx, x - w / 2, y - drawR - 10, w, 4, ratio, color);
+        const tleft = Math.max(0, Math.min(1, (u.despawnAt - game.time) / u.maxLife));
+        this.pillBar(ctx, x - w / 2, y - drawR - 15, w, 3, tleft, '#7fb4ff');
+      } else if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
         const w = Math.max(20, drawR * 2.4);
         const ratio = Math.max(0, u.hp / u.maxHp);
         const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';

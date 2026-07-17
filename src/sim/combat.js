@@ -58,6 +58,9 @@ export function updateCombat(game, dt) {
     // Summoned animals are plain fighters with their own stats — they never
     // inherit the caster's upgrades or cast abilities.
     if (u.summon) {
+      // a totem just stands there emitting its aura (see updateAbilities) —
+      // no movement, no attack, no targeting.
+      if (u.totem) { u.state = 'idle'; continue; }
       u.cooldown = Math.max(0, u.cooldown - dt);
       updateFighter(game, u, stats, dt);
       continue;

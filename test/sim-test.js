@@ -387,6 +387,50 @@ console.log('regen aura target cap');
   ab.params = saved;
 }
 
+// ------------------------------------------------ Totemic Shaman mechanics
+console.log('empower (support attack)');
+{
+  const game = new Game(81, { races: ['humans', 'orcs'] });
+  game.abilityUsable = () => true;
+  const ab = resolvedAbility('empower');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { range: 200, haste: 30, dmgReduce: 25, duration: 4, manaCost: 0, cooldown: 2 });
+  const caster = spawnUnit(game, 0, 'grunt', 500, 400);
+  caster.mana = 100; caster.abilityCd = {}; caster.castState = undefined;
+  const ally = spawnUnit(game, 0, 'grunt', 560, 400);
+  const stats = { caster: true, autoAttackBetween: true, abilities: ['empower'] };
+  const hasK = (u, k) => u.effects && u.effects.some((e) => e.kind === k && e.until > game.time);
+  for (let i = 0; i < 40 && !hasK(ally, 'haste'); i++) { game.time += DT; stepCaster(game, caster, stats, DT, false); }
+  check('empower: ally gains attack haste', hasK(ally, 'haste'));
+  check('empower: ally gains damage reduction', hasK(ally, 'dmgReduce'));
+  check('empower: caster does not buff itself', !hasK(caster, 'haste'));
+  ab.params = saved;
+}
+
+console.log('slowing totem');
+{
+  const game = new Game(82, { races: ['humans', 'orcs'] });
+  game.abilityUsable = () => true;
+  const ab = resolvedAbility('slowingtotem');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { cap: 1, life: 3, hp: 100, radius: 250, atkSlow: 40, moveSlow: 40, manaCost: 0, cooldown: 12 });
+  const caster = spawnUnit(game, 0, 'grunt', 500, 400);
+  caster.mana = 100; caster.abilityCd = {}; caster.castState = undefined;
+  const enemy = spawnUnit(game, 1, 'grunt', 560, 400);
+  const stats = { caster: true, autoAttackBetween: true, abilities: ['slowingtotem'] };
+  let totem = null;
+  for (let i = 0; i < 40 && !totem; i++) { game.time += DT; stepCaster(game, caster, stats, DT, true); totem = game.entities.find((e) => e.totem && e.hp > 0); }
+  check('totem: planted with HP', !!totem && totem.hp === 100 && totem.totem === true);
+  check('totem: has a lifetime timer', totem && totem.despawnAt != null && totem.maxLife === 3);
+  const tx = totem.x, ty = totem.y;
+  run(game, 0.5);
+  check('totem: stays put (stationary)', Math.abs(totem.x - tx) < 0.01 && Math.abs(totem.y - ty) < 0.01);
+  check('totem: slows nearby enemy', enemy.effects && enemy.effects.some((e) => e.kind === 'atkslow' && e.until > game.time));
+  run(game, 3.2);
+  check('totem: despawns after its lifetime', totem.hp <= 0);
+  ab.params = saved;
+}
+
 // -------------------------------------------------- walls block, towers shoot
 console.log('defense structures');
 {
