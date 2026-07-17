@@ -89,6 +89,25 @@ export const UNITS = {
     role: 'Erou',
     tip: 'Unitate specială, una per rasă. Urcă în nivel din kill-urile armatei și învață abilități. Respawn la fiecare val, păstrând nivelul.',
   },
+  // Two more dedicated heroes so a race can field up to 3 (recruited from the
+  // Hero Hall). hero2 unlocks at base tier 2, hero3 at tier 3. Abilities, art
+  // and stats are configured per race in admin — these are just the slots.
+  hero2: {
+    name: 'Erou II', shape: 'star', radius: 15,
+    tier: 2, cost: 350, hp: 750, armor: 'armored',
+    damage: 50, period: 1.0, dmgType: 'normal', range: 30, speed: 85,
+    isHero: true,
+    role: 'Erou',
+    tip: 'Al doilea erou — se recrutează din Hero Hall după ce ajungi la tier 2.',
+  },
+  hero3: {
+    name: 'Erou III', shape: 'star', radius: 15,
+    tier: 3, cost: 450, hp: 900, armor: 'armored',
+    damage: 60, period: 1.0, dmgType: 'normal', range: 30, speed: 85,
+    isHero: true,
+    role: 'Erou',
+    tip: 'Al treilea erou — se recrutează din Hero Hall după ce ajungi la tier 3.',
+  },
 };
 
 // Categories used by the AI's composition logic.

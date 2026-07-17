@@ -18,8 +18,8 @@ const RACES = ['humans', 'orcs'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
 // Heroes are units too (sprites/portrait), but live on their own admin tab and
 // are NOT part of the shop order.
-const HERO_LIST = ['hero'];
-const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
+const HERO_LIST = ['hero', 'hero2', 'hero3'];
+const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
 // ranged units (projectile:true in units.js) can upload a projectile image
 const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
 // armed buildings fire, so they get attack frames + a projectile image

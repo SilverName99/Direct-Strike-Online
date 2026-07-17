@@ -4,7 +4,7 @@ import { hitTestTemplate, visualRadiusOf } from '../render/renderer.js';
 import { snapToZone, zoneFor } from './grid.js';
 import { toast } from './pointer.js';
 
-const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm'];
+const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
 
 // Mouse + keyboard input. Owns uiState.selected / drag / grid / mouse
 // position; translates gestures into game commands for the LOCAL team (uiState.myTeam; 0 in single player).
