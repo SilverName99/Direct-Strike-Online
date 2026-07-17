@@ -137,6 +137,27 @@ export const ABILITIES = {
       splash: 0, flying: 0, projectile: 0, armored: 1,
     },
   },
+  // ULTIMATE (Beast Spirit Shaman): the shaman himself transforms into a giant
+  // beast for a few seconds — more HP + damage, bigger, and fights melee with
+  // splash. Uses its own uploaded sprite set ("morph-" prefix). Gated by hero
+  // level 6 (ultimate), so its `tier` stays 1.
+  beastform: {
+    name: 'Beast Form',
+    kind: 'active',
+    color: '#ff8a3c',
+    desc: 'Ultimate: shaman-ul se transformă într-o bestie uriașă câteva secunde — mai mult HP și damage, lovește corp la corp cu splash.',
+    params: {
+      tier: 1, cooldown: 40, manaCost: 100,
+      duration: 10,   // seconds transformed
+      hpBonus: 100,   // % extra MAX hp while morphed
+      dmgBonus: 80,   // % extra damage while morphed
+      size: 175,      // % size (visual + hitbox) while morphed
+      splash: 90,     // melee splash radius while morphed
+      splashPct: 60,  // % of the hit dealt to nearby enemies (splash)
+      range: 35,      // melee reach while morphed
+      castPrepare: 0, // instant cast (hero)
+    },
+  },
   // ---- Chieftain (Orc hero) kit ----
   warstomp: {
     name: 'War Stomp',
@@ -291,6 +312,9 @@ export const ABILITY_PARAM_LABELS = {
   cleavePct: 'Cleave (% din damage)',
   dashSpeed: 'Viteză șarjă',
   stun: 'Stun la impact (s)',
+  hpBonus: 'Beast Form: +HP max (%)',
+  dmgBonus: 'Beast Form: +damage (%)',
+  splashPct: 'Beast Form: splash (% din lovitură)',
   healPct: 'Heal (% din HP max, auto-scalat pe rang)',
   healPct1: 'Heal rang 1 (% HP max, 0 = auto)',
   healPct2: 'Heal rang 2 (% HP max, 0 = auto)',

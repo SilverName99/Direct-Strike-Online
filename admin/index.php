@@ -51,6 +51,7 @@ const ABILITY_INFO = [
   'summonwolf' => ['Invocă Lup', true, false],
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
+  'beastform' => ['Beast Form', false, false], // transform: no cast frame; uses the morph- sprite set
   // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
   // War Stomp are o animație de 2 cadre, Bloodlust un singur cadru (ținut mai mult).
   'warstomp' => ['War Stomp', true, false, 2],
@@ -238,6 +239,7 @@ function portraitVidVariants(string $race, string $ent): array {
   $v = ['' => 'Animație portret (mp4/webm) — apare lângă statusuri'];
   if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) $v['-foot'] = 'Animație portret — călărețul PE JOS';
   if (unitHasSplit($race, $ent)) $v['-beast'] = 'Animație portret — BESTIA';
+  if (in_array('beastform', unitAbilities($race, $ent), true)) $v['-morph'] = 'Animație portret — Beast Form';
   // a summoned animal (Shaman) can have its own portrait clip, hosted here
   $ua = unitAbilities($race, $ent);
   foreach (SUMMON_ANIMALS as $aid => $animal) {
@@ -432,6 +434,18 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
     $slots["{$animal}-die_0"] = "$lbl: Die";
   }
+  // Beast Form (hero ultimate): a full sprite set for the transformed beast,
+  // hosted on the hero under a "morph-" prefix (like the on-foot/beast forms)
+  if (in_array('beastform', unitAbilities($race, $ent), true)) {
+    $slots['morph-thumb'] = 'Beast Form: Thumb';
+    $slots['morph-idle_0'] = 'Beast Form: Idle 1';
+    $slots['morph-idle_1'] = 'Beast Form: Idle 2';
+    $slots['morph-walk_0'] = 'Beast Form: Mers 1';
+    $slots['morph-walk_1'] = 'Beast Form: Mers 2';
+    $slots['morph-attack_0'] = 'Beast Form: Atac 1';
+    $slots['morph-attack_1'] = 'Beast Form: Atac 2';
+    $slots['morph-die_0'] = 'Beast Form: Die';
+  }
   // cast frames (per-ability: 1 or 2) + per-ability projectile for each ability
   foreach (unitAbilities($race, $ent) as $aid) {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
@@ -477,7 +491,7 @@ function regenManifest(string $assetsDir): void {
       $entData = [];
       foreach ($slots as $slot => $label) {
         $exists = is_file("$assetsDir/$r/$ent/$slot.png");
-        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-') || str_starts_with($slot, 'abilityfx-')) {
+        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'morph-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-') || str_starts_with($slot, 'abilityfx-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
           [$anim, $frame] = explode('_', $slot);
@@ -1485,7 +1499,7 @@ if ($authed && $action === 'deletebarover') {
           $file = "$assetsDir/$race/$ent/$slot.png";
           $has = is_file($file);
         ?>
-        <div class="slot <?= in_array($slot, ['thumb', 'foot-thumb', 'beast-thumb'], true) ? 'thumbslot' : '' ?>">
+        <div class="slot <?= in_array($slot, ['thumb', 'foot-thumb', 'beast-thumb', 'morph-thumb'], true) ? 'thumbslot' : '' ?>">
           <span class="lbl"><?= $label ?></span>
           <div class="thumb">
             <?php if ($has): ?>

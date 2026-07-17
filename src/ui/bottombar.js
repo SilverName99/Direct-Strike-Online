@@ -435,6 +435,7 @@ export class BottomBar {
     // rider (on foot) / beast plays its OWN clip when one was uploaded. The
     // gold mine plays its map clip (mineidle) in the portrait too.
     const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
+      : info.kind === 'entity' && info.u.morph && info.u.morphUntil > game.time ? 'morph'
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     const vid = info.kind === 'structure' && info.type === 'generator'
@@ -503,6 +504,7 @@ export class BottomBar {
         }
       }
       if (info.u.dismounted) chips += '<span class="d-chip" style="border-color:#ffb35c;color:#ffb35c">🐗 pe jos</span>';
+      if (info.u.morph && info.u.morphUntil > game.time) chips += `<span class="d-chip" style="border-color:#ff8a3c;color:#ff8a3c">🐻 Beast Form · ${Math.ceil(info.u.morphUntil - game.time)}s</span>`;
       if (info.u.castState) chips += '<span class="d-chip" style="border-color:#c9a7ff;color:#c9a7ff">✨ castează</span>';
       const tgt = info.u.targetId != null ? game.byId.get(info.u.targetId) : null;
       if (tgt && tgt.hp > 0) {
@@ -562,6 +564,7 @@ export class BottomBar {
     // a split beast / rider on foot shows its own art: form idle sprite, then
     // form thumbnail, then the whole unit's idle sprite / thumb, then vectors
     const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
+      : info.kind === 'entity' && info.u.morph && info.u.morphUntil > game.time ? 'morph'
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     // Buildings show their STATIC thumbnail in the portrait (not the flipping

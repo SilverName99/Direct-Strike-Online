@@ -22,6 +22,17 @@ export function effStats(u, stats) {
       dashDamage: charge.damage, dashCd: charge.cooldown, chargeStun: charge.stun,
     };
   }
+  // Beast Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
+  // a splash applied in the melee branch (morphSplash/morphSplashPct).
+  if (u.morph) {
+    return {
+      ...stats,
+      damage: stats.damage * u.morph.dmgMul,
+      range: u.morph.range,
+      projectile: false, ranged: false, splash: 0,
+      morphSplash: u.morph.splash, morphSplashPct: u.morph.splashPct,
+    };
+  }
   if (!u.dismounted && !u.beast) return stats;
   const ranged = !!u.ovRanged;
   return {
@@ -374,6 +385,17 @@ function updateFighter(game, u, stats, dt) {
                 const dy = e.y - target.y;
                 if (dx * dx + dy * dy <= r * r) applyDamage(game, e, cd, stats.dmgType);
               }
+            }
+          }
+          // Beast Form: the giant beast's melee hit splashes nearby enemies
+          if (stats.morphSplash > 0 && stats.morphSplashPct > 0) {
+            const r = stats.morphSplash;
+            const sd = dmg * stats.morphSplashPct;
+            for (const e of game.entities) {
+              if (e === target || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
+              const dx = e.x - target.x;
+              const dy = e.y - target.y;
+              if (dx * dx + dy * dy <= r * r) applyDamage(game, e, sd, stats.dmgType);
             }
           }
         }

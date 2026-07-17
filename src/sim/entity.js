@@ -44,6 +44,12 @@ export function spawnUnit(game, team, type, x, y) {
     splitTargetId: null, // "Landing Split": the ground unit being dived at
     dismounted: false,
     beast: false,
+    // Beast Form (hero ultimate): while morphUntil > time the hero is a giant
+    // melee beast (see effStats). maxHp is boosted at cast and restored on
+    // revert, so the pre-morph values are stashed here.
+    morphUntil: 0,
+    morph: null,            // { dmgMul, size, splash, splashPct, range } snapshot at cast
+    morphSavedMaxHp: null, morphSavedHp: null,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
     ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
     mana: (s.caster || s.isHero) ? (s.mana || 0) : 0,    // casting resource (heroes cast too)

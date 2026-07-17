@@ -134,6 +134,16 @@ export function updateAbilities(game, dt) {
   // expire dead effects (cheap filter, bounded lists)
   for (const u of game.entities) {
     if (u.effects && u.effects.length) u.effects = u.effects.filter((e) => e.until > time);
+    // Beast Form wore off: restore the pre-morph max HP (clamp current HP down).
+    if (u.morphUntil && time >= u.morphUntil) {
+      u.morphUntil = 0;
+      if (u.morphSavedMaxHp != null) {
+        u.maxHp = u.morphSavedMaxHp;
+        u.hp = Math.min(u.hp, u.maxHp);
+        u.morphSavedMaxHp = null; u.morphSavedHp = null;
+      }
+      u.morph = null;
+    }
   }
 
   for (const u of game.entities) {
@@ -373,6 +383,10 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     // "cast only while engaged" rule keeps it from firing before contact
     return caster;
   }
+  if (aid === 'beastform') {
+    // self-transform; don't re-cast while already morphed
+    return (caster.morphUntil || 0) > time ? null : caster;
+  }
   if (aid === 'slowaura') {
     // only worth casting when at least one enemy is in range to slow
     for (const u of game.entities) {
@@ -540,6 +554,28 @@ function releaseSpell(game, caster, time) {
     // the Chieftain himself swells while raging (visual only; read by renderer)
     if (p.size && p.size !== 100) applyEffect(caster, 'sizeup', p.size, time + p.duration, time);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: 200 });
+    return hold;
+  }
+
+  if (aid === 'beastform') {
+    // transform into a giant beast for `duration`: boost max HP (gaining the
+    // fresh chunk now), stash combat overrides for effStats, and mark the timer.
+    caster.morphUntil = time + (p.duration || 0);
+    caster.morphSavedMaxHp = caster.maxHp;
+    caster.morphSavedHp = caster.hp;
+    const hpMul = 1 + (p.hpBonus || 0) / 100;
+    const newMax = Math.round(caster.maxHp * hpMul);
+    caster.hp = Math.min(newMax, caster.hp + (newMax - caster.maxHp)); // gain the bonus HP now
+    caster.maxHp = newMax;
+    caster.morph = {
+      dmgMul: 1 + (p.dmgBonus || 0) / 100,
+      size: (p.size || 150) / 100,
+      splash: p.splash || 0,
+      splashPct: (p.splashPct || 0) / 100,
+      range: p.range || 35,
+    };
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'morph', team: caster.team, x: caster.x, y: caster.y });
     return hold;
   }
 

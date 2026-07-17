@@ -9,6 +9,7 @@ import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure } from '../src/sim/entity.js';
 import { stepCaster } from '../src/sim/abilities.js';
+import { effStats } from '../src/sim/combat.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 import { statsBuilding, resolvedAbility, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
@@ -333,6 +334,33 @@ console.log('multi-hero recruitment');
   // a wave spawns BOTH heroes as live entities (each respawns independently)
   run(game, (CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL) + 0.1);
   check('both heroes spawn live', !!game.heroEntityOf(0, 'hero') && !!game.heroEntityOf(0, 'hero2'));
+}
+
+// ------------------------------------------------------- Beast Form ultimate
+console.log('beast form ultimate');
+{
+  const game = new Game(61, { races: ['humans', 'orcs'] });
+  game.abilityUsable = () => true;
+  const ab = resolvedAbility('beastform');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { duration: 4, hpBonus: 100, dmgBonus: 100, splash: 80, splashPct: 50, range: 35, manaCost: 0, cooldown: 40, castPrepare: 0 });
+  const hero = spawnUnit(game, 0, 'hero', 600, 400);
+  hero.hero = true; hero.heroRanks = { beastform: 1 }; hero.mana = 200;
+  hero.abilityCd = {}; hero.castState = undefined;
+  const baseMax = hero.maxHp;
+  const baseDmg = game.ustatOf(hero).damage;
+  const stats = { caster: true, autoAttackBetween: true, abilities: ['beastform'] };
+  for (let i = 0; i < 60 && !hero.morph; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
+  check('beast form: morph active after cast', !!hero.morph && hero.morphUntil > game.time);
+  check('beast form: max HP doubled (+100%)', Math.abs(hero.maxHp - baseMax * 2) <= 1, `${hero.maxHp} vs ${baseMax}`);
+  const es = effStats(hero, game.ustatOf(hero));
+  check('beast form: becomes melee (no projectile)', es.projectile === false && es.ranged === false);
+  check('beast form: damage doubled (+100%)', Math.abs(es.damage - baseDmg * 2) <= 1, `${es.damage} vs ${baseDmg}`);
+  check('beast form: carries melee splash', es.morphSplash === 80 && es.morphSplashPct === 0.5);
+  run(game, 5); // outlast the 4s duration
+  check('beast form: reverts after duration', !hero.morph && hero.morphUntil === 0);
+  check('beast form: max HP restored', hero.maxHp === baseMax);
+  Object.assign(ab.params, saved);
 }
 
 // -------------------------------------------------- walls block, towers shoot

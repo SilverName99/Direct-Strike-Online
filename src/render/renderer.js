@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf, getViewerTeam } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -1071,6 +1071,9 @@ export class Renderer {
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
       let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
+      // Beast Form: the morphed hero draws at its beast size (visual only, so
+      // the deterministic sim/collision stays untouched)
+      if (u.morph && u.morphUntil > game.time) vScale *= u.morph.size;
       // temporary size buff (Bloodlust makes the Chieftain grow while raging) —
       // purely visual, so the deterministic sim/collision is untouched
       const sizeUp = effectVal(u, 'sizeup', game.time);
@@ -1170,6 +1173,10 @@ export class Renderer {
         // "<animal>-" prefix (wolf-/eagle-/bear-)
         if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
+        }
+        // Beast Form (hero ultimate): swap to the uploaded "morph-" sprite set
+        if (u.morph && u.morphUntil > game.time && !anim.startsWith('morph-') && hasMorphAnim(u.type, u.team, anim)) {
+          anim = `morph-${anim}`;
         }
         // Scut de lumină: show the "shield" pose only for the ACTIVATION moment
         // (configurable); after that the unit keeps fighting normally, with the
