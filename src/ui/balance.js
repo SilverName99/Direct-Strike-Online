@@ -124,17 +124,28 @@ export function setUnitOrder(race, arr) {
   if (RACES.includes(race)) unitOrder[race] = sanitizeOrder(arr);
 }
 
-// The hero unit id for a race (the one flagged isHero), or null. One per race.
-export function resolvedHeroId(race) {
+// All hero unit ids for a race (units flagged isHero), ordered by their tier
+// gate (tier 1 hero first). Up to 3 — recruited from the Hero Hall, the 2nd
+// unlocked at base tier 2, the 3rd at tier 3.
+export function resolvedHeroIds(race) {
   const t = resolvedUnits[race] || resolvedUnits[RACES[0]];
-  for (const id of Object.keys(t)) if (t[id] && t[id].isHero) return id;
-  return null;
+  return Object.keys(t)
+    .filter((id) => t[id] && t[id].isHero)
+    .sort((a, b) => ((t[a].tier || 1) - (t[b].tier || 1)) || (a < b ? -1 : 1))
+    .slice(0, 3);
 }
 
-// The hero's 4 assigned ability slots for a race: 3 skills + 1 ultimate.
+// The FIRST hero unit id for a race (lowest tier), or null. Kept for callers
+// that only need one; new multi-hero code uses resolvedHeroIds().
+export function resolvedHeroId(race) {
+  return resolvedHeroIds(race)[0] || null;
+}
+
+// A specific hero's 4 assigned ability slots for a race: 3 skills + 1 ultimate.
+// Pass a heroId to target one of several heroes; omit it for the first hero.
 // Each entry: { id, ult }. Unassigned slots have id ''.
-export function heroAbilitySlots(race) {
-  const id = resolvedHeroId(race);
+export function heroAbilitySlots(race, heroId = null) {
+  const id = heroId || resolvedHeroId(race);
   const h = id ? statsUnit(race, id) : null;
   const skills = (h && h.heroAbilities) || ['', '', ''];
   const ult = (h && h.heroUltimate) || '';

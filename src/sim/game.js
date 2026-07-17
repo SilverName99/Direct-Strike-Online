@@ -227,25 +227,47 @@ export class Game {
     return n;
   }
 
-  // This team's hero template (persistent record: level/xp/points), or null.
-  // Only one per team; it respawns each wave from this template.
+  // This team's hero templates (persistent records: level/xp/points). Up to 3,
+  // each a distinct hero unit TYPE; each respawns from its own template.
+  heroTemplates(team) {
+    return this.templates[team].filter((t) => t.hero);
+  }
+
+  // The persistent template for a specific hero type, or null.
+  heroTemplateOf(team, type) {
+    return this.templates[team].find((t) => t.hero && t.type === type) || null;
+  }
+
+  // First hero template (lowest tier) — kept for single-hero callers/tests.
   heroTemplate(team) {
-    return this.templates[team].find((t) => t.hero) || null;
+    return this.heroTemplates(team)[0] || null;
   }
 
   hasHero(team) {
-    return !!this.heroTemplate(team);
+    return this.heroTemplates(team).length > 0;
   }
 
-  // Push the template's learned abilities/ranks onto the LIVE hero entity so the
-  // ability engine (via ustatOf) casts exactly what's been ranked up.
-  syncHeroEntity(team) {
-    const tpl = this.heroTemplate(team);
-    const ent = this.entities.find((e) => e.team === team && e.hero && e.hp > 0);
+  // Already have a hero of THIS type? The cap is one of EACH hero type per team.
+  hasHeroType(team, type) {
+    return !!this.heroTemplateOf(team, type);
+  }
+
+  // The live hero entity of a given type, or null.
+  heroEntityOf(team, type) {
+    return this.entities.find((e) => e.team === team && e.hero && e.type === type && e.hp > 0) || null;
+  }
+
+  // Push a hero template's learned abilities/ranks onto its LIVE entity so the
+  // ability engine (via ustatOf) casts exactly what's been ranked up. Pass a
+  // type to sync one hero; omit it to sync all of this team's heroes.
+  syncHeroEntity(team, type = null) {
+    if (type == null) { for (const t of this.heroTemplates(team)) this.syncHeroEntity(team, t.type); return; }
+    const tpl = this.heroTemplateOf(team, type);
+    const ent = this.heroEntityOf(team, type);
     if (!ent) return;
     const ranks = (tpl && tpl.ranks) || {};
     ent.heroRanks = { ...ranks };
-    ent.heroAbilities = heroAbilitySlots(this.races[team])
+    ent.heroAbilities = heroAbilitySlots(this.races[team], type)
       .map((s) => s.id).filter((id) => id && (ranks[id] || 0) >= 1);
   }
 
@@ -272,11 +294,14 @@ export class Game {
   creditHeroKill(dead) {
     if (!dead || dead.isStructure || dead.isBase) return;
     const team = 1 - dead.team; // the team whose army scored the kill
-    const tpl = this.heroTemplate(team);
-    if (!tpl || tpl.level >= 10) return;
-    if (!this.entities.some((e) => e.team === team && e.hero && e.hp > 0)) return;
     const xp = (this.ustatOf(dead).xp) || 0;
-    if (xp > 0) this.gainHeroXp(team, tpl, xp);
+    if (xp <= 0) return;
+    // every hero currently ALIVE on the scoring team earns the XP independently
+    for (const tpl of this.heroTemplates(team)) {
+      if (tpl.level >= 10) continue;
+      if (!this.heroEntityOf(team, tpl.type)) continue;
+      this.gainHeroXp(team, tpl, xp);
+    }
   }
 
   // Add XP to a hero and process level-ups (1->10). Each level grants a talent
@@ -292,7 +317,7 @@ export class Game {
       tpl.level++;
       tpl.points = (tpl.points || 0) + 1;
       this.events.push({ type: 'herolevel', team, level: tpl.level, unitId: tpl.type });
-      const ent = this.entities.find((e) => e.team === team && e.hero && e.hp > 0);
+      const ent = this.heroEntityOf(team, tpl.type);
       if (ent) {
         const oldMax = ent.maxHp;
         ent.heroLevel = tpl.level;
@@ -514,8 +539,8 @@ export class Game {
       if (stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       // gated behind its tech building: must be built (alive) to buy the unit
       if (stats.building && !this.hasBuilding(cmd.team, stats.building)) return { ok: false, reason: 'no-building' };
-      // only ONE hero per team
-      if (stats.isHero && this.hasHero(cmd.team)) return { ok: false, reason: 'hero-cap' };
+      // one of EACH hero type per team (up to 3 distinct heroes, tier-gated)
+      if (stats.isHero && this.hasHeroType(cmd.team, cmd.unitId)) return { ok: false, reason: 'hero-cap' };
       // heroes can be gated behind a match timer (⚙ Balance: HERO_UNLOCK_TIME)
       if (stats.isHero && this.time < (CONFIG.HERO_UNLOCK_TIME || 0))
         return { ok: false, reason: 'hero-locked' };
@@ -533,10 +558,11 @@ export class Game {
     }
 
     if (cmd.type === 'rankHero') {
-      const tpl = this.heroTemplate(cmd.team);
+      // cmd.unit selects WHICH hero (multi-hero); falls back to the first hero
+      const tpl = cmd.unit ? this.heroTemplateOf(cmd.team, cmd.unit) : this.heroTemplate(cmd.team);
       if (!tpl) return { ok: false, reason: 'no-hero' };
       if ((tpl.points || 0) <= 0) return { ok: false, reason: 'no-points' };
-      const slot = heroAbilitySlots(this.races[cmd.team]).find((s) => s.id === cmd.ability);
+      const slot = heroAbilitySlots(this.races[cmd.team], tpl.type).find((s) => s.id === cmd.ability);
       if (!slot || !slot.id) return { ok: false, reason: 'unknown-ability' };
       if (slot.ult && (tpl.level || 1) < 6) return { ok: false, reason: 'ult-locked' };
       if (!tpl.ranks) tpl.ranks = {};
@@ -544,7 +570,7 @@ export class Game {
       if (cur >= (slot.ult ? 1 : 3)) return { ok: false, reason: 'max-rank' };
       tpl.ranks[cmd.ability] = cur + 1;
       tpl.points -= 1;
-      this.syncHeroEntity(cmd.team);
+      this.syncHeroEntity(cmd.team, tpl.type);
       return { ok: true };
     }
 

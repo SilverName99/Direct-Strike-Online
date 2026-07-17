@@ -6,9 +6,10 @@ export function spawnWave(game) {
   game.waveCount++;
   for (const team of [0, 1]) {
     for (const tpl of game.templates[team]) {
-      // Only ONE live hero of a kind on the field: while the previous hero is
-      // still alive, its template skips the wave instead of stacking a copy.
-      if (tpl.hero && game.entities.some((e) => e.team === team && e.hero && e.hp > 0)) continue;
+      // Only ONE live hero of EACH type on the field: while this hero is still
+      // alive, its template skips the wave instead of stacking a copy. Other
+      // hero types respawn independently.
+      if (tpl.hero && game.heroEntityOf(team, tpl.type)) continue;
       const jx = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       const jy = (game.rng() * 2 - 1) * CONFIG.SPAWN_JITTER;
       const u = spawnUnit(game, team, tpl.type, tpl.x + jx, tpl.y + jy);
@@ -21,7 +22,7 @@ export function spawnWave(game) {
         u.hp = u.maxHp;
         u.manaMax = (s.mana || 0) + (u.heroLevel - 1) * (s.manaPerLevel || 0);
         u.mana = u.manaMax; // respawns with a full pool at its level
-        game.syncHeroEntity(team); // learned abilities/ranks onto the fresh hero
+        game.syncHeroEntity(team, tpl.type); // learned abilities/ranks onto the fresh hero
       }
       tpl.spawned = true; // once spawned, selling only gives the partial refund
     }
