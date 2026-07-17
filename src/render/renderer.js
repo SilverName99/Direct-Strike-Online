@@ -503,8 +503,9 @@ export class Renderer {
       if (tpl) {
         const us = game.ustat(team, tpl.type);
         const r = Math.max(14, (us.radius || 10) * Math.max(1, sizeOf(raceOf(team), tpl.type) || 1) + 8);
+        const pos = this.templateDrawPos(uiState, team, sel.index, tpl); // ride the drag preview
         ctx.beginPath();
-        ctx.arc(tpl.x, tpl.y, r, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
         ctx.stroke();
       }
     } else if (sel.kind === 'entity') {
@@ -975,11 +976,27 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Where a formation template is DRAWN this frame. Normally its sim position,
+  // but while the viewer drags it we follow the local preview (instant, no
+  // network wait), and just after a drop we hold it at the target until the
+  // network-delayed moveUnit lands (so it doesn't snap back online).
+  templateDrawPos(uiState, team, i, tpl) {
+    const d = uiState.drag;
+    if (team === getViewerTeam() && d && i === d.index && d.x != null) return { x: d.x, y: d.y };
+    const pm = uiState.pendingMove;
+    if (pm && team === pm.team && i === pm.index) {
+      const caught = Math.abs(tpl.x - pm.x) < 1 && Math.abs(tpl.y - pm.y) < 1;
+      if (caught || performance.now() > pm.until) uiState.pendingMove = null;
+      else return { x: pm.x, y: pm.y };
+    }
+    return { x: tpl.x, y: tpl.y };
+  }
+
   drawTemplates(ctx, game, uiState) {
     // Which of the player's templates is hovered (for drag/sell affordance)?
     const hoverIdx = uiState.drag
       ? uiState.drag.index
-      : hitTestTemplate(game, 0, uiState.mouseX, uiState.mouseY);
+      : hitTestTemplate(game, getViewerTeam(), uiState.mouseX, uiState.mouseY);
 
     ctx.save();
     for (const team of [0, 1]) {
@@ -987,12 +1004,13 @@ export class Renderer {
       ctx.lineWidth = 1.5;
       const rot = team === 0 ? 0 : Math.PI;
       game.templates[team].forEach((tpl, i) => {
-        if (!this.visible(tpl.x, tpl.y)) return;
+        const pos = this.templateDrawPos(uiState, team, i, tpl);
+        if (!this.visible(pos.x, pos.y)) return;
         const stats = UNITS[tpl.type];
         const hot = team === getViewerTeam() && i === hoverIdx && !uiState.selected;
         const dragging = team === getViewerTeam() && uiState.drag && i === uiState.drag.index;
         ctx.save();
-        ctx.translate(tpl.x, tpl.y);
+        ctx.translate(pos.x, pos.y);
         if (dragging && uiState.gridOn) {
           // moving a placed unit: highlight the grid cells it will occupy
           const us = game.ustat(team, tpl.type);

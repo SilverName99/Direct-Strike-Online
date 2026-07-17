@@ -25,6 +25,7 @@ const uiState = {
   myTeam: 0, // the team this player commands (0 in single player; assigned online)
   selected: null,
   drag: null,
+  pendingMove: null, // just-dropped template move held at target until it lands online
   inspect: null, // selection-panel target: {kind:'template'|'entity'|'structure', ...}
   gridOn: true,
   showRanges: false, // 🎯 debug overlay: attack reach + physical boxes for everything

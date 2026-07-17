@@ -94,7 +94,9 @@ export class Input {
       const raw = this.renderer.toSim(e);
       const idx = hitTestTemplate(game, this.team, raw.x, raw.y);
       if (idx !== -1) {
-        this.uiState.drag = { index: idx };
+        const t0 = game.templates[this.team][idx];
+        // seed the drag preview at the unit's current spot (local, instant)
+        this.uiState.drag = { index: idx, x: t0.x, y: t0.y };
         // store the team so the panel/ring look up MY formation list, not team 0
         this.uiState.inspect = { kind: 'template', team: this.team, index: idx };
         return;
@@ -127,6 +129,19 @@ export class Input {
     });
 
     window.addEventListener('mouseup', () => {
+      const d = this.uiState.drag;
+      if (d && d.x != null) {
+        const game = this.getGame();
+        const tpl = game && game.templates[this.team][d.index];
+        // commit the move ONCE, on drop (not per frame) — and only if it
+        // actually moved, so a plain click never sends a no-op command
+        if (tpl && (Math.abs(tpl.x - d.x) > 0.5 || Math.abs(tpl.y - d.y) > 0.5)) {
+          game.issueCommand({ type: 'moveUnit', team: this.team, index: d.index, x: d.x, y: d.y });
+          // hold it visually at the drop spot until the (network-delayed)
+          // command lands, so online it doesn't snap back for a few frames
+          this.uiState.pendingMove = { team: this.team, index: d.index, x: d.x, y: d.y, until: performance.now() + 900 };
+        }
+      }
       this.uiState.drag = null;
     });
 
@@ -235,7 +250,11 @@ export class Input {
     const ch = us && us.ch > 1 ? us.ch : 1;
     let p = { x: clamp(x, z.x0, z.x1), y: clamp(y, z.y0, z.y1) };
     if (this.uiState.gridOn) p = snapToZone(z, p.x, p.y, cw, ch);
-    game.issueCommand({ type: 'moveUnit', team: this.team, index: this.uiState.drag.index, x: p.x, y: p.y });
+    // LOCAL preview only — the actual moveUnit is committed once, on drop
+    // (mouseup). This keeps dragging instant even online, where issuing a
+    // command per frame would lag the unit by the lockstep input delay.
+    this.uiState.drag.x = p.x;
+    this.uiState.drag.y = p.y;
   }
 
   // Camera pan intent for this frame: -1 | 0 | 1 per axis.
