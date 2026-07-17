@@ -52,6 +52,7 @@ export const BUILDING_FIELDS = {
   bldg2: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
   bldg3: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['tier', 'Tier minim (1-3)']],
   farm: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['cap', 'Max buildable'], ['food', 'Food adăugat']],
+  herohall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP']],
 };
 // The 3 tech/unlock buildings (build one of each to unlock its assigned units).
 export const TECH_BUILDINGS = ['bldg1', 'bldg2', 'bldg3'];
@@ -77,8 +78,8 @@ export const MIDDLE_KINDS = ['none', 'moveslow', 'atkslow', 'manaregen'];
 export function middleConfig(i) {
   return (CONFIG.MIDDLES && CONFIG.MIDDLES[i]) || null;
 }
-export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm'];
-export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
+export const FOOTPRINT_BUILDINGS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
+export const BUILDING_SIZE_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const num = (v) => (typeof v === 'number' && isFinite(v) ? v : undefined);
@@ -86,7 +87,7 @@ const cleanName = (v) => String(v).replace(/[<>]/g, '').trim().slice(0, 20);
 // Tooltip descriptions are longer free text (edited in admin, shown on hover).
 const cleanDesc = (v) => String(v).replace(/[<>]/g, '').trim().slice(0, 300);
 
-export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm'];
+export const BUILDING_ENTS = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
 
 // ------------ per-race resolved unit + building tables ------------
 // Full clone of the base entities (so the sim can read every field) plus a
@@ -236,6 +237,20 @@ function baseUnits(race) {
 // Default XP required to reach each of levels 2..10 (9 thresholds). Editable
 // per race in the hero's ⚙ stats.
 const DEFAULT_HERO_XP = [10, 15, 20, 25, 30, 40, 50, 65, 80];
+
+// Give a unit the hero leveling/kit fields it needs when it's newly promoted to
+// a hero in admin (only fills gaps — existing values are kept).
+function seedHeroDefaults(u, race) {
+  if (!Array.isArray(u.levelXp) || !u.levelXp.length) u.levelXp = [...DEFAULT_HERO_XP];
+  if (u.hpPerLevel == null) u.hpPerLevel = 40;
+  if (u.dmgPerLevel == null) u.dmgPerLevel = 4;
+  if (u.manaPerLevel == null) u.manaPerLevel = 10;
+  if (u.manaRegenPerLevel == null) u.manaRegenPerLevel = 0.2;
+  const kit = HERO_DEFAULT_KITS[race] || { skills: ['', '', ''], ult: '' };
+  if (!Array.isArray(u.heroAbilities)) u.heroAbilities = [...kit.skills];
+  if (u.heroUltimate == null) u.heroUltimate = kit.ult;
+}
+
 function baseBuildings() {
   return {
     main: {
@@ -253,6 +268,7 @@ function baseBuildings() {
     bldg2: { ...CONFIG.BUILDINGS.bldg2, size: 1, projSize: 1, slot: -1 },
     bldg3: { ...CONFIG.BUILDINGS.bldg3, size: 1, projSize: 1, slot: -1 },
     farm: { ...CONFIG.BUILDINGS.farm, size: 1, projSize: 1, slot: -1 },
+    herohall: { ...CONFIG.BUILDINGS.herohall, size: 1, projSize: 1, slot: -1 },
   };
 }
 // Abilities are GLOBAL (one balance shared by both races); which units carry
@@ -338,6 +354,7 @@ function raceUnitsSnapshot(race) {
       xp: u.xp, food: u.food,
       tip: u.tip || '', // hover description (admin-editable)
     };
+    out[id].isHero = !!u.isHero; // admin can flag up to 3 heroes per race
     if (u.isHero) {
       out[id].levelXp = [...(u.levelXp || [])];
       out[id].hpPerLevel = u.hpPerLevel;
@@ -568,6 +585,12 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 8));
     if (num(vals.xp) !== undefined) u.xp = clamp(vals.xp, 0, 100000);
     if (num(vals.food) !== undefined) u.food = clamp(vals.food, 0, 100000);
+    // admin can promote/demote a unit to hero (up to 3 heroes per race). A unit
+    // that just became a hero gets default leveling + kit so it works right away.
+    if (typeof vals.isHero === 'boolean') {
+      if (vals.isHero && !u.isHero) seedHeroDefaults(u, race);
+      u.isHero = vals.isHero;
+    }
     if (u.isHero) {
       if (Array.isArray(vals.levelXp)) {
         u.levelXp = vals.levelXp.slice(0, 9).map((n) => clamp(Number(n) || 0, 0, 1000000));

@@ -10,26 +10,9 @@ export class Hud {
     this.uiState = uiState;
     // the team this HUD reports on: 0 in single player, assigned online
     Object.defineProperty(this, 'team', { get: () => this.uiState.myTeam || 0 });
-    this.heroBadge = {
-      root: document.getElementById('hero-badge'),
-      thumb: document.getElementById('hero-badge-thumb'),
-      lvl: document.getElementById('hero-badge-lvl'),
-      fill: document.getElementById('hero-badge-fill'),
-      key: '',      // race:type of the drawn thumb (redraw on change)
-      redrawAt: 0,  // periodic redraw so late-loading sprites appear
-    };
-    // click -> open the hero in the selection panel (live entity if alive,
-    // otherwise its template), same as clicking it on the battlefield
-    if (this.heroBadge.root) {
-      this.heroBadge.root.addEventListener('click', () => {
-        const game = this.game;
-        if (!game) return;
-        const ent = game.entities.find((e) => e.team === this.team && e.hero && e.hp > 0);
-        if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
-        const idx = game.templates[this.team].findIndex((t) => t.hero);
-        if (idx !== -1) this.uiState.inspect = { kind: 'template', team: this.team, index: idx };
-      });
-    }
+    // Up to 3 hero badges (one per recruited hero), built on demand and keyed
+    // by hero unit type.
+    this.heroBadges = { root: document.getElementById('hero-badges'), byType: new Map() };
     this.el = {
       money: document.getElementById('money'),
       moneyIcon: document.querySelector('#chip-gold .money-icon'),
@@ -103,15 +86,51 @@ export class Hud {
     this.updateHeroBadge(game);
   }
 
-  // Left-edge hero badge: visible once the hero is bought; thumb + level +
-  // % progress toward the next level, live, without having to click the hero.
-  updateHeroBadge(game) {
-    const b = this.heroBadge;
-    if (!b.root) return;
-    const tpl = game ? game.heroTemplate(this.team) : null;
-    b.root.classList.toggle('hidden', !tpl);
-    if (!tpl) { b.key = ''; return; }
+  // Build a fresh badge DOM (thumb + level + xp bar) for a hero type. Clicking
+  // it opens that hero in the selection panel (live entity if alive, else its
+  // template) — same as clicking it on the battlefield.
+  makeHeroBadge(type) {
+    const el = document.createElement('div');
+    el.className = 'hero-badge';
+    el.title = 'Erou — click pentru panou';
+    const thumb = document.createElement('canvas');
+    thumb.className = 'hero-badge-thumb'; thumb.width = 64; thumb.height = 64;
+    const lvl = document.createElement('div');
+    lvl.className = 'hero-badge-lvl'; lvl.textContent = 'LVL 1';
+    const bar = document.createElement('div'); bar.className = 'hero-badge-bar';
+    const fill = document.createElement('div'); fill.className = 'hero-badge-fill';
+    bar.appendChild(fill);
+    el.append(thumb, lvl, bar);
+    el.addEventListener('click', () => {
+      const game = this.game;
+      if (!game) return;
+      const ent = game.heroEntityOf(this.team, type);
+      if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
+      const idx = game.templates[this.team].findIndex((t) => t.hero && t.type === type);
+      if (idx !== -1) this.uiState.inspect = { kind: 'template', team: this.team, index: idx };
+    });
+    return { el, thumb, lvl, fill, key: '', redrawAt: 0 };
+  }
 
+  // Left-edge hero badges: one per recruited hero (up to 3), each with thumb +
+  // level + % progress to the next level, live.
+  updateHeroBadge(game) {
+    const root = this.heroBadges.root;
+    if (!root) return;
+    const templates = game ? game.heroTemplates(this.team) : [];
+    const present = new Set(templates.map((t) => t.type));
+    // drop badges for heroes no longer on the roster (e.g. after a rematch)
+    for (const [type, b] of this.heroBadges.byType) {
+      if (!present.has(type)) { b.el.remove(); this.heroBadges.byType.delete(type); }
+    }
+    for (const tpl of templates) {
+      let b = this.heroBadges.byType.get(tpl.type);
+      if (!b) { b = this.makeHeroBadge(tpl.type); this.heroBadges.byType.set(tpl.type, b); root.appendChild(b.el); }
+      this.paintHeroBadge(b, game, tpl);
+    }
+  }
+
+  paintHeroBadge(b, game, tpl) {
     const s = game.ustat(this.team, tpl.type);
     const level = tpl.level || 1;
     const need = (s.levelXp || [])[level - 1];
@@ -122,11 +141,8 @@ export class Hud {
     b.fill.style.width = `${pct.toFixed(1)}%`;
     b.lvl.title = level >= 10 ? 'Nivel maxim' : `${Math.floor(tpl.xp || 0)} / ${need} XP`;
 
-    // (re)draw the thumb when the hero type/race changes, and periodically so
-    // a thumb that finishes loading after match start still shows up.
-    // SQUARE + SHARP: the backing store runs at the real device resolution
-    // (devicePixelRatio) and the thumb image cover-fills the square (center
-    // crop, biased toward the top so the head never gets cut).
+    // (re)draw the thumb when the hero type/race changes, and periodically so a
+    // thumb that finishes loading after match start still shows up.
     const key = `${raceOf(this.team)}:${tpl.type}`;
     const now = performance.now();
     if (key !== b.key || now >= b.redrawAt) {
@@ -149,7 +165,6 @@ export class Hud {
         const sy = (img.height - cropH) * 0.25;      // bias toward the top
         ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, size, size);
       } else {
-        // no uploaded thumb: a simple star placeholder so the badge still reads
         ctx.fillStyle = '#ffd35c';
         ctx.font = `bold ${Math.round(40 * dpr)}px sans-serif`;
         ctx.textAlign = 'center';

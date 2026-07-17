@@ -8,7 +8,7 @@
 import { CONFIG } from '../config.js';
 import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
-import { resolvedUpgrade, TECH_BUILDINGS, resolvedHeroId, heroAbilitySlots } from '../ui/balance.js';
+import { resolvedUpgrade, TECH_BUILDINGS, resolvedHeroId, resolvedHeroIds, heroAbilitySlots } from '../ui/balance.js';
 import { mulberry32 } from './rng.js';
 
 // Target army-cost share per role. Tuned toward a solid frontline so the AI
@@ -230,6 +230,19 @@ export class AIController {
       }
     }
 
+    // 2.6 Hero Hall: heroes are recruited only from here now, so build it once
+    // (if this race actually has heroes) — the hero step recruits afterwards.
+    if (!game.hasBuilding(t, 'herohall') && resolvedHeroIds(game.races[t]).length && game.buildCdLeft(t, 'herohall') === 0) {
+      const hc = game.bstat(t, 'herohall').cost;
+      if (money >= hc) {
+        this.intent = '🏛 Hero Hall (recrutare eroi)';
+        if (this.tryBuild(game, 'herohall')) return;
+      } else {
+        const income = Math.max(1, game.incomePerSecond(t));
+        if ((hc - money) / income <= 20) { this.intent = '💰 economisește → Hero Hall'; return; }
+      }
+    }
+
     // 2.9 Fortify the FRONT turret: every few waves, COMMIT to one tower in the
     // forward pocket (saving for it so it actually happens), then thread a wall
     // line across its enemy-facing edge. Paced + capped so it fortifies the mid
@@ -333,52 +346,52 @@ export class AIController {
   // toward the hero (so the caller stops there this think).
   manageHero(game) {
     const t = this.team;
-    const heroId = resolvedHeroId(game.races[t]);
-    if (!heroId) return false; // no hero defined for this race
+    const heroIds = resolvedHeroIds(game.races[t]);
+    if (!heroIds.length) return false; // no heroes defined for this race
     // heroes still time-locked (⚙ Balance) — don't buy or save toward one yet
-    if (game.time < (CONFIG.HERO_UNLOCK_TIME || 0) && !game.heroTemplate(t)) return false;
+    if (game.time < (CONFIG.HERO_UNLOCK_TIME || 0) && !game.hasHero(t)) return false;
 
-    const tpl = game.heroTemplate(t);
-    if (tpl) {
-      // Already fielded — invest any unspent talent points (one per think).
-      if ((tpl.points || 0) <= 0) return false;
-      const slots = heroAbilitySlots(game.races[t]).filter((s) => s.id);
+    // 1) invest a talent point into ANY fielded hero (one action per think)
+    for (const heroId of heroIds) {
+      const tpl = game.heroTemplateOf(t, heroId);
+      if (!tpl || (tpl.points || 0) <= 0) continue;
+      const slots = heroAbilitySlots(game.races[t], heroId).filter((s) => s.id);
       const ranks = tpl.ranks || {};
       const level = tpl.level || 1;
-      // take the ultimate as soon as it's available (level 6, still unranked)…
       const ult = slots.find((s) => s.ult && level >= 6 && (ranks[s.id] || 0) < 1);
-      // …otherwise pour into the lowest-ranked non-maxed skill (spread then max)
       const skills = slots.filter((s) => !s.ult && (ranks[s.id] || 0) < 3)
         .sort((a, b) => (ranks[a.id] || 0) - (ranks[b.id] || 0));
       const pick = ult || skills[0];
-      if (!pick) return false;
-      if (game.issueCommand({ type: 'rankHero', team: t, ability: pick.id }).ok) {
+      if (pick && game.issueCommand({ type: 'rankHero', team: t, unit: heroId, ability: pick.id }).ok) {
         this.intent = `⭐ Erou: învață ${pick.id}`;
         return true;
       }
-      return false;
     }
 
-    // Not fielded yet: buy it when tier/tech/food/gold allow. Save toward it if
-    // it's within income reach; don't hard-block if it's far out of budget.
-    const hs = game.ustat(t, heroId);
-    if (!hs) return false;
-    if (hs.tier > game.tier[t]) return false;                      // tier-locked
-    if (hs.building && !game.hasBuilding(t, hs.building)) return false; // tech not up yet
-    if (game.foodUsed(t) + (hs.food || 0) > game.foodCap(t)) return false; // no food room
-    const money = game.money[t];
-    if (money >= hs.cost) {
-      const { x, y } = this.pickPlacement(game, heroId);
-      if (game.issueCommand({ type: 'buy', team: t, unitId: heroId, x, y }).ok) {
-        this.intent = `⭐ Erou: ${hs.name || heroId}`;
-        return true;
+    // 2) recruit the next hero we don't have yet (needs the Hero Hall built first
+    // — that's handled by the building step). Buy when tier/food/gold allow, or
+    // save toward it if within income reach.
+    if (!game.hasBuilding(t, 'herohall')) return false;
+    for (const heroId of heroIds) {
+      if (game.hasHeroType(t, heroId)) continue;
+      const hs = game.ustat(t, heroId);
+      if (!hs) continue;
+      if (hs.tier > game.tier[t]) continue;                          // tier-locked
+      if (game.foodUsed(t) + (hs.food || 0) > game.foodCap(t)) continue; // no food room
+      const money = game.money[t];
+      if (money >= hs.cost) {
+        const { x, y } = this.pickPlacement(game, heroId);
+        if (game.issueCommand({ type: 'buy', team: t, unitId: heroId, x, y }).ok) {
+          this.intent = `⭐ Erou: ${hs.name || heroId}`;
+          return true;
+        }
+      } else {
+        const income = Math.max(1, game.incomePerSecond(t));
+        if ((hs.cost - money) / income <= this.g.savePatience) {
+          this.intent = `💰 economisește ${Math.ceil(hs.cost)} → Erou`;
+          return true; // save a few ticks toward the next hero
+        }
       }
-      return false;
-    }
-    const income = Math.max(1, game.incomePerSecond(t));
-    if ((hs.cost - money) / income <= this.g.savePatience) {
-      this.intent = `💰 economisește ${Math.ceil(hs.cost)} → Erou`;
-      return true; // save a few ticks toward the hero
     }
     return false;
   }

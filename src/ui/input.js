@@ -295,8 +295,9 @@ export class Input {
     // gated behind its tech building — must be built to select/place it
     if (UNITS[id]) {
       const s = game.ustat(this.team, id);
-      if (s.building && !game.hasBuilding(this.team, s.building)) return;
-      if (s.isHero && game.hasHero(this.team)) return; // one hero per team
+      if (!s.isHero && s.building && !game.hasBuilding(this.team, s.building)) return;
+      if (s.isHero && !game.hasBuilding(this.team, 'herohall')) return; // need the Hero Hall
+      if (s.isHero && game.hasHeroType(this.team, id)) return; // already recruited this hero
     }
     // some buildings can only be built from a given base tier
     if (BUILDING_IDS.includes(id) && game.tier[this.team] < (game.bstat(this.team, id).tier || 1)) return;

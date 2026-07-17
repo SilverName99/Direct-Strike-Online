@@ -853,11 +853,17 @@ html, body {
 .load-tip { font-size: 13.5px; color: #9fb0c8; max-width: 44ch; text-align: center; padding: 0 16px; }
 
 /* ---- Hero badge (left edge, ~10% from the top of the battlefield view) ---- */
-#hero-badge {
+/* left-edge hero badges: a vertical stack (up to 3 recruited heroes) */
+#hero-badges {
   position: absolute;
   left: 0;
   top: 10%;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hero-badge {
   width: 72px;
   padding: 5px 4px 6px;
   background: rgba(13, 17, 23, 0.88);
@@ -868,12 +874,11 @@ html, body {
   cursor: pointer;
   user-select: none;
 }
-#hero-badge.hidden { display: none; }
-#hero-badge:hover { border-color: #4da6ff; }
-#hero-badge-thumb { width: 64px; height: 64px; display: block; margin: 0 auto; border-radius: 6px; background: #0a0e14; }
-#hero-badge-lvl { font-size: 11px; font-weight: 700; color: var(--gold, #ffd35c); margin-top: 3px; letter-spacing: 0.5px; }
-#hero-badge-bar { height: 5px; margin-top: 3px; background: #0a0e14; border: 1px solid #2a3446; border-radius: 3px; overflow: hidden; }
-#hero-badge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #58d68d, #9be7b8); }
+.hero-badge:hover { border-color: #4da6ff; }
+.hero-badge-thumb { width: 64px; height: 64px; display: block; margin: 0 auto; border-radius: 6px; background: #0a0e14; }
+.hero-badge-lvl { font-size: 11px; font-weight: 700; color: var(--gold, #ffd35c); margin-top: 3px; letter-spacing: 0.5px; }
+.hero-badge-bar { height: 5px; margin-top: 3px; background: #0a0e14; border: 1px solid #2a3446; border-radius: 3px; overflow: hidden; }
+.hero-badge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #58d68d, #9be7b8); }
 
 /* Custom race cursor covers the WHOLE page (bottom bar and buttons included),
    overriding per-element cursor styles while a custom cursor is uploaded. */

@@ -16,7 +16,7 @@ import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS } from '../upgrades.js';
 import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
-  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId, heroAbilitySlots,
+  resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId, resolvedHeroIds, heroAbilitySlots,
 } from './balance.js';
 import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
@@ -37,6 +37,8 @@ const BUILDING_CARDS = [
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
   { id: 'farm', hotkey: 'M', role: 'Mărește food cap',
     tip: 'Fiecare fermă crește plafonul de food, ca să poți plasa mai multe unități. Distrusă = pierzi plafonul (unitățile plasate rămân).' },
+  { id: 'herohall', hotkey: 'H', role: 'Recrutează eroi',
+    tip: 'Click pe ea ca să recrutezi eroi (până la 3). Al 2-lea erou se deblochează la tier 2, al 3-lea la tier 3. Distrusă = nu mai poți recruta (eroii plasați rămân).' },
 ];
 
 // Lay out a building command-card page onto the 9 cells: sell fixed at slot 7,
@@ -515,7 +517,7 @@ export class BottomBar {
     // hero: a level line + XP bar toward the next level (and unspent talent pts)
     let heroBar = '';
     if (info.kind === 'entity' && info.u.hero) {
-      const tpl = game.heroTemplate(info.team);
+      const tpl = game.heroTemplateOf(info.team, info.type);
       if (tpl) {
         const lvl = tpl.level || 1;
         const need = (stats.levelXp || [])[lvl - 1] || 0;
@@ -712,19 +714,24 @@ export class BottomBar {
     const isStruct = info.kind === 'structure';
     const stats = isStruct ? game.bstat(info.team, info.type) : game.ustat(info.team, info.type);
 
-    // your own Main Base: the tier upgrade + the Hero (one per team, bought here
-    // and placed like a unit; units + their upgrades live in the tech buildings)
+    // your own Main Base: just the tier upgrade (heroes moved to the Hero Hall;
+    // units + their upgrades live in the tech buildings)
     if (own && isStruct && info.type === 'main') {
-      // the tier upgrade is ALWAYS the last cell; the hero fills from the front
       const grid = new Array(9).fill(null);
-      grid[8] = { kind: 'upgradeBase', id: 'upgrade' };
-      const race = raceOf(this.team);
-      const hero = resolvedHeroId(race);
-      if (hero) {
-        const h = statsUnit(race, hero);
-        grid[0] = { kind: 'unit', id: hero, cost: h.cost, tier: h.tier, isHero: true };
-      }
+      grid[8] = { kind: 'upgradeBase', id: 'upgrade' }; // always the last cell
       return grid;
+    }
+
+    // your own Hero Hall: recruit heroes here. Up to 3 hero cards, tier-gated
+    // (hero 1 @ tier 1, hero 2 @ tier 2, hero 3 @ tier 3). Each shows locked
+    // until its tier, and disabled/✔ once recruited.
+    if (own && isStruct && info.type === 'herohall') {
+      const race = raceOf(this.team);
+      const page = resolvedHeroIds(race).map((id) => {
+        const h = statsUnit(race, id);
+        return { kind: 'unit', id, cost: h.cost, tier: h.tier || 1, isHero: true, slot: -1 };
+      });
+      return layoutCardPage(page, null);
     }
 
     // your own tech building: units and their upgrades live on SEPARATE pages
@@ -759,8 +766,8 @@ export class BottomBar {
 
     // your own hero: its 3 skills + ultimate, each rankable with talent points
     if (!isStruct && own && stats.isHero) {
-      for (const slot of heroAbilitySlots(raceOf(this.team))) {
-        if (slot.id) items.push({ kind: 'heroAbility', id: slot.id, ult: slot.ult });
+      for (const slot of heroAbilitySlots(raceOf(this.team), info.type)) {
+        if (slot.id) items.push({ kind: 'heroAbility', id: slot.id, ult: slot.ult, unit: info.type });
       }
       return items;
     }
@@ -928,7 +935,7 @@ export class BottomBar {
             cd = heroWait;
             cdTotal = CONFIG.HERO_UNLOCK_TIME || 0;
           }
-          else if (d.isHero && game.hasHero(this.team)) el.classList.add('disabled'); // one hero per team
+          else if (d.isHero && game.hasHeroType(this.team, d.id)) el.classList.add('owned-upg'); // already recruited THIS hero
           else if (game.money[this.team] < u.cost) el.classList.add('disabled');
           else if (game.foodUsed(this.team) + (u.food || 0) > game.foodCap(this.team)) el.classList.add('disabled'); // over food cap
         }
@@ -1013,7 +1020,7 @@ export class BottomBar {
           el.classList.add('disabled');
         }
       } else if (d.kind === 'heroAbility' && game) {
-        const tpl = game.heroTemplate(this.team);
+        const tpl = game.heroTemplateOf(this.team, d.unit);
         const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
         const max = d.ult ? 1 : 3;
         const pts = (tpl && tpl.points) || 0;
@@ -1104,7 +1111,7 @@ export class BottomBar {
     const game = this.getGame();
     if (d.kind === 'unit' || d.kind === 'building') {
       if (el.classList.contains('locked')) return;
-      if (d.isHero && game && game.hasHero(this.team)) return; // already have your hero
+      if (d.isHero && game && game.hasHeroType(this.team, d.id)) return; // already recruited this hero
       this.onShopClick(d.id);
       return;
     }
@@ -1119,7 +1126,7 @@ export class BottomBar {
     }
     if (!game) return;
     if (d.kind === 'heroAbility') {
-      game.issueCommand({ type: 'rankHero', team: this.team, ability: d.id });
+      game.issueCommand({ type: 'rankHero', team: this.team, unit: d.unit, ability: d.id });
       return;
     }
     if (d.kind === 'ability' && d.own) {
@@ -1265,7 +1272,7 @@ export class BottomBar {
     if (d.kind === 'heroAbility') {
       const ab = resolvedAbility(d.id);
       if (!ab) return '';
-      const tpl = game && game.heroTemplate(this.team);
+      const tpl = game && game.heroTemplateOf(this.team, d.unit);
       const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
       const max = d.ult ? 1 : 3;
       const lvl = (tpl && tpl.level) || 1;

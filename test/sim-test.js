@@ -11,7 +11,7 @@ import { spawnUnit, makeStructure } from '../src/sim/entity.js';
 import { stepCaster } from '../src/sim/abilities.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
-import { statsBuilding, resolvedAbility } from '../src/ui/balance.js';
+import { statsBuilding, resolvedAbility, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
 
 const DT = CONFIG.FIXED_DT;
 const MID_Y = CONFIG.MAIN.y; // lane center (field extends lower as a scenic apron)
@@ -298,6 +298,49 @@ console.log('holy light per-rank heal');
   // override 0 -> auto-scaled healPct (15% base, rank 2 = 1.5x = 22.5%)
   const fAuto = healFracAtRank(2, { healPct: 15, healPct2: 0 }, 43);
   check('holy light rank 2 auto-scales when override is 0', Math.abs(fAuto - 0.225) < 0.01, `frac=${fAuto.toFixed(3)}`);
+}
+
+// ------------------------------------------ multi-hero recruit (Hero Hall)
+console.log('multi-hero recruitment');
+{
+  const race = 'humans';
+  const h1 = resolvedHeroId(race);            // the default hero (tier 1)
+  const g2 = statsUnit(race, 'grunt');        // promote a 2nd unit to hero @ tier 2
+  const save2 = { isHero: g2.isHero, tier: g2.tier, levelXp: g2.levelXp, hpPerLevel: g2.hpPerLevel, heroAbilities: g2.heroAbilities, heroUltimate: g2.heroUltimate, food: g2.food };
+  g2.isHero = true; g2.tier = 2; g2.levelXp = [10, 15, 20, 25, 30, 40, 50, 65, 80];
+  g2.hpPerLevel = 40; g2.heroAbilities = ['', '', '']; g2.heroUltimate = ''; g2.food = 1;
+  const u1 = statsUnit(race, h1); const st1 = u1.tier; u1.tier = 1;
+
+  const ids = resolvedHeroIds(race);
+  check('two heroes resolved, tier-ordered', ids.length === 2 && ids[0] === h1 && ids[1] === 'grunt', ids.join(','));
+
+  const game = new Game(52, { races: ['humans', 'orcs'] });
+  game.money[0] = 99999;
+  // recruiting refused before the Hero Hall exists
+  const noHall = game.issueCommand({ type: 'buy', team: 0, unitId: h1, x: 500, y: 700 });
+  check('hero refused without Hero Hall', !noHall.ok && noHall.reason === 'no-herohall');
+  makeStructure(game, 0, 'herohall', 820, 300); // finished (buildTime 0)
+  check('hero hall counts as built', game.hasBuilding(0, 'herohall'));
+  // recruit hero 1 (tier 1)
+  const r1 = game.issueCommand({ type: 'buy', team: 0, unitId: h1, x: 300, y: 300 });
+  check('hero 1 recruited', r1.ok && game.hasHeroType(0, h1));
+  // hero 2 is tier-locked at base tier 1 (tier check precedes placement)
+  const r2 = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 300, y: 600 });
+  check('hero 2 tier-locked at tier 1', !r2.ok && r2.reason === 'tier-locked');
+  // a duplicate of hero 1 hits the per-type cap
+  const dup = game.issueCommand({ type: 'buy', team: 0, unitId: h1, x: 300, y: 600 });
+  check('duplicate hero refused (cap)', !dup.ok && dup.reason === 'hero-cap');
+  // reach tier 2, then recruit hero 2
+  game.tier[0] = 2;
+  const r2b = game.issueCommand({ type: 'buy', team: 0, unitId: 'grunt', x: 300, y: 600 });
+  check('hero 2 recruited at tier 2', r2b.ok && game.hasHeroType(0, 'grunt'), r2b.reason || '');
+  check('two hero templates present', game.heroTemplates(0).length === 2);
+  // a wave spawns BOTH heroes as live entities (each respawns independently)
+  run(game, (CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL) + 0.1);
+  check('both heroes spawn live', !!game.heroEntityOf(0, h1) && !!game.heroEntityOf(0, 'grunt'));
+
+  Object.assign(g2, save2);
+  u1.tier = st1;
 }
 
 // -------------------------------------------------- walls block, towers shoot

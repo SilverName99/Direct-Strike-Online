@@ -839,6 +839,21 @@ export class Renderer {
         ctx.font = `${Math.round(Math.min(hw, hh) * 1.0)}px sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('🌾', 0, 2);
+      } else if (!spriteDrawn && s.kind === 'herohall') {
+        // hero hall placeholder: a hall box with a roof + a star glyph
+        ctx.fillStyle = dark;
+        ctx.fillRect(-hw, -hh, hw * 2, hh * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-hw, -hh); ctx.lineTo(0, -hh - Math.min(hw, hh) * 0.6); ctx.lineTo(hw, -hh); ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffd35c';
+        ctx.font = `${Math.round(Math.min(hw, hh) * 1.0)}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('★', 0, 2);
       }
       ctx.restore();
 

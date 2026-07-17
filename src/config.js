@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v12.22';
+export const VERSION = 'v12.23';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -184,6 +184,10 @@ export const CONFIG = {
     // Farm: raises your FOOD cap so you can field more units. Destructible —
     // if destroyed you keep placed units but can't buy more until under cap.
     farm: { cost: 100, buildTime: 0, hp: 300, cw: 2, ch: 2, cap: 12, food: 10, idleSpeed: 2, name: 'Fermă' },
+    // Hero Hall: recruit heroes here (up to 3, each gated by its own base tier).
+    // Heroes come ONLY from this building — not the Main Base. Destructible;
+    // lose it and you can't recruit more (placed heroes stay). One (cap 1).
+    herohall: { cost: 150, buildTime: 0, hp: 600, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Hero Hall' },
   },
   SELL_BUILDING_REFUND: 0.6,
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)

@@ -170,9 +170,28 @@ function fieldsFor(ent, kind) {
       group: G, label: 'Food (cost supply)', type: 'num', value: u.food ?? 1,
       apply: (v) => { u.food = clamp(Math.round(v), 0, 100000); },
     });
+    // Promote to hero (up to 3 per race; recruited from the Hero Hall, gated by
+    // the tier below). Toggling re-renders so the hero fields appear/disappear.
+    out.push({
+      group: G, label: 'Erou (recrutabil din Hero Hall)', type: 'check', cls: 'hero-chk', value: !!u.isHero,
+      apply: (v) => {
+        if (v && !u.isHero) {
+          if (!Array.isArray(u.levelXp) || !u.levelXp.length) u.levelXp = [10, 15, 20, 25, 30, 40, 50, 65, 80];
+          if (u.hpPerLevel == null) u.hpPerLevel = 40;
+          if (u.dmgPerLevel == null) u.dmgPerLevel = 4;
+          if (u.manaPerLevel == null) u.manaPerLevel = 10;
+          if (u.manaRegenPerLevel == null) u.manaRegenPerLevel = 0.2;
+          if (!Array.isArray(u.heroAbilities)) u.heroAbilities = ['', '', ''];
+          if (u.heroUltimate == null) u.heroUltimate = '';
+        }
+        u.isHero = !!v;
+      },
+    });
     // Hero-only: per-level growth + the XP thresholds for levels 2..10
     if (u.isHero) {
       const H = 'Erou (nivelare)';
+      // tier gate: hero 1 = tier 1, hero 2 = tier 2, hero 3 = tier 3
+      out.push({ group: H, label: 'Tier necesar (1-3) — al 2-lea erou = 2, al 3-lea = 3', type: 'num', value: u.tier ?? 1, apply: (v) => { u.tier = clamp(Math.round(v), 1, 3); } });
       out.push({ group: H, label: 'HP +/nivel', type: 'num', value: u.hpPerLevel ?? 40, apply: (v) => { u.hpPerLevel = clamp(Math.round(v), 0, 100000); } });
       out.push({ group: H, label: 'Damage +/nivel', type: 'num', value: u.dmgPerLevel ?? 4, apply: (v) => { u.dmgPerLevel = clamp(Math.round(v), 0, 100000); } });
       out.push({ group: H, label: 'Mana +/nivel', type: 'num', value: u.manaPerLevel ?? 10, apply: (v) => { u.manaPerLevel = clamp(Math.round(v), 0, 100000); } });
@@ -517,6 +536,15 @@ function open(ent, kind) {
   if (splashChk) {
     splashChk.addEventListener('change', () => {
       for (const s of bodyEl.querySelectorAll('.splash-field')) s.disabled = !splashChk.checked;
+    });
+  }
+  // "Erou" adds/removes whole field groups (leveling + kit), so re-render the
+  // editor: save what's typed, flip the flag, then rebuild for the same unit.
+  const heroChk = bodyEl.querySelector('.hero-chk');
+  if (heroChk) {
+    heroChk.addEventListener('change', () => {
+      writeInputs();
+      open(current.ent, current.kind);
     });
   }
   modal.classList.add('on');
