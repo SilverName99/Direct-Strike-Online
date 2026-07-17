@@ -22,7 +22,11 @@ import http from 'node:http';
 
 const PORT = Number(process.env.PORT || 8080);
 const TICK_HZ = 30;                 // must match CONFIG.FIXED_DT (1/30) on the client
-const INPUT_DELAY = Number(process.env.INPUT_DELAY || 6); // ticks (~200ms) before a command fires
+// ticks before a command fires. 2 ticks ≈ 66ms — snappy, but it must stay
+// ABOVE the round-trip ping between the players or commands arrive late and the
+// game stutters. Bump it back up (env INPUT_DELAY=4/6) if you see stuttering on
+// higher-ping connections.
+const INPUT_DELAY = Number(process.env.INPUT_DELAY || 2);
 const CLOCK_EVERY = 6;              // broadcast the authoritative tick every N ticks (~5 Hz)
 const PROTOCOL = 2;                 // v2: races picked in the lobby travel in matchmaking + start
 const RACES = ['humans', 'orcs'];
