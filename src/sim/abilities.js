@@ -202,6 +202,20 @@ function tickCastAura(game, caster, aid, ab, time) {
   if (!caster.auraUntil || (caster.auraUntil[aid] || 0) <= time) return;
   const p = abParams(caster, aid, ab);
   const until = time + AURA_TICK;
+  // Regen aura with a target cap: heal only the N MOST-WOUNDED allies in range
+  // (healing everyone is too strong). 0 = everyone (handled by the loop below).
+  const regenCap = aid === 'regenaura' ? Math.round(p.maxTargets || 0) : 0;
+  if (regenCap > 0) {
+    const wounded = [];
+    for (const u of game.entities) {
+      if (u.hp <= 0 || u.team !== caster.team || u.hp >= u.maxHp) continue;
+      if (inRadius(u, caster, p.radius)) wounded.push(u);
+    }
+    // most wounded first; deterministic tie-break by id (lockstep-safe)
+    wounded.sort((a, b) => (a.hp / a.maxHp - b.hp / b.maxHp) || (a.id - b.id));
+    for (let i = 0; i < wounded.length && i < regenCap; i++) applyEffect(wounded[i], 'regen', p.hps, until, time);
+    return;
+  }
   for (const u of game.entities) {
     if (u.hp <= 0 || !inRadius(u, caster, p.radius)) continue;
     if (aid === 'slowaura') {

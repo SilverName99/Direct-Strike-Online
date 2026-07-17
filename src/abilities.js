@@ -86,6 +86,7 @@ export const ABILITIES = {
       hps: 5,        // HP healed per second
       duration: 12,  // seconds the zone lasts after the cast
       manaCost: 30,  // mana per cast
+      maxTargets: 0, // heal at most N allies (the most-wounded); 0 = everyone
     },
   },
   summonwolf: {
@@ -312,6 +313,7 @@ export const ABILITY_PARAM_LABELS = {
   cleavePct: 'Cleave (% din damage)',
   dashSpeed: 'Viteză șarjă',
   stun: 'Stun la impact (s)',
+  maxTargets: 'Max ținte vindecate (0 = toți)',
   hpBonus: 'Beast Form: +HP max (%)',
   dmgBonus: 'Beast Form: +damage (%)',
   splashPct: 'Beast Form: splash (% din lovitură)',

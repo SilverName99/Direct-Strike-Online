@@ -363,6 +363,30 @@ console.log('beast form ultimate');
   Object.assign(ab.params, saved);
 }
 
+// ------------------------------------------- regen aura max-targets cap
+console.log('regen aura target cap');
+{
+  const game = new Game(71, { races: ['humans', 'orcs'] });
+  const ab = resolvedAbility('regenaura');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { radius: 300, hps: 20, duration: 5, maxTargets: 2, manaCost: 0 });
+  const caster = spawnUnit(game, 0, 'grunt', 600, 400);
+  caster.auraUntil = { regenaura: game.time + 5 }; // aura already raised
+  // make the caster count as a regenaura caster for updateAbilities
+  const baseUstat = game.ustatOf.bind(game);
+  game.ustatOf = (u) => (u === caster ? { ...baseUstat(u), caster: true, abilities: ['regenaura'] } : baseUstat(u));
+  // three wounded allies (different HP) + one full-HP ally, all in range
+  const a1 = spawnUnit(game, 0, 'grunt', 620, 400); a1.hp = a1.maxHp * 0.2; // most wounded
+  const a2 = spawnUnit(game, 0, 'grunt', 640, 400); a2.hp = a2.maxHp * 0.4; // 2nd
+  const a3 = spawnUnit(game, 0, 'grunt', 660, 400); a3.hp = a3.maxHp * 0.6; // 3rd — capped out
+  const h1 = a1.hp, h2 = a2.hp, h3 = a3.hp;
+  run(game, 1);
+  check('regen cap: most-wounded ally healed', a1.hp > h1 + 1);
+  check('regen cap: 2nd most-wounded healed', a2.hp > h2 + 1);
+  check('regen cap: 3rd ally NOT healed (over cap)', Math.abs(a3.hp - h3) < 0.001, `${a3.hp} vs ${h3}`);
+  ab.params = saved;
+}
+
 // -------------------------------------------------- walls block, towers shoot
 console.log('defense structures');
 {
