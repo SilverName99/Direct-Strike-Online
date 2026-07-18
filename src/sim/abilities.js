@@ -31,11 +31,20 @@ const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankS
 const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
-  if (rank <= 1) return ab.params;
-  const step = ab.params.rankStep != null ? ab.params.rankStep : HERO_RANK_STEP;
-  const mult = 1 + (rank - 1) * step;
+  const overrides = ab.rankOverrides;
+  if (rank <= 1 && (!overrides || !overrides.length)) return ab.params; // fast path
   const p = { ...ab.params };
-  for (const k of RANK_SCALED) if (typeof p[k] === 'number') p[k] = p[k] * mult;
+  if (rank > 1) {
+    // auto scaling: multiply the "power" params by the ability's rankStep
+    const step = ab.params.rankStep != null ? ab.params.rankStep : HERO_RANK_STEP;
+    const mult = 1 + (rank - 1) * step;
+    for (const k of RANK_SCALED) if (typeof p[k] === 'number') p[k] = p[k] * mult;
+  }
+  // explicit per-rank overrides win over the auto scaling (0 = keep auto/base)
+  if (overrides) for (const base of overrides) {
+    const v = ab.params[base + rank];
+    if (typeof v === 'number' && v > 0) p[base] = v;
+  }
   return p;
 }
 

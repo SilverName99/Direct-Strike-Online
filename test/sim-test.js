@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
-import { stepCaster, updateAbilities, isStunned } from '../src/sim/abilities.js';
+import { stepCaster, updateAbilities, isStunned, learnedAbilityParams } from '../src/sim/abilities.js';
 import { effStats } from '../src/sim/combat.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
@@ -408,6 +408,20 @@ console.log('sword saint kit');
     ab.params.rankStep = 0; // flat: no scaling
     check('rankStep 0: rank 3 = base bonus', Math.abs(effStats(hero, game.ustatOf(hero)).damage / game.ustatOf(hero).damage - 1 - b / 100) < 0.01);
     ab.params.rankStep = savedStep;
+  }
+
+  // Explicit per-rank overrides (X1/X2/X3): exact values per learned point
+  {
+    const ab = resolvedAbility('divineregen');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, { hps: 70, hps1: 40, hps2: 80, hps3: 140, cooldown: 20, cooldown1: 0, cooldown2: 12, cooldown3: 6 });
+    const paramsAt = (rank) => {
+      const h = spawnUnit(game, 0, 'hero', 320, 300); h.hero = true; h.heroRanks = { divineregen: rank };
+      return learnedAbilityParams(h, 'divineregen');
+    };
+    check('per-rank hps: exact 40/80/140', paramsAt(1).hps === 40 && paramsAt(2).hps === 80 && paramsAt(3).hps === 140);
+    check('per-rank cooldown: 0 keeps base, else exact', paramsAt(1).cooldown === 20 && paramsAt(2).cooldown === 12 && paramsAt(3).cooldown === 6);
+    ab.params = saved;
   }
 
   // Backline Teleport: blinks forward by `distance`

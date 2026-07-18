@@ -348,6 +348,8 @@ export const ABILITIES = {
     params: {
       tier: 1, cooldown: 12, manaCost: 40,
       distance: 240,    // how far forward (toward the enemy) it blinks
+      // explicit cooldown per learned rank (0 = use the base `cooldown` above)
+      cooldown1: 0, cooldown2: 0, cooldown3: 0,
       castPrepare: 0.35, // "prepare" pose before the blink
       castHold: 0.35,    // "land" pose after arriving
     },
@@ -361,6 +363,9 @@ export const ABILITIES = {
       tier: 1,
       haste: 20,        // % faster attacks
       damageBonus: 25,  // % more attack damage
+      // explicit values per learned rank (0 = auto-scale via rankStep)
+      haste1: 0, haste2: 0, haste3: 0,
+      damageBonus1: 0, damageBonus2: 0, damageBonus3: 0,
     },
   },
   divineregen: {
@@ -372,6 +377,9 @@ export const ABILITIES = {
       tier: 1, cooldown: 20, manaCost: 50,
       hps: 70,        // HP/s regenerated while in the stance
       duration: 5,    // seconds the stance (and regen) lasts
+      // explicit values per learned rank (0 = auto/base)
+      hps1: 0, hps2: 0, hps3: 0,
+      cooldown1: 0, cooldown2: 0, cooldown3: 0,
       castPrepare: 0, // instant entry into the stance
     },
   },
@@ -405,6 +413,17 @@ for (const ab of Object.values(ABILITIES)) {
 // 0.5 = +50% per rank above rank 1 (the classic default); 0 = flat, no scaling.
 for (const ab of Object.values(ABILITIES)) {
   if (ab.params.rankStep === undefined) ab.params.rankStep = 0.5;
+}
+// Per-rank explicit overrides: a param `X` may be pinned at each rank via
+// `X1`/`X2`/`X3` (0 = keep the auto/base value). Precompute, per ability, which
+// base params have such fields so abParams can apply them cheaply.
+for (const ab of Object.values(ABILITIES)) {
+  const bases = new Set();
+  for (const k of Object.keys(ab.params)) {
+    const m = /^(.+?)([123])$/.exec(k);
+    if (m && ab.params[m[1]] !== undefined) bases.add(m[1]);
+  }
+  ab.rankOverrides = [...bases];
 }
 
 export const ABILITY_IDS = Object.keys(ABILITIES);
@@ -445,6 +464,19 @@ export const ABILITY_PARAM_LABELS = {
   distance: 'Distanță teleport',
   damageBonus: 'Damage bonus (%)',
   dps: 'Damage pe secundă (AoE)',
+  // explicit per-rank values (0 = auto/base). Shown next to their base param.
+  cooldown1: 'Cooldown rang 1 (s, 0 = auto)',
+  cooldown2: 'Cooldown rang 2 (s, 0 = auto)',
+  cooldown3: 'Cooldown rang 3 (s, 0 = auto)',
+  haste1: 'Attack haste rang 1 (%, 0 = auto)',
+  haste2: 'Attack haste rang 2 (%, 0 = auto)',
+  haste3: 'Attack haste rang 3 (%, 0 = auto)',
+  damageBonus1: 'Damage bonus rang 1 (%, 0 = auto)',
+  damageBonus2: 'Damage bonus rang 2 (%, 0 = auto)',
+  damageBonus3: 'Damage bonus rang 3 (%, 0 = auto)',
+  hps1: 'Regen rang 1 (HP/s, 0 = auto)',
+  hps2: 'Regen rang 2 (HP/s, 0 = auto)',
+  hps3: 'Regen rang 3 (HP/s, 0 = auto)',
   manaPerSec: 'Mana pe secundă (canalizare)',
   frame1Time: 'Timp pe Cast 1 (s)',
   frame2Time: 'Timp pe Cast 2 (s)',
