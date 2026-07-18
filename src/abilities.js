@@ -96,6 +96,10 @@ export const ABILITIES = {
     name: 'Empower',
     kind: 'active',
     color: '#ffd35c',
+    // this ability REPLACES the unit's basic attack: while it stands in place
+    // doing its job the renderer loops the two "Cast Empower" frames (no idle
+    // frame between casts), paced by frame1Time / frame2Time.
+    attackReplacing: true,
     desc: 'În loc să atace, întărește un aliat: atac mai rapid + damage redus primit, câteva secunde.',
     params: {
       tier: 1, cooldown: 2, manaCost: 0,
@@ -103,6 +107,8 @@ export const ABILITIES = {
       haste: 30,      // % faster attacks on the ally
       dmgReduce: 25,  // % less damage the ally takes
       duration: 4,    // seconds the buff lasts
+      frame1Time: 0.4, // seconds held on "Cast Empower 1" (animation loop)
+      frame2Time: 0.4, // seconds held on "Cast Empower 2" (animation loop)
       castPrepare: 0, // instant
     },
   },
@@ -365,6 +371,8 @@ export const ABILITY_PARAM_LABELS = {
   healPct2: 'Heal rang 2 (% HP max, 0 = auto)',
   healPct3: 'Heal rang 3 (% HP max, 0 = auto)',
   dmgReduce: 'Reducere damage (%)',
+  frame1Time: 'Timp pe Cast 1 (s)',
+  frame2Time: 'Timp pe Cast 2 (s)',
   threshold: 'Prag HP pentru cast (%)',
   // summon params
   cap: 'Nr. maxim vii (0 = nelimitat)',

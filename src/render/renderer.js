@@ -1109,12 +1109,30 @@ export class Renderer {
         let frame;
         const isCaster = rstats.caster;
         const prep = isCaster && hasPrepareAnim(u.type, u.team);
+        // a caster whose "attack" IS an ability (e.g. Empower) has no basic
+        // attack: while it stands in place doing its job it should loop that
+        // ability's two "Cast X" frames continuously (no idle between casts).
+        let replaceAb = null;
+        if (isCaster && rstats.abilities) {
+          for (const aid of rstats.abilities) {
+            const ab = resolvedAbility(aid);
+            if (ab && ab.attackReplacing && game.abilityUsable(u.team, u.type, aid)) { replaceAb = { aid, params: ab.params }; break; }
+          }
+        }
         // hold the attack anim briefly so range-boundary jitter can't
         // flicker back-row units between attack and walk
         if (u.state === 'attack' && !u.spellHold) this.attackHold.set(u.id, this.now);
         const held = this.attackHold.get(u.id);
         const attacking = (u.state === 'attack' && !u.spellHold) || (held !== undefined && this.now - held < 0.3);
-        if (isCaster && u.castState) {
+        if (replaceAb && u.state !== 'march' && !u.dashing) {
+          // standing in place empowering: loop Cast 1 <-> Cast 2 at the pace
+          // set on the ability (frame1Time / frame2Time), never the idle frame.
+          anim = castAnimOf(u.type, u.team, replaceAb.aid) || (prep ? 'prepare' : 'attack');
+          const t0 = Math.max(0.05, replaceAb.params.frame1Time != null ? replaceAb.params.frame1Time : 0.4);
+          const t1 = Math.max(0.05, replaceAb.params.frame2Time != null ? replaceAb.params.frame2Time : 0.4);
+          const phase = (this.now + u.id * 0.137) % (t0 + t1);
+          frame = phase < t0 ? 0 : 1;
+        } else if (isCaster && u.castState) {
           // active-cast FSM drives the pose frame-accurately: "Prepare spell"
           // during the wind-up, then the single "Cast X" release frame exactly
           // when the effect fires (heal lands / bolt leaves). Both fall back
