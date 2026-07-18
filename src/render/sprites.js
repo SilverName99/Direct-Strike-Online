@@ -78,7 +78,7 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
               thumbs.set(`${race}/${ent}/beast`, entryFor(img));
             });
           }
-          // Beast Form (hero ultimate) thumbnail
+          // Elemental Form (hero ultimate) thumbnail
           if (slots['morph-thumb']) {
             load(`${base}${race}/${ent}/morph-thumb.png?v=${man.v || 0}`, (img) => {
               thumbs.set(`${race}/${ent}/morph`, entryFor(img));

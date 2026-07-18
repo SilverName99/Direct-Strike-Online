@@ -22,7 +22,7 @@ export function effStats(u, stats) {
       dashDamage: charge.damage, dashCd: charge.cooldown, chargeStun: charge.stun,
     };
   }
-  // Beast Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
+  // Elemental Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
   // a splash applied in the melee branch (morphSplash/morphSplashPct).
   if (u.morph) {
     return {
@@ -390,7 +390,7 @@ function updateFighter(game, u, stats, dt) {
               }
             }
           }
-          // Beast Form: the giant beast's melee hit splashes nearby enemies
+          // Elemental Form: the giant beast's melee hit splashes nearby enemies
           if (stats.morphSplash > 0 && stats.morphSplashPct > 0) {
             const r = stats.morphSplash;
             const sd = dmg * stats.morphSplashPct;

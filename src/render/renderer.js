@@ -1071,7 +1071,7 @@ export class Renderer {
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
       let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
-      // Beast Form: the morphed hero draws at its beast size (visual only, so
+      // Elemental Form: the morphed hero draws at its beast size (visual only, so
       // the deterministic sim/collision stays untouched) — but keep hero size
       // while the Prepare/Transform cast frames play (u.castState set)
       if (u.morph && u.morphUntil > game.time && !u.castState) vScale *= u.morph.size;
@@ -1141,10 +1141,10 @@ export class Renderer {
           // when the effect fires (heal lands / bolt leaves). Both fall back
           // gracefully to attack/idle when a frame isn't uploaded.
           const castAb = resolvedAbility(u.castAbility);
-          const twoPhase = !!(castAb && castAb.castTwoPhase); // Beast Form: cast 1 = prepare, cast 2 = transform
+          const twoPhase = !!(castAb && castAb.castTwoPhase); // Elemental Form: cast 1 = prepare, cast 2 = transform
           const castA = castAnimOf(u.type, u.team, u.castAbility);
           if (u.castState === 'prepare') {
-            // two-phase ability (Beast Form): the wind-up shows its OWN cast
+            // two-phase ability (Elemental Form): the wind-up shows its OWN cast
             // frame 1 (Prepare); other casters use the shared "prepare" pose
             if (twoPhase && castA) { anim = castA; frame = 0; }
             else { anim = prep ? 'prepare' : 'attack'; frame = 0; }
@@ -1210,7 +1210,7 @@ export class Renderer {
         if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
         }
-        // Beast Form (hero ultimate): swap to the uploaded "morph-" sprite set,
+        // Elemental Form (hero ultimate): swap to the uploaded "morph-" sprite set,
         // but NOT during the Prepare/Transform cast frames — the hero plays
         // those in its own form first, then the beast bursts out.
         if (u.morph && u.morphUntil > game.time && !u.castState && !anim.startsWith('morph-') && hasMorphAnim(u.type, u.team, anim)) {

@@ -192,7 +192,7 @@ export const ABILITIES = {
   // uses its own uploaded sprite set ("morph-" prefix). Gated by hero level 6
   // (ultimate), so its `tier` stays 1.
   beastform: {
-    name: 'Beast Form',
+    name: 'Elemental Form',
     kind: 'active',
     color: '#ff8a3c',
     // two-phase transform: cast frame 1 = Prepare (wind-up, castPrepare secs),
@@ -367,9 +367,9 @@ export const ABILITY_PARAM_LABELS = {
   dashSpeed: 'Viteză șarjă',
   stun: 'Stun la impact (s)',
   maxTargets: 'Max ținte vindecate (0 = toți)',
-  hpBonus: 'Beast Form: +HP max (%)',
-  dmgBonus: 'Beast Form: +damage (%)',
-  splashPct: 'Beast Form: splash (% din lovitură)',
+  hpBonus: 'Elemental Form: +HP max (%)',
+  dmgBonus: 'Elemental Form: +damage (%)',
+  splashPct: 'Elemental Form: splash (% din lovitură)',
   healPct: 'Heal (% din HP max, auto-scalat pe rang)',
   healPct1: 'Heal rang 1 (% HP max, 0 = auto)',
   healPct2: 'Heal rang 2 (% HP max, 0 = auto)',

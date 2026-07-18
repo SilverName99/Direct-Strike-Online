@@ -336,7 +336,7 @@ console.log('multi-hero recruitment');
   check('both heroes spawn live', !!game.heroEntityOf(0, 'hero') && !!game.heroEntityOf(0, 'hero2'));
 }
 
-// ------------------------------------------------------- Beast Form ultimate
+// ------------------------------------------------------- Elemental Form ultimate
 console.log('beast form ultimate');
 {
   const game = new Game(61, { races: ['humans', 'orcs'] });

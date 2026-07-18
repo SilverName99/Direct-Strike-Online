@@ -134,7 +134,7 @@ export function updateAbilities(game, dt) {
   // expire dead effects (cheap filter, bounded lists)
   for (const u of game.entities) {
     if (u.effects && u.effects.length) u.effects = u.effects.filter((e) => e.until > time);
-    // Beast Form wore off: restore the pre-morph max HP (clamp current HP down).
+    // Elemental Form wore off: restore the pre-morph max HP (clamp current HP down).
     if (u.morphUntil && time >= u.morphUntil) {
       u.morphUntil = 0;
       if (u.morphSavedMaxHp != null) {

@@ -44,7 +44,7 @@ export function spawnUnit(game, team, type, x, y) {
     splitTargetId: null, // "Landing Split": the ground unit being dived at
     dismounted: false,
     beast: false,
-    // Beast Form (hero ultimate): while morphUntil > time the hero is a giant
+    // Elemental Form (hero ultimate): while morphUntil > time the hero is a giant
     // melee beast (see effStats). maxHp is boosted at cast and restored on
     // revert, so the pre-morph values are stashed here.
     morphUntil: 0,

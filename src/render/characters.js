@@ -108,7 +108,7 @@ export function hasBeastAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `beast-${anim}`);
 }
 
-// True when a hero has uploaded its Beast Form ("morph-<anim>") sprite set.
+// True when a hero has uploaded its Elemental Form ("morph-<anim>") sprite set.
 export function hasMorphAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `morph-${anim}`);
 }

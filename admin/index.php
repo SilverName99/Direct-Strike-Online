@@ -51,7 +51,7 @@ const ABILITY_INFO = [
   'summonwolf' => ['Invocă Lup', true, false],
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
-  'beastform' => ['Beast Form', true, false, 2], // 2 cast frames: Prepare + Transform (then morph- sprite set)
+  'beastform' => ['Elemental Form', true, false, 2], // 2 cast frames: Prepare + Transform (then morph- sprite set)
   'empower' => ['Empower', true, false, 2],       // "attack" that buffs an ally (2 cast frames)
   'slowingtotem' => ['Slowing Totem', true, false, 2], // plants the totem (2 cast frames: prepare + throw)
   // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
@@ -247,7 +247,7 @@ function portraitVidVariants(string $race, string $ent): array {
   $v = ['' => 'Animație portret (mp4/webm) — apare lângă statusuri'];
   if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) $v['-foot'] = 'Animație portret — călărețul PE JOS';
   if (unitHasSplit($race, $ent)) $v['-beast'] = 'Animație portret — BESTIA';
-  if (in_array('beastform', unitAbilities($race, $ent), true)) $v['-morph'] = 'Animație portret — Beast Form';
+  if (in_array('beastform', unitAbilities($race, $ent), true)) $v['-morph'] = 'Animație portret — Elemental Form';
   // a summoned animal (Shaman) can have its own portrait clip, hosted here
   $ua = unitAbilities($race, $ent);
   foreach (SUMMON_ANIMALS as $aid => $animal) {
@@ -459,17 +459,17 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
     $slots["{$animal}-die_0"] = "$lbl: Die";
   }
-  // Beast Form (hero ultimate): a full sprite set for the transformed beast,
+  // Elemental Form (hero ultimate): a full sprite set for the transformed beast,
   // hosted on the hero under a "morph-" prefix (like the on-foot/beast forms)
   if (in_array('beastform', unitAbilities($race, $ent), true)) {
-    $slots['morph-thumb'] = 'Beast Form: Thumb';
-    $slots['morph-idle_0'] = 'Beast Form: Idle 1';
-    $slots['morph-idle_1'] = 'Beast Form: Idle 2';
-    $slots['morph-walk_0'] = 'Beast Form: Mers 1';
-    $slots['morph-walk_1'] = 'Beast Form: Mers 2';
-    $slots['morph-attack_0'] = 'Beast Form: Atac 1';
-    $slots['morph-attack_1'] = 'Beast Form: Atac 2';
-    $slots['morph-die_0'] = 'Beast Form: Die';
+    $slots['morph-thumb'] = 'Elemental Form: Thumb';
+    $slots['morph-idle_0'] = 'Elemental Form: Idle 1';
+    $slots['morph-idle_1'] = 'Elemental Form: Idle 2';
+    $slots['morph-walk_0'] = 'Elemental Form: Mers 1';
+    $slots['morph-walk_1'] = 'Elemental Form: Mers 2';
+    $slots['morph-attack_0'] = 'Elemental Form: Atac 1';
+    $slots['morph-attack_1'] = 'Elemental Form: Atac 2';
+    $slots['morph-die_0'] = 'Elemental Form: Die';
   }
   // cast frames (per-ability: 1 or 2) + per-ability projectile for each ability
   foreach (unitAbilities($race, $ent) as $aid) {
@@ -477,9 +477,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $castFrames = ABILITY_INFO[$aid][3] ?? 1;
     if ($hasCast) {
       if ($aid === 'beastform') {
-        // the two Beast Form cast frames are the transform sequence, not a swing
-        $slots["cast-{$aid}_0"] = 'Beast Form: Prepare';
-        $slots["cast-{$aid}_1"] = 'Beast Form: Transform';
+        // the two Elemental Form cast frames are the transform sequence, not a swing
+        $slots["cast-{$aid}_0"] = 'Elemental Form: Prepare';
+        $slots["cast-{$aid}_1"] = 'Elemental Form: Transform';
       } else if ($castFrames >= 2) {
         $slots["cast-{$aid}_0"] = "Cast {$name} 1";
         $slots["cast-{$aid}_1"] = "Cast {$name} 2";
