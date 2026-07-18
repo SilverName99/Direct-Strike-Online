@@ -13,7 +13,7 @@
 
 import { CONFIG } from '../config.js';
 import { UNIT_IDS } from '../units.js';
-import { UPGRADE_IDS } from '../upgrades.js';
+import { UPGRADE_IDS, ABILITY_UNLOCK_UPGRADE } from '../upgrades.js';
 import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId, resolvedHeroIds, heroAbilitySlots,
@@ -999,7 +999,9 @@ export class BottomBar {
       } else if (d.kind === 'ability' && game) {
         const ab = resolvedAbility(d.id);
         const req = Math.max(1, (ab && ab.params.tier) || 1);
-        if (game.tier[d.team] < req) { el.classList.add('locked'); this.setLockTier(el, req); }
+        const unlockUp = ABILITY_UNLOCK_UPGRADE[d.id];
+        if (unlockUp && !game.upgradeActive(d.team, unlockUp)) { el.classList.add('locked'); this.setLock(el, '🔒'); } // needs its unlock upgrade
+        else if (game.tier[d.team] < req) { el.classList.add('locked'); this.setLockTier(el, req); }
         else tog = !game.abilityOff[d.team].has(`${d.unit}/${d.id}`); // ✔ autocast / ✖ oprit
         if (info && info.kind === 'entity' && info.u.abilityCd) {
           cd = (info.u.abilityCd[d.id] || 0) - game.time;
@@ -1143,6 +1145,7 @@ export class BottomBar {
       return;
     }
     if (d.kind === 'ability' && d.own) {
+      if (el.classList.contains('locked')) return; // tier- or unlock-locked: nothing to toggle
       const on = game.abilityOff[this.team].has(`${d.unit}/${d.id}`); // off -> turn on
       game.issueCommand({ type: 'toggleAbility', team: this.team, unit: d.unit, ability: d.id, on });
       return;

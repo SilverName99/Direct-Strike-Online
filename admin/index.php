@@ -88,6 +88,7 @@ const UPGRADE_INFO = [
   'aoedamage' => 'AoE Damage',
   'splitmount' => 'Landing Split: beast & rider',
   'focusbuilding' => 'Focus building',
+  'totemtraining' => 'Slowing Totem (deblocare)',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {

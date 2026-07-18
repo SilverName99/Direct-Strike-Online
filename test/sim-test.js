@@ -435,6 +435,19 @@ console.log('empower (support attack)');
   ab.params = saved;
 }
 
+// ------------------------------------- Slowing Totem unlock upgrade
+console.log('slowing totem unlock upgrade');
+{
+  const game = new Game(84, { races: ['orcs', 'humans'] });
+  // Slowing Totem is locked until its unlock upgrade is bought; Empower is free
+  check('totem locked without upgrade', !game.abilityUsable(0, 'dasher', 'slowingtotem'));
+  check('empower not gated by the upgrade', game.abilityUsable(0, 'dasher', 'empower'));
+  game.upgrades[0].add('totemtraining');
+  check('totem usable after buying the upgrade', game.abilityUsable(0, 'dasher', 'slowingtotem'));
+  game.upgradeOff[0].add('totemtraining'); // toggled off -> re-locked
+  check('totem re-locked when upgrade toggled off', !game.abilityUsable(0, 'dasher', 'slowingtotem'));
+}
+
 // ------------------------------------------- empower channel (drain + lock)
 console.log('empower channel');
 {

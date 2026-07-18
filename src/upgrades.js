@@ -119,6 +119,17 @@ export const UPGRADES = {
       projectileSpeed: 340,
     },
   },
+  totemtraining: {
+    name: 'Slowing Totem',
+    desc: 'Deblochează abilitatea Slowing Totem pentru Totemic Shaman: după ce o cumperi o dată, toți șamanii tăi pot planta totemul de încetinire. Fără acest upgrade, șamanii folosesc doar Empower. Cumpărat o dată din clădirea șamanului; permanent pe meci.',
+    kind: 'unlock',      // no combat effect on its own — gates ability `unlocks`
+    unlocks: 'slowingtotem', // the ability id this upgrade unlocks (see abilityUsable)
+    race: 'orcs',        // ships assigned to the Orc shaman; reassignable in admin
+    unit: 'dasher',      // Totemic Shaman slot
+    params: {
+      cost: 200, // gold to buy from the shaman's building
+    },
+  },
   lightshield: {
     name: 'Scut de lumină',
     desc: 'Când viața unității scade sub un prag (%), invocă un scut de lumină și devine INVULNERABILĂ câteva secunde, apoi intră în cooldown înainte să se poată reactiva (ex. Lightblade Weaver). Scutul se pune și pe cei mai apropiați aliați (configurabil). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de un frame „Scut" pe unitate (scutul de lumină propriu-zis e desenat automat).',
@@ -139,6 +150,13 @@ export const UPGRADES = {
 };
 
 export const UPGRADE_IDS = Object.keys(UPGRADES);
+
+// abilityId -> the upgrade id that unlocks it (kind 'unlock'). An ability listed
+// here can only be cast once its unlock upgrade is owned (see game.abilityUsable).
+export const ABILITY_UNLOCK_UPGRADE = {};
+for (const [id, up] of Object.entries(UPGRADES)) {
+  if (up.kind === 'unlock' && up.unlocks) ABILITY_UNLOCK_UPGRADE[up.unlocks] = id;
+}
 
 // Labels for the editable params (admin "Upgrades" page).
 export const UPGRADE_PARAM_LABELS = {

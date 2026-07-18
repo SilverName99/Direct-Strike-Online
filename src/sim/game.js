@@ -5,7 +5,7 @@
 
 import { CONFIG, RACES } from '../config.js';
 import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility, towerStatForTier, heroAbilitySlots } from '../ui/balance.js';
-import { UPGRADE_IDS } from '../upgrades.js';
+import { UPGRADE_IDS, ABILITY_UNLOCK_UPGRADE } from '../upgrades.js';
 import { ABILITY_IDS } from '../abilities.js';
 import { mulberry32 } from './rng.js';
 import { makeStructure, structureExtents } from './entity.js';
@@ -171,6 +171,10 @@ export class Game {
   // autocast toggle and the ability's required base tier (params.tier, min 1).
   abilityUsable(team, unitType, aid) {
     if (this.abilityOff[team].has(`${unitType}/${aid}`)) return false;
+    // an ability can be gated behind a purchased unlock upgrade (e.g. Slowing
+    // Totem): locked until that upgrade is owned AND active
+    const unlockUp = ABILITY_UNLOCK_UPGRADE[aid];
+    if (unlockUp && !this.upgradeActive(team, unlockUp)) return false;
     // heroes gate abilities by LEARNED RANK (already filtered into the hero's
     // ability list), not by the base tier
     const s = statsUnit(this.races[team], unitType);
