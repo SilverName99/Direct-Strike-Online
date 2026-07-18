@@ -1072,8 +1072,9 @@ export class Renderer {
       // unit's own Size (%)
       let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
       // Beast Form: the morphed hero draws at its beast size (visual only, so
-      // the deterministic sim/collision stays untouched)
-      if (u.morph && u.morphUntil > game.time) vScale *= u.morph.size;
+      // the deterministic sim/collision stays untouched) — but keep hero size
+      // while the Prepare/Transform cast frames play (u.castState set)
+      if (u.morph && u.morphUntil > game.time && !u.castState) vScale *= u.morph.size;
       // temporary size buff (Bloodlust makes the Chieftain grow while raging) —
       // purely visual, so the deterministic sim/collision is untouched
       const sizeUp = effectVal(u, 'sizeup', game.time);
@@ -1137,15 +1138,26 @@ export class Renderer {
           // during the wind-up, then the single "Cast X" release frame exactly
           // when the effect fires (heal lands / bolt leaves). Both fall back
           // gracefully to attack/idle when a frame isn't uploaded.
+          const castAb = resolvedAbility(u.castAbility);
+          const twoPhase = !!(castAb && castAb.castTwoPhase); // Beast Form: cast 1 = prepare, cast 2 = transform
+          const castA = castAnimOf(u.type, u.team, u.castAbility);
           if (u.castState === 'prepare') {
-            anim = prep ? 'prepare' : 'attack';
-            frame = 0;
+            // two-phase ability (Beast Form): the wind-up shows its OWN cast
+            // frame 1 (Prepare); other casters use the shared "prepare" pose
+            if (twoPhase && castA) { anim = castA; frame = 0; }
+            else { anim = prep ? 'prepare' : 'attack'; frame = 0; }
           } else { // release
-            anim = castAnimOf(u.type, u.team, u.castAbility) || (prep ? 'prepare' : 'attack');
-            // 2-frame cast: frame 1 for the first half of the cast, frame 2 for
-            // the second half (frame 2 optional — falls back to 1 if not uploaded)
-            const dur = (u.castPhaseEnd || 0) - (u.castPhaseStart || 0);
-            frame = (dur > 0 && game.time - u.castPhaseStart >= dur * 0.5) ? 1 : 0;
+            anim = castA || (prep ? 'prepare' : 'attack');
+            if (twoPhase) {
+              // Prepare already used frame 1, so the release holds frame 2
+              // (Transform) for its whole duration
+              frame = 1;
+            } else {
+              // 2-frame cast: frame 1 for the first half of the cast, frame 2 for
+              // the second half (frame 2 optional — falls back to 1 if not uploaded)
+              const dur = (u.castPhaseEnd || 0) - (u.castPhaseStart || 0);
+              frame = (dur > 0 && game.time - u.castPhaseStart >= dur * 0.5) ? 1 : 0;
+            }
           }
         } else if (attacking) {
           if (isCaster && !rstats.isHero) {
@@ -1196,8 +1208,10 @@ export class Renderer {
         if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
         }
-        // Beast Form (hero ultimate): swap to the uploaded "morph-" sprite set
-        if (u.morph && u.morphUntil > game.time && !anim.startsWith('morph-') && hasMorphAnim(u.type, u.team, anim)) {
+        // Beast Form (hero ultimate): swap to the uploaded "morph-" sprite set,
+        // but NOT during the Prepare/Transform cast frames — the hero plays
+        // those in its own form first, then the beast bursts out.
+        if (u.morph && u.morphUntil > game.time && !u.castState && !anim.startsWith('morph-') && hasMorphAnim(u.type, u.team, anim)) {
           anim = `morph-${anim}`;
         }
         // Scut de lumină: show the "shield" pose only for the ACTIVATION moment

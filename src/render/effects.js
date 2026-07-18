@@ -102,12 +102,6 @@ export class Effects {
             // green motes rising off the healed ally + a soft ring
             this.rings.push({ x: e.x, y: e.y, r0: 4, r1: 24, life: 0.4, maxLife: 0.4, color });
             this.burst(e.x, e.y, 8, color, 45, 0.6, 2, -55);
-          } else if (e.ability === 'beastform') {
-            // Stone Colossus ground pound: a heavy stone shockwave + dust/chips
-            const r = e.radius || 130;
-            this.rings.push({ x: e.x, y: e.y, r0: 10, r1: r, life: 0.5, maxLife: 0.5, color: '#c9a06a' });
-            this.rings.push({ x: e.x, y: e.y, r0: 18, r1: r * 0.7, life: 0.4, maxLife: 0.4, color: '#8a6a44' });
-            this.burst(e.x, e.y, 22, '#b39373', 220, 0.6, 4);
           } else {
             this.burst(e.x, e.y, 6, color, 80, 0.4, 2);
           }

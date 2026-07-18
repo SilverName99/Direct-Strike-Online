@@ -625,17 +625,7 @@ function releaseSpell(game, caster, time) {
       splashPct: (p.splashPct || 0) / 100,
       range: p.range || 35,
     };
-    // ground pound: on transforming, the colossus slams the earth — AoE damage
-    // + a short stun on every enemy caught in the radius (fliers included).
-    if (p.slamRadius && (p.slamDamage || p.slamStun)) {
-      for (const u of game.entities) {
-        if (u.hp <= 0 || u.team === caster.team) continue;
-        if (!inRadius(u, caster, p.slamRadius)) continue;
-        if (p.slamDamage) applyDamage(game, u, p.slamDamage, 'normal');
-        if (u.hp > 0 && p.slamStun) applyEffect(u, 'stun', 1, time + p.slamStun, time);
-      }
-    }
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.slamRadius || 0 });
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'morph', team: caster.team, x: caster.x, y: caster.y });
     return hold;
   }

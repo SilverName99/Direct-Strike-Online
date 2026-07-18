@@ -51,7 +51,7 @@ const ABILITY_INFO = [
   'summonwolf' => ['Invocă Lup', true, false],
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
-  'beastform' => ['Beast Form', false, false], // transform: no cast frame; uses the morph- sprite set
+  'beastform' => ['Beast Form', true, false, 2], // 2 cast frames: Prepare + Transform (then morph- sprite set)
   'empower' => ['Empower', true, false, 2],       // "attack" that buffs an ally (2 cast frames)
   'slowingtotem' => ['Slowing Totem', true, false, 2], // plants the totem (2 cast frames: prepare + throw)
   // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
@@ -476,7 +476,11 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
     $castFrames = ABILITY_INFO[$aid][3] ?? 1;
     if ($hasCast) {
-      if ($castFrames >= 2) {
+      if ($aid === 'beastform') {
+        // the two Beast Form cast frames are the transform sequence, not a swing
+        $slots["cast-{$aid}_0"] = 'Beast Form: Prepare';
+        $slots["cast-{$aid}_1"] = 'Beast Form: Transform';
+      } else if ($castFrames >= 2) {
         $slots["cast-{$aid}_0"] = "Cast {$name} 1";
         $slots["cast-{$aid}_1"] = "Cast {$name} 2";
       } else {

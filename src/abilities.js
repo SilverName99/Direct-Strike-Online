@@ -182,14 +182,18 @@ export const ABILITIES = {
   },
   // ULTIMATE (Beast Spirit Shaman): the shaman himself transforms into a giant
   // Stone Colossus for a few seconds — a giant juggernaut: much more HP +
-  // damage, bigger, fights melee with wide splash, and slams the ground on
-  // activation (AoE damage + short stun). Uses its own uploaded sprite set
-  // ("morph-" prefix). Gated by hero level 6 (ultimate), so its `tier` stays 1.
+  // damage, bigger, fights melee with wide splash. The transformation plays out
+  // in two poses on the hero (Prepare -> Transform) before the beast bursts out;
+  // uses its own uploaded sprite set ("morph-" prefix). Gated by hero level 6
+  // (ultimate), so its `tier` stays 1.
   beastform: {
     name: 'Beast Form',
     kind: 'active',
     color: '#ff8a3c',
-    desc: 'Ultimate: eroul se transformă într-un Colos de piatră câteva secunde — mult mai mult HP și damage, lovește corp la corp cu splash lat. La transformare izbește pământul: damage AoE + stun scurt în jur.',
+    // two-phase transform: cast frame 1 = Prepare (wind-up, castPrepare secs),
+    // cast frame 2 = Transform (emerging, castHold secs), then the beast sprites
+    castTwoPhase: true,
+    desc: 'Ultimate: eroul se transformă într-un Colos de piatră câteva secunde — mult mai mult HP și damage, lovește corp la corp cu splash lat. Transformarea are un frame de pregătire și unul de ieșire, apoi apare colosul.',
     params: {
       tier: 1, cooldown: 40, manaCost: 100,
       duration: 10,   // seconds transformed
@@ -199,10 +203,8 @@ export const ABILITIES = {
       splash: 110,    // melee splash radius while morphed
       splashPct: 60,  // % of the hit dealt to nearby enemies (splash)
       range: 35,      // melee reach while morphed
-      slamRadius: 130,  // ground-pound radius at the moment of transformation
-      slamDamage: 60,   // ground-pound damage to enemies caught in the slam
-      slamStun: 1.5,    // seconds of stun on enemies caught in the slam
-      castPrepare: 0, // instant cast (hero)
+      castPrepare: 0.5, // "Prepare" pose duration (wind-up before transforming)
+      castHold: 0.5,    // "Transform" pose duration (emerging out of the prepare)
     },
   },
   // ---- Chieftain (Orc hero) kit ----
@@ -363,9 +365,6 @@ export const ABILITY_PARAM_LABELS = {
   hpBonus: 'Beast Form: +HP max (%)',
   dmgBonus: 'Beast Form: +damage (%)',
   splashPct: 'Beast Form: splash (% din lovitură)',
-  slamRadius: 'Beast Form: rază slam la activare',
-  slamDamage: 'Beast Form: damage slam la activare',
-  slamStun: 'Beast Form: stun slam (s)',
   healPct: 'Heal (% din HP max, auto-scalat pe rang)',
   healPct1: 'Heal rang 1 (% HP max, 0 = auto)',
   healPct2: 'Heal rang 2 (% HP max, 0 = auto)',
