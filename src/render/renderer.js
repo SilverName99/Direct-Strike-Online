@@ -1244,9 +1244,10 @@ export class Renderer {
 
       // HP + mana as slim rounded pills (matching the building bars): dark inset
       // with a hairline border and a rounded inner fill — clean, not chunky
-      // Slowing Totem: always show its HP bar + a depleting lifetime bar above
-      // it (like a construction pill, but counting down).
-      if (u.totem && u.despawnAt != null && u.maxLife > 0) {
+      // Summons with a lifetime (a Slowing Totem, or a wolf/eagle/bear given an
+      // Effect duration): show the HP bar + a depleting lifetime bar above it
+      // (like a construction pill, but counting down until it vanishes).
+      if (u.summon && u.despawnAt != null && u.maxLife > 0) {
         const w = Math.max(20, drawR * 2.4);
         const ratio = Math.max(0, u.hp / u.maxHp);
         const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';

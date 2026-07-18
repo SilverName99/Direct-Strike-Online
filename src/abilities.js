@@ -148,9 +148,12 @@ export const ABILITIES = {
       cap: 2,         // max wolves this shaman keeps alive (0 = unlimited)
       life: 12,       // seconds the wolf lives (0 = never disappears)
       hp: 120, damage: 16, range: 25, period: 0.8, speed: 130,
+      hpPerRank: 60,      // extra HP per rank learned above rank 1
+      damagePerRank: 8,   // extra damage per rank learned above rank 1
       animSpeed: 8,   // walk frame flips per second
       size: 90,       // visual size (%)
       splash: 0, flying: 0, projectile: 0, armored: 0,
+      targetsAir: 0, targetsGround: 1, // what it can attack (set air 1 / ground 0 for air-only)
     },
   },
   summoneagle: {
@@ -164,9 +167,12 @@ export const ABILITIES = {
       tier: 2, manaCost: 40, cooldown: 8,
       cap: 1, life: 12,
       hp: 90, damage: 15, range: 30, period: 0.9, speed: 150,
+      hpPerRank: 45,      // extra HP per rank learned above rank 1
+      damagePerRank: 7,   // extra damage per rank learned above rank 1
       animSpeed: 8,
       size: 90,
       splash: 0, flying: 1, projectile: 0, armored: 0,
+      targetsAir: 1, targetsGround: 1, // what it can attack (set ground 0 for air-only)
     },
   },
   summonbear: {
@@ -180,9 +186,12 @@ export const ABILITIES = {
       tier: 3, manaCost: 60, cooldown: 10,
       cap: 1, life: 15,
       hp: 320, damage: 30, range: 30, period: 1.2, speed: 90,
+      hpPerRank: 160,     // extra HP per rank learned above rank 1
+      damagePerRank: 15,  // extra damage per rank learned above rank 1
       animSpeed: 5,
       size: 120,
       splash: 0, flying: 0, projectile: 0, armored: 1,
+      targetsAir: 0, targetsGround: 1, // what it can attack (set air 1 / ground 0 for air-only)
     },
   },
   // ULTIMATE (Beast Spirit Shaman): the shaman himself transforms into a giant
@@ -383,6 +392,8 @@ export const ABILITY_PARAM_LABELS = {
   cap: 'Nr. maxim vii (0 = nelimitat)',
   life: 'Durată viață (s, 0 = nu dispare)',
   hp: 'HP animal',
+  hpPerRank: 'HP în plus / rang (peste rang 1)',
+  damagePerRank: 'Damage în plus / rang (peste rang 1)',
   period: 'Perioadă atac (s)',
   speed: 'Viteză mișcare',
   animSpeed: 'Viteză animație mers (flip/s)',
@@ -391,4 +402,6 @@ export const ABILITY_PARAM_LABELS = {
   flying: 'Zboară (1/0)',
   projectile: 'Atac la distanță (1/0)',
   armored: 'Armură grea (1/0)',
+  targetsAir: 'Atacă aerul (1/0)',
+  targetsGround: 'Atacă solul (1/0)',
 };

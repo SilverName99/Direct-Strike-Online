@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
-import { spawnUnit, makeStructure } from '../src/sim/entity.js';
+import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
 import { stepCaster, updateAbilities } from '../src/sim/abilities.js';
 import { effStats } from '../src/sim/combat.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
@@ -433,6 +433,26 @@ console.log('empower (support attack)');
     check('empower: idle when no fight is near', !(al2.effects && al2.effects.some((e) => e.kind === 'haste')));
   }
   ab.params = saved;
+}
+
+// ------------------------------- summon per-rank hp/damage + air-only targeting
+console.log('summon per-rank + targeting');
+{
+  const game = new Game(85, { races: ['orcs', 'humans'] });
+  const wolf = resolvedAbility('summonwolf');
+  const saved = { ...wolf.params };
+  Object.assign(wolf.params, { hp: 100, damage: 10, hpPerRank: 50, damagePerRank: 5, life: 0, targetsAir: 0, targetsGround: 1 });
+  const caster = spawnUnit(game, 0, 'grunt', 400, 400);
+  const w1 = spawnSummon(game, caster, wolf, wolf.params, 1);
+  check('summon rank 1: base hp/damage', w1.maxHp === 100 && w1.summonStats.damage === 10, `${w1.maxHp}/${w1.summonStats.damage}`);
+  const w3 = spawnSummon(game, caster, wolf, wolf.params, 3);
+  check('summon rank 3: +per-rank hp/damage', w3.maxHp === 200 && w3.summonStats.damage === 20, `${w3.maxHp}/${w3.summonStats.damage}`);
+  // ground-only by default, air-only when set
+  check('summon default: ground not air', w1.summonStats.targetsGround === true && w1.summonStats.targetsAir === false);
+  Object.assign(wolf.params, { targetsAir: 1, targetsGround: 0 });
+  const wa = spawnSummon(game, caster, wolf, wolf.params, 1);
+  check('summon air-only: air not ground', wa.summonStats.targetsAir === true && wa.summonStats.targetsGround === false);
+  wolf.params = saved;
 }
 
 // ------------------------------------- Slowing Totem unlock upgrade

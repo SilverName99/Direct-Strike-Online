@@ -80,18 +80,29 @@ export function spawnUnit(game, team, type, x, y) {
 // but its stats come from the summon ability (not the roster) and its sprites
 // are hosted on the CASTER's type under an "<animal>-" prefix (so its art is
 // uploaded on the caster unit). Cosmetically it uses the caster's race art.
-export function spawnSummon(game, caster, ab, params) {
+export function spawnSummon(game, caster, ab, params, rank = 1) {
   const p = params || ab.params; // hero casters pass rank-scaled params
+  const base = ab.params;        // unscaled base: hp/damage grow per-rank additively
   const animal = ab.animal || 'wolf';
   const totem = !!ab.totem; // stationary aura totem (no move, no attack)
+  const r = Math.max(1, rank || 1);
+  // HP and damage scale by an explicit per-rank increment (set in admin), not by
+  // the generic rank multiplier — rank 1 = base, each extra rank adds hpPerRank /
+  // damagePerRank.
+  const hp = Math.max(1, (base.hp || 1) + (r - 1) * (base.hpPerRank || 0));
+  const damage = totem ? 0 : ((base.damage || 0) + (r - 1) * (base.damagePerRank || 0));
   const radius = 12;
   const stats = {
     name: ab.animalName || ab.name || animal,
-    hp: Math.max(1, p.hp || 1),
-    damage: totem ? 0 : (p.damage || 0), range: p.range || 25, period: p.period || 1,
+    hp,
+    damage, range: p.range || 25, period: p.period || 1,
     dmgType: 'normal', armor: p.armored ? 'armored' : 'light',
     speed: totem ? 0 : (p.speed || 100), radius, shape: 'circle',
-    isAir: !!p.flying, targetsAir: !!p.flying, targetsGround: true,
+    // targeting: default from `flying`, but overridable so a summon can be made
+    // air-only (targetsAir 1 / targetsGround 0) or ground-only
+    isAir: !!p.flying,
+    targetsAir: p.targetsAir != null ? !!p.targetsAir : !!p.flying,
+    targetsGround: p.targetsGround != null ? !!p.targetsGround : true,
     projectile: !!p.projectile, ranged: !!p.projectile,
     projectileSpeed: 380, splash: p.splash || 0,
     size: (p.size != null ? p.size : 100) / 100, animSpeed: p.animSpeed || 5,

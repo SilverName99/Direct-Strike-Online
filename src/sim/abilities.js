@@ -548,7 +548,9 @@ function releaseSpell(game, caster, time) {
   caster.mana -= p.manaCost || 0;
 
   if (ab.kind === 'summon') {
-    const animal = spawnSummon(game, caster, ab, p);
+    // pass the caster's learned rank so the animal's HP/damage grow per-rank
+    const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
+    const animal = spawnSummon(game, caster, ab, p, rank);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'summon', x: animal.x, y: animal.y, team: caster.team });
     return hold;
