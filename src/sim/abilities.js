@@ -543,9 +543,21 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     return (caster.morphUntil || 0) > time ? null : caster;
   }
   if (aid === 'backlineteleport') {
-    // blink toward the enemy when there's someone ahead to reach
+    const rp = p.retreatHp || 0;
+    const retreating = rp > 0 && caster.hp <= caster.maxHp * rp / 100;
+    if (retreating) {
+      // low HP: retreat whenever an enemy is near (it's in danger)
+      for (const u of game.entities) if (u.hp > 0 && u.team !== caster.team) return caster;
+      return null;
+    }
+    // forward: only while still BEHIND our own front line — i.e. a friendly unit
+    // is ahead of us. That lets it jump PAST the front into the enemy backline
+    // once; once it's out front (no ally ahead) it stays and fights instead of
+    // teleporting again and again into the enemy tower.
+    const front = caster.team === 0 ? 1 : -1;
     for (const u of game.entities) {
-      if (u.hp > 0 && u.team !== caster.team) return caster;
+      if (u.hp <= 0 || u === caster || u.team !== caster.team || u.summon || u.isStructure) continue;
+      if ((u.x - caster.x) * front > 40) return caster; // an ally is ahead -> we're behind the front
     }
     return null;
   }

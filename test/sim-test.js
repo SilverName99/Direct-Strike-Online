@@ -431,11 +431,20 @@ console.log('sword saint kit');
     Object.assign(ab.params, { distance: 240, manaCost: 0, cooldown: 5, castPrepare: 0.1, castHold: 0.1 });
     const hero = spawnUnit(game, 0, 'hero', 600, 400);
     hero.hero = true; hero.heroRanks = { backlineteleport: 1 }; hero.mana = 100; hero.abilityCd = {};
+    spawnUnit(game, 0, 'grunt', 720, 400); // a FRIENDLY ahead -> hero is behind its front, jumps past it
     spawnUnit(game, 1, 'grunt', 900, 400); // an enemy ahead to justify the blink
     const x0 = hero.x;
     const stats = { caster: true, autoAttackBetween: true, abilities: ['backlineteleport'] };
     for (let i = 0; i < 40 && Math.abs(hero.x - x0) < 1; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
-    check('backline teleport: blinked ~240 forward', Math.abs(hero.x - (x0 + 240)) < 1, `${hero.x} vs ${x0}`);
+    check('backline teleport: blinked ~240 forward (behind own front)', Math.abs(hero.x - (x0 + 240)) < 1, `${hero.x} vs ${x0}`);
+    // no ally ahead -> already out front -> does NOT keep diving forward
+    // (placed ahead of every friendly spawned earlier in this shared game)
+    const hero3 = spawnUnit(game, 0, 'hero', 1500, 500);
+    hero3.hero = true; hero3.heroRanks = { backlineteleport: 1 }; hero3.mana = 100; hero3.abilityCd = {};
+    spawnUnit(game, 1, 'grunt', 1800, 500); // enemy present but NO friendly ahead
+    const y0 = hero3.x;
+    for (let i = 0; i < 40; i++) { game.time += DT; stepCaster(game, hero3, stats, DT, true); }
+    check('backline teleport: stays when already out front', Math.abs(hero3.x - y0) < 1, `${hero3.x} vs ${y0}`);
     // low HP -> the blink RETREATS backward instead of engaging forward
     Object.assign(ab.params, { retreatHp: 35 });
     const hero2 = spawnUnit(game, 0, 'hero', 600, 700);
