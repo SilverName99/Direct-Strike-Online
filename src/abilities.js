@@ -175,23 +175,27 @@ export const ABILITIES = {
     },
   },
   // ULTIMATE (Beast Spirit Shaman): the shaman himself transforms into a giant
-  // beast for a few seconds — more HP + damage, bigger, and fights melee with
-  // splash. Uses its own uploaded sprite set ("morph-" prefix). Gated by hero
-  // level 6 (ultimate), so its `tier` stays 1.
+  // Stone Colossus for a few seconds — a giant juggernaut: much more HP +
+  // damage, bigger, fights melee with wide splash, and slams the ground on
+  // activation (AoE damage + short stun). Uses its own uploaded sprite set
+  // ("morph-" prefix). Gated by hero level 6 (ultimate), so its `tier` stays 1.
   beastform: {
     name: 'Beast Form',
     kind: 'active',
     color: '#ff8a3c',
-    desc: 'Ultimate: shaman-ul se transformă într-o bestie uriașă câteva secunde — mai mult HP și damage, lovește corp la corp cu splash.',
+    desc: 'Ultimate: eroul se transformă într-un Colos de piatră câteva secunde — mult mai mult HP și damage, lovește corp la corp cu splash lat. La transformare izbește pământul: damage AoE + stun scurt în jur.',
     params: {
       tier: 1, cooldown: 40, manaCost: 100,
       duration: 10,   // seconds transformed
-      hpBonus: 100,   // % extra MAX hp while morphed
+      hpBonus: 150,   // % extra MAX hp while morphed
       dmgBonus: 80,   // % extra damage while morphed
-      size: 175,      // % size (visual + hitbox) while morphed
-      splash: 90,     // melee splash radius while morphed
+      size: 200,      // % size (visual + hitbox) while morphed
+      splash: 110,    // melee splash radius while morphed
       splashPct: 60,  // % of the hit dealt to nearby enemies (splash)
       range: 35,      // melee reach while morphed
+      slamRadius: 130,  // ground-pound radius at the moment of transformation
+      slamDamage: 60,   // ground-pound damage to enemies caught in the slam
+      slamStun: 1.5,    // seconds of stun on enemies caught in the slam
       castPrepare: 0, // instant cast (hero)
     },
   },
@@ -353,6 +357,9 @@ export const ABILITY_PARAM_LABELS = {
   hpBonus: 'Beast Form: +HP max (%)',
   dmgBonus: 'Beast Form: +damage (%)',
   splashPct: 'Beast Form: splash (% din lovitură)',
+  slamRadius: 'Beast Form: rază slam la activare',
+  slamDamage: 'Beast Form: damage slam la activare',
+  slamStun: 'Beast Form: stun slam (s)',
   healPct: 'Heal (% din HP max, auto-scalat pe rang)',
   healPct1: 'Heal rang 1 (% HP max, 0 = auto)',
   healPct2: 'Heal rang 2 (% HP max, 0 = auto)',

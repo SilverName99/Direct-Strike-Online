@@ -343,15 +343,23 @@ console.log('beast form ultimate');
   game.abilityUsable = () => true;
   const ab = resolvedAbility('beastform');
   const saved = { ...ab.params };
-  Object.assign(ab.params, { duration: 4, hpBonus: 100, dmgBonus: 100, splash: 80, splashPct: 50, range: 35, manaCost: 0, cooldown: 40, castPrepare: 0 });
+  Object.assign(ab.params, { duration: 4, hpBonus: 100, dmgBonus: 100, splash: 80, splashPct: 50, range: 35, manaCost: 0, cooldown: 40, castPrepare: 0, slamRadius: 130, slamDamage: 60, slamStun: 1.5 });
   const hero = spawnUnit(game, 0, 'hero', 600, 400);
   hero.hero = true; hero.heroRanks = { beastform: 1 }; hero.mana = 200;
   hero.abilityCd = {}; hero.castState = undefined;
+  // ground-pound targets: one inside the slam radius, one well outside it
+  const slamNear = spawnUnit(game, 1, 'grunt', 630, 400);
+  const slamFar = spawnUnit(game, 1, 'grunt', 900, 400);
+  const nearMax = slamNear.maxHp;
+  const farMax = slamFar.maxHp;
   const baseMax = hero.maxHp;
   const baseDmg = game.ustatOf(hero).damage;
   const stats = { caster: true, autoAttackBetween: true, abilities: ['beastform'] };
   for (let i = 0; i < 60 && !hero.morph; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
   check('beast form: morph active after cast', !!hero.morph && hero.morphUntil > game.time);
+  check('beast form: slam damages nearby enemy', slamNear.hp <= nearMax - 60 + 1, `${slamNear.hp} vs ${nearMax}`);
+  check('beast form: slam stuns nearby enemy', (slamNear.effects || []).some((e) => e.kind === 'stun' && e.until > game.time));
+  check('beast form: slam spares distant enemy', slamFar.hp === farMax && !(slamFar.effects || []).some((e) => e.kind === 'stun'));
   check('beast form: max HP doubled (+100%)', Math.abs(hero.maxHp - baseMax * 2) <= 1, `${hero.maxHp} vs ${baseMax}`);
   const es = effStats(hero, game.ustatOf(hero));
   check('beast form: becomes melee (no projectile)', es.projectile === false && es.ranged === false);
