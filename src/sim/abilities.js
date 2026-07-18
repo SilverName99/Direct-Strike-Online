@@ -327,7 +327,28 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 
 // Support abilities that fire for a wounded/needy ally even when no enemy is in
 // range — they are exempt from the "cast only while engaged" rule.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'empower']);
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield']);
+
+// Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
+// FIGHT reaches it — not only when an enemy is in the caster's own attack range,
+// but also when nearby allies are fighting / enemies are close. This lets the
+// shaman empower and plant totems from behind the front line.
+const ALLY_ENGAGE = new Set(['empower', 'slowingtotem']);
+const SUPPORT_ENGAGE_RADIUS = 320; // how far around the caster counts as "the fight"
+
+// True when combat is happening around the caster: an enemy is within `radius`,
+// or a (non-summon) ally within `radius` is currently attacking. Deterministic.
+function combatNear(game, caster, radius) {
+  const r2 = radius * radius;
+  for (const u of game.entities) {
+    if (u.hp <= 0 || u === caster) continue;
+    const dx = u.x - caster.x, dy = u.y - caster.y;
+    if (dx * dx + dy * dy > r2) continue;
+    if (u.team !== caster.team) return true;                       // an enemy is near
+    if (u.state === 'attack' && !u.summon && !u.isStructure) return true; // an ally is fighting
+  }
+  return false;
+}
 
 // First castable ability, in the caster's configured order, that is off
 // cooldown, affordable, and has a valid target right now.
@@ -336,6 +357,7 @@ const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield',
 // range). The exceptions are the support abilities in ENGAGE_EXEMPT (Heal and
 // Regeneration Aura), which fire for wounded allies even with no enemy nearby.
 function pickCastable(game, caster, stats, time, engaged) {
+  let combatFlag = null; // combatNear(), computed at most once per pick
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
@@ -344,9 +366,15 @@ function pickCastable(game, caster, stats, time, engaged) {
     if ((ab.params.manaCost || 0) > caster.mana) continue;
     // a caster only casts while ENGAGED (an enemy sits in its attack range) —
     // summons included, so wolves/eagles/bears are conjured only when there's an
-    // enemy in reach, not proactively on an empty lane. The support spells in
-    // ENGAGE_EXEMPT (heal / regen) are the only ones that fire with no enemy near.
-    if (!engaged && !ENGAGE_EXEMPT.has(aid)) continue;
+    // enemy in reach, not proactively on an empty lane. ENGAGE_EXEMPT support
+    // spells (heal / regen) fire for wounded allies with no enemy near, and
+    // ALLY_ENGAGE abilities (empower / totem) fire once the fight is near the
+    // caster (nearby allies fighting / enemies close), so a backline shaman acts.
+    if (!engaged && !ENGAGE_EXEMPT.has(aid)) {
+      if (!ALLY_ENGAGE.has(aid)) continue;
+      if (combatFlag === null) combatFlag = combatNear(game, caster, SUPPORT_ENGAGE_RADIUS);
+      if (!combatFlag) continue;
+    }
     const target = findAbilityTarget(game, caster, aid, ab, time);
     if (target) return { aid, ab, target };
   }

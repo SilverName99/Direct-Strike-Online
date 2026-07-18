@@ -412,12 +412,24 @@ console.log('empower (support attack)');
   const caster = spawnUnit(game, 0, 'grunt', 500, 400);
   caster.mana = 100; caster.abilityCd = {}; caster.castState = undefined;
   const ally = spawnUnit(game, 0, 'grunt', 560, 400);
+  // empower fires once the fight is near (combatNear) even if the caster itself
+  // isn't in an enemy's range -> put an enemy close by, pass engaged=false
+  spawnUnit(game, 1, 'grunt', 720, 400);
   const stats = { caster: true, autoAttackBetween: true, abilities: ['empower'] };
   const hasK = (u, k) => u.effects && u.effects.some((e) => e.kind === k && e.until > game.time);
   for (let i = 0; i < 40 && !hasK(ally, 'haste'); i++) { game.time += DT; stepCaster(game, caster, stats, DT, false); }
-  check('empower: ally gains attack haste', hasK(ally, 'haste'));
+  check('empower: fires when fight is near (not self-engaged)', hasK(ally, 'haste'));
   check('empower: ally gains damage reduction', hasK(ally, 'dmgReduce'));
   check('empower: caster does not buff itself', !hasK(caster, 'haste'));
+  // negative: with NO fight anywhere near, the backline shaman stays idle
+  {
+    const g2 = new Game(83, { races: ['humans', 'orcs'] });
+    g2.abilityUsable = () => true;
+    const c2 = spawnUnit(g2, 0, 'grunt', 500, 400); c2.mana = 100; c2.abilityCd = {}; c2.castState = undefined;
+    const al2 = spawnUnit(g2, 0, 'grunt', 560, 400);
+    for (let i = 0; i < 20; i++) { g2.time += DT; stepCaster(g2, c2, stats, DT, false); }
+    check('empower: idle when no fight is near', !(al2.effects && al2.effects.some((e) => e.kind === 'haste')));
+  }
   ab.params = saved;
 }
 
