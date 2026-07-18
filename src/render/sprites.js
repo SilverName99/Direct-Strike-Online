@@ -23,6 +23,7 @@ const backgrounds = new Map(); // race -> Image
 const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
 const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
+const loadingUrls = new Map(); // race -> [urls] of the uploaded loading screens
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
 const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image (shop tab buttons)
 const baseUpgIcons = new Map(); // race -> Image (base tier-upgrade slot icon, per race)
@@ -157,6 +158,13 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [race, file] of Object.entries(man.cursors || {})) {
         cursorUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
+      // per-race loading screens (up to 5; one shown at random when that race
+      // is chosen for a match)
+      for (const [race, files] of Object.entries(man.loadings || {})) {
+        if (Array.isArray(files) && files.length) {
+          loadingUrls.set(race, files.map((f) => `${base}${race}/${f}?v=${man.v || 0}`));
+        }
+      }
       // GLOBAL ability/upgrade thumbnails for the command card (assets/units/icons/)
       for (const [key, file] of Object.entries(man.icons || {})) {
         load(`${base}icons/${file}?v=${man.v || 0}`, (img) => uiIcons.set(key, img));
@@ -268,6 +276,11 @@ export function getMusicUrl(race) {
 // URL of the uploaded custom mouse-cursor image for a race, or null.
 export function getCursorUrl(race) {
   return cursorUrls.get(race) || null;
+}
+
+// Uploaded loading screens for a race (array of urls), or [] if none.
+export function getLoadingScreens(race) {
+  return loadingUrls.get(race) || [];
 }
 
 // Uploaded command-card icon: key 'ability-<id>' or 'upgrade-<id>' (global).

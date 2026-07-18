@@ -285,6 +285,12 @@ function middleFileFor(string $assetsDir, int $n): ?string {
   if ($n === 1 && is_file("$assetsDir/middle.png")) return 'middle.png'; // legacy single upload
   return null;
 }
+// Per-race loading screens (assets/units/<race>/loading-<n>.png, n=1..5). When a
+// race is chosen, one of its loading screens is shown at random during the load.
+const LOADING_SLOTS = [1, 2, 3, 4, 5];
+function loadingFileFor(string $assetsDir, string $race, int $n): ?string {
+  return is_file("$assetsDir/$race/loading-$n.png") ? "loading-$n.png" : null;
+}
 
 // A race's shop tab-button file (tab-<slot>.<ext>), or null.
 function tabFileFor(string $assetsDir, string $race, string $slot): ?string {
@@ -548,6 +554,7 @@ function regenManifest(string $assetsDir): void {
     }
   }
   $backgrounds = [];
+  $loadings = [];
   $music = [];
   $cursors = [];
   $tabs = [];
@@ -559,6 +566,9 @@ function regenManifest(string $assetsDir): void {
   $towervids = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
+    $lo = [];
+    foreach (LOADING_SLOTS as $n) { $lf = loadingFileFor($assetsDir, $r, $n); if ($lf) $lo[] = $lf; }
+    if ($lo) $loadings[$r] = $lo;
     $mf = musicFileFor($assetsDir, $r);
     if ($mf) $music[$r] = $mf;
     $mv = [];
@@ -615,7 +625,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -741,6 +751,39 @@ if ($authed && $action === 'deletebg') {
     @unlink("$assetsDir/$race/background.png");
     regenManifest($assetsDir);
     $msg = "Background șters: $race";
+  }
+}
+// Per-race loading screens (5 slots): loading-<n>.png
+if ($authed && $action === 'uploadloading') {
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($slot, LOADING_SLOTS, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/loading-$slot.png")) {
+        regenManifest($assetsDir);
+        $msg = "Loading screen $slot încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteloading') {
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($slot, LOADING_SLOTS, true)) {
+    @unlink("$assetsDir/$race/loading-$slot.png");
+    regenManifest($assetsDir);
+    $msg = "Loading screen $slot șters: $race";
   }
 }
 
@@ -1506,6 +1549,44 @@ if ($authed && $action === 'deletebarover') {
         <div style="color:#7c8ba1;font-size:11px;max-width:230px;margin-top:8px;line-height:1.5">
           Pictează designul peste el, exportă la <b>aceeași mărime</b>, apoi încarcă mai sus:
           <b>Fundal</b> = ÎN SPATELE elementelor; <b>Overlay</b> = PESTE elemente (lasă restul transparent).
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ent" id="loadingscreens">
+    <div class="title"><b>Loading screens <?= $race ?></b><span>până la 5 — când alegi rasa <?= $race ?>, una e aleasă la întâmplare pe ecranul de loading</span></div>
+    <div class="slots">
+      <?php foreach (LOADING_SLOTS as $n): $loFile = loadingFileFor($assetsDir, $race, $n); $hasLo = $loFile !== null; ?>
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Loading <?= $n ?></span>
+        <div class="thumb" style="width:160px;height:90px">
+          <?php if ($hasLo): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $loFile ?>?t=<?= filemtime("$assetsDir/$race/$loFile") ?>" alt="" style="width:100%;height:100%;object-fit:cover">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadloading">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <label class="pick"><?= $hasLo ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasLo): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deleteloading">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi loading <?= $n ?>?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+      <div class="slot" style="max-width:260px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          PNG lat (ex. <b>1600×900</b>). Încarcă până la 5; când pornești un meci cu rasa <b><?= $race ?></b>,
+          jocul afișează una la întâmplare pe ecranul de loading. Dacă nu pui niciunul, se folosesc
+          loading-urile globale din <b>⚙ Balance → Meniu &amp; Loading</b>.
         </div>
       </div>
     </div>

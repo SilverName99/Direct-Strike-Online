@@ -3,6 +3,7 @@
 // Owns the #overlay element (main menu AND the game-over screen).
 
 import { CONFIG } from '../config.js';
+import { getLoadingScreens } from '../render/sprites.js';
 
 const TIPS = [
   'Generatoarele sunt economia ta — protejează-le cu ziduri și turnuri.',
@@ -285,7 +286,13 @@ export class Menu {
     if (title) { title.classList.toggle('hidden', hasCard); title.textContent = fmt; }
   }
 
-  loadingVariants() { return (CONFIG.LOADING_BGS || []).filter(Boolean); }
+  // Prefer the CHOSEN race's uploaded loading screens (up to 5); if that race
+  // has none, fall back to the GLOBAL loading backgrounds from the balance editor.
+  loadingVariants() {
+    const raceScreens = getLoadingScreens(this.sel && this.sel.player);
+    if (raceScreens.length) return raceScreens;
+    return (CONFIG.LOADING_BGS || []).filter(Boolean);
+  }
   firstLoadingBg() { return this.loadingVariants()[0] || CONFIG.LOADING_BG || CONFIG.MENU_BG || ''; }
   // one of the 3 loading backgrounds, chosen at random each time we load in
   pickLoadingBg() {
