@@ -400,6 +400,12 @@ for (const ab of Object.values(ABILITIES)) {
   if (ab.params.castPrepare === undefined) ab.params.castPrepare = 0.45;
   if (ab.params.castHold === undefined) ab.params.castHold = 0.4;
 }
+// Per-ability rank scaling (how much each learned point boosts the "power" params):
+// exposed on EVERY ability (incl. passives) so it's tunable in the balance editor.
+// 0.5 = +50% per rank above rank 1 (the classic default); 0 = flat, no scaling.
+for (const ab of Object.values(ABILITIES)) {
+  if (ab.params.rankStep === undefined) ab.params.rankStep = 0.5;
+}
 
 export const ABILITY_IDS = Object.keys(ABILITIES);
 export const MAX_ABILITIES = 5; // per caster
@@ -407,6 +413,7 @@ export const MAX_ABILITIES = 5; // per caster
 // Labels for the editable params (admin "Abilities" page).
 export const ABILITY_PARAM_LABELS = {
   tier: 'Tier necesar (1-3)',
+  rankStep: 'Scalare per punct (0.5 = +50%/rang, 0 = fără)',
   cooldown: 'Cooldown (s)',
   manaCost: 'Mana cost (per cast)',
   range: 'Cast range',

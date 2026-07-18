@@ -24,14 +24,16 @@ function isCastable(ab) {
 }
 
 // Hero abilities scale with their learned RANK: rank 1 = base numbers, each
-// extra rank adds HERO_RANK_STEP to a multiplier on the "power" params below
-// (rank 2 = 1.5×, rank 3 = 2×). Non-hero casters always use base params.
-const HERO_RANK_STEP = 0.5;
+// extra rank adds the ability's own `rankStep` to a multiplier on the "power"
+// params below (rankStep 0.5 => rank 2 = 1.5×, rank 3 = 2×; 0 => no scaling).
+// Set per ability in the balance editor. Non-hero casters always use base params.
+const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankStep
 const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   if (rank <= 1) return ab.params;
-  const mult = 1 + (rank - 1) * HERO_RANK_STEP;
+  const step = ab.params.rankStep != null ? ab.params.rankStep : HERO_RANK_STEP;
+  const mult = 1 + (rank - 1) * step;
   const p = { ...ab.params };
   for (const k of RANK_SCALED) if (typeof p[k] === 'number') p[k] = p[k] * mult;
   return p;

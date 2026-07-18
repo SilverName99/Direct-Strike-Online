@@ -396,6 +396,20 @@ console.log('sword saint kit');
     check('divine buff: faster attacks (shorter period)', es.period < base.period);
   }
 
+  // Per-ability rank scaling (rankStep): configurable growth per learned point
+  {
+    const ab = resolvedAbility('divinebuff');
+    const savedStep = ab.params.rankStep;
+    const hero = spawnUnit(game, 0, 'hero', 350, 400);
+    hero.hero = true; hero.heroRanks = { divinebuff: 3 };
+    const b = ab.params.damageBonus;
+    ab.params.rankStep = 0.5; // default: rank 3 = 2x
+    check('rankStep 0.5: rank 3 doubles', Math.abs(effStats(hero, game.ustatOf(hero)).damage / game.ustatOf(hero).damage - 1 - (b * 2) / 100) < 0.01);
+    ab.params.rankStep = 0; // flat: no scaling
+    check('rankStep 0: rank 3 = base bonus', Math.abs(effStats(hero, game.ustatOf(hero)).damage / game.ustatOf(hero).damage - 1 - b / 100) < 0.01);
+    ab.params.rankStep = savedStep;
+  }
+
   // Backline Teleport: blinks forward by `distance`
   {
     const ab = resolvedAbility('backlineteleport');
