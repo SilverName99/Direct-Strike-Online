@@ -358,23 +358,46 @@ function combatNear(game, caster, radius) {
 // Regeneration Aura), which fire for wounded allies even with no enemy nearby.
 function pickCastable(game, caster, stats, time, engaged) {
   let combatFlag = null; // combatNear(), computed at most once per pick
+  // a caster only casts while ENGAGED (an enemy sits in its attack range) —
+  // summons included, so wolves/eagles/bears are conjured only when there's an
+  // enemy in reach, not proactively on an empty lane. ENGAGE_EXEMPT support
+  // spells (heal / regen) fire for wounded allies with no enemy near, and
+  // ALLY_ENGAGE abilities (empower / totem) fire once the fight is near the
+  // caster (nearby allies fighting / enemies close), so a backline shaman acts.
+  const engageOk = (aid) => {
+    if (engaged || ENGAGE_EXEMPT.has(aid)) return true;
+    if (!ALLY_ENGAGE.has(aid)) return false;
+    if (combatFlag === null) combatFlag = combatNear(game, caster, SUPPORT_ENGAGE_RADIUS);
+    return combatFlag;
+  };
+  // Among the summons ready to cast NOW (off-cooldown, cap not full, engage-ok,
+  // and affordable IF the caster saves up), the PRICIEST is the "priority": the
+  // hero casts it (or saves mana for it) before any cheaper summon. Without this,
+  // cheap summons (Wolf) keep draining mana so a pricier, newly-learned one (Bear)
+  // is never afforded — it looks like the hero refuses to make the new animal.
+  let priorityId = null; let priorityCost = -1;
+  for (const aid of stats.abilities) {
+    const ab = resolvedAbility(aid);
+    if (!ab || ab.kind !== 'summon') continue;
+    if (!game.abilityUsable(caster.team, caster.type, aid)) continue;
+    if ((caster.abilityCd[aid] || 0) > time) continue;
+    const cost = ab.params.manaCost || 0;
+    if (caster.manaMax < cost) continue;   // pool too small to ever afford -> ignore (no soft-lock)
+    if (!engageOk(aid)) continue;
+    if (!findAbilityTarget(game, caster, aid, ab, time)) continue; // cap reached / no target
+    if (cost > priorityCost) { priorityCost = cost; priorityId = aid; }
+  }
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
     if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // toggled off / tier-locked
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
-    // a caster only casts while ENGAGED (an enemy sits in its attack range) —
-    // summons included, so wolves/eagles/bears are conjured only when there's an
-    // enemy in reach, not proactively on an empty lane. ENGAGE_EXEMPT support
-    // spells (heal / regen) fire for wounded allies with no enemy near, and
-    // ALLY_ENGAGE abilities (empower / totem) fire once the fight is near the
-    // caster (nearby allies fighting / enemies close), so a backline shaman acts.
-    if (!engaged && !ENGAGE_EXEMPT.has(aid)) {
-      if (!ALLY_ENGAGE.has(aid)) continue;
-      if (combatFlag === null) combatFlag = combatNear(game, caster, SUPPORT_ENGAGE_RADIUS);
-      if (!combatFlag) continue;
-    }
+    if (!engageOk(aid)) continue;
+    // a summon casts only if it's the priority one; cheaper summons wait so mana
+    // accumulates for the priciest ready summon (non-summon abilities are free to
+    // cast meanwhile — e.g. the shaman keeps empowering while saving for a totem).
+    if (ab.kind === 'summon' && aid !== priorityId) continue;
     const target = findAbilityTarget(game, caster, aid, ab, time);
     if (target) return { aid, ab, target };
   }
