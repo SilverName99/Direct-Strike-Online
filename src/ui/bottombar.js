@@ -725,14 +725,18 @@ export class BottomBar {
       return grid;
     }
 
-    // your own Hero Hall: recruit heroes here. Up to 3 hero cards, tier-gated
-    // (hero 1 @ tier 1, hero 2 @ tier 2, hero 3 @ tier 3). Each shows locked
-    // until its tier, and disabled/✔ once recruited.
+    // your own Hero Hall: recruit heroes here. Up to 3 hero cards, gated by the
+    // NUMBER of heroes you field (not by which one): any hero as your 1st @ tier
+    // 1, a 2nd @ tier 2, a 3rd @ tier 3. Each not-yet-owned card shows the tier
+    // it needs (= current hero count + 1); owned cards show ✔.
     if (own && isStruct && info.type === 'herohall') {
       const race = raceOf(this.team);
+      const owned = game.heroTemplates(this.team).length;
       const page = resolvedHeroIds(race).map((id) => {
         const h = statsUnit(race, id);
-        return { kind: 'unit', id, cost: h.cost, tier: h.tier || 1, isHero: true, slot: -1 };
+        const isOwned = game.hasHeroType(this.team, id);
+        const reqTier = isOwned ? 1 : Math.min(3, owned + 1);
+        return { kind: 'unit', id, cost: h.cost, tier: reqTier, isHero: true, slot: -1 };
       });
       return layoutCardPage(page, null);
     }
@@ -930,15 +934,21 @@ export class BottomBar {
         if (game) {
           const u = game.ustat(this.team, d.id);
           const heroWait = d.isHero ? (CONFIG.HERO_UNLOCK_TIME || 0) - game.time : 0;
-          if (u.tier > game.tier[this.team]) { el.classList.add('locked'); this.setLockTier(el, u.tier); }
-          else if (d.building && !game.hasBuilding(this.team, d.building)) { el.classList.add('locked'); this.setLock(el, '🔒'); }
+          const heroOwned = d.isHero && game.hasHeroType(this.team, d.id);
+          // heroes gate by COUNT (the N-th distinct hero needs base tier N), not
+          // by the hero's own tier — any hero can be your 1st at tier 1.
+          const reqTier = d.isHero
+            ? Math.min(3, game.heroTemplates(this.team).length + 1)
+            : u.tier;
+          if (!heroOwned && reqTier > game.tier[this.team]) { el.classList.add('locked'); this.setLockTier(el, reqTier); }
+          else if (!d.isHero && d.building && !game.hasBuilding(this.team, d.building)) { el.classList.add('locked'); this.setLock(el, '🔒'); }
           else if (heroWait > 0) {
             // hero still time-locked (⚙ Balance): radial countdown on the card
             el.classList.add('disabled');
             cd = heroWait;
             cdTotal = CONFIG.HERO_UNLOCK_TIME || 0;
           }
-          else if (d.isHero && game.hasHeroType(this.team, d.id)) el.classList.add('owned-upg'); // already recruited THIS hero
+          else if (heroOwned) el.classList.add('owned-upg'); // already recruited THIS hero
           else if (game.money[this.team] < u.cost) el.classList.add('disabled');
           else if (game.foodUsed(this.team) + (u.food || 0) > game.foodCap(this.team)) el.classList.add('disabled'); // over food cap
         }

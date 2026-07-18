@@ -317,23 +317,30 @@ console.log('multi-hero recruitment');
   check('hero refused without Hero Hall', !noHall.ok && noHall.reason === 'no-herohall');
   makeStructure(game, 0, 'herohall', 820, 300); // finished (buildTime 0)
   check('hero hall counts as built', game.hasBuilding(0, 'herohall'));
-  // recruit hero 1 (tier 1)
-  const r1 = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 300 });
-  check('hero 1 recruited', r1.ok && game.hasHeroType(0, 'hero'));
-  // hero 2 is tier-locked at base tier 1 (tier check precedes placement)
-  const r2 = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero2', x: 300, y: 600 });
-  check('hero 2 tier-locked at tier 1', !r2.ok && r2.reason === 'tier-locked');
-  // a duplicate of hero 1 hits the per-type cap
-  const dup = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 600 });
+  // count-based gate: ANY hero can be your 1st at tier 1 — recruit hero3 directly
+  const first = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero3', x: 300, y: 300 });
+  check('any hero allowed as the 1st at tier 1', first.ok && game.hasHeroType(0, 'hero3'), first.reason || '');
+  // a 2nd hero is tier-locked at tier 1 (needs tier 2), whichever one
+  const second = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 600 });
+  check('2nd hero tier-locked at tier 1', !second.ok && second.reason === 'tier-locked');
+  // a duplicate of an owned hero hits the per-type cap
+  const dup = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero3', x: 300, y: 600 });
   check('duplicate hero refused (cap)', !dup.ok && dup.reason === 'hero-cap');
-  // reach tier 2, then recruit hero 2
+  // reach tier 2 -> a 2nd hero (any) is allowed
   game.tier[0] = 2;
-  const r2b = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero2', x: 300, y: 600 });
-  check('hero 2 recruited at tier 2', r2b.ok && game.hasHeroType(0, 'hero2'), r2b.reason || '');
+  const r2 = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 600 });
+  check('2nd hero recruited at tier 2', r2.ok && game.hasHeroType(0, 'hero'), r2.reason || '');
   check('two hero templates present', game.heroTemplates(0).length === 2);
-  // a wave spawns BOTH heroes as live entities (each respawns independently)
+  // a 3rd hero is still tier-locked at tier 2 (needs tier 3)
+  const third = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero2', x: 450, y: 600 });
+  check('3rd hero tier-locked at tier 2', !third.ok && third.reason === 'tier-locked');
+  // reach tier 3 -> the 3rd hero is allowed
+  game.tier[0] = 3;
+  const r3 = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero2', x: 450, y: 600 });
+  check('3rd hero recruited at tier 3', r3.ok && game.heroTemplates(0).length === 3, r3.reason || '');
+  // a wave spawns the heroes as live entities (each respawns independently)
   run(game, (CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL) + 0.1);
-  check('both heroes spawn live', !!game.heroEntityOf(0, 'hero') && !!game.heroEntityOf(0, 'hero2'));
+  check('heroes spawn live', !!game.heroEntityOf(0, 'hero') && !!game.heroEntityOf(0, 'hero3'));
 }
 
 // ------------------------------------------------------- Elemental Form ultimate

@@ -372,11 +372,13 @@ export class AIController {
     // — that's handled by the building step). Buy when tier/food/gold allow, or
     // save toward it if within income reach.
     if (!game.hasBuilding(t, 'herohall')) return false;
+    // count gate: you can field at most `tier` heroes (1st @ T1, 2nd @ T2, 3rd @
+    // T3) — any hero fits any slot, so just recruit the next one we don't have.
+    if (game.heroTemplates(t).length >= game.tier[t]) return false;
     for (const heroId of heroIds) {
       if (game.hasHeroType(t, heroId)) continue;
       const hs = game.ustat(t, heroId);
       if (!hs) continue;
-      if (hs.tier > game.tier[t]) continue;                          // tier-locked
       if (game.foodUsed(t) + (hs.food || 0) > game.foodCap(t)) continue; // no food room
       const money = game.money[t];
       if (money >= hs.cost) {

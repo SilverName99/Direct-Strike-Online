@@ -536,15 +536,20 @@ export class Game {
     if (cmd.type === 'buy') {
       const stats = this.ustat(cmd.team, cmd.unitId);
       if (!stats) return { ok: false, reason: 'unknown-unit' };
-      if (stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
+      // regular units are gated by their own tier; heroes gate by COUNT below
+      // (any hero can be your 1st at tier 1), so skip the per-type tier check.
+      if (!stats.isHero && stats.tier > this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       // gated behind its tech building: must be built (alive) to buy the unit.
       // Heroes ignore this — they're gated only by the Hero Hall below (a unit
       // promoted to hero may still carry a leftover `building` field).
       if (!stats.isHero && stats.building && !this.hasBuilding(cmd.team, stats.building)) return { ok: false, reason: 'no-building' };
       // heroes are recruited ONLY from a built Hero Hall (not the Main Base)
       if (stats.isHero && !this.hasBuilding(cmd.team, 'herohall')) return { ok: false, reason: 'no-herohall' };
-      // one of EACH hero type per team (up to 3 distinct heroes, tier-gated)
+      // one of EACH hero type per team (can't field two of the same hero)
       if (stats.isHero && this.hasHeroType(cmd.team, cmd.unitId)) return { ok: false, reason: 'hero-cap' };
+      // count gate: the N-th distinct hero needs base tier N (1st @ T1, 2nd @ T2,
+      // 3rd @ T3) — you may pick ANY hero for each slot.
+      if (stats.isHero && this.heroTemplates(cmd.team).length >= this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       // heroes can be gated behind a match timer (⚙ Balance: HERO_UNLOCK_TIME)
       if (stats.isHero && this.time < (CONFIG.HERO_UNLOCK_TIME || 0))
         return { ok: false, reason: 'hero-locked' };
