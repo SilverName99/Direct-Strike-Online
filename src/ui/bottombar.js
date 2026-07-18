@@ -516,6 +516,14 @@ export class BottomBar {
     const manaBar = manaMax > 0
       ? `<div class="d-bar"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${Math.floor(mana)} / ${manaMax}</span></div>`
       : '';
+    // units with a limited lifetime (summons/totems given a "Durată viață"):
+    // a depleting timer bar under the HP, matching the in-world life bar
+    let lifeBar = '';
+    if (info.kind === 'entity' && info.u.despawnAt != null && info.u.maxLife > 0) {
+      const left = Math.max(0, info.u.despawnAt - game.time);
+      const pct = Math.max(0, Math.min(1, left / info.u.maxLife)) * 100;
+      lifeBar = `<div class="d-bar"><div class="mana" style="width:${pct}%;background:#7fb4ff"></div><span>⏳ ${Math.ceil(left)}s</span></div>`;
+    }
     // hero: a level line + XP bar toward the next level (and unspent talent pts)
     let heroBar = '';
     if (info.kind === 'entity' && info.u.hero) {
@@ -533,6 +541,7 @@ export class BottomBar {
     this.details.innerHTML = `
       <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">${name}</span><span class="d-sub">${sub}${own ? '' : ' · INAMIC'}</span></div>
       <div class="d-bar"><div class="hp ${own ? '' : 'enemy'}" style="width:${Math.max(0, (hp / maxHp) * 100)}%"></div><span>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</span></div>
+      ${lifeBar}
       ${manaBar}
       ${heroBar}
       <div class="d-stats">${rows.map((r) => `<span>${r}</span>`).join('')}</div>
