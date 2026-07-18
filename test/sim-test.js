@@ -436,6 +436,15 @@ console.log('sword saint kit');
     const stats = { caster: true, autoAttackBetween: true, abilities: ['backlineteleport'] };
     for (let i = 0; i < 40 && Math.abs(hero.x - x0) < 1; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
     check('backline teleport: blinked ~240 forward', Math.abs(hero.x - (x0 + 240)) < 1, `${hero.x} vs ${x0}`);
+    // low HP -> the blink RETREATS backward instead of engaging forward
+    Object.assign(ab.params, { retreatHp: 35 });
+    const hero2 = spawnUnit(game, 0, 'hero', 600, 700);
+    hero2.hero = true; hero2.heroRanks = { backlineteleport: 1 }; hero2.mana = 100; hero2.abilityCd = {};
+    hero2.hp = hero2.maxHp * 0.2; // low HP -> should retreat
+    spawnUnit(game, 1, 'grunt', 900, 700);
+    const rx0 = hero2.x;
+    for (let i = 0; i < 40 && Math.abs(hero2.x - rx0) < 1; i++) { game.time += DT; stepCaster(game, hero2, stats, DT, true); }
+    check('backline teleport: retreats backward when low HP', Math.abs(hero2.x - (rx0 - 240)) < 1, `${hero2.x} vs ${rx0}`);
     ab.params = saved;
   }
 

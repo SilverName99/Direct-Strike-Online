@@ -340,9 +340,13 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   const prep = pab && pab.params && pab.params.castPrepare != null ? pab.params.castPrepare : CAST_PREPARE;
   // Backline Teleport: lock in the landing spot NOW and telegraph it with a
   // portal for the whole wind-up; the hero blinks there when the prepare ends.
+  // Direction: forward to engage, but BACKWARD (retreat) when low on HP.
   if (pick.aid === 'backlineteleport') {
     const front = caster.team === 0 ? 1 : -1;
-    caster.teleportTo = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (pab.params.distance || 0)));
+    const rp = pab.params.retreatHp || 0;
+    const retreating = rp > 0 && caster.hp <= caster.maxHp * rp / 100;
+    const dir = retreating ? -front : front;
+    caster.teleportTo = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + dir * (pab.params.distance || 0)));
     game.events.push({ type: 'teleportcharge', team: caster.team, x: caster.teleportTo, y: caster.y, dur: Math.max(0.1, prep) });
   }
   if (prep > 0) {

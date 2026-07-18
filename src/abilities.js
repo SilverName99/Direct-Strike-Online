@@ -347,7 +347,8 @@ export const ABILITIES = {
     desc: 'Se teleportează în față pe o distanță, sărind peste linia inamică spre casteri. Repoziționare pură (fără damage).',
     params: {
       tier: 1, cooldown: 12, manaCost: 40,
-      distance: 240,    // how far forward (toward the enemy) it blinks
+      distance: 240,    // how far it blinks (forward to engage, backward to retreat)
+      retreatHp: 35,    // % HP: at or below this the blink goes BACKWARD (retreat) instead of forward (0 = always forward)
       // explicit cooldown per learned rank (0 = use the base `cooldown` above)
       cooldown1: 0, cooldown2: 0, cooldown3: 0,
       castPrepare: 0.35, // "prepare" pose before the blink
@@ -462,6 +463,7 @@ export const ABILITY_PARAM_LABELS = {
   healPct3: 'Heal rang 3 (% HP max, 0 = auto)',
   dmgReduce: 'Reducere damage (%)',
   distance: 'Distanță teleport',
+  retreatHp: 'Prag retragere (% HP, 0 = mereu în față)',
   damageBonus: 'Damage bonus (%)',
   dps: 'Damage pe secundă (AoE)',
   // explicit per-rank values (0 = auto/base). Shown next to their base param.
