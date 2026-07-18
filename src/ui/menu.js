@@ -2,7 +2,7 @@
 // setup (races + difficulty) → 5s countdown → loading screen → the match.
 // Owns the #overlay element (main menu AND the game-over screen).
 
-import { CONFIG } from '../config.js';
+import { CONFIG, RACES } from '../config.js';
 import { getLoadingScreens } from '../render/sprites.js';
 
 const TIPS = [
@@ -32,6 +32,9 @@ export class Menu {
     this.root = this.el.querySelector('#menu-root');
     this.cd = this.el.querySelector('#menu-cd');
     this.load = this.el.querySelector('#menu-load');
+    this.galPrev = this.el.querySelector('#menu-gallery-prev');
+    this.galNext = this.el.querySelector('#menu-gallery-next');
+    this.galleryIdx = 0; // 0 = the menu background; then the loading screens
     this.music = null;
     this.el.addEventListener('click', (e) => this.onClick(e));
     this.el.addEventListener('input', (e) => this.onInput(e));
@@ -47,6 +50,8 @@ export class Menu {
 
   onClick(e) {
     this.ensureMusic(); // first click unlocks + starts the menu music
+    const gal = e.target.closest('[data-gallery]');
+    if (gal) { this.cycleGallery(Number(gal.dataset.gallery)); return; }
     const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp]');
     if (!t || t.disabled) return;
     if (t.dataset.mp) { this.onMp(t.dataset.mp); return; }
@@ -244,9 +249,39 @@ export class Menu {
     // it live via the Options slider / bottom-right control)
     const v = Number(CONFIG.MENU_MUSIC_VOL);
     if (isFinite(v)) this.setMusicVol(Math.max(0, Math.min(100, v)) / 100);
-    const mb = CONFIG.MENU_BG || '';
-    if (this.bg) { this.bg.style.backgroundImage = mb ? `url("${mb}")` : ''; this.bg.classList.toggle('on', !!mb); }
+    this.galleryIdx = 0;      // always start on the "Fundal meniu" image
+    this.refreshGallery();    // show slot 0 + toggle the cycle arrows
     this.setLoadingBg(this.firstLoadingBg()); // a static default until play() rolls one
+  }
+
+  // The menu image gallery: the "Fundal meniu" image first (slot 0), then every
+  // race's loading screens in order (Human's, then Orcs'). Left/right arrows
+  // cycle through it, wrapping around.
+  galleryImages() {
+    const imgs = [CONFIG.MENU_BG || ''];
+    for (const r of RACES) for (const url of getLoadingScreens(r)) imgs.push(url);
+    return imgs.filter(Boolean);
+  }
+  setMenuBg(url) {
+    if (!this.bg) return;
+    this.bg.style.backgroundImage = url ? `url("${url}")` : '';
+    this.bg.classList.toggle('on', !!url);
+  }
+  // re-read the gallery (also called once sprites finish loading) and show the
+  // current slot; the arrows hide when there's nothing to cycle through
+  refreshGallery() {
+    const imgs = this.galleryImages();
+    if (this.galleryIdx >= imgs.length) this.galleryIdx = 0;
+    this.setMenuBg(imgs[this.galleryIdx] || '');
+    const many = imgs.length > 1;
+    if (this.galPrev) this.galPrev.classList.toggle('hidden', !many);
+    if (this.galNext) this.galNext.classList.toggle('hidden', !many);
+  }
+  cycleGallery(dir) {
+    const imgs = this.galleryImages();
+    if (imgs.length < 2) return;
+    this.galleryIdx = (this.galleryIdx + dir + imgs.length) % imgs.length;
+    this.setMenuBg(imgs[this.galleryIdx]);
   }
 
   // measure an uploaded image and expose its display size as CSS variables, so
@@ -362,9 +397,15 @@ export class Menu {
   clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
   later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
 
+  hideGalleryArrows() {
+    if (this.galPrev) this.galPrev.classList.add('hidden');
+    if (this.galNext) this.galNext.classList.add('hidden');
+  }
+
   // Play → fullscreen (in the click gesture) → 5s countdown → loading → match
   play() {
     this.clearTimers();
+    this.hideGalleryArrows(); // no gallery arrows over the countdown/loading
     this.stopMusic(); // menu music off; the match starts its own
     this.setLoadingBg(this.pickLoadingBg()); // roll one of the 3 loading variants
     if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
@@ -405,7 +446,7 @@ export class Menu {
   // tiny non-seeded shuffle just for picking a tip (UI only, never the sim)
   mix() { this._m = ((this._m || Date.now()) * 1103515245 + 12345) & 0x7fffffff; return this._m / 0x7fffffff; }
 
-  show() { this.clearTimers(); this.go('main'); this.el.classList.add('visible'); this.armMusic(); }
+  show() { this.clearTimers(); this.galleryIdx = 0; this.refreshGallery(); this.go('main'); this.el.classList.add('visible'); this.armMusic(); }
   hide() { this.clearTimers(); this.stopMusic(); this.el.classList.remove('visible'); }
 
   showGameOver(game, playerWon, team = 0, isNet = false) {
@@ -432,6 +473,8 @@ const races = (opt) => `
 
 const TEMPLATE = `
 <div id="menu-bg"></div>
+<button id="menu-gallery-prev" class="menu-gallery-arrow left hidden" data-gallery="-1" title="Imaginea anterioară" aria-label="Anterior">‹</button>
+<button id="menu-gallery-next" class="menu-gallery-arrow right hidden" data-gallery="1" title="Imaginea următoare" aria-label="Următor">›</button>
 <div id="menu-root">
   <div class="menu-brand">
     <img class="menu-logo-img hidden" alt="Fangs & Honor">

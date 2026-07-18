@@ -539,6 +539,21 @@ html, body {
   background: radial-gradient(72% 72% at 50% 44%, rgba(6, 9, 14, 0.32), rgba(6, 9, 14, 0.74));
 }
 #overlay > #menu-root { position: relative; z-index: 1; }
+/* menu image gallery: left/right arrows cycle the menu bg through the loading
+   screens (menu bg first, then Human's, then Orcs') */
+.menu-gallery-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+  width: 54px; height: 92px; display: flex; align-items: center; justify-content: center;
+  font-size: 46px; line-height: 1; color: #e9c565; font-weight: 700;
+  background: rgba(6, 9, 14, 0.34); border: 1px solid rgba(233, 197, 101, 0.28);
+  border-radius: 12px; cursor: pointer; user-select: none;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+.menu-gallery-arrow:hover { background: rgba(233, 197, 101, 0.22); }
+.menu-gallery-arrow:active { transform: translateY(-50%) scale(0.93); }
+.menu-gallery-arrow.left { left: 18px; }
+.menu-gallery-arrow.right { right: 18px; }
+.menu-gallery-arrow.hidden { display: none; }
 #menu-cd, #menu-load { background-size: cover; background-position: center; background-repeat: no-repeat; }
 /* NO panel/box — the logo floats near the TOP, the controls are centered in
    the viewport, and the uploaded artwork breathes behind everything. */

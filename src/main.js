@@ -61,7 +61,7 @@ document.getElementById('version').textContent = VERSION;
 
 // user-uploaded unit sprites (via /admin) override the built-in art. Once the
 // manifest is in, the custom cursors exist too, so roll the random menu cursor.
-loadSprites('assets/units/', () => { bottombar.refresh(); applyRandomMenuCursor(); });
+loadSprites('assets/units/', () => { bottombar.refresh(); applyRandomMenuCursor(); menu.refreshGallery(); });
 
 // Boot loader: hold the golden splash (index.html #boot) until the menu is
 // fully ready, then fade it out — so the logo/background/buttons don't pop in
