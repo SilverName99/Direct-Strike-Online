@@ -52,8 +52,8 @@ const ABILITY_INFO = [
   'summoneagle' => ['Invocă Vultur', true, false],
   'summonbear' => ['Invocă Urs', true, false],
   'beastform' => ['Beast Form', false, false], // transform: no cast frame; uses the morph- sprite set
-  'empower' => ['Empower', true, false],       // "attack" that buffs an ally
-  'slowingtotem' => ['Slowing Totem', true, false], // plants the totem (uses the totem- sprite set)
+  'empower' => ['Empower', true, false, 2],       // "attack" that buffs an ally (2 cast frames)
+  'slowingtotem' => ['Slowing Totem', true, false, 2], // plants the totem (2 cast frames: prepare + throw)
   // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
   // War Stomp are o animație de 2 cadre, Bloodlust un singur cadru (ținut mai mult).
   'warstomp' => ['War Stomp', true, false, 2],
@@ -69,6 +69,12 @@ const ABILITY_INFO = [
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem'];
 const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem'];
+// summon abilities whose spawned entity is a stationary totem (idle-only sprite,
+// no walk/attack/die, no portrait animation)
+const TOTEM_ABILITIES = ['slowingtotem'];
+// abilities that replace the unit's basic attack (the "attack" IS the cast), so
+// the unit needs no attack/projectile sprite slots
+const ATTACK_REPLACING_ABILITIES = ['empower'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
 const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova']];
@@ -361,8 +367,13 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   }
   $caster = unitIsCaster($race, $ent);
   $isHero = in_array($ent, HERO_LIST, true);
+  // a unit whose "attack" is really an ability (e.g. Empower) has no basic
+  // attack — skip its attack/prepare and projectile sprite slots entirely
+  $noBasicAttack = (bool) array_intersect(ATTACK_REPLACING_ABILITIES, unitAbilities($race, $ent));
   $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2', 'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2'];
-  if ($caster && !$isHero) {
+  if ($noBasicAttack) {
+    // no basic-attack frames: the ability's own "Cast …" slots cover its swing
+  } else if ($caster && !$isHero) {
     // regular caster: one shared wind-up pose + one release frame per action
     $slots['prepare_0'] = 'Prepare spell';
     $slots['attack_0'] = 'Attack';
@@ -423,16 +434,18 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   if (unitHasShield($race, $ent)) {
     $slots['shield_0'] = 'Scut de lumină (activare)';
   }
-  if (unitIsRanged($race, $ent)) $slots['projectile'] = 'Proiectil';
+  if (unitIsRanged($race, $ent) && !$noBasicAttack) $slots['projectile'] = 'Proiectil';
   // summoned animals (Shaman): a walk + attack + die set per assigned summon
   // ability, hosted on this unit under an "<animal>-" prefix
   $ua = unitAbilities($race, $ent);
   foreach (SUMMON_ANIMALS as $aid => $animal) {
     if (!in_array($aid, $ua, true)) continue;
     $lbl = SUMMON_LABELS[$animal];
-    // a stationary totem only stands (idle); moving summons use walk/attack.
+    // a stationary totem only stands (idle 1/2) — it never moves, attacks or
+    // "dies" with an animation; moving summons get the full walk/attack/die set.
     $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
     $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
+    if (in_array($aid, TOTEM_ABILITIES, true)) continue;
     $slots["{$animal}-walk_0"] = "$lbl: Mers 1";
     $slots["{$animal}-walk_1"] = "$lbl: Mers 2";
     $slots["{$animal}-attack_0"] = "$lbl: Atac 1";
