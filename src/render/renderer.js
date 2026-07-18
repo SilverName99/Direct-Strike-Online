@@ -1125,9 +1125,11 @@ export class Renderer {
         if (u.state === 'attack' && !u.spellHold) this.attackHold.set(u.id, this.now);
         const held = this.attackHold.get(u.id);
         const attacking = (u.state === 'attack' && !u.spellHold) || (held !== undefined && this.now - held < 0.3);
-        if (replaceAb && u.state !== 'march' && !u.dashing) {
-          // standing in place empowering: loop Cast 1 <-> Cast 2 at the pace
+        if (replaceAb && !u.castState && u.state !== 'march' && !u.dashing) {
+          // standing in place between casts: loop Cast 1 <-> Cast 2 at the pace
           // set on the ability (frame1Time / frame2Time), never the idle frame.
+          // (an ACTIVE cast — e.g. throwing a totem — is handled below so its
+          // own cast frames show instead of the empower loop.)
           anim = castAnimOf(u.type, u.team, replaceAb.aid) || (prep ? 'prepare' : 'attack');
           const t0 = Math.max(0.05, replaceAb.params.frame1Time != null ? replaceAb.params.frame1Time : 0.4);
           const t1 = Math.max(0.05, replaceAb.params.frame2Time != null ? replaceAb.params.frame2Time : 0.4);
