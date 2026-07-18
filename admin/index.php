@@ -451,8 +451,8 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
       continue;
     }
-    $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
-    $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
+    // a summoned animal spawns straight into the fight — it never stands idle,
+    // so it needs only walk/attack/die (no idle frames).
     $slots["{$animal}-walk_0"] = "$lbl: Mers 1";
     $slots["{$animal}-walk_1"] = "$lbl: Mers 2";
     $slots["{$animal}-attack_0"] = "$lbl: Atac 1";

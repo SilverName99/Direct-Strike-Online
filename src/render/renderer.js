@@ -1170,7 +1170,11 @@ export class Renderer {
           anim = `beast-${anim}`;
         }
         // summoned animal: its art is hosted on the caster's type under an
-        // "<animal>-" prefix (wolf-/eagle-/bear-)
+        // "<animal>-" prefix (wolf-/eagle-/bear-). A totem is the exception —
+        // it only ever stands, so it keeps its idle art; a moving summon has no
+        // idle frames (it spawns into the fight), so map idle -> walk to avoid
+        // falling back to the host caster's idle sprite.
+        if (u.summon && u.summonKind && !u.totem && anim === 'idle') anim = 'walk';
         if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
         }
