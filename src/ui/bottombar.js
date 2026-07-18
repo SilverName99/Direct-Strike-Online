@@ -505,6 +505,7 @@ export class BottomBar {
       }
       if (info.u.dismounted) chips += '<span class="d-chip" style="border-color:#ffb35c;color:#ffb35c">🐗 pe jos</span>';
       if (info.u.morph && info.u.morphUntil > game.time) chips += `<span class="d-chip" style="border-color:#ff8a3c;color:#ff8a3c">🪨 Elemental Form · ${Math.ceil(info.u.morphUntil - game.time)}s</span>`;
+      if (info.u.vortexUntil > game.time) chips += `<span class="d-chip" style="border-color:#fff2b0;color:#fff2b0">🌀 Vortex of Light · ${Math.ceil(info.u.vortexUntil - game.time)}s</span>`;
       if (info.u.castState) chips += '<span class="d-chip" style="border-color:#c9a7ff;color:#c9a7ff">✨ castează</span>';
       const tgt = info.u.targetId != null ? game.byId.get(info.u.targetId) : null;
       if (tgt && tgt.hp > 0) {

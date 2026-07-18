@@ -22,6 +22,16 @@ export function effStats(u, stats) {
       dashDamage: charge.damage, dashCd: charge.cooldown, chargeStun: charge.stun,
     };
   }
+  // "Divine Buff" passive (Sword Saint): permanently faster + stronger attacks.
+  // haste shortens the period; damageBonus scales the damage. Both grow per rank.
+  const dbuff = u.hero ? learnedAbilityParams(u, 'divinebuff') : null;
+  if (dbuff) {
+    stats = {
+      ...stats,
+      damage: stats.damage * (1 + (dbuff.damageBonus || 0) / 100),
+      period: stats.period * Math.max(0.25, 1 - (dbuff.haste || 0) / 100),
+    };
+  }
   // Elemental Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
   // a splash applied in the melee branch (morphSplash/morphSplashPct). Being a
   // grounded melee colossus, it can no longer reach fliers (targetsAir off) even
@@ -304,6 +314,14 @@ function updateFighter(game, u, stats, dt) {
   u.spellHold = false;
   // Stunned (Charge impact): can neither move (moveSpeedMult=0) nor act
   if (isStunned(u, game.time)) { u.windup = 0; u.dashing = false; u.dashCharge = false; return; }
+  // Vortex of Light: the Sword Saint keeps marching THROUGH the enemies while it
+  // spins — no normal attack (the AoE in updateAbilities does the damage).
+  if ((u.vortexUntil || 0) > game.time) {
+    const t = acquireTarget(game, u, stats);
+    u.targetId = t ? t.id : null;
+    u.state = 'march'; u.windup = 0; u.dashing = false; u.dashCharge = false;
+    return;
+  }
 
   let target = game.byId.get(u.targetId) || null;
   if (target && !isValidTarget(u, stats, target, aggroRange(stats))) {

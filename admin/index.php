@@ -65,6 +65,11 @@ const ABILITY_INFO = [
   'divineshield' => ['Divine Shield', true, false],
   'devotionaura' => ['Devotion Aura', false, false], // passive aura: no cast frame
   'holynova' => ['Holy Nova', true, false, 1, true], // 5th: are imagine de efect AoE (cupolă)
+  // Sword Saint (Human hero 2) kit
+  'backlineteleport' => ['Backline Teleport', true, false, 2], // 2 cast frames: Prepare + Land
+  'divinebuff' => ['Divine Buff', false, false],  // passive: no cast frame
+  'divineregen' => ['Divine Regeneration', true, false, 1], // 1 stance frame (held for the duration)
+  'vortexoflight' => ['Vortex of Light', true, false, 1],    // 1 spin frame (held while channeling)
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem'];
@@ -481,6 +486,10 @@ function slotsFor(string $ent, string $race = 'humans'): array {
         // the two Elemental Form cast frames are the transform sequence, not a swing
         $slots["cast-{$aid}_0"] = 'Elemental Form: Prepare';
         $slots["cast-{$aid}_1"] = 'Elemental Form: Transform';
+      } else if ($aid === 'backlineteleport') {
+        // the two Backline Teleport frames are the blink sequence (prepare + land)
+        $slots["cast-{$aid}_0"] = 'Backline Teleport: Prepare';
+        $slots["cast-{$aid}_1"] = 'Backline Teleport: Land';
       } else if ($castFrames >= 2) {
         $slots["cast-{$aid}_0"] = "Cast {$name} 1";
         $slots["cast-{$aid}_1"] = "Cast {$name} 2";

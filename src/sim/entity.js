@@ -53,6 +53,9 @@ export function spawnUnit(game, team, type, x, y) {
     // Empower channel: while empowerUntil > time this caster is locked onto ally
     // empowerTargetId, refreshing its buff and draining mana per second.
     empowerUntil: 0, empowerTargetId: null,
+    // Vortex of Light (Sword Saint ult): while vortexUntil > time the hero spins,
+    // dealing AoE (vortex = { radius, dps }) and immune to slow/stun.
+    vortexUntil: 0, vortex: null,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
     ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
     mana: (s.caster || s.isHero) ? (s.mana || 0) : 0,    // casting resource (heroes cast too)

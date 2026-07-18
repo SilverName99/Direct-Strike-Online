@@ -27,7 +27,7 @@ function isCastable(ab) {
 // extra rank adds HERO_RANK_STEP to a multiplier on the "power" params below
 // (rank 2 = 1.5×, rank 3 = 2×). Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5;
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   if (rank <= 1) return ab.params;
@@ -89,6 +89,7 @@ function hasEffect(u, kind, time) {
 // Attack-period multiplier for a unit (slow lengthens, haste shortens). The
 // 'terrainatkslow' source is the invisible middle-terrain slow (no status VFX).
 export function attackPeriodMult(u, time) {
+  if ((u.vortexUntil || 0) > time) return 1; // Vortex of Light: unaffected by slows
   const slow = Math.max(effectVal(u, 'atkslow', time), effectVal(u, 'terrainatkslow', time));
   const haste = effectVal(u, 'haste', time);
   return (1 + slow / 100) * Math.max(0.25, 1 - haste / 100);
@@ -96,6 +97,7 @@ export function attackPeriodMult(u, time) {
 
 // Movement-speed multiplier. 'terrainslow' is the invisible middle-terrain slow.
 export function moveSpeedMult(u, time) {
+  if ((u.vortexUntil || 0) > time) return 1; // Vortex of Light: immune to slow + stun
   if (hasEffect(u, 'stun', time)) return 0; // stunned: can't move at all
   const slow = Math.max(effectVal(u, 'moveslow', time), effectVal(u, 'terrainslow', time));
   const haste = effectVal(u, 'movehaste', time); // Bloodlust move-speed buff
@@ -105,6 +107,7 @@ export function moveSpeedMult(u, time) {
 // A stunned unit can neither move nor attack (Charge impact). Combat checks this
 // to skip the swing; movement is already zeroed via moveSpeedMult above.
 export function isStunned(u, time) {
+  if ((u.vortexUntil || 0) > time) return false; // Vortex of Light: immune to stun
   return hasEffect(u, 'stun', time);
 }
 
@@ -211,6 +214,18 @@ export function updateAbilities(game, dt) {
     const until = time + AURA_TICK;
     if (p.haste) applyEffect(target, 'haste', p.haste, until, time);
     if (p.dmgReduce) applyEffect(target, 'dmgReduce', p.dmgReduce, until, time);
+  }
+
+  // Vortex of Light: while the Sword Saint spins, every enemy in radius takes
+  // damage each tick (dps). Expires when vortexUntil passes.
+  for (const u of game.entities) {
+    if (!u.vortexUntil) continue;
+    if (u.hp <= 0 || time >= u.vortexUntil) { u.vortexUntil = 0; u.vortex = null; continue; }
+    const v = u.vortex; if (!v || !v.dps) continue;
+    for (const e of game.entities) {
+      if (e.hp <= 0 || e.team === u.team || e.summon || e.isStructure) continue;
+      if (inRadius(e, u, v.radius)) applyDamage(game, e, v.dps * dt, 'normal', true);
+    }
   }
 
   // regen effects heal their owners
@@ -357,6 +372,8 @@ function combatNear(game, caster, radius) {
 // range). The exceptions are the support abilities in ENGAGE_EXEMPT (Heal and
 // Regeneration Aura), which fire for wounded allies even with no enemy nearby.
 function pickCastable(game, caster, stats, time, engaged) {
+  // while spinning the Vortex of Light, the Sword Saint does nothing else
+  if ((caster.vortexUntil || 0) > time) return null;
   let combatFlag = null; // combatNear(), computed at most once per pick
   // a caster only casts while ENGAGED (an enemy sits in its attack range) —
   // summons included, so wolves/eagles/bears are conjured only when there's an
@@ -502,6 +519,21 @@ function findAbilityTarget(game, caster, aid, ab, time) {
   if (aid === 'beastform') {
     // self-transform; don't re-cast while already morphed
     return (caster.morphUntil || 0) > time ? null : caster;
+  }
+  if (aid === 'backlineteleport') {
+    // blink toward the enemy when there's someone ahead to reach
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team !== caster.team) return caster;
+    }
+    return null;
+  }
+  if (aid === 'divineregen') {
+    // meditate to heal — worth it only when actually wounded
+    return caster.hp < caster.maxHp ? caster : null;
+  }
+  if (aid === 'vortexoflight') {
+    // self-channel; don't re-cast while the vortex is already spinning
+    return (caster.vortexUntil || 0) > time ? null : caster;
   }
   if (aid === 'slowaura') {
     // only worth casting when at least one enemy is in range to slow
@@ -708,6 +740,35 @@ function releaseSpell(game, caster, time) {
     };
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'morph', team: caster.team, x: caster.x, y: caster.y });
+    return hold;
+  }
+
+  if (aid === 'backlineteleport') {
+    // blink forward (toward the enemy), clamped to the field so it never lands
+    // off-map or behind the enemy base
+    const front = caster.team === 0 ? 1 : -1;
+    const fromX = caster.x;
+    caster.x = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (p.distance || 0)));
+    caster.prevX = caster.x; // no interpolated slide — it's a teleport
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'teleport', team: caster.team, x: fromX, y: caster.y, tx: caster.x, ty: caster.y });
+    return hold;
+  }
+  if (aid === 'divineregen') {
+    // enter a healing stance: strong self-regen for `duration`; the release
+    // frame is held for the whole duration (the hero stands still, meditating)
+    const dur = p.duration || 0;
+    if (p.hps) applyEffect(caster, 'regen', p.hps, time + dur, time);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    return Math.max(hold, dur);
+  }
+  if (aid === 'vortexoflight') {
+    // spin up the vortex: a timed state (like a morph) — updateAbilities ticks
+    // the AoE, movement/stun immunity is read off vortexUntil, and the renderer
+    // shows the vortex frame while it lasts. The caster stays mobile.
+    caster.vortexUntil = time + (p.duration || 0);
+    caster.vortex = { radius: p.radius || 0, dps: p.dps || 0 };
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
     return hold;
   }
 

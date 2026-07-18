@@ -1098,6 +1098,21 @@ export class Renderer {
       if (rstats.caster && rstats.abilities && rstats.abilities.length) {
         this.drawAuraRings(ctx, u, rstats, x, y, game.time);
       }
+      // Vortex of Light: spinning light arcs at the AoE radius while it lasts
+      if (u.vortexUntil > game.time && u.vortex) {
+        const vr = u.vortex.radius || 100;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = '#fff2b0';
+        ctx.globalAlpha = 0.18; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, vr, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 0.55; ctx.lineWidth = 3;
+        for (let k = 0; k < 3; k++) {
+          const a = this.now * 6 + k * (Math.PI * 2 / 3);
+          ctx.beginPath(); ctx.arc(0, 0, vr, a, a + 1.3); ctx.stroke();
+        }
+        ctx.restore();
+      }
 
       ctx.save();
       ctx.translate(x, y);
@@ -1221,6 +1236,12 @@ export class Renderer {
         // light dome (drawn separately) over it for the rest of the invuln
         if (u.shieldAt >= 0 && game.time < u.shieldAt + (u.shieldPose ?? 0.5) && hasShieldAnim(u.type, u.team)) {
           anim = 'shield'; frame = 0;
+        }
+        // Vortex of Light (Sword Saint ult): hold the vortex cast frame the whole
+        // time it spins, over any march/attack pose
+        if (u.vortexUntil > game.time) {
+          const va = castAnimOf(u.type, u.team, 'vortexoflight');
+          if (va) { anim = va; frame = 0; }
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
       } else {

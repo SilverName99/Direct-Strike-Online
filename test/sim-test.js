@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
-import { stepCaster, updateAbilities } from '../src/sim/abilities.js';
+import { stepCaster, updateAbilities, isStunned } from '../src/sim/abilities.js';
 import { effStats } from '../src/sim/combat.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
@@ -377,6 +377,78 @@ console.log('beast form ultimate');
   check('beast form: reverts after duration', !hero.morph && hero.morphUntil === 0);
   check('beast form: max HP restored', hero.maxHp === baseMax);
   Object.assign(ab.params, saved);
+}
+
+// ------------------------------------------- Sword Saint (Human hero 2) kit
+console.log('sword saint kit');
+{
+  const game = new Game(86, { races: ['humans', 'orcs'] });
+  game.abilityUsable = () => true;
+
+  // Divine Buff (passive): faster + stronger attacks
+  {
+    const hero = spawnUnit(game, 0, 'hero', 400, 400);
+    hero.hero = true; hero.heroRanks = { divinebuff: 1 };
+    const base = game.ustatOf(hero);
+    const es = effStats(hero, base);
+    const p = resolvedAbility('divinebuff').params;
+    check('divine buff: +damage', Math.abs(es.damage - base.damage * (1 + p.damageBonus / 100)) < 0.01, `${es.damage}`);
+    check('divine buff: faster attacks (shorter period)', es.period < base.period);
+  }
+
+  // Backline Teleport: blinks forward by `distance`
+  {
+    const ab = resolvedAbility('backlineteleport');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, { distance: 240, manaCost: 0, cooldown: 5, castPrepare: 0.1, castHold: 0.1 });
+    const hero = spawnUnit(game, 0, 'hero', 600, 400);
+    hero.hero = true; hero.heroRanks = { backlineteleport: 1 }; hero.mana = 100; hero.abilityCd = {};
+    spawnUnit(game, 1, 'grunt', 900, 400); // an enemy ahead to justify the blink
+    const x0 = hero.x;
+    const stats = { caster: true, autoAttackBetween: true, abilities: ['backlineteleport'] };
+    for (let i = 0; i < 40 && Math.abs(hero.x - x0) < 1; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
+    check('backline teleport: blinked ~240 forward', Math.abs(hero.x - (x0 + 240)) < 1, `${hero.x} vs ${x0}`);
+    ab.params = saved;
+  }
+
+  // Divine Regeneration: strong self-regen for the duration
+  {
+    const ab = resolvedAbility('divineregen');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, { hps: 80, duration: 4, manaCost: 0, cooldown: 10, castPrepare: 0 });
+    const hero = spawnUnit(game, 0, 'hero', 300, 400);
+    hero.hero = true; hero.heroRanks = { divineregen: 1 }; hero.mana = 100; hero.abilityCd = {};
+    hero.hp = hero.maxHp * 0.4;
+    const hp0 = hero.hp;
+    const stats = { caster: true, autoAttackBetween: true, abilities: ['divineregen'] };
+    game.time += DT; stepCaster(game, hero, stats, DT, true); // cast the stance
+    check('divine regen: gains a regen effect', hero.effects.some((e) => e.kind === 'regen' && e.until > game.time));
+    for (let i = 0; i < 60; i++) { game.time += DT; updateAbilities(game, DT); }
+    check('divine regen: healed over the stance', hero.hp > hp0 + 100, `${hero.hp} vs ${hp0}`);
+    ab.params = saved;
+  }
+
+  // Vortex of Light: timed AoE + CC immunity
+  {
+    const ab = resolvedAbility('vortexoflight');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, { duration: 3, radius: 130, dps: 100, manaCost: 0, cooldown: 40, castPrepare: 0 });
+    const hero = spawnUnit(game, 0, 'hero', 500, 500);
+    hero.hero = true; hero.heroRanks = { vortexoflight: 1 }; hero.mana = 200; hero.abilityCd = {};
+    const near = spawnUnit(game, 1, 'grunt', 560, 500); // inside the radius
+    const far = spawnUnit(game, 1, 'grunt', 900, 500);  // outside
+    const nearHp = near.hp; const farHp = far.hp;
+    const stats = { caster: true, autoAttackBetween: true, abilities: ['vortexoflight'] };
+    game.time += DT; stepCaster(game, hero, stats, DT, true);
+    check('vortex: active after cast', hero.vortexUntil > game.time);
+    // immune to slow/stun while spinning
+    hero.effects.push({ kind: 'stun', val: 1, until: game.time + 5 });
+    check('vortex: immune to stun', !isStunned(hero, game.time));
+    for (let i = 0; i < 30; i++) { game.time += DT; updateAbilities(game, DT); }
+    check('vortex: damages nearby enemy', near.hp < nearHp - 50, `${near.hp} vs ${nearHp}`);
+    check('vortex: spares distant enemy', far.hp === farHp);
+    ab.params = saved;
+  }
 }
 
 // ------------------------------------------- regen aura max-targets cap
