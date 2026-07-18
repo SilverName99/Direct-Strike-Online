@@ -251,6 +251,8 @@ function portraitVidVariants(string $race, string $ent): array {
   // a summoned animal (Shaman) can have its own portrait clip, hosted here
   $ua = unitAbilities($race, $ent);
   foreach (SUMMON_ANIMALS as $aid => $animal) {
+    // a stationary totem has only a thumbnail, no portrait clip
+    if (in_array($aid, TOTEM_ABILITIES, true)) continue;
     if (in_array($aid, $ua, true)) $v["-$animal"] = 'Animație portret — ' . SUMMON_LABELS[$animal];
   }
   return $v;
@@ -443,9 +445,14 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $lbl = SUMMON_LABELS[$animal];
     // a stationary totem only stands (idle 1/2) — it never moves, attacks or
     // "dies" with an animation; moving summons get the full walk/attack/die set.
+    if (in_array($aid, TOTEM_ABILITIES, true)) {
+      $slots["{$animal}-thumb"] = "$lbl: Thumb";
+      $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
+      $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
+      continue;
+    }
     $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
     $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
-    if (in_array($aid, TOTEM_ABILITIES, true)) continue;
     $slots["{$animal}-walk_0"] = "$lbl: Mers 1";
     $slots["{$animal}-walk_1"] = "$lbl: Mers 2";
     $slots["{$animal}-attack_0"] = "$lbl: Atac 1";
