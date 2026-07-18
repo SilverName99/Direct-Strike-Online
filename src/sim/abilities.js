@@ -327,6 +327,13 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   // frame (heroes) — fire the effect right away and jump to the cast frame.
   const pab = resolvedAbility(pick.aid);
   const prep = pab && pab.params && pab.params.castPrepare != null ? pab.params.castPrepare : CAST_PREPARE;
+  // Backline Teleport: lock in the landing spot NOW and telegraph it with a
+  // portal for the whole wind-up; the hero blinks there when the prepare ends.
+  if (pick.aid === 'backlineteleport') {
+    const front = caster.team === 0 ? 1 : -1;
+    caster.teleportTo = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (pab.params.distance || 0)));
+    game.events.push({ type: 'teleportcharge', team: caster.team, x: caster.teleportTo, y: caster.y, dur: Math.max(0.1, prep) });
+  }
   if (prep > 0) {
     caster.castState = 'prepare';
     caster.castPhaseEnd = time + prep;
@@ -744,12 +751,16 @@ function releaseSpell(game, caster, time) {
   }
 
   if (aid === 'backlineteleport') {
-    // blink forward (toward the enemy), clamped to the field so it never lands
-    // off-map or behind the enemy base
+    // blink to the landing spot locked in at cast start (telegraphed by the
+    // portal during the wind-up); fall back to a fresh forward blink if missing
     const front = caster.team === 0 ? 1 : -1;
     const fromX = caster.x;
-    caster.x = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (p.distance || 0)));
+    const toX = caster.teleportTo != null
+      ? caster.teleportTo
+      : Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (p.distance || 0)));
+    caster.x = toX;
     caster.prevX = caster.x; // no interpolated slide — it's a teleport
+    caster.teleportTo = null;
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'teleport', team: caster.team, x: fromX, y: caster.y, tx: caster.x, ty: caster.y });
     return hold;

@@ -56,6 +56,9 @@ export function spawnUnit(game, team, type, x, y) {
     // Vortex of Light (Sword Saint ult): while vortexUntil > time the hero spins,
     // dealing AoE (vortex = { radius, dps }) and immune to slow/stun.
     vortexUntil: 0, vortex: null,
+    // Backline Teleport: landing x locked in at cast start (telegraphed), used
+    // when the wind-up ends.
+    teleportTo: null,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
     ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
     mana: (s.caster || s.isHero) ? (s.mana || 0) : 0,    // casting resource (heroes cast too)

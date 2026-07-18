@@ -17,6 +17,7 @@ export class Effects {
     this.structCorpses = []; // toppled towers showing their per-tier die frame
     this.rings = []; // expanding spell rings (dispell etc.)
     this.domes = []; // uploaded AoE effect images scaled to an ability's radius
+    this.portals = []; // Backline Teleport landing telegraphs (golden swirl)
   }
 
   reset() {
@@ -25,6 +26,7 @@ export class Effects {
     this.structCorpses = [];
     this.rings = [];
     this.domes = [];
+    this.portals = [];
   }
 
   spawnFromEvents(events) {
@@ -59,12 +61,17 @@ export class Effects {
           this.burst(e.tx, e.ty, 9, c, 160, 0.3, 2.5);
           break;
         }
+        case 'teleportcharge':
+          // Backline Teleport wind-up: a golden swirling portal telegraphs the
+          // landing spot for the whole prepare duration
+          this.portals.push({ x: e.x, y: e.y, t: 0, life: Math.max(0.12, e.dur || 0.35), acc: 0 });
+          break;
         case 'teleport': {
-          // Backline Teleport: a light flash at the departure point and arrival
-          this.rings.push({ x: e.x, y: e.y, r0: 4, r1: 34, life: 0.35, maxLife: 0.35, color: '#8fe3ff' });
-          this.burst(e.x, e.y, 10, '#8fe3ff', 150, 0.35, 2.5);
-          this.rings.push({ x: e.tx, y: e.ty, r0: 4, r1: 40, life: 0.4, maxLife: 0.4, color: '#cfefff' });
-          this.burst(e.tx, e.ty, 14, '#cfefff', 200, 0.4, 3, -40);
+          // Backline Teleport: a puff at departure + a bright arrival burst where
+          // the portal was
+          this.burst(e.x, e.y, 10, '#cfefff', 150, 0.3, 2.5);
+          this.rings.push({ x: e.tx, y: e.ty, r0: 6, r1: 44, life: 0.4, maxLife: 0.4, color: '#ffe08a' });
+          this.burst(e.tx, e.ty, 16, '#ffe08a', 220, 0.4, 3, -40);
           break;
         }
         case 'dismount':
@@ -163,6 +170,20 @@ export class Effects {
     this.structCorpses = this.structCorpses.filter((c) => (c.t += dt) < STRUCT_CORPSE_LIFE);
     this.rings = this.rings.filter((r) => (r.life -= dt) > 0);
     this.domes = this.domes.filter((d) => (d.t += dt) < d.life);
+    // teleport portals: age them + keep spilling rising golden sparkles
+    for (const pl of this.portals) {
+      pl.t += dt; pl.acc += dt;
+      while (pl.acc >= 0.03) {
+        pl.acc -= 0.03;
+        const a = Math.random() * Math.PI * 2;
+        const rr = 24 + Math.random() * 12;
+        this.particles.push({
+          x: pl.x + Math.cos(a) * rr, y: pl.y + Math.sin(a) * rr * 0.4,
+          vx: 0, vy: -70 - Math.random() * 90, life: 0.5, maxLife: 0.5, color: '#ffe08a', size: 2,
+        });
+      }
+    }
+    this.portals = this.portals.filter((pl) => pl.t < pl.life);
   }
 
   // Toppled towers: their per-tier "die" frame, fading out where they fell.
@@ -218,6 +239,25 @@ export class Effects {
       const rad = r.r0 + (r.r1 - r.r0) * t;
       drawExpandingRing(ctx, r.x, r.y, rad, 1 - t, r.color);
     }
+    // Backline Teleport telegraph: a flat golden ring on the ground with a
+    // rotating highlight arc, marking where the Sword Saint will land
+    for (const pl of this.portals) {
+      const fade = Math.min(1, pl.t / 0.12) * Math.min(1, (pl.life - pl.t) / 0.15);
+      if (fade <= 0) continue;
+      ctx.save();
+      ctx.translate(pl.x, pl.y);
+      ctx.scale(1, 0.42); // flatten to sit on the ground
+      ctx.strokeStyle = '#ffd35c';
+      ctx.globalAlpha = fade * 0.85; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = fade * 0.5;
+      ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.stroke();
+      const rot = pl.t * 6;
+      ctx.globalAlpha = fade; ctx.lineWidth = 3.5; ctx.strokeStyle = '#fff2b0';
+      ctx.beginPath(); ctx.arc(0, 0, 32, rot, rot + 1.3); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
     for (const p of this.particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
       ctx.fillStyle = p.color;
