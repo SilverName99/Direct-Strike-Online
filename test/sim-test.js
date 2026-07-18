@@ -362,6 +362,8 @@ console.log('beast form ultimate');
   check('beast form: becomes melee (no projectile)', es.projectile === false && es.ranged === false);
   check('beast form: damage doubled (+100%)', Math.abs(es.damage - baseDmg * 2) <= 1, `${es.damage} vs ${baseDmg}`);
   check('beast form: carries melee splash', es.morphSplash === 80 && es.morphSplashPct === 0.5);
+  // a grounded melee colossus can't reach fliers, even if the base hero could
+  check('beast form: cannot target air', effStats({ morph: hero.morph }, { targetsAir: true, damage: 10 }).targetsAir === false);
   run(game, 5); // outlast the 4s duration
   check('beast form: reverts after duration', !hero.morph && hero.morphUntil === 0);
   check('beast form: max HP restored', hero.maxHp === baseMax);

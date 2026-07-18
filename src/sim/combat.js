@@ -23,13 +23,15 @@ export function effStats(u, stats) {
     };
   }
   // Elemental Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
-  // a splash applied in the melee branch (morphSplash/morphSplashPct).
+  // a splash applied in the melee branch (morphSplash/morphSplashPct). Being a
+  // grounded melee colossus, it can no longer reach fliers (targetsAir off) even
+  // if the base hero could hit air.
   if (u.morph) {
     return {
       ...stats,
       damage: stats.damage * u.morph.dmgMul,
       range: u.morph.range,
-      projectile: false, ranged: false, splash: 0,
+      projectile: false, ranged: false, splash: 0, targetsAir: false,
       morphSplash: u.morph.splash, morphSplashPct: u.morph.splashPct,
     };
   }
