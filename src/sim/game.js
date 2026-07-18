@@ -561,7 +561,9 @@ export class Game {
       this.money[cmd.team] -= stats.cost;
       this.spent[cmd.team] += stats.cost;
       const tpl = { type: cmd.unitId, x: cmd.x, y: cmd.y, spawned: false };
-      if (stats.isHero) { tpl.hero = true; tpl.level = 1; tpl.xp = 0; tpl.points = 0; }
+      // heroes start at level 1 WITH one talent point, so they can learn an
+      // ability right away (further points come on each level-up)
+      if (stats.isHero) { tpl.hero = true; tpl.level = 1; tpl.xp = 0; tpl.points = 1; }
       this.templates[cmd.team].push(tpl);
       return { ok: true };
     }

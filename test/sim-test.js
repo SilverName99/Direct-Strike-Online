@@ -320,6 +320,8 @@ console.log('multi-hero recruitment');
   // count-based gate: ANY hero can be your 1st at tier 1 — recruit hero3 directly
   const first = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero3', x: 300, y: 300 });
   check('any hero allowed as the 1st at tier 1', first.ok && game.hasHeroType(0, 'hero3'), first.reason || '');
+  // a fresh hero starts at level 1 WITH one talent point (learn an ability now)
+  check('hero starts with 1 talent point at level 1', game.heroTemplateOf(0, 'hero3').points === 1);
   // a 2nd hero is tier-locked at tier 1 (needs tier 2), whichever one
   const second = game.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 600 });
   check('2nd hero tier-locked at tier 1', !second.ok && second.reason === 'tier-locked');
