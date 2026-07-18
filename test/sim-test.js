@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure } from '../src/sim/entity.js';
-import { stepCaster } from '../src/sim/abilities.js';
+import { stepCaster, updateAbilities } from '../src/sim/abilities.js';
 import { effStats } from '../src/sim/combat.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
@@ -409,6 +409,31 @@ console.log('empower (support attack)');
   check('empower: ally gains attack haste', hasK(ally, 'haste'));
   check('empower: ally gains damage reduction', hasK(ally, 'dmgReduce'));
   check('empower: caster does not buff itself', !hasK(caster, 'haste'));
+  ab.params = saved;
+}
+
+// ------------------------------------------- empower channel (drain + lock)
+console.log('empower channel');
+{
+  const game = new Game(82, { races: ['humans', 'orcs'] });
+  const ab = resolvedAbility('empower');
+  const saved = { ...ab.params };
+  // long duration so MANA is what ends the channel in the second phase
+  Object.assign(ab.params, { range: 400, haste: 30, dmgReduce: 25, duration: 100, manaPerSec: 5 });
+  const caster = spawnUnit(game, 0, 'grunt', 500, 400);
+  caster.mana = 30; caster.manaMax = 200;
+  const ally = spawnUnit(game, 0, 'grunt', 560, 400);
+  const hasK = (u, k) => u.effects && u.effects.some((e) => e.kind === k && e.until > game.time);
+  // start the channel locked on the ally
+  caster.empowerUntil = game.time + 100; caster.empowerTargetId = ally.id;
+  for (let i = 0; i < Math.round(2 / DT); i++) { game.time += DT; updateAbilities(game, DT); }
+  check('empower channel: still committed to the same ally', caster.empowerUntil > game.time && caster.empowerTargetId === ally.id);
+  check('empower channel: ally stays buffed', hasK(ally, 'haste') && hasK(ally, 'dmgReduce'));
+  check('empower channel: drains ~5 mana/s', Math.abs(caster.mana - 20) < 1.5, `${caster.mana}`);
+  // keep ticking: mana (30) drains 5/s -> empty at ~6s -> channel ends
+  for (let i = 0; i < Math.round(5 / DT); i++) { game.time += DT; updateAbilities(game, DT); }
+  check('empower channel: ends when mana runs out', caster.mana <= 0 && caster.empowerUntil === 0);
+  check('empower channel: buff fades after the channel', !hasK(ally, 'haste'));
   ab.params = saved;
 }
 

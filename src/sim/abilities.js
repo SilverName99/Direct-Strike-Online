@@ -194,6 +194,25 @@ export function updateAbilities(game, dt) {
     }
   }
 
+  // Empower channel: while a caster is committed to an ally, keep that ally's
+  // buff refreshed and drain mana per second. The channel ends when its time is
+  // up, the caster runs out of mana, or the target is lost/out of range.
+  for (const u of game.entities) {
+    if (!u.empowerUntil) continue;
+    if (u.hp <= 0 || time >= u.empowerUntil) { u.empowerUntil = 0; u.empowerTargetId = null; continue; }
+    const ab = resolvedAbility('empower');
+    if (!ab) { u.empowerUntil = 0; u.empowerTargetId = null; continue; }
+    const p = abParams(u, 'empower', ab);
+    const target = game.byId.get(u.empowerTargetId);
+    if (!target || target.hp <= 0 || target.team !== u.team || !inRadius(target, u, p.range) || u.mana <= 0) {
+      u.empowerUntil = 0; u.empowerTargetId = null; continue;
+    }
+    u.mana = Math.max(0, u.mana - (p.manaPerSec || 0) * dt);
+    const until = time + AURA_TICK;
+    if (p.haste) applyEffect(target, 'haste', p.haste, until, time);
+    if (p.dmgReduce) applyEffect(target, 'dmgReduce', p.dmgReduce, until, time);
+  }
+
   // regen effects heal their owners
   for (const u of game.entities) {
     const hps = effectVal(u, 'regen', time);
@@ -351,6 +370,10 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     return caster; // self-cast: the animal appears beside the caster
   }
   if (aid === 'empower') {
+    // already committed to an ally this channel: don't start another
+    if ((caster.empowerUntil || 0) > time) return null;
+    // need at least one second's worth of mana to begin channeling
+    if (caster.mana < (p.manaPerSec || 0)) return null;
     // buff the ally standing furthest toward the enemy (the one most likely
     // fighting). Excludes self, summons, totems, structures.
     let best = null, bestAdv = -Infinity;
@@ -519,8 +542,13 @@ function releaseSpell(game, caster, time) {
   }
 
   if (aid === 'empower') {
-    // buff the ally: faster attacks + less damage taken for `duration`
-    const until = time + (p.duration || 0);
+    // begin a CHANNEL on this one ally: updateAbilities keeps the buff refreshed
+    // and drains mana per second until `duration` is up (or mana/target is lost).
+    // The buff is applied now too, with a short rolling window, so it's active
+    // immediately and fades right after the channel stops.
+    caster.empowerUntil = time + (p.duration || 0);
+    caster.empowerTargetId = target.id;
+    const until = time + AURA_TICK;
     if (p.haste) applyEffect(target, 'haste', p.haste, until, time);
     if (p.dmgReduce) applyEffect(target, 'dmgReduce', p.dmgReduce, until, time);
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y });

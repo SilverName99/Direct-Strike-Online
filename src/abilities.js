@@ -100,13 +100,18 @@ export const ABILITIES = {
     // doing its job the renderer loops the two "Cast Empower" frames (no idle
     // frame between casts), paced by frame1Time / frame2Time.
     attackReplacing: true,
-    desc: 'În loc să atace, întărește un aliat: atac mai rapid + damage redus primit, câteva secunde.',
+    // CHANNELED: the caster commits to ONE ally for `duration`, keeping it
+    // buffed and draining `manaPerSec` mana each second; it only moves on to
+    // another ally once the channel ends (duration up, mana out, or ally lost).
+    channeled: true,
+    desc: 'Se leagă de un singur aliat câteva secunde: atac mai rapid + damage redus primit, cât ține canalizarea. Consumă mană pe secundă și abia apoi trece la alt aliat.',
     params: {
-      tier: 1, cooldown: 2, manaCost: 0,
+      tier: 1, cooldown: 0, manaCost: 0,
       range: 170,
       haste: 30,      // % faster attacks on the ally
       dmgReduce: 25,  // % less damage the ally takes
-      duration: 4,    // seconds the buff lasts
+      duration: 5,    // seconds the channel (and buff) lasts
+      manaPerSec: 5,  // mana drained each second of channel; channel ends if mana runs out
       frame1Time: 0.4, // seconds held on "Cast Empower 1" (animation loop)
       frame2Time: 0.4, // seconds held on "Cast Empower 2" (animation loop)
       castPrepare: 0, // instant
@@ -370,6 +375,7 @@ export const ABILITY_PARAM_LABELS = {
   healPct2: 'Heal rang 2 (% HP max, 0 = auto)',
   healPct3: 'Heal rang 3 (% HP max, 0 = auto)',
   dmgReduce: 'Reducere damage (%)',
+  manaPerSec: 'Mana pe secundă (canalizare)',
   frame1Time: 'Timp pe Cast 1 (s)',
   frame2Time: 'Timp pe Cast 2 (s)',
   threshold: 'Prag HP pentru cast (%)',
