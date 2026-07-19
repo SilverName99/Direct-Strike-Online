@@ -292,8 +292,8 @@ export class Renderer {
   }
 
   // An elegant placement-zone "plate": a soft vertical-gradient fill inside a
-  // rounded, thin border, with L-shaped corner brackets and a centered label
-  // pill (icon + letter-spaced caps). `tint` is a partial rgba prefix like
+  // rounded, thin border, with a centered label pill (icon + letter-spaced
+  // caps) floating just ABOVE the zone. `tint` is a partial rgba prefix like
   // 'rgba(77, 166, 255,' — this appends the alpha. `topAlpha` is the fill
   // strength at the top edge (fades toward the bottom).
   drawZonePlate(ctx, z, tint, label, icon, topAlpha) {
@@ -316,25 +316,7 @@ export class Renderer {
     ctx.strokeStyle = `${tint} 0.30)`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    // L-shaped corner brackets (crisp accents that read as a "build plate")
-    const bl = Math.min(26, w * 0.3, h * 0.3); // bracket arm length
-    const ins = 7; // inset from the rounded corner
-    ctx.strokeStyle = `${tint} 0.6)`;
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    const bracket = (cx, cy, sx, sy) => {
-      ctx.beginPath();
-      ctx.moveTo(cx + sx * bl, cy);
-      ctx.lineTo(cx, cy);
-      ctx.lineTo(cx, cy + sy * bl);
-      ctx.stroke();
-    };
-    bracket(x + ins, y + ins, 1, 1);
-    bracket(x + w - ins, y + ins, -1, 1);
-    bracket(x + ins, y + h - ins, 1, -1);
-    bracket(x + w - ins, y + h - ins, -1, -1);
-    ctx.lineCap = 'butt';
-    // centered label pill near the top edge
+    // centered label pill floating just above the top edge
     if (label) {
       const cx = x + w / 2;
       ctx.font = '700 13px sans-serif';
@@ -347,7 +329,7 @@ export class Renderer {
       const tw = ctx.measureText(iconTxt + txt).width;
       const padX = 12, ph = 22;
       const pw = tw + padX * 2;
-      const px = cx - pw / 2, py = y + 13;
+      const px = cx - pw / 2, py = y - 14; // pill center sits above the zone
       rr(px, py - ph / 2, pw, ph, ph / 2);
       ctx.fillStyle = 'rgba(8, 12, 18, 0.72)';
       ctx.fill();
