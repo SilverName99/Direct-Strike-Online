@@ -132,8 +132,10 @@ export class BottomBar {
       const el = e.target.closest('.slot');
       if (!el) return;
       const slot = this.slots[Number(el.dataset.i)];
-      if (slot && slot.data) this.clickSlot(slot.data, el);
+      if (slot && slot.data) this.clickSlot(slot.data, el, e.button);
     });
+    // right-click is a game control (cycle a hero ability's mode), not the OS menu
+    this.grid.addEventListener('contextmenu', (e) => e.preventDefault());
     // hover -> wide popup above the grid. Listen at DOCUMENT level: under
     // pointer lock the grid never receives 'mouseleave' (only synthetic
     // mousemoves routed to whatever is under the virtual cursor), so a
@@ -935,7 +937,7 @@ export class BottomBar {
       const d = slot.data;
       if (!d) continue;
       const el = slot.el;
-      el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell');
+      el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell', 'tog-off');
       let cd = 0;
       let cdTotal = 0; // full cooldown length (for the radial sweep overlay)
       let tog = null;  // toggle state: true = ✔ activ, false = ✖ oprit, null = no badge
@@ -1055,6 +1057,18 @@ export class BottomBar {
         else if (rank >= max) el.classList.add('owned-upg');    // maxed out
         else if (pts > 0) el.classList.add('on');               // a point is available
         else el.classList.add('off');                           // learned but no point
+        // cast-mode badge (top-left): A = auto, M = manual, ✖ = off. Only shown
+        // once the ability is learned (rank ≥ 1) — before that it's just a talent.
+        const key = `${d.unit}/${d.id}`;
+        if (rank > 0) {
+          const isOff = game.abilityOff[this.team].has(key);
+          const isManual = game.abilityManual[this.team].has(key);
+          const mode = isOff ? 'off' : (isManual ? 'manual' : 'auto');
+          this.setModeBadge(el, mode);
+          if (mode === 'off') el.classList.add('tog-off');
+        } else {
+          this.setModeBadge(el, null);
+        }
         // live cooldown sweep when the inspected target is the LIVE hero
         if (rank > 0 && info && info.kind === 'entity' && info.u.hero && info.u.abilityCd) {
           cd = (info.u.abilityCd[d.id] || 0) - game.time;
@@ -1132,7 +1146,20 @@ export class BottomBar {
     r.textContent = text;
   }
 
-  clickSlot(d, el) {
+  // Hero ability cast-mode badge (top-left): 'auto' → A, 'manual' → M, 'off' → ✖.
+  // Pass null to remove it (ability not learned yet).
+  setModeBadge(el, mode) {
+    let m = el.querySelector('.s-mode');
+    if (mode == null) { if (m) m.remove(); return; }
+    if (!m) { m = document.createElement('span'); m.className = 's-mode'; el.appendChild(m); }
+    const txt = mode === 'off' ? '✖' : (mode === 'manual' ? 'M' : 'A');
+    if (m.textContent !== txt) m.textContent = txt;
+    m.classList.toggle('auto', mode === 'auto');
+    m.classList.toggle('manual', mode === 'manual');
+    m.classList.toggle('no', mode === 'off');
+  }
+
+  clickSlot(d, el, button = 0) {
     const game = this.getGame();
     if (d.kind === 'unit' || d.kind === 'building') {
       if (el.classList.contains('locked')) return;
@@ -1151,7 +1178,26 @@ export class BottomBar {
     }
     if (!game) return;
     if (d.kind === 'heroAbility') {
-      game.issueCommand({ type: 'rankHero', team: this.team, unit: d.unit, ability: d.id });
+      const key = `${d.unit}/${d.id}`;
+      // right-click cycles the cast mode: Auto -> Manual -> Off -> Auto
+      if (button === 2) {
+        const off = game.abilityOff[this.team].has(key);
+        const manual = game.abilityManual[this.team].has(key);
+        const next = off ? 'auto' : (manual ? 'off' : 'manual'); // auto->manual->off->auto
+        game.issueCommand({ type: 'setAbilityMode', team: this.team, unit: d.unit, ability: d.id, mode: next });
+        return;
+      }
+      // left-click: spend a talent point if one is free, otherwise (in Manual
+      // mode) fire the ability now.
+      const tpl = game.heroTemplateOf(this.team, d.unit);
+      const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
+      const max = d.ult ? 1 : 3;
+      const canRank = (tpl && tpl.points > 0) && rank < max && !(d.ult && (tpl.level || 1) < 6);
+      if (canRank) {
+        game.issueCommand({ type: 'rankHero', team: this.team, unit: d.unit, ability: d.id });
+      } else if (rank > 0 && game.abilityManual[this.team].has(key)) {
+        game.issueCommand({ type: 'castAbilityNow', team: this.team, unit: d.unit, ability: d.id });
+      }
       return;
     }
     if (d.kind === 'ability' && d.own) {
@@ -1306,11 +1352,22 @@ export class BottomBar {
       let status;
       if (d.ult && lvl < 6) status = 'Ultima — se deblochează la nivel 6';
       else if (rank >= max) status = `Rang MAXIM (${rank}/${max})`;
-      else if (pts > 0) status = `Rang ${rank}/${max} — click pentru +1 rang (${pts} pct.)`;
+      else if (pts > 0) status = `Rang ${rank}/${max} — click-stânga pentru +1 rang (${pts} pct.)`;
       else status = `Rang ${rank}/${max} — n-ai puncte de talent`;
+      // once learned, the ability carries a cast mode you cycle with right-click
+      let modeLine = '';
+      if (rank > 0) {
+        const key = `${d.unit}/${d.id}`;
+        const isOff = game && game.abilityOff[this.team].has(key);
+        const isManual = game && game.abilityManual[this.team].has(key);
+        const modeName = isOff ? 'OPRIT ✖' : (isManual ? 'MANUAL M' : 'AUTO A');
+        modeLine = `<div class="p-dim">Mod: <b>${modeName}</b> — click-dreapta ciclează Auto → Manual → Oprit.</div>` +
+          (isManual ? '<div class="p-dim">Manual: click-stânga o aruncă acum (dacă e gata).</div>' : '');
+      }
       return `<div class="p-title" style="color:${ab.color || '#ffd35c'}">${d.ult ? '★ ' : ''}${ab.name}</div>
         <div>${ab.desc || ''}</div>
         <div class="p-dim">${status}</div>
+        ${modeLine}
         <div class="p-dim">Efectul crește cu rangul.</div>`;
     }
     if (d.kind === 'sell') {

@@ -273,33 +273,11 @@ export class Renderer {
     for (const team of [0, 1]) {
       const cz = CONFIG.CONSTRUCTION_ZONE[team];
       const az = CONFIG.ARMY_ZONE[team];
-      ctx.fillStyle = `${tints[team]} 0.09)`;
-      ctx.fillRect(cz.x0, cz.y0, cz.x1 - cz.x0, cz.y1 - cz.y0);
-      ctx.fillStyle = `${tints[team]} 0.05)`;
-      ctx.fillRect(az.x0, az.y0, az.x1 - az.x0, az.y1 - az.y0);
-      ctx.strokeStyle = `${tints[team]} 0.35)`;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([10, 8]);
-      ctx.strokeRect(cz.x0, cz.y0, cz.x1 - cz.x0, cz.y1 - cz.y0);
-      ctx.strokeRect(az.x0, az.y0, az.x1 - az.x0, az.y1 - az.y0);
-      ctx.setLineDash([]);
-      ctx.fillStyle = `${tints[team]} 0.45)`;
-      ctx.font = 'bold 17px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('CONSTRUCTION', (cz.x0 + cz.x1) / 2, cz.y0 + 24);
-      ctx.fillText('ARMY', (az.x0 + az.x1) / 2, az.y0 + 24);
-
-      // forward build pocket around the mid turret
+      this.drawZonePlate(ctx, az, tints[team], 'ARMY', '⚔️', 0.05);
+      this.drawZonePlate(ctx, cz, tints[team], 'CONSTRUCTION', '🔨', 0.10);
+      // forward build pocket around the mid turret (same styling, no label)
       const mz = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team];
-      if (mz) {
-        ctx.fillStyle = `${tints[team]} 0.09)`;
-        ctx.fillRect(mz.x0, mz.y0, mz.x1 - mz.x0, mz.y1 - mz.y0);
-        ctx.strokeStyle = `${tints[team]} 0.35)`;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([10, 8]);
-        ctx.strokeRect(mz.x0, mz.y0, mz.x1 - mz.x0, mz.y1 - mz.y0);
-        ctx.setLineDash([]);
-      }
+      if (mz) this.drawZonePlate(ctx, mz, tints[team], null, null, 0.08);
     }
 
     // midline
@@ -311,6 +289,78 @@ export class Renderer {
     ctx.lineTo(CONFIG.FIELD_W / 2, CONFIG.FIELD_H);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  // An elegant placement-zone "plate": a soft vertical-gradient fill inside a
+  // rounded, thin border, with L-shaped corner brackets and a centered label
+  // pill (icon + letter-spaced caps). `tint` is a partial rgba prefix like
+  // 'rgba(77, 166, 255,' — this appends the alpha. `topAlpha` is the fill
+  // strength at the top edge (fades toward the bottom).
+  drawZonePlate(ctx, z, tint, label, icon, topAlpha) {
+    const x = z.x0, y = z.y0, w = z.x1 - z.x0, h = z.y1 - z.y0;
+    const r = Math.min(16, w / 2, h / 2);
+    const rr = (rx, ry, rw, rh, rad) => {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, rad);
+      else ctx.rect(rx, ry, rw, rh);
+    };
+    // soft vertical gradient fill (brighter at the top, fading down)
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, `${tint} ${topAlpha})`);
+    g.addColorStop(1, `${tint} ${(topAlpha * 0.25).toFixed(3)})`);
+    rr(x, y, w, h, r);
+    ctx.fillStyle = g;
+    ctx.fill();
+    // thin rounded border
+    rr(x, y, w, h, r);
+    ctx.strokeStyle = `${tint} 0.30)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // L-shaped corner brackets (crisp accents that read as a "build plate")
+    const bl = Math.min(26, w * 0.3, h * 0.3); // bracket arm length
+    const ins = 7; // inset from the rounded corner
+    ctx.strokeStyle = `${tint} 0.6)`;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    const bracket = (cx, cy, sx, sy) => {
+      ctx.beginPath();
+      ctx.moveTo(cx + sx * bl, cy);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx, cy + sy * bl);
+      ctx.stroke();
+    };
+    bracket(x + ins, y + ins, 1, 1);
+    bracket(x + w - ins, y + ins, -1, 1);
+    bracket(x + ins, y + h - ins, 1, -1);
+    bracket(x + w - ins, y + h - ins, -1, -1);
+    ctx.lineCap = 'butt';
+    // centered label pill near the top edge
+    if (label) {
+      const cx = x + w / 2;
+      ctx.font = '700 13px sans-serif';
+      const prevLS = ctx.letterSpacing;
+      ctx.letterSpacing = '3px';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const txt = label;
+      const iconTxt = icon ? `${icon} ` : '';
+      const tw = ctx.measureText(iconTxt + txt).width;
+      const padX = 12, ph = 22;
+      const pw = tw + padX * 2;
+      const px = cx - pw / 2, py = y + 13;
+      rr(px, py - ph / 2, pw, ph, ph / 2);
+      ctx.fillStyle = 'rgba(8, 12, 18, 0.72)';
+      ctx.fill();
+      rr(px, py - ph / 2, pw, ph, ph / 2);
+      ctx.strokeStyle = `${tint} 0.5)`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = `${tint} 0.92)`;
+      ctx.fillText(iconTxt + txt, px + padX, py + 1);
+      ctx.letterSpacing = prevLS || '0px';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+    }
   }
 
   // Cover-fit a background image into a half of the field, clipped to it.

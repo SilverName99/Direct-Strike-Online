@@ -35,6 +35,14 @@ export class Game {
     // Player-facing toggles (via the selection panel). Both are OFF-lists so
     // everything defaults to ON (the AI never toggles — full behavior).
     this.abilityOff = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` autocast disabled
+    // Hero ability modes (player-facing). Default AUTO = in neither set. MANUAL =
+    // in abilityManual (the hero never auto-casts it; the player fires it). OFF =
+    // in abilityOff (never used at all, reusing the autocast off-list above).
+    this.abilityManual = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` on manual
+    // One-shot manual fire requests: a `castAbilityNow` adds a key; the sim casts
+    // it that tick if ready, then this is cleared at the end of update() (so a
+    // press never lingers — nothing happens if it wasn't ready, press again).
+    this.abilityCastReq = [new Set(), new Set()];
     this.upgradeOff = [new Set(), new Set()]; // per team: upgrade id owned but deactivated
     this.incomeMult = options.incomeMult || [1, 1];
 
@@ -704,6 +712,32 @@ export class Game {
       return { ok: true };
     }
 
+    // Hero ability mode (selection panel): 'auto' (default), 'manual', 'off'.
+    // Auto = hero casts it itself; Manual = only the player fires it; Off =
+    // never used. Reuses abilityOff for the OFF state so abilityUsable() blocks
+    // it everywhere for free.
+    if (cmd.type === 'setAbilityMode') {
+      if (!ABILITY_IDS.includes(cmd.ability)) return { ok: false, reason: 'unknown-ability' };
+      if (!this.ustat(cmd.team, cmd.unit)) return { ok: false, reason: 'unknown-unit' };
+      const key = `${cmd.unit}/${cmd.ability}`;
+      this.abilityManual[cmd.team].delete(key);
+      this.abilityOff[cmd.team].delete(key);
+      this.abilityCastReq[cmd.team].delete(key); // a mode change cancels any pending fire
+      if (cmd.mode === 'manual') this.abilityManual[cmd.team].add(key);
+      else if (cmd.mode === 'off') this.abilityOff[cmd.team].add(key);
+      return { ok: true };
+    }
+
+    // Fire a manual-mode hero ability NOW. One-shot: it only casts if it's ready
+    // this tick (mana/cooldown/target); otherwise nothing happens — the request
+    // is cleared at the end of update().
+    if (cmd.type === 'castAbilityNow') {
+      if (!ABILITY_IDS.includes(cmd.ability)) return { ok: false, reason: 'unknown-ability' };
+      if (!this.ustat(cmd.team, cmd.unit)) return { ok: false, reason: 'unknown-unit' };
+      this.abilityCastReq[cmd.team].add(`${cmd.unit}/${cmd.ability}`);
+      return { ok: true };
+    }
+
     // Activate/deactivate an ALREADY-OWNED upgrade (selection panel).
     if (cmd.type === 'toggleUpgrade') {
       if (!this.upgrades[cmd.team].has(cmd.id)) return { ok: false, reason: 'not-owned' };
@@ -801,6 +835,12 @@ export class Game {
     for (const s of [...this.structures]) {
       if (s.hp <= 0) this.removeStructure(s, true);
     }
+
+    // Manual hero-cast requests are one-shot: whatever fired (or couldn't) this
+    // tick, drop them so a press never lingers — nothing happens if it wasn't
+    // ready, the player presses again when it is.
+    this.abilityCastReq[0].clear();
+    this.abilityCastReq[1].clear();
   }
 
   removeStructure(s, destroyed) {

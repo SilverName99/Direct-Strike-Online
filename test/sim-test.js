@@ -505,6 +505,90 @@ console.log('sword saint kit');
   }
 }
 
+// ---------------------------------- hero ability modes: auto / manual / off
+console.log('hero ability auto/manual/off');
+{
+  const ab = resolvedAbility('vortexoflight');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { duration: 3, radius: 130, dps: 100, manaCost: 0, cooldown: 40, castPrepare: 0 });
+  const stats = { caster: true, autoAttackBetween: true, abilities: ['vortexoflight'] };
+  const mkHero = (game, x, y) => {
+    const h = spawnUnit(game, 0, 'hero', x, y);
+    h.hero = true; h.heroRanks = { vortexoflight: 1 }; h.mana = 200; h.abilityCd = {};
+    return h;
+  };
+
+  // command handlers set the right state
+  {
+    const game = new Game(90, { races: ['humans', 'orcs'] });
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'vortexoflight', mode: 'manual' });
+    check('mode manual: in abilityManual, not abilityOff',
+      game.abilityManual[0].has('hero/vortexoflight') && !game.abilityOff[0].has('hero/vortexoflight'));
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'vortexoflight', mode: 'off' });
+    check('mode off: in abilityOff, not abilityManual',
+      game.abilityOff[0].has('hero/vortexoflight') && !game.abilityManual[0].has('hero/vortexoflight'));
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'vortexoflight', mode: 'auto' });
+    check('mode auto: in neither set',
+      !game.abilityOff[0].has('hero/vortexoflight') && !game.abilityManual[0].has('hero/vortexoflight'));
+    // a mode change cancels a pending manual fire
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'vortexoflight', mode: 'manual' });
+    game.issueCommand({ type: 'castAbilityNow', team: 0, unit: 'hero', ability: 'vortexoflight' });
+    check('castAbilityNow queues a request', game.abilityCastReq[0].has('hero/vortexoflight'));
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'vortexoflight', mode: 'auto' });
+    check('mode change clears the pending request', !game.abilityCastReq[0].has('hero/vortexoflight'));
+  }
+
+  // AUTO (default): the hero casts on its own
+  {
+    const game = new Game(91, { races: ['humans', 'orcs'] });
+    const hero = mkHero(game, 500, 500);
+    spawnUnit(game, 1, 'grunt', 560, 500);
+    game.time += DT; stepCaster(game, hero, stats, DT, true);
+    check('auto: casts by itself', hero.vortexUntil > game.time);
+  }
+
+  // MANUAL, no request: the hero does NOT cast
+  {
+    const game = new Game(92, { races: ['humans', 'orcs'] });
+    game.abilityManual[0].add('hero/vortexoflight');
+    const hero = mkHero(game, 500, 500);
+    spawnUnit(game, 1, 'grunt', 560, 500);
+    for (let i = 0; i < 20; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
+    check('manual: does NOT auto-cast', !(hero.vortexUntil > game.time));
+  }
+
+  // MANUAL + request: it fires, ignoring the engage rule (no enemy near)
+  {
+    const game = new Game(93, { races: ['humans', 'orcs'] });
+    game.abilityManual[0].add('hero/vortexoflight');
+    game.abilityCastReq[0].add('hero/vortexoflight');
+    const hero = mkHero(game, 500, 500); // no enemy -> engaged=false below
+    game.time += DT; stepCaster(game, hero, stats, DT, false);
+    check('manual: fires on request even when not engaged', hero.vortexUntil > game.time);
+  }
+
+  // OFF: never casts, even with a request pending
+  {
+    const game = new Game(94, { races: ['humans', 'orcs'] });
+    game.abilityOff[0].add('hero/vortexoflight');
+    game.abilityCastReq[0].add('hero/vortexoflight');
+    const hero = mkHero(game, 500, 500);
+    spawnUnit(game, 1, 'grunt', 560, 500);
+    for (let i = 0; i < 20; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
+    check('off: never casts', !(hero.vortexUntil > game.time));
+  }
+
+  // one-shot: update() clears the request each tick (press again when ready)
+  {
+    const game = new Game(95, { races: ['humans', 'orcs'] });
+    game.abilityCastReq[0].add('hero/vortexoflight');
+    game.update(DT);
+    check('request is one-shot (cleared each update)', game.abilityCastReq[0].size === 0);
+  }
+
+  ab.params = saved;
+}
+
 // ------------------------------------------- regen aura max-targets cap
 console.log('regen aura target cap');
 {

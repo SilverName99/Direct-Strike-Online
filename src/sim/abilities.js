@@ -396,6 +396,29 @@ function combatNear(game, caster, radius) {
 function pickCastable(game, caster, stats, time, engaged) {
   // while spinning the Vortex of Light, the Sword Saint does nothing else
   if ((caster.vortexUntil || 0) > time) return null;
+  // Hero ability modes (players only; the AI leaves both sets empty, so heroes
+  // it controls stay fully auto). A MANUAL ability never auto-casts; it fires
+  // only when the player has queued a one-shot request for it.
+  const manualSet = caster.hero ? game.abilityManual[caster.team] : null;
+  const reqSet = caster.hero ? game.abilityCastReq[caster.team] : null;
+  const isManual = (aid) => manualSet != null && manualSet.has(`${caster.type}/${aid}`);
+  const wanted = (aid) => reqSet != null && reqSet.has(`${caster.type}/${aid}`);
+  // A manual cast the player explicitly asked for fires FIRST and ignores the
+  // engage rule (the player picks the timing). Cooldown / mana / a valid target
+  // still gate it; if it can't fire this tick it's dropped (the request is
+  // cleared at end of tick — "press again when ready").
+  if (reqSet && reqSet.size) {
+    for (const aid of stats.abilities) {
+      if (!wanted(aid)) continue;
+      const ab = resolvedAbility(aid);
+      if (!isCastable(ab)) continue;
+      if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // OFF / locked
+      if ((caster.abilityCd[aid] || 0) > time) continue;
+      if ((ab.params.manaCost || 0) > caster.mana) continue;
+      const target = findAbilityTarget(game, caster, aid, ab, time);
+      if (target) return { aid, ab, target };
+    }
+  }
   let combatFlag = null; // combatNear(), computed at most once per pick
   // a caster only casts while ENGAGED (an enemy sits in its attack range) —
   // summons included, so wolves/eagles/bears are conjured only when there's an
@@ -418,6 +441,7 @@ function pickCastable(game, caster, stats, time, engaged) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!ab || ab.kind !== 'summon') continue;
+    if (isManual(aid)) continue; // manual abilities never auto-cast
     if (!game.abilityUsable(caster.team, caster.type, aid)) continue;
     if ((caster.abilityCd[aid] || 0) > time) continue;
     const cost = ab.params.manaCost || 0;
@@ -429,6 +453,7 @@ function pickCastable(game, caster, stats, time, engaged) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
+    if (isManual(aid)) continue; // manual abilities fire only via the request pass above
     if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // toggled off / tier-locked
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
