@@ -117,12 +117,6 @@ export class Effects {
             // green motes rising off the healed ally + a soft ring
             this.rings.push({ x: e.x, y: e.y, r0: 4, r1: 24, life: 0.4, maxLife: 0.4, color });
             this.burst(e.x, e.y, 8, color, 45, 0.6, 2, -55);
-          } else if (e.ability === 'vortexoflight') {
-            // Vortex of Light spins up: a bright expanding ring + a swirl of motes
-            const r = e.radius || 130;
-            this.rings.push({ x: e.x, y: e.y, r0: 12, r1: r, life: 0.5, maxLife: 0.5, color: '#fff2b0' });
-            this.rings.push({ x: e.x, y: e.y, r0: 24, r1: r * 0.6, life: 0.4, maxLife: 0.4, color: '#ffffff' });
-            this.burst(e.x, e.y, 24, '#fff2b0', 240, 0.6, 3);
           } else {
             this.burst(e.x, e.y, 6, color, 80, 0.4, 2);
           }

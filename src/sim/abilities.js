@@ -562,8 +562,9 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     return null;
   }
   if (aid === 'divineregen') {
-    // meditate to heal — worth it only when actually wounded
-    return caster.hp < caster.maxHp ? caster : null;
+    // meditate to heal — only once HP drops to/under the threshold (% of max)
+    const thr = p.threshold != null ? p.threshold : 50;
+    return caster.hp <= caster.maxHp * thr / 100 ? caster : null;
   }
   if (aid === 'vortexoflight') {
     // self-channel; don't re-cast while the vortex is already spinning
@@ -805,7 +806,7 @@ function releaseSpell(game, caster, time) {
     // the AoE, movement/stun immunity is read off vortexUntil, and the renderer
     // shows the vortex frame while it lasts. The caster stays mobile.
     caster.vortexUntil = time + (p.duration || 0);
-    caster.vortex = { radius: p.radius || 0, dps: p.dps || 0 };
+    caster.vortex = { radius: p.radius || 0, dps: p.dps || 0, size: p.size || 100 };
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
     return hold;
   }

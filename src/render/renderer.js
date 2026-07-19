@@ -1075,6 +1075,8 @@ export class Renderer {
       // the deterministic sim/collision stays untouched) — but keep hero size
       // while the Prepare/Transform cast frames play (u.castState set)
       if (u.morph && u.morphUntil > game.time && !u.castState) vScale *= u.morph.size;
+      // Vortex of Light: the Sword Saint swells while spinning (visual only)
+      if (u.vortexUntil > game.time && u.vortex) vScale *= (u.vortex.size || 100) / 100;
       // temporary size buff (Bloodlust makes the Chieftain grow while raging) —
       // purely visual, so the deterministic sim/collision is untouched
       const sizeUp = effectVal(u, 'sizeup', game.time);
@@ -1098,22 +1100,6 @@ export class Renderer {
       if (rstats.caster && rstats.abilities && rstats.abilities.length) {
         this.drawAuraRings(ctx, u, rstats, x, y, game.time);
       }
-      // Vortex of Light: spinning light arcs at the AoE radius while it lasts
-      if (u.vortexUntil > game.time && u.vortex) {
-        const vr = u.vortex.radius || 100;
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.strokeStyle = '#fff2b0';
-        ctx.globalAlpha = 0.18; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, 0, vr, 0, Math.PI * 2); ctx.stroke();
-        ctx.globalAlpha = 0.55; ctx.lineWidth = 3;
-        for (let k = 0; k < 3; k++) {
-          const a = this.now * 6 + k * (Math.PI * 2 / 3);
-          ctx.beginPath(); ctx.arc(0, 0, vr, a, a + 1.3); ctx.stroke();
-        }
-        ctx.restore();
-      }
-
       ctx.save();
       ctx.translate(x, y);
       if (hasCharacter(u.type, u.team)) {

@@ -378,6 +378,7 @@ export const ABILITIES = {
       tier: 1, cooldown: 20, manaCost: 50,
       hps: 70,        // HP/s regenerated while in the stance
       duration: 5,    // seconds the stance (and regen) lasts
+      threshold: 50,  // only enters the stance at or below this % HP
       // explicit values per learned rank (0 = auto/base)
       hps1: 0, hps2: 0, hps3: 0,
       cooldown1: 0, cooldown2: 0, cooldown3: 0,
@@ -394,6 +395,7 @@ export const ABILITIES = {
       duration: 4,    // seconds the vortex spins
       radius: 130,    // AoE radius around the Sword Saint
       dps: 120,       // damage per second to enemies caught in the vortex
+      size: 150,      // % visual size while spinning (100 = no change)
       castPrepare: 0, // instant
     },
   },

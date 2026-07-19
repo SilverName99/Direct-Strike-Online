@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v12.53';
+export const VERSION = 'v12.54';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -14,7 +14,7 @@ export const CONFIG = {
 
   // Battlefield (simulation units) — larger than the screen; an RTS
   // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
-  FIELD_W: 3600,
+  FIELD_W: 4000,
   // Height hugs the play content (a 20-cell band + 2-cell margins): the
   // camera's fit-zoom fills the screen with map and the UI bar overlays it.
   FIELD_H: 960,
@@ -78,25 +78,25 @@ export const CONFIG = {
   // Construction (base) zone: 9 × 20 cells, in FRONT of the army strip.
   CONSTRUCTION_ZONE: [
     { x0: 560, x1: 920, y0: 80, y1: 880 },    // team 0 (left)
-    { x0: 2680, x1: 3040, y0: 80, y1: 880 },  // team 1 (right)
+    { x0: 3080, x1: 3440, y0: 80, y1: 880 },  // team 1 (right, +400 for the longer middle)
   ],
   // Army formation strip (12 × 18 cells) at the BACK of each side. 2 rows
   // shorter than the construction zone, kept vertically centered.
   ARMY_ZONE: [
     { x0: 100, x1: 500, y0: 80, y1: 880 },
-    { x0: 3100, x1: 3500, y0: 80, y1: 880 },
+    { x0: 3500, x1: 3900, y0: 80, y1: 880 },
   ],
   // Small forward construction pocket around each team's starting turret, so
   // you can build defenses out by the mid turret too (5 × 10 cells).
   MID_BUILD_ZONE: [
     { x0: 1220, x1: 1420, y0: 280, y1: 680 },
-    { x0: 2180, x1: 2380, y0: 280, y1: 680 },
+    { x0: 2580, x1: 2780, y0: 280, y1: 680 },
   ],
 
   // Main base: the win objective, back-center of the construction zone.
   // HP by tier; upgrading unlocks unit tiers and heals +1000.
   MAIN: {
-    x: [640, 2960],
+    x: [640, 3360],
     y: 480,
     radius: 50,
     hp: [4000, 5000, 6000],
@@ -121,7 +121,7 @@ export const CONFIG = {
   TIER_MAX: 3,
 
   // Starting defensive turret (pre-placed, not buildable, dies for good)
-  TURRET_X: [1320, 2280],
+  TURRET_X: [1320, 2680],
   TURRET: {
     hp: 700,
     radius: 26.4, // hitbox +10% (was 24)

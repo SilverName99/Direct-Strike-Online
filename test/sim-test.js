@@ -126,7 +126,8 @@ console.log('AI vs AI terminates');
   const game = new Game(7);
   const ai0 = new AIController(0, 'normal', 71);
   const ai1 = new AIController(1, 'normal', 72);
-  const maxTicks = Math.ceil((20 * 60) / DT);
+  const maxMin = 30; // headroom: the longer middle lengthens matches
+  const maxTicks = Math.ceil((maxMin * 60) / DT);
   let ticks = 0;
   while (game.winner === null && ticks < maxTicks) {
     ai0.update(game, DT);
@@ -136,7 +137,7 @@ console.log('AI vs AI terminates');
     ticks++;
   }
   check(
-    'a main base falls within 20 sim-minutes',
+    `a main base falls within ${maxMin} sim-minutes`,
     game.winner !== null,
     `still running after ${Math.round((ticks * DT) / 60)}min`
   );
@@ -471,6 +472,13 @@ console.log('sword saint kit');
     check('divine regen: gains a regen effect', hero.effects.some((e) => e.kind === 'regen' && e.until > game.time));
     for (let i = 0; i < 60; i++) { game.time += DT; updateAbilities(game, DT); }
     check('divine regen: healed over the stance', hero.hp > hp0 + 100, `${hero.hp} vs ${hp0}`);
+    // above the HP threshold -> does NOT enter the stance
+    Object.assign(ab.params, { threshold: 50 });
+    const hh = spawnUnit(game, 0, 'hero', 300, 200);
+    hh.hero = true; hh.heroRanks = { divineregen: 1 }; hh.mana = 100; hh.abilityCd = {};
+    hh.hp = hh.maxHp * 0.8; // above 50% -> should not cast
+    for (let i = 0; i < 20; i++) { game.time += DT; stepCaster(game, hh, stats, DT, true); }
+    check('divine regen: idle above HP threshold', !(hh.effects || []).some((e) => e.kind === 'regen'));
     ab.params = saved;
   }
 
