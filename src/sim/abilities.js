@@ -53,6 +53,9 @@ function abParams(caster, aid, ab) {
 // (Cleave) that aren't cast through the FSM.
 export function learnedAbilityParams(u, aid) {
   if (!u || !u.hero || !u.heroRanks || (u.heroRanks[aid] || 0) < 1) return null;
+  // toggled OFF from the panel: passives/auras stop applying (actives already
+  // stop casting via abilityUsable). Synced onto the entity by syncHeroEntity.
+  if (u.disabledAbilities && u.disabledAbilities.has(aid)) return null;
   const ab = resolvedAbility(aid);
   return ab ? abParams(u, aid, ab) : null;
 }

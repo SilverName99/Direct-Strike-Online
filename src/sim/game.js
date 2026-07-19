@@ -281,6 +281,12 @@ export class Game {
     ent.heroRanks = { ...ranks };
     ent.heroAbilities = heroAbilitySlots(this.races[team], type)
       .map((s) => s.id).filter((id) => id && (ranks[id] || 0) >= 1);
+    // OFF-toggled abilities for this hero type: passives/auras stop applying and
+    // actives stop casting (learnedAbilityParams / abilityUsable read this).
+    const pre = `${type}/`;
+    ent.disabledAbilities = new Set(
+      [...this.abilityOff[team]].filter((k) => k.startsWith(pre)).map((k) => k.slice(pre.length))
+    );
   }
 
   // Food/supply: each placed template costs its unit's `food`; farms raise the
@@ -725,6 +731,7 @@ export class Game {
       this.abilityCastReq[cmd.team].delete(key); // a mode change cancels any pending fire
       if (cmd.mode === 'manual') this.abilityManual[cmd.team].add(key);
       else if (cmd.mode === 'off') this.abilityOff[cmd.team].add(key);
+      this.syncHeroEntity(cmd.team, cmd.unit); // reflect OFF on the live hero (passives too)
       return { ok: true };
     }
 

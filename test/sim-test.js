@@ -586,6 +586,27 @@ console.log('hero ability auto/manual/off');
     check('request is one-shot (cleared each update)', game.abilityCastReq[0].size === 0);
   }
 
+  // OFF disables a PASSIVE too (Divine Buff / Cleave) — learnedAbilityParams
+  // returns null once the ability is in the entity's disabledAbilities set.
+  {
+    const u = { hero: true, heroRanks: { divinebuff: 1 } };
+    check('passive applies while ON', learnedAbilityParams(u, 'divinebuff') != null);
+    u.disabledAbilities = new Set(['divinebuff']);
+    check('passive stops applying when OFF', learnedAbilityParams(u, 'divinebuff') == null);
+  }
+
+  // setAbilityMode('off') syncs onto the live hero so the passive really stops
+  {
+    const game = new Game(96, { races: ['humans', 'orcs'] });
+    const hero = spawnUnit(game, 0, 'hero', 300, 300); hero.hero = true;
+    game.templates[0].push({ type: 'hero', hero: true, ranks: { divinebuff: 1 }, x: 300, y: 300 });
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'divinebuff', mode: 'off' });
+    check('off syncs disabledAbilities onto the live hero', hero.disabledAbilities && hero.disabledAbilities.has('divinebuff'));
+    check('live hero passive disabled', learnedAbilityParams(hero, 'divinebuff') == null);
+    game.issueCommand({ type: 'setAbilityMode', team: 0, unit: 'hero', ability: 'divinebuff', mode: 'auto' });
+    check('auto re-enables the passive', !hero.disabledAbilities.has('divinebuff') && learnedAbilityParams(hero, 'divinebuff') != null);
+  }
+
   ab.params = saved;
 }
 

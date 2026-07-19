@@ -22,6 +22,14 @@ import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon,
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 
+// A hero ability the player can actively use (cast / summon), as opposed to a
+// passive/aura that's always on. Only active ones get Manual mode + the
+// ready-to-use highlight; passives can only be On (Auto) or Off.
+function isActiveAbility(aid) {
+  const ab = resolvedAbility(aid);
+  return !!ab && (ab.kind === 'active' || ab.kind === 'castaura' || ab.kind === 'summon');
+}
+
 const BUILDING_CARDS = [
   { id: 'wall', hotkey: 'Z', role: 'Blochează unitățile terestre',
     tip: 'Barieră ieftină — inamicii trebuie să o spargă sau să o ocolească. Zburătorii trec peste.' },
@@ -937,7 +945,7 @@ export class BottomBar {
       const d = slot.data;
       if (!d) continue;
       const el = slot.el;
-      el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell', 'tog-off');
+      el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell', 'tog-off', 'ready');
       let cd = 0;
       let cdTotal = 0; // full cooldown length (for the radial sweep overlay)
       let tog = null;  // toggle state: true = ✔ activ, false = ✖ oprit, null = no badge
@@ -1060,8 +1068,8 @@ export class BottomBar {
         // cast-mode badge (top-left): A = auto, M = manual, ✖ = off. Only shown
         // once the ability is learned (rank ≥ 1) — before that it's just a talent.
         const key = `${d.unit}/${d.id}`;
+        const isOff = game.abilityOff[this.team].has(key);
         if (rank > 0) {
-          const isOff = game.abilityOff[this.team].has(key);
           const isManual = game.abilityManual[this.team].has(key);
           const mode = isOff ? 'off' : (isManual ? 'manual' : 'auto');
           this.setModeBadge(el, mode);
@@ -1070,10 +1078,21 @@ export class BottomBar {
           this.setModeBadge(el, null);
         }
         // live cooldown sweep when the inspected target is the LIVE hero
-        if (rank > 0 && info && info.kind === 'entity' && info.u.hero && info.u.abilityCd) {
-          cd = (info.u.abilityCd[d.id] || 0) - game.time;
+        const liveHero = info && info.kind === 'entity' && info.u.hero ? info.u : null;
+        if (rank > 0 && liveHero && liveHero.abilityCd) {
+          cd = (liveHero.abilityCd[d.id] || 0) - game.time;
           const ab = resolvedAbility(d.id);
           cdTotal = (ab && ab.params.cooldown) || 0;
+        }
+        // "ready to use" marching-dashes ring: an ACTIVE ability that's learned,
+        // not off, off-cooldown and affordable — regardless of Auto/Manual mode.
+        if (rank > 0 && !isOff && liveHero && isActiveAbility(d.id)) {
+          const ab = resolvedAbility(d.id);
+          const manaOk = (liveHero.mana || 0) >= ((ab && ab.params.manaCost) || 0);
+          const ready = cd <= 0.05 && manaOk && !((liveHero.vortexUntil || 0) > game.time);
+          el.classList.toggle('ready', ready);
+        } else {
+          el.classList.remove('ready');
         }
       } else if (d.kind === 'sell') {
         el.classList.add('sell');
@@ -1179,23 +1198,27 @@ export class BottomBar {
     if (!game) return;
     if (d.kind === 'heroAbility') {
       const key = `${d.unit}/${d.id}`;
-      // right-click cycles the cast mode: Auto -> Manual -> Off -> Auto
+      const active = isActiveAbility(d.id); // passives (Cleave, Divine Buff) can only be On/Off
+      // right-click cycles the cast mode. Active: Auto -> Manual -> Off -> Auto.
+      // Passive: Auto -> Off -> Auto (no Manual — there's nothing to trigger).
       if (button === 2) {
         const off = game.abilityOff[this.team].has(key);
         const manual = game.abilityManual[this.team].has(key);
-        const next = off ? 'auto' : (manual ? 'off' : 'manual'); // auto->manual->off->auto
+        let next;
+        if (!active) next = off ? 'auto' : 'off';
+        else next = off ? 'auto' : (manual ? 'off' : 'manual');
         game.issueCommand({ type: 'setAbilityMode', team: this.team, unit: d.unit, ability: d.id, mode: next });
         return;
       }
-      // left-click: spend a talent point if one is free, otherwise (in Manual
-      // mode) fire the ability now.
+      // left-click: spend a talent point if one is free, otherwise (an ACTIVE
+      // ability in Manual mode) fire it now.
       const tpl = game.heroTemplateOf(this.team, d.unit);
       const rank = (tpl && tpl.ranks && tpl.ranks[d.id]) || 0;
       const max = d.ult ? 1 : 3;
       const canRank = (tpl && tpl.points > 0) && rank < max && !(d.ult && (tpl.level || 1) < 6);
       if (canRank) {
         game.issueCommand({ type: 'rankHero', team: this.team, unit: d.unit, ability: d.id });
-      } else if (rank > 0 && game.abilityManual[this.team].has(key)) {
+      } else if (active && rank > 0 && game.abilityManual[this.team].has(key)) {
         game.issueCommand({ type: 'castAbilityNow', team: this.team, unit: d.unit, ability: d.id });
       }
       return;
@@ -1360,9 +1383,15 @@ export class BottomBar {
         const key = `${d.unit}/${d.id}`;
         const isOff = game && game.abilityOff[this.team].has(key);
         const isManual = game && game.abilityManual[this.team].has(key);
+        const active = isActiveAbility(d.id);
         const modeName = isOff ? 'OPRIT ✖' : (isManual ? 'MANUAL M' : 'AUTO A');
-        modeLine = `<div class="p-dim">Mod: <b>${modeName}</b> — click-dreapta ciclează Auto → Manual → Oprit.</div>` +
-          (isManual ? '<div class="p-dim">Manual: click-stânga o aruncă acum (dacă e gata).</div>' : '');
+        if (active) {
+          modeLine = `<div class="p-dim">Mod: <b>${modeName}</b> — click-dreapta ciclează Auto → Manual → Oprit.</div>` +
+            (isManual ? '<div class="p-dim">Manual: click-stânga o aruncă acum (dacă e gata).</div>' : '');
+        } else {
+          // passive/aura: only On (Auto) or Off — nothing to trigger by hand
+          modeLine = `<div class="p-dim">Pasivă: <b>${isOff ? 'OPRITĂ ✖' : 'ACTIVĂ A'}</b> — click-dreapta pornește/oprește.</div>`;
+        }
       }
       return `<div class="p-title" style="color:${ab.color || '#ffd35c'}">${d.ult ? '★ ' : ''}${ab.name}</div>
         <div>${ab.desc || ''}</div>
