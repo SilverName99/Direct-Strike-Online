@@ -119,6 +119,18 @@ export const UPGRADES = {
       projectileSpeed: 340,
     },
   },
+  frosttraining: {
+    name: 'Frost Bolt',
+    desc: 'Deblochează abilitatea Frost Bolt pentru unitatea aleasă: fără acest upgrade abilitatea e blocată; după ce îl cumperi o dată, unitatea poate arunca Frost Bolt. Setezi prețul și tier-ul de deblocare din admin. Cumpărat o dată din clădirea unității; permanent pe meci.',
+    kind: 'unlock',        // no combat effect on its own — gates ability `unlocks`
+    unlocks: 'frostbolt',  // the ability id this upgrade unlocks (see abilityUsable)
+    race: 'humans',        // ships assigned to the human caster; reassignable in admin
+    unit: 'bruiser',       // Priest slot (the frostbolt user)
+    params: {
+      cost: 250, // gold to buy from the unit's building
+      tier: 2,   // base tier required before it can be bought (settable)
+    },
+  },
   totemtraining: {
     name: 'Slowing Totem',
     desc: 'Deblochează abilitatea Slowing Totem pentru Totemic Shaman: după ce o cumperi o dată, toți șamanii tăi pot planta totemul de încetinire. Fără acest upgrade, șamanii folosesc doar Empower. Cumpărat o dată din clădirea șamanului; permanent pe meci.',
@@ -161,6 +173,7 @@ for (const [id, up] of Object.entries(UPGRADES)) {
 // Labels for the editable params (admin "Upgrades" page).
 export const UPGRADE_PARAM_LABELS = {
   cost: 'Cost (aur, din Bază)',
+  tier: 'Tier necesar (deblocare)',
   range: 'Rază atac',
   damage: 'Damage (splash)',
   projectileSpeed: 'Viteză proiectil',

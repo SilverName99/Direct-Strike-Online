@@ -89,6 +89,11 @@ export class Menu {
     if (name === 'help') this.renderHelp();
     if (name === 'options') this.syncOptions();
     if (name === 'setup') this.renderSetup();
+    // Back on the main menu: re-show the background gallery arrows. play() hides
+    // them for the countdown/loading, and returning after a match goes through
+    // go('main') (the "Meniu" button) — without this the arrows stay hidden and
+    // you can't change the background anymore once you've entered a game.
+    if (name === 'main') this.refreshGallery();
     if (name === 'main' && this.hooks.onMenuMain) this.hooks.onMenuMain();
   }
 

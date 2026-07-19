@@ -699,6 +699,58 @@ console.log('slowing totem unlock upgrade');
   check('totem re-locked when upgrade toggled off', !game.abilityUsable(0, 'dasher', 'slowingtotem'));
 }
 
+// ------------------------------------- Frost Bolt unlock upgrade
+console.log('frost bolt unlock upgrade');
+{
+  // the Priest (bruiser) carries frostbolt by default
+  const game = new Game(88, { races: ['humans', 'orcs'] });
+  check('frost bolt locked without the unlock', !game.abilityUsable(0, 'bruiser', 'frostbolt'));
+  game.upgrades[0].add('frosttraining');
+  check('frost bolt usable after buying the unlock', game.abilityUsable(0, 'bruiser', 'frostbolt'));
+  game.upgradeOff[0].add('frosttraining'); // toggled off -> re-locked
+  check('frost bolt re-locked when unlock toggled off', !game.abilityUsable(0, 'bruiser', 'frostbolt'));
+}
+
+// ------------------------------------- empower: skip non-attackers & no double-buff
+console.log('empower target selection');
+{
+  const ab = resolvedAbility('empower');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { range: 400, haste: 30, dmgReduce: 25, duration: 4, manaCost: 0, cooldown: 2 });
+  const stats = { caster: true, autoAttackBetween: true, abilities: ['empower'] };
+  const hasK = (u, k) => u.effects && u.effects.some((e) => e.kind === k && e.until > game_.time);
+  let game_;
+
+  // a non-attacking ally (another shaman) further forward is SKIPPED for a real fighter
+  {
+    game_ = new Game(85, { races: ['orcs', 'humans'] });
+    game_.abilityUsable = () => true;
+    const caster = spawnUnit(game_, 0, 'grunt', 500, 400); caster.mana = 100; caster.abilityCd = {};
+    const shamanAlly = spawnUnit(game_, 0, 'grunt', 600, 400); // furthest forward, but can't attack
+    const fighter = spawnUnit(game_, 0, 'grunt', 560, 400);
+    const base = game_.ustatOf.bind(game_);
+    game_.ustatOf = (u) => (u === shamanAlly ? { ...base(u), caster: true, autoAttackBetween: false } : base(u));
+    spawnUnit(game_, 1, 'grunt', 720, 400); // enemy near
+    for (let i = 0; i < 40 && !hasK(fighter, 'haste') && !hasK(shamanAlly, 'haste'); i++) { game_.time += DT; stepCaster(game_, caster, stats, DT, false); }
+    check('empower: buffs a fighter, not a non-attacking shaman', hasK(fighter, 'haste') && !hasK(shamanAlly, 'haste'));
+  }
+
+  // a second shaman does not pick an ally already claimed by another's channel
+  {
+    game_ = new Game(86, { races: ['orcs', 'humans'] });
+    game_.abilityUsable = () => true;
+    const c1 = spawnUnit(game_, 0, 'grunt', 480, 400);
+    const c2 = spawnUnit(game_, 0, 'grunt', 500, 400); c2.mana = 100; c2.abilityCd = {};
+    const allyA = spawnUnit(game_, 0, 'grunt', 600, 400); // furthest forward -> c1's pick
+    const allyB = spawnUnit(game_, 0, 'grunt', 560, 400);
+    spawnUnit(game_, 1, 'grunt', 720, 400);
+    c1.empowerUntil = game_.time + 5; c1.empowerTargetId = allyA.id; // c1 already channels allyA
+    for (let i = 0; i < 40 && !hasK(allyB, 'haste'); i++) { game_.time += DT; stepCaster(game_, c2, stats, DT, false); }
+    check('empower: 2nd shaman skips the ally already claimed', hasK(allyB, 'haste') && !hasK(allyA, 'haste'));
+  }
+  ab.params = saved;
+}
+
 // ------------------------------------------- empower channel (drain + lock)
 console.log('empower channel');
 {
@@ -924,6 +976,7 @@ console.log('abilities (casters, auras, status effects)');
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'] } } } } });
     const game = new Game(7, { races: ['humans', 'orcs'] });
+    game.upgrades[0].add('frosttraining'); // Frost Bolt is unlock-gated now
     spawnUnit(game, 0, 'slinger', 600, 300);
     const runner = spawnUnit(game, 1, 'grunt', 700, 300);
     runner.hp = runner.maxHp = 100000;
@@ -941,6 +994,7 @@ console.log('abilities (casters, auras, status effects)');
       },
     });
     const game = new Game(7, { races: ['humans', 'orcs'] });
+    game.upgrades[0].add('frosttraining'); // Frost Bolt is unlock-gated now
     spawnUnit(game, 0, 'slinger', 600, 300);
     const cleric = spawnUnit(game, 1, 'mender', 720, 300);
     cleric.hp = cleric.maxHp = 100000;
@@ -985,6 +1039,7 @@ console.log('abilities (casters, auras, status effects)');
   {
     applyBalance({ races: { humans: { units: { mender: { caster: true, abilities: ['heal', 'frostbolt'], mana: 100, manaRegen: 20 } } } } });
     const game = new Game(13, { races: ['humans', 'orcs'] });
+    game.upgrades[0].add('frosttraining'); // Frost Bolt is unlock-gated now
     const caster = spawnUnit(game, 0, 'mender', 600, 300);
     const ally = spawnUnit(game, 0, 'grunt', 630, 300);
     ally.maxHp = 500; ally.hp = 100;
@@ -1341,6 +1396,7 @@ console.log('abilities (casters, auras, status effects)');
     const { casterPrioritizesSpells } = await import('../src/sim/abilities.js');
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 100, manaRegen: 0 } } } } });
     const game = new Game(4, { races: ['humans', 'orcs'] });
+    game.upgrades[0].add('frosttraining'); // Frost Bolt is unlock-gated now
     const st = game.ustat(0, 'slinger');
     check('caster with mana prioritizes spells', casterPrioritizesSpells(game, { team: 0, type: 'slinger', mana: 100 }, st));
     check('caster out of mana attacks normally', !casterPrioritizesSpells(game, { team: 0, type: 'slinger', mana: 0 }, st));
@@ -1357,6 +1413,7 @@ console.log('abilities (casters, auras, status effects)');
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['frostbolt'], mana: 0, manaRegen: 0 } } } } });
     const game = new Game(7, { races: ['humans', 'orcs'] });
+    game.upgrades[0].add('frosttraining'); // Frost Bolt is unlock-gated now
     spawnUnit(game, 0, 'slinger', 600, 300);
     const runner = spawnUnit(game, 1, 'grunt', 700, 300);
     runner.hp = runner.maxHp = 100000;

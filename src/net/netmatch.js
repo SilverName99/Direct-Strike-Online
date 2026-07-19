@@ -51,7 +51,24 @@ export class NetMatch {
 
     this._onCmd = (m) => this._recvCmd(m);
     this._onClock = (m) => {
-      if (m.tick > this.serverTick) { this.serverTick = m.tick; this.clockAt = performance.now(); }
+      if (m.tick <= this.serverTick) return;
+      const now = performance.now();
+      // Where our free-running estimate currently sits (in ticks). Hard-setting
+      // serverTick/clockAt on EVERY beat makes estTick() snap by however much the
+      // beat arrived early/late (network jitter) — and that snap shows up as a
+      // tiny "tik-tik" tremor on moving units. Instead, snap only on a big gap
+      // (startup / stall) and otherwise nudge the clock gently toward the beat so
+      // the interpolation stays smooth.
+      const est = this.serverTick + ((now - this.clockAt) / 1000) * this.hz;
+      const drift = m.tick - est; // + = server ahead of our estimate
+      this.serverTick = m.tick;
+      if (Math.abs(drift) > 6) {
+        this.clockAt = now; // resync hard
+      } else {
+        // apply only a fraction of the correction: keep estTick(now) ≈ est + 10% drift
+        const corrected = est + drift * 0.1;
+        this.clockAt = now - ((corrected - m.tick) / this.hz) * 1000;
+      }
     };
     this._onLeft = () => this._finish('opp_left');
     this._onDesync = () => { this.desynced = true; };

@@ -21,6 +21,7 @@ import {
 import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
+import { effStats } from '../sim/combat.js';
 
 // A hero ability the player can actively use (cast / summon), as opposed to a
 // passive/aura that's always on. Only active ones get Manual mode + the
@@ -279,7 +280,9 @@ export class BottomBar {
   updatePlacingFade() {
     if (!this.bar) return;
     let fade = false;
-    if (this.uiState.selected) {
+    // fade while placing a NEW unit (selected) OR dragging an existing one to a
+    // new spot — both need to drop where the bar might be covering.
+    if (this.uiState.selected || this.uiState.drag) {
       const x = this.uiState.winX;
       const y = this.uiState.winY;
       if (x != null && y != null) {
@@ -490,8 +493,15 @@ export class BottomBar {
     const rows = [];
     if (!isStruct) {
       // units: the same clean emoji line as the shop popup (cost/HP/damage/
-      // armor/damage-type + Hits air / Caster) — no DPS / Tier / speed / range
-      rows.push(...unitStatBits(stats));
+      // armor/damage-type + Hits air / Caster) — no DPS / Tier / speed / range.
+      // For a LIVE unit show its ACTUAL stats (hero per-level growth, Divine Buff,
+      // mount/morph…) via effStats, not the base card values — otherwise a leveled
+      // hero looks identical to level 1 and "+/nivel" seems to do nothing.
+      let dispStats = stats;
+      if (info.kind === 'entity' && info.u && !info.u.summon) {
+        dispStats = { ...stats, ...effStats(info.u, stats), hp: info.u.maxHp };
+      }
+      rows.push(...unitStatBits(dispStats));
     } else {
       // towers scale their damage AND attack period with the owner's base tier
       const tst = info.type === 'tower' ? towerStatForTier(stats, game.tier[info.team]) : null;
@@ -773,7 +783,8 @@ export class BottomBar {
         for (const id of UPGRADE_IDS) {
           const up = resolvedUpgrade(id);
           if (up && up.unit === uid && (!up.race || up.race === race)) {
-            upgrades.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: (statsUnit(race, uid) || {}).tier || 1, slot: Number.isInteger(up.slot) ? up.slot : -1 });
+            const needTier = Math.max((statsUnit(race, uid) || {}).tier || 1, up.params.tier || 1);
+            upgrades.push({ kind: 'buyUpgrade', id, cost: up.params.cost || 0, tier: needTier, slot: Number.isInteger(up.slot) ? up.slot : -1 });
           }
         }
       }

@@ -471,6 +471,17 @@ function pickCastable(game, caster, stats, time, engaged) {
   return null;
 }
 
+// Does this unit actually swing a basic attack (so an attack buff like Empower
+// is worth anything)? Excludes healers and pure casters that never auto-attack
+// (e.g. another Totemic Shaman), and anything with no damage.
+function canAutoAttack(game, u) {
+  const st = game.ustatOf ? game.ustatOf(u) : game.ustat(u.team, u.type);
+  if (!st) return false;
+  if (st.heal) return false;                              // healer, not a fighter
+  if (st.caster && !st.autoAttackBetween) return false;   // pure caster (e.g. Totemic Shaman)
+  return (st.damage || 0) > 0;
+}
+
 // The target a given ability would act on, or null if there is none.
 function findAbilityTarget(game, caster, aid, ab, time) {
   const p = abParams(caster, aid, ab);
@@ -492,13 +503,25 @@ function findAbilityTarget(game, caster, aid, ab, time) {
     if ((caster.empowerUntil || 0) > time) return null;
     // need at least one second's worth of mana to begin channeling
     if (caster.mana < (p.manaPerSec || 0)) return null;
+    // allies already claimed by ANOTHER caster's empower channel — the buff does
+    // not stack, so a second Totemic Shaman must pick a different unit.
+    const claimed = new Set();
+    for (const o of game.entities) {
+      if (o !== caster && o.hp > 0 && (o.empowerUntil || 0) > time && o.empowerTargetId != null) {
+        claimed.add(o.empowerTargetId);
+      }
+    }
     // buff the ally standing furthest toward the enemy (the one most likely
-    // fighting). Excludes self, summons, totems, structures.
+    // fighting). Excludes self, summons, totems, structures, units that can't
+    // auto-attack (empower is wasted on another shaman / a pure support), and
+    // anyone already empowered by another shaman.
     let best = null, bestAdv = -Infinity;
     const front = caster.team === 0 ? 1 : -1;
     for (const u of game.entities) {
       if (u === caster || u.team !== caster.team || u.hp <= 0) continue;
       if (u.summon || u.totem || u.isStructure) continue;
+      if (claimed.has(u.id)) continue;      // another shaman already buffs it
+      if (!canAutoAttack(game, u)) continue; // empower only helps units that attack
       if (!inRadius(u, caster, p.range)) continue;
       const adv = u.x * front;
       if (adv > bestAdv || (adv === bestAdv && best && u.id < best.id)) { bestAdv = adv; best = u; }

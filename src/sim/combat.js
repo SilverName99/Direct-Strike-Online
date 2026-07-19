@@ -700,12 +700,18 @@ function isRangedFoe(game, u, e, radius) {
   return effDist(u, e) <= radius;
 }
 function findRangedIntruder(game, u, radius) {
+  // The whole point of the boar rider is to dive PAST the front line and land on
+  // the squishy ranged backline. Among the ranged foes inside the trigger
+  // radius, pick the one standing DEEPEST in enemy territory (furthest forward
+  // from our side), not the nearest — otherwise it just charges a front-row
+  // archer and wastes the leap.
+  const dir = u.team === 0 ? 1 : -1; // our forward direction (deeper enemy = further this way)
   let best = null;
-  let bestD = Infinity;
+  let bestDepth = -Infinity;
   for (const e of game.entities) {
     if (!isRangedFoe(game, u, e, radius)) continue;
-    const d = effDist(u, e);
-    if (d < bestD) { bestD = d; best = e; }
+    const depth = e.x * dir;
+    if (depth > bestDepth) { bestDepth = depth; best = e; }
   }
   return best;
 }
