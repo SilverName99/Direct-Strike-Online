@@ -28,7 +28,7 @@ function isCastable(ab) {
 // params below (rankStep 0.5 => rank 2 = 1.5×, rank 3 = 2×; 0 => no scaling).
 // Set per ability in the balance editor. Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankStep
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaPerSec', 'drainPerSec', 'healPerSec'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaPerSec', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   const overrides = ab.rankOverrides;
@@ -243,6 +243,53 @@ export function updateAbilities(game, dt) {
     }
   }
 
+  // Poison Arrow stance: expire it once its time is up (effStats reads u.poison
+  // while it's live and tags her attacks with the poison-on-hit).
+  for (const u of game.entities) {
+    if ((u.poisonUntil || 0) && time >= u.poisonUntil) { u.poisonUntil = 0; u.poison = null; }
+  }
+
+  // Life Drain channel: while committed to a target, drain its HP each tick and
+  // heal the caster; ends when the time is up, the target is lost/out of range,
+  // or she runs out of mana.
+  for (const u of game.entities) {
+    if (!u.drainUntil) continue;
+    if (u.hp <= 0 || time >= u.drainUntil) { u.drainUntil = 0; u.drainTargetId = null; continue; }
+    const ab = resolvedAbility('lifedrain');
+    if (!ab) { u.drainUntil = 0; u.drainTargetId = null; continue; }
+    const p = abParams(u, 'lifedrain', ab);
+    const target = game.byId.get(u.drainTargetId);
+    if (!target || target.hp <= 0 || target.team === u.team || target.isStructure ||
+        !inRadius(target, u, p.range) || ((p.manaPerSec || 0) > 0 && u.mana <= 0)) {
+      u.drainUntil = 0; u.drainTargetId = null; continue;
+    }
+    if (p.manaPerSec) u.mana = Math.max(0, u.mana - p.manaPerSec * dt);
+    applyDamage(game, target, (p.drainPerSec || 0) * dt, 'normal', true);
+    if (u.hp > 0 && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + (p.healPerSec || 0) * dt);
+    game.events.push({ type: 'drain', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
+  }
+
+  // Soul Harvest form: while active, drain every enemy in the drain zone (which
+  // also heals her) AND heal every ally in the heal zone.
+  for (const u of game.entities) {
+    if (!u.harvestUntil) continue;
+    if (u.hp <= 0 || time >= u.harvestUntil) { u.harvestUntil = 0; u.harvest = null; continue; }
+    const h = u.harvest; if (!h) continue;
+    for (const e of game.entities) {
+      if (e.hp <= 0) continue;
+      if (e.team !== u.team) {
+        if (e.isStructure) continue;
+        if (inRadius(e, u, h.drainRadius)) {
+          const dmg = (h.drainDps || 0) * dt;
+          applyDamage(game, e, dmg, 'normal', true);
+          if (u.hp > 0 && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + dmg); // the drain feeds her
+        }
+      } else if (e !== u && e.hp < e.maxHp && inRadius(e, u, h.healRadius)) {
+        e.hp = Math.min(e.maxHp, e.hp + (h.healHps || 0) * dt);
+      }
+    }
+  }
+
   // regen effects heal their owners
   for (const u of game.entities) {
     const hps = effectVal(u, 'regen', time);
@@ -256,6 +303,19 @@ function inRadius(a, b, r) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return dx * dx + dy * dy <= r * r;
+}
+
+// The nearest raisable corpse within `radius` of the caster (or null). Corpses
+// are dropped on death (game.corpses) and expire after their `until`.
+function nearestCorpse(game, caster, radius, time) {
+  const r2 = radius * radius;
+  let best = null, bestD = Infinity;
+  for (const c of game.corpses) {
+    if (c.until <= time) continue;
+    const dx = c.x - caster.x, dy = c.y - caster.y, d = dx * dx + dy * dy;
+    if (d <= r2 && d < bestD) { bestD = d; best = c; }
+  }
+  return best;
 }
 
 // A cast buff-zone: applies its effect to units in radius every frame, but
@@ -373,7 +433,10 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 
 // Support abilities that fire for a wounded/needy ally even when no enemy is in
 // range — they are exempt from the "cast only while engaged" rule.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'manaaura']);
+// Life Drain / Rise Dead reach further than the caster's basic attack (their own
+// range/corpse-range), and their findAbilityTarget already requires a valid
+// target — so exempt them from the "enemy in attack range" engage gate.
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'manaaura', 'lifedrain', 'risedead']);
 
 // Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
@@ -506,10 +569,24 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
   if (manual) {
     if (aid === 'beastform') return (caster.morphUntil || 0) > time ? null : caster;
     if (aid === 'vortexoflight') return (caster.vortexUntil || 0) > time ? null : caster;
+    if (aid === 'poisonarrow') return (caster.poisonUntil || 0) > time ? null : caster;
+    if (aid === 'soulharvest') return (caster.harvestUntil || 0) > time ? null : caster;
     if (SELF_MANUAL.has(aid)) return caster;
     // ally/enemy-targeted actives (heal, holylight, frostbolt, summons…) fall
     // through: they still need a valid target in range — you can't heal or bolt
     // nothing — but with no other "worth it" gate they fire whenever one exists.
+  }
+  if (aid === 'risedead') {
+    // Rise Dead needs a fresh corpse in reach AND room under the skeleton cap
+    const cap = p.cap || 0;
+    if (cap > 0) {
+      let alive = 0;
+      for (const u of game.entities) {
+        if (u.hp > 0 && u.summon && u.summonOf === caster.id && u.summonKind === ab.animal) alive++;
+      }
+      if (alive >= cap) return null;
+    }
+    return nearestCorpse(game, caster, p.corpseRange || 0, time) ? caster : null;
   }
   if (ab.kind === 'summon') {
     // castable while THIS shaman keeps fewer than its cap of this animal alive
@@ -523,6 +600,32 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
       if (alive >= cap) return null;
     }
     return caster; // self-cast: the animal appears beside the caster
+  }
+  if (aid === 'poisonarrow') {
+    // enter the stance when a fight is on and it isn't already active
+    if ((caster.poisonUntil || 0) > time) return null;
+    const reach = (game.ustatOf(caster).range || 0) + 30;
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team !== caster.team && !u.isStructure && inRadius(u, caster, reach)) return caster;
+    }
+    return null;
+  }
+  if (aid === 'lifedrain') {
+    if ((caster.drainUntil || 0) > time) return null; // already channelling
+    let best = null, bestD = Infinity;
+    for (const u of game.entities) {
+      if (u.team === caster.team || u.hp <= 0 || u.isStructure || !inRadius(u, caster, p.range)) continue;
+      const dx = u.x - caster.x, dy = u.y - caster.y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = u; }
+    }
+    return best;
+  }
+  if (aid === 'soulharvest') {
+    if ((caster.harvestUntil || 0) > time) return null; // already transformed
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team !== caster.team && !u.isStructure && inRadius(u, caster, p.drainRadius)) return caster;
+    }
+    return null;
   }
   if (aid === 'empower') {
     // already committed to an ally this channel: don't start another
@@ -735,7 +838,16 @@ function releaseSpell(game, caster, time) {
     // pass the caster's learned rank so the animal's HP/damage grow per-rank
     const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
     const animal = spawnSummon(game, caster, ab, p, rank);
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    // Rise Dead raises the skeleton FROM a corpse: place it there and consume it
+    if (aid === 'risedead') {
+      const corpse = nearestCorpse(game, caster, p.corpseRange || 0, time);
+      if (corpse) {
+        animal.x = animal.prevX = corpse.x;
+        animal.y = animal.prevY = corpse.y;
+        game.corpses = game.corpses.filter((c) => c !== corpse);
+      }
+    }
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: animal.x, y: animal.y });
     game.events.push({ type: 'summon', x: animal.x, y: animal.y, team: caster.team });
     return hold;
   }
@@ -902,6 +1014,36 @@ function releaseSpell(game, caster, time) {
     caster.vortexUntil = time + (p.duration || 0);
     caster.vortex = { radius: p.radius || 0, dps: p.dps || 0, size: p.size || 100 };
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
+    return hold;
+  }
+  if (aid === 'poisonarrow') {
+    // enter the poison stance: effStats tags her attacks with poison-on-hit
+    // while it's live (updateAbilities expires it)
+    caster.poisonUntil = time + (p.duration || 0);
+    caster.poison = { dot: p.dps || 0, dur: p.dotDuration || 0 };
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    return hold;
+  }
+  if (aid === 'lifedrain') {
+    // start the channel: updateAbilities drains the target and heals her; the
+    // release frame is held for the whole duration (she stands and channels)
+    caster.drainUntil = time + (p.duration || 0);
+    caster.drainTargetId = target.id;
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'drain', x: caster.x, y: caster.y, tx: target.x, ty: target.y, team: caster.team });
+    return Math.max(hold, p.duration || 0);
+  }
+  if (aid === 'soulharvest') {
+    // transform into the harvest form: a timed dual-zone drain/heal (she stays
+    // mobile). updateAbilities ticks it; the renderer reads harvestUntil/size.
+    caster.harvestUntil = time + (p.duration || 0);
+    caster.harvest = {
+      size: p.size || 100,
+      drainRadius: p.drainRadius || 0, drainDps: p.drainDps || 0,
+      healRadius: p.healRadius || 0, healHps: p.healHps || 0,
+    };
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'soulharvest', x: caster.x, y: caster.y, team: caster.team, drainRadius: p.drainRadius, healRadius: p.healRadius });
     return hold;
   }
 

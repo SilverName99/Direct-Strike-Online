@@ -71,6 +71,7 @@ export class Game {
     this.projectiles = [];
     this.structures = [];
     this.fireZones = []; // burning ground left by the Fireball upgrade
+    this.corpses = [];   // {x, y, until} — fresh bodies the Spirit Huntress can raise
     this.byId = new Map();
     this.events = []; // drained by the render layer
 
@@ -850,6 +851,13 @@ export class Game {
     // ready, the player presses again when it is.
     this.abilityCastReq[0].clear();
     this.abilityCastReq[1].clear();
+
+    // Raisable corpses expire; drop the stale ones (cheap, usually short).
+    if (this.corpses.length) {
+      const kept = [];
+      for (const c of this.corpses) if (this.time < c.until) kept.push(c);
+      this.corpses = kept;
+    }
   }
 
   removeStructure(s, destroyed) {
@@ -874,10 +882,16 @@ export class Game {
 
   removeDead() {
     const alive = [];
+    // a dead fighter leaves a corpse the Spirit Huntress can raise (Rise Dead).
+    // Summons and structures leave nothing (no skeleton-from-skeleton loops).
+    const corpseLife = (resolvedAbility('risedead')?.params?.corpseLife) || 0;
     for (const e of this.entities) {
       if (e.hp > 0) {
         alive.push(e);
       } else {
+        if (corpseLife > 0 && !e.summon && !e.isStructure) {
+          this.corpses.push({ x: e.x, y: e.y, until: this.time + corpseLife });
+        }
         this.byId.delete(e.id);
       }
     }

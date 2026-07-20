@@ -1082,6 +1082,74 @@ console.log('abilities (casters, auras, status effects)');
     ab.params = saved;
   }
 
+  // ---------------------------------------- Spirit Huntress (Orc hero 3) kit
+  // (casters here use autoAttackBetween:true, like a real hero, so basic attacks
+  //  land between spells — Poison Arrow needs her to actually shoot.)
+  // Poison Arrow: while the stance is live, her arrows apply a poison DoT
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['poisonarrow'], mana: 100 } } } } });
+    const ab = resolvedAbility('poisonarrow'); const saved = { ...ab.params };
+    Object.assign(ab.params, { duration: 8, dps: 20, dotDuration: 3, manaCost: 0, cooldown: 8, castPrepare: 0, tier: 1 });
+    const game = new Game(30, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = 100;
+    const enemy = spawnUnit(game, 1, 'grunt', 700, 400); enemy.hp = enemy.maxHp = 100000;
+    run(game, 2);
+    check('poison arrow: target gains a poison (acid) DoT', (enemy.effects || []).some((x) => x.kind === 'acid'), JSON.stringify(enemy.effects));
+    ab.params = saved;
+  }
+  // Life Drain: channel damages the target and heals her
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['lifedrain'], mana: 100 } } } } });
+    const ab = resolvedAbility('lifedrain'); const saved = { ...ab.params };
+    Object.assign(ab.params, { range: 300, duration: 2, drainPerSec: 50, healPerSec: 40, manaPerSec: 0, manaCost: 0, cooldown: 10, castPrepare: 0, tier: 1 });
+    const game = new Game(31, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = 100; caster.hp = 100; caster.maxHp = 100000;
+    const enemy = spawnUnit(game, 1, 'grunt', 850, 400); enemy.hp = enemy.maxHp = 100000; // in drain range, out of melee reach
+    run(game, 1);
+    check('life drain: damages the target', enemy.hp < 100000, `${enemy.hp}`);
+    check('life drain: heals the caster', caster.hp > 100, `${caster.hp}`);
+    ab.params = saved;
+  }
+  // Rise Dead: raises a skeleton FROM a nearby corpse (consuming it)
+  {
+    // a death leaves a raisable corpse
+    {
+      const ab0 = resolvedAbility('risedead'); const s0 = { ...ab0.params }; Object.assign(ab0.params, { corpseLife: 10 });
+      const g0 = new Game(33, { races: ['humans', 'orcs'] });
+      const v = spawnUnit(g0, 1, 'grunt', 700, 400); v.hp = 0; // dead this tick
+      g0.update(1 / 30);
+      check('death leaves a raisable corpse', g0.corpses.length >= 1, `${g0.corpses.length}`);
+      ab0.params = s0;
+    }
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['risedead'], mana: 100 } } } } });
+    const ab = resolvedAbility('risedead'); const saved = { ...ab.params };
+    Object.assign(ab.params, { corpseRange: 400, corpseLife: 20, cap: 3, life: 15, hp: 120, damage: 16, manaCost: 0, cooldown: 3, castPrepare: 0, tier: 1, targetsGround: 1 });
+    const game = new Game(32, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = 100;
+    game.corpses.push({ x: 850, y: 400, until: game.time + 20 }); // a corpse to raise
+    run(game, 1);
+    const skel = game.entities.find((e) => e.summon && e.summonKind === 'skeleton');
+    check('rise dead: raised a skeleton', !!skel);
+    // raised AT the corpse (~850, then it marches right) — not spawned beside her (~580)
+    check('rise dead: skeleton rose from the corpse (not beside her)', skel && skel.x > 750, skel && `${skel.x}`);
+    ab.params = saved;
+  }
+  // Soul Harvest (ult): drains enemies (feeding her) AND heals allies, dual zones
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['soulharvest'], mana: 200 } } } } });
+    const ab = resolvedAbility('soulharvest'); const saved = { ...ab.params };
+    Object.assign(ab.params, { duration: 3, size: 160, drainRadius: 250, drainDps: 60, healRadius: 250, healHps: 40, manaCost: 0, cooldown: 70, castPrepare: 0, tier: 1 });
+    const game = new Game(34, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = 200; caster.hp = 100; caster.maxHp = 100000;
+    const enemy = spawnUnit(game, 1, 'grunt', 660, 400); enemy.hp = enemy.maxHp = 100000;
+    const ally = spawnUnit(game, 0, 'grunt', 640, 400); ally.hp = 50; ally.maxHp = 100000;
+    run(game, 1);
+    check('soul harvest: drains the enemy', enemy.hp < 100000, `${enemy.hp}`);
+    check('soul harvest: the drain heals her', caster.hp > 100, `${caster.hp}`);
+    check('soul harvest: heals an ally in the heal zone', ally.hp > 50, `${ally.hp}`);
+    ab.params = saved;
+  }
+
   // dispell: an allied caster cleanses the frost slow
   {
     applyBalance({

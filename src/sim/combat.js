@@ -32,6 +32,11 @@ export function effStats(u, stats) {
       period: stats.period * Math.max(0.25, 1 - (dbuff.haste || 0) / 100),
     };
   }
+  // Poison Arrow stance (Spirit Huntress): while live, every attack carries a
+  // poison damage-over-time on hit (u.poison is cleared when the stance expires).
+  if (u.poison) {
+    stats = { ...stats, acid: { dot: u.poison.dot, dur: u.poison.dur } };
+  }
   // Elemental Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
   // a splash applied in the melee branch (morphSplash/morphSplashPct). Being a
   // grounded melee colossus, it can no longer reach fliers (targetsAir off) even

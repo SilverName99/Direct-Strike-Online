@@ -75,10 +75,15 @@ const ABILITY_INFO = [
   'waterelemental' => ['Water Elemental', true, false], // summon (cast frame; elemental sprites below)
   'manaaura' => ['Mana Regen Aura', true, false],       // cast frame, then the zone persists
   'blizzard' => ['Blizzard', true, false, 1, true],     // ultimate: cast frame + a storm-zone effect image
+  // Spirit Huntress (Orc hero 3) kit
+  'poisonarrow' => ['Poison Arrow', true, true],   // cast frame + a poison projectile (used while active)
+  'lifedrain' => ['Life Drain', true, false],      // cast frame; the drain beam is drawn automatically
+  'risedead' => ['Rise Dead', true, false],        // summon (cast frame; skeleton sprites below)
+  'soulharvest' => ['Soul Harvest', true, false, 1, true], // ultimate: cast frame + a harvest-zone effect image
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Water Elemental'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Water Elemental', 'skeleton' => 'Schelet'];
 // summon abilities whose spawned entity is a stationary totem (idle-only sprite,
 // no walk/attack/die, no portrait animation)
 const TOTEM_ABILITIES = ['slowingtotem'];

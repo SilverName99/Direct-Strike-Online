@@ -464,6 +464,70 @@ export const ABILITIES = {
       castPrepare: 0.4,
     },
   },
+
+  // ---- Spirit Huntress (orc hero, female, ranger/mage) --------------------
+  poisonarrow: {
+    name: 'Poison Arrow',
+    kind: 'active',
+    color: '#8fd04a',
+    desc: 'Intră într-o stare pe timp: cât e activă, săgețile ei aplică poison damage (damage-over-time). Puterea otrăvii crește cu rangul (setabilă per rang).',
+    params: {
+      tier: 1, cooldown: 8, manaCost: 40,
+      duration: 8,        // seconds the stance lasts
+      dps: 12, dps1: 0, dps2: 0, dps3: 0, // poison damage/s applied on hit (per-rank)
+      dotDuration: 3,     // how long each poison stack lasts on a struck target
+      castPrepare: 0,     // orc heroine casts directly (no prepare frame)
+    },
+  },
+  lifedrain: {
+    name: 'Life Drain',
+    kind: 'active',
+    color: '#c94ccb',
+    desc: 'Canalizează asupra unui inamic: îi fură viață în timp și se vindecă pe ea. Cât fură și cât primește cresc cu rangul (setabile per rang).',
+    params: {
+      tier: 1, cooldown: 10, manaCost: 20,
+      range: 260,
+      duration: 3,        // seconds the channel lasts
+      drainPerSec: 40, drainPerSec1: 0, drainPerSec2: 0, drainPerSec3: 0, // damage/s to the target
+      healPerSec: 30, healPerSec1: 0, healPerSec2: 0, healPerSec3: 0,     // HP/s she regains
+      manaPerSec: 6,      // mana drained per second while channeling
+      castPrepare: 0,
+    },
+  },
+  risedead: {
+    name: 'Rise Dead',
+    kind: 'summon',
+    animal: 'skeleton',
+    animalName: 'Schelet',
+    color: '#b8c0c8',
+    desc: 'Ridică un schelet-luptător dintr-un cadavru din apropiere (orice unitate lasă un cadavru câteva secunde după ce moare). HP-ul, damage-ul și durata scheletului cresc cu rangul.',
+    params: {
+      tier: 1, manaCost: 35, cooldown: 6,
+      corpseRange: 220,   // how far she can reach a corpse to raise
+      corpseLife: 8,      // seconds a corpse stays raisable after any death
+      cap: 3, life: 15,   // skeleton lifetime (scales per rank)
+      hp: 120, damage: 16, range: 28, period: 1.1, speed: 95,
+      hpPerRank: 60, damagePerRank: 8,
+      animSpeed: 5, size: 100,
+      splash: 0, flying: 0, projectile: 0, armored: 0,
+      targetsAir: 0, targetsGround: 1,
+      castPrepare: 0,
+    },
+  },
+  soulharvest: {
+    name: 'Soul Harvest',
+    kind: 'active', // ultimate
+    color: '#d14b8f',
+    desc: 'Ultima: se transformă (mărime setabilă) câteva secunde — drenează toți inamicii dintr-o zonă (damage/s, care o vindecă și pe ea) și în același timp vindecă aliații din altă zonă (HP/s). Ambele cresc cu rangul.',
+    params: {
+      tier: 1, cooldown: 70, manaCost: 120,
+      duration: 6,        // seconds the form lasts
+      size: 160,          // % visual size while active
+      drainRadius: 220, drainDps: 60, drainDps1: 0, drainDps2: 0, drainDps3: 0, // damage/s to enemies (also heals her)
+      healRadius: 260, healHps: 40, healHps1: 0, healHps2: 0, healHps3: 0,      // HP/s to allies
+      castPrepare: 0,
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -558,6 +622,28 @@ export const ABILITY_PARAM_LABELS = {
   manaPerSec1: 'Mana/s rang 1 (0 = auto)',
   manaPerSec2: 'Mana/s rang 2 (0 = auto)',
   manaPerSec3: 'Mana/s rang 3 (0 = auto)',
+  // Spirit Huntress kit
+  dotDuration: 'Durată poison pe lovitură (s)',
+  drainPerSec: 'HP furat/s (de la țintă)',
+  drainPerSec1: 'HP furat/s rang 1 (0 = auto)',
+  drainPerSec2: 'HP furat/s rang 2 (0 = auto)',
+  drainPerSec3: 'HP furat/s rang 3 (0 = auto)',
+  healPerSec: 'HP primit/s (de ea)',
+  healPerSec1: 'HP primit/s rang 1 (0 = auto)',
+  healPerSec2: 'HP primit/s rang 2 (0 = auto)',
+  healPerSec3: 'HP primit/s rang 3 (0 = auto)',
+  corpseRange: 'Rază cadavru (Rise Dead)',
+  corpseLife: 'Cât rămâne cadavrul (s)',
+  drainRadius: 'Rază dren inamici (Soul Harvest)',
+  drainDps: 'Damage/s dren (o vindecă și pe ea)',
+  drainDps1: 'Dren/s rang 1 (0 = auto)',
+  drainDps2: 'Dren/s rang 2 (0 = auto)',
+  drainDps3: 'Dren/s rang 3 (0 = auto)',
+  healRadius: 'Rază heal aliați (Soul Harvest)',
+  healHps: 'HP/s heal aliați',
+  healHps1: 'Heal/s rang 1 (0 = auto)',
+  healHps2: 'Heal/s rang 2 (0 = auto)',
+  healHps3: 'Heal/s rang 3 (0 = auto)',
   manaPerSec: 'Mana pe secundă (canalizare)',
   frame1Time: 'Timp pe Cast 1 (s)',
   frame2Time: 'Timp pe Cast 2 (s)',

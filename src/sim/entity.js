@@ -32,6 +32,10 @@ export function spawnUnit(game, team, type, x, y) {
     castTargetId: null,
     castManual: false,// true while a player-triggered (manual) cast is in flight
     castPhaseEnd: 0,  // game.time when the current cast phase ends
+    // Spirit Huntress timed states
+    poisonUntil: 0, poison: null,       // Poison Arrow stance (attacks apply poison)
+    drainUntil: 0, drainTargetId: null, // Life Drain channel
+    harvestUntil: 0, harvest: null,     // Soul Harvest form (dual-zone drain/heal)
     spellHold: false, // caster is holding at range, saving up for a spell
     dashing: false,   // charging in at dashSpeed toward a target in dashRange
     dashCharge: false,// a dash is committed; its bonus lands on arrival
