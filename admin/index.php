@@ -70,10 +70,15 @@ const ABILITY_INFO = [
   'divinebuff' => ['Divine Buff', false, false],  // passive: no cast frame
   'divineregen' => ['Divine Regeneration', true, false, 1], // 1 stance frame (held for the duration)
   'vortexoflight' => ['Vortex of Light', true, false, 1],    // 1 spin frame (held while channeling)
+  // Battle Mage (Human hero 3) kit
+  'bigfrostbolt' => ['Bigger Frost Bolt', true, true],  // cast frame + a big frost projectile
+  'waterelemental' => ['Water Elemental', true, false], // summon (cast frame; elemental sprites below)
+  'manaaura' => ['Mana Regen Aura', true, false],       // cast frame, then the zone persists
+  'blizzard' => ['Blizzard', true, false, 1, true],     // ultimate: cast frame + a storm-zone effect image
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Water Elemental'];
 // summon abilities whose spawned entity is a stationary totem (idle-only sprite,
 // no walk/attack/die, no portrait animation)
 const TOTEM_ABILITIES = ['slowingtotem'];

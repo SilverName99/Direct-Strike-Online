@@ -28,7 +28,7 @@ function isCastable(ab) {
 // params below (rankStep 0.5 => rank 2 = 1.5×, rank 3 = 2×; 0 => no scaling).
 // Set per ability in the balance editor. Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankStep
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaPerSec', 'drainPerSec', 'healPerSec'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   const overrides = ab.rankOverrides;
@@ -172,6 +172,7 @@ export function updateAbilities(game, dt) {
     if (u.manaMax > 0 && u.mana < u.manaMax) {
       let regen = stats.manaRegen || 0;
       if (u.hero && (u.heroLevel || 1) > 1) regen += (u.heroLevel - 1) * (stats.manaRegenPerLevel || 0);
+      regen += effectVal(u, 'manaregen', time); // Mana Regen Aura bonus
       u.mana = Math.min(u.manaMax, u.mana + regen * dt);
     }
 
@@ -286,6 +287,9 @@ function tickCastAura(game, caster, aid, ab, time) {
       if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
     } else if (aid === 'regenaura') {
       if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
+    } else if (aid === 'manaaura') {
+      // allies in range gain extra mana regen (the mana-regen loop reads it)
+      if (u.team === caster.team && u.manaMax > 0) applyEffect(u, 'manaregen', p.manaPerSec, until, time);
     }
   }
 }
@@ -369,7 +373,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 
 // Support abilities that fire for a wounded/needy ally even when no enemy is in
 // range — they are exempt from the "cast only while engaged" rule.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield']);
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'manaaura']);
 
 // Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
@@ -490,6 +494,7 @@ function canAutoAttack(game, u) {
 const SELF_MANUAL = new Set([
   'regenaura', 'hasteaura', 'slowaura', 'warstomp', 'bloodlust',
   'divineshield', 'holynova', 'divineregen', 'backlineteleport',
+  'manaaura',
 ]);
 
 // The target a given ability would act on, or null if there is none. `manual`
@@ -674,7 +679,24 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     }
     return target;
   }
-  if (aid === 'frostbolt') {
+  if (aid === 'manaaura') {
+    // raise the zone when an ally in range (self counts) has mana to top up
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team === caster.team && u.manaMax > 0 && u.mana < u.manaMax && inRadius(u, caster, p.radius)) return caster;
+    }
+    return null;
+  }
+  if (aid === 'blizzard') {
+    // drop the storm on the nearest enemy in cast range (it centres on them)
+    let best = null, bestD = Infinity;
+    for (const u of game.entities) {
+      if (u.team === caster.team || u.hp <= 0 || u.isAir || !inRadius(u, caster, p.range)) continue;
+      const dx = u.x - caster.x, dy = u.y - caster.y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = u; }
+    }
+    return best;
+  }
+  if (aid === 'frostbolt' || aid === 'bigfrostbolt') {
     // nearest enemy in range, preferring ones not already slowed
     let best = null;
     let bestKey = Infinity;
@@ -883,10 +905,11 @@ function releaseSpell(game, caster, time) {
     return hold;
   }
 
-  if (aid === 'frostbolt') {
+  if (aid === 'frostbolt' || aid === 'bigfrostbolt') {
     spawnProjectile(game, caster, {
       damage: p.damage, dmgType: 'normal',
       projectileSpeed: p.projectileSpeed, projSize: 1,
+      splash: p.radius || 0, // Bigger Frost Bolt bursts for area damage + area slow
     }, target);
     const proj = game.projectiles[game.projectiles.length - 1];
     proj.ability = aid; // impact applies the slow (see combat.js)
@@ -900,6 +923,19 @@ function releaseSpell(game, caster, time) {
     const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     const travel = speed > 0 ? dist / speed : 0;
     return Math.max(hold, travel);
+  }
+
+  if (aid === 'blizzard') {
+    // drop a frost storm centred on the target: a zone that ticks damage AND
+    // slows every enemy standing in it, for `duration` seconds (reuses fireZones)
+    game.fireZones.push({
+      x: target.x, y: target.y, radius: p.radius || 0, dps: p.dps || 0,
+      moveSlow: p.moveSlow || 0, until: time + (p.duration || 0), team: caster.team,
+      dmgType: 'normal', frost: true,
+    });
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius });
+    game.events.push({ type: 'blizzard', x: target.x, y: target.y, radius: p.radius, dur: p.duration });
+    return hold;
   }
 
   return hold;

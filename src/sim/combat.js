@@ -174,7 +174,11 @@ export function updateCombat(game, dt) {
       for (const e of game.entities) {
         if (e.team === z.team || e.hp <= 0 || e.isAir) continue;
         const dx = e.x - z.x; const dy = e.y - z.y;
-        if (dx * dx + dy * dy <= z.radius * z.radius) applyDamage(game, e, z.dps * dt, z.dmgType || 'normal', true);
+        if (dx * dx + dy * dy <= z.radius * z.radius) {
+          applyDamage(game, e, z.dps * dt, z.dmgType || 'normal', true);
+          // Blizzard: the frost storm also slows everyone standing in it
+          if (z.moveSlow) applyEffect(e, 'moveslow', z.moveSlow, game.time + 0.4, game.time);
+        }
       }
       kept.push(z);
     }
@@ -913,6 +917,12 @@ function impact(game, p, target) {
         applyDamage(game, e, dmg, p.dmgType);
         // acid pool: everyone caught keeps taking damage over time
         if (p.acid) applyEffect(e, 'acid', p.acid.dot, game.time + p.acid.dur, game.time);
+        // ability splash (Bigger Frost Bolt): the slow lands on EVERYONE caught
+        if (p.ability && p.effectSpec && !e.isStructure) {
+          const spec = p.effectSpec; const until = game.time + spec.duration;
+          if (spec.moveSlow) applyEffect(e, 'moveslow', spec.moveSlow, until, game.time);
+          if (spec.atkSlow) applyEffect(e, 'atkslow', spec.atkSlow, until, game.time);
+        }
       }
     }
     // splash also chips enemy structures caught in the blast (an AoE burst on

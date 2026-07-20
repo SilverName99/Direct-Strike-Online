@@ -1023,6 +1023,65 @@ console.log('abilities (casters, auras, status effects)');
     check('frost bolt applies a movement slow', !!slowed, JSON.stringify(runner.effects));
   }
 
+  // ---------------------------------------- Battle Mage (Human hero 3) kit
+  // NOTE: applyBalance() rebuilds ability params from defaults, so it MUST run
+  // BEFORE we Object.assign per-test overrides onto the resolved ability.
+  // Bigger Frost Bolt: bursts for area damage + area slow on everyone caught
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['bigfrostbolt'] } } } } });
+    const ab = resolvedAbility('bigfrostbolt'); const saved = { ...ab.params };
+    Object.assign(ab.params, { range: 340, damage: 50, radius: 130, moveSlow: 40, duration: 3, manaCost: 0, cooldown: 2, projectileSpeed: 600, castPrepare: 0, tier: 1 });
+    const game = new Game(20, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.hp = caster.maxHp = 100000;
+    const e1 = spawnUnit(game, 1, 'grunt', 720, 400); e1.hp = e1.maxHp = 100000;
+    const e2 = spawnUnit(game, 1, 'grunt', 780, 400); e2.hp = e2.maxHp = 100000; // inside e1's 130 burst
+    run(game, 3);
+    check('bigger frost bolt: AoE slow hits both', (e1.effects || []).some((x) => x.kind === 'moveslow') && (e2.effects || []).some((x) => x.kind === 'moveslow'));
+    check('bigger frost bolt: AoE damage hits both', e1.hp < 100000 && e2.hp < 100000, `${e1.hp} ${e2.hp}`);
+    ab.params = saved;
+  }
+  // Water Elemental: a melee summon whose HP/damage grow per rank
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['waterelemental'] } } } } });
+    const ab = resolvedAbility('waterelemental'); const saved = { ...ab.params };
+    Object.assign(ab.params, { hp: 200, damage: 20, hpPerRank: 100, damagePerRank: 10, cap: 1, life: 20, manaCost: 0, cooldown: 5, castPrepare: 0, tier: 1, targetsGround: 1 });
+    const game = new Game(21, { races: ['humans', 'orcs'] });
+    // a "hero" caster so per-rank applies; heroAbilities feeds ustatOf's ability list
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.hp = caster.maxHp = 100000;
+    caster.hero = true; caster.heroAbilities = ['waterelemental']; caster.heroRanks = { waterelemental: 2 };
+    spawnUnit(game, 1, 'grunt', 660, 400); // an enemy in range so the summon fires
+    run(game, 2);
+    const elem = game.entities.find((e) => e.summon && e.summonKind === 'waterelemental');
+    check('water elemental: summoned', !!elem);
+    check('water elemental: rank-2 HP = base+perRank (200+100)', elem && elem.maxHp === 300, elem && `${elem.maxHp}`);
+    ab.params = saved;
+  }
+  // Mana Regen Aura: nearby allies regenerate extra mana
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['manaaura'], mana: 100, manaRegen: 0 } } } } });
+    const ab = resolvedAbility('manaaura'); const saved = { ...ab.params };
+    Object.assign(ab.params, { radius: 300, manaPerSec: 30, duration: 10, manaCost: 0, tier: 1 });
+    const game = new Game(22, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = caster.manaMax = 100;
+    const ally = spawnUnit(game, 0, 'slinger', 640, 400); ally.mana = 0; ally.manaMax = 100; // low mana, in range
+    run(game, 1);
+    check('mana aura: nearby ally regenerates mana', ally.mana > 10, `${ally.mana}`);
+    ab.params = saved;
+  }
+  // Blizzard (ult): a frost storm zone that damages AND slows enemies in it
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['blizzard'], mana: 200 } } } } });
+    const ab = resolvedAbility('blizzard'); const saved = { ...ab.params };
+    Object.assign(ab.params, { radius: 160, dps: 100, moveSlow: 45, duration: 3, range: 500, manaCost: 0, cooldown: 40, castPrepare: 0, tier: 1 });
+    const game = new Game(23, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 500, 400); caster.mana = caster.manaMax = 200;
+    const near = spawnUnit(game, 1, 'grunt', 560, 400); near.hp = near.maxHp = 100000;
+    run(game, 2);
+    check('blizzard: damages enemy in the storm', near.hp < 100000, `${near.hp}`);
+    check('blizzard: slows enemy in the storm', (near.effects || []).some((x) => x.kind === 'moveslow'));
+    ab.params = saved;
+  }
+
   // dispell: an allied caster cleanses the frost slow
   {
     applyBalance({

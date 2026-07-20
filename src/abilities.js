@@ -400,6 +400,70 @@ export const ABILITIES = {
       castPrepare: 0, // instant
     },
   },
+
+  // ---- Battle Mage (human hero, female, mounted caster) --------------------
+  bigfrostbolt: {
+    name: 'Bigger Frost Bolt',
+    kind: 'active',
+    color: '#7fd8ff',
+    desc: 'Un proiectil mare de gheață care explodează la impact: damage într-o zonă și încetinește TOȚI inamicii prinși. Damage-ul crește cu rangul (setabil per rang).',
+    params: {
+      tier: 1, cooldown: 6, manaCost: 45,
+      range: 340,        // cast range (how far she can throw it)
+      damage: 60, damage1: 0, damage2: 0, damage3: 0, // explicit per-rank damage (0 = auto)
+      radius: 90,        // splash radius of the burst
+      moveSlow: 40,      // % movement slow on everyone caught
+      duration: 3,       // seconds the slow lasts
+      projectileSpeed: 420,
+      castPrepare: 0.3,  // wind-up on the "prepare" frame
+    },
+  },
+  waterelemental: {
+    name: 'Water Elemental',
+    kind: 'summon',
+    animal: 'waterelemental',
+    animalName: 'Water Elemental',
+    color: '#4aa3ff',
+    desc: 'Invocă un elemental de apă care luptă în melee. HP-ul și damage-ul cresc cu rangul (setabile per rang).',
+    params: {
+      tier: 1, manaCost: 60, cooldown: 12,
+      cap: 1, life: 20,
+      hp: 300, damage: 28, range: 30, period: 1.1, speed: 95,
+      hpPerRank: 150,     // extra HP per rank learned above rank 1
+      damagePerRank: 16,  // extra damage per rank learned above rank 1
+      animSpeed: 5, size: 110,
+      splash: 0, flying: 0, projectile: 0, armored: 0,
+      targetsAir: 0, targetsGround: 1,
+      castPrepare: 0.3,
+    },
+  },
+  manaaura: {
+    name: 'Mana Regen Aura',
+    kind: 'castaura',
+    color: '#6f8bff',
+    desc: 'Ridică o zonă în care aliații primesc mana regen extra. Cantitatea crește cu rangul (setabilă per rang).',
+    params: {
+      tier: 1, manaCost: 30,
+      radius: 200,
+      manaPerSec: 6, manaPerSec1: 0, manaPerSec2: 0, manaPerSec3: 0, // per-rank mana/s (0 = auto)
+      duration: 12,      // seconds the zone lasts
+    },
+  },
+  blizzard: {
+    name: 'Blizzard',
+    kind: 'active', // ultimate
+    color: '#aee8ff',
+    desc: 'Ultima: cheamă o furtună de gheață peste inamici — o zonă care face damage pe secundă și îi încetinește câteva secunde. Damage-ul crește cu rangul.',
+    params: {
+      tier: 1, cooldown: 60, manaCost: 120,
+      radius: 160,       // storm radius
+      dps: 90, dps1: 0, dps2: 0, dps3: 0, // per-rank damage/s (0 = auto)
+      moveSlow: 45,      // % movement slow inside the storm
+      duration: 5,       // seconds the storm lasts
+      range: 500,        // how far she can drop the storm
+      castPrepare: 0.4,
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -485,6 +549,15 @@ export const ABILITY_PARAM_LABELS = {
   duration1: 'Durată rang 1 (s, 0 = auto)',
   duration2: 'Durată rang 2 (s, 0 = auto)',
   duration3: 'Durată rang 3 (s, 0 = auto)',
+  damage1: 'Damage rang 1 (0 = auto)',
+  damage2: 'Damage rang 2 (0 = auto)',
+  damage3: 'Damage rang 3 (0 = auto)',
+  dps1: 'Damage/s rang 1 (0 = auto)',
+  dps2: 'Damage/s rang 2 (0 = auto)',
+  dps3: 'Damage/s rang 3 (0 = auto)',
+  manaPerSec1: 'Mana/s rang 1 (0 = auto)',
+  manaPerSec2: 'Mana/s rang 2 (0 = auto)',
+  manaPerSec3: 'Mana/s rang 3 (0 = auto)',
   manaPerSec: 'Mana pe secundă (canalizare)',
   frame1Time: 'Timp pe Cast 1 (s)',
   frame2Time: 'Timp pe Cast 2 (s)',
