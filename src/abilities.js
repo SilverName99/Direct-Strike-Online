@@ -311,6 +311,7 @@ export const ABILITIES = {
     params: {
       tier: 1, cooldown: 18, manaCost: 60,
       duration: 2,    // seconds of invulnerability (scales with rank)
+      duration1: 0, duration2: 0, duration3: 0, // explicit per-rank duration (0 = auto)
       threshold: 55,  // casts when the Paladin drops below this % HP
     },
   },
@@ -481,6 +482,9 @@ export const ABILITY_PARAM_LABELS = {
   hps1: 'Regen rang 1 (HP/s, 0 = auto)',
   hps2: 'Regen rang 2 (HP/s, 0 = auto)',
   hps3: 'Regen rang 3 (HP/s, 0 = auto)',
+  duration1: 'Durată rang 1 (s, 0 = auto)',
+  duration2: 'Durată rang 2 (s, 0 = auto)',
+  duration3: 'Durată rang 3 (s, 0 = auto)',
   manaPerSec: 'Mana pe secundă (canalizare)',
   frame1Time: 'Timp pe Cast 1 (s)',
   frame2Time: 'Timp pe Cast 2 (s)',
