@@ -633,10 +633,11 @@ function regenManifest(string $assetsDir): void {
     $mf = middleFileFor($assetsDir, $n);
     if ($mf) $middle[] = $mf;
   }
+  $corpse = is_file("$assetsDir/corpse.png"); // GLOBAL raisable-corpse decal (Rise Dead)
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -762,6 +763,37 @@ if ($authed && $action === 'deletebg') {
     @unlink("$assetsDir/$race/background.png");
     regenManifest($assetsDir);
     $msg = "Background șters: $race";
+  }
+}
+// GLOBAL raisable-corpse decal (Rise Dead) — corpse.png
+if ($authed && $action === 'uploadcorpse') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir($assetsDir, 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/corpse.png")) {
+        regenManifest($assetsDir);
+        $msg = 'Cadavru (decal) încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletecorpse') {
+  if (checkCsrf()) {
+    @unlink("$assetsDir/corpse.png");
+    regenManifest($assetsDir);
+    $msg = 'Cadavru (decal) șters.';
   }
 }
 // Per-race loading screens (5 slots): loading-<n>.png
@@ -1370,6 +1402,39 @@ if ($authed && $action === 'deletebarover') {
           jumătăți — lățimea benzii în joc = <b>lățimea PNG-ului ÷ 2</b> (400 → ~200 unități). Ține-o
           neutră, cu <b>marginile stânga/dreapta transparente (fade)</b> ca să se topească în cele două
           hărți. Încarcă 1–3 variante; jocul alege una random la fiecare meci.
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php $corpseFile = "$assetsDir/corpse.png"; $hasCorpse = is_file($corpseFile); ?>
+  <div class="ent" id="corpse-decal">
+    <div class="title"><b>Cadavru (Rise Dead)</b><span>global — rămășițele lăsate pe jos când moare o unitate (le poate ridica Spirit Huntress)</span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Decal cadavru</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasCorpse): ?>
+            <img src="<?= $assetsUrl ?>/corpse.png?t=<?= filemtime($corpseFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadcorpse">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasCorpse ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasCorpse): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletecorpse">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi decalul de cadavru?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:280px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          PNG mic (ex. <b>48×48</b>), văzut de sus, cu fundal transparent. Apare centrat pe locul morții,
+          câteva secunde (durata o setezi la abilitatea <b>Rise Dead → „Cât rămâne cadavrul (s)"</b>).
+          Fără el, se desenează un morman de oase simplu.
         </div>
       </div>
     </div>

@@ -25,6 +25,7 @@ const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
 const loadingUrls = new Map(); // race -> [urls] of the uploaded loading screens
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
+let corpseImg = null;          // GLOBAL raisable-corpse decal (Rise Dead), if uploaded
 const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image (shop tab buttons)
 const baseUpgIcons = new Map(); // race -> Image (base tier-upgrade slot icon, per race)
 const barSkins = new Map();    // race -> url of the uploaded bottom-bar background design
@@ -169,6 +170,8 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [key, file] of Object.entries(man.icons || {})) {
         load(`${base}icons/${file}?v=${man.v || 0}`, (img) => uiIcons.set(key, img));
       }
+      // GLOBAL raisable-corpse decal (Rise Dead) — the remains left on the ground
+      if (man.corpse) load(`${base}corpse.png?v=${man.v || 0}`, (img) => { corpseImg = img; });
       // per-race UNITS / CLĂDIRI shop-tab button art
       for (const [race, slots] of Object.entries(man.tabs || {})) {
         for (const [slot, file] of Object.entries(slots)) {
@@ -253,6 +256,12 @@ export function pickImg(entry, team) {
 
 export function getBackground(race) {
   return backgrounds.get(race) || null;
+}
+
+// GLOBAL raisable-corpse decal (Rise Dead), or null if none uploaded (the
+// renderer then draws a simple bone-pile placeholder).
+export function getCorpseImage() {
+  return corpseImg;
 }
 
 // Slot indices (0-based) that currently have a loaded middle-strip image. The
