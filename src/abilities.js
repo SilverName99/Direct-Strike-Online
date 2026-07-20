@@ -445,19 +445,21 @@ export const ABILITIES = {
     params: {
       tier: 1,
       radius: 200,
-      // mana GIVEN to allies per second (not consumed — it's a passive)
-      manaGain: 6, manaGain1: 0, manaGain2: 0, manaGain3: 0, // per-rank (0 = auto)
+      // mana GIVEN to allies per second, set per learned rank (not consumed —
+      // it's a passive). `manaGain` is the hidden base/fallback (no editor
+      // label); the player only sees & sets the per-rank manaGain1/2/3.
+      manaGain: 5, manaGain1: 5, manaGain2: 8, manaGain3: 12,
     },
   },
   blizzard: {
     name: 'Blizzard',
     kind: 'active', // ultimate
     color: '#aee8ff',
-    desc: 'Ultima: cheamă o furtună de gheață peste inamici — o zonă care face damage pe secundă și îi încetinește câteva secunde. Damage-ul crește cu rangul.',
+    desc: 'Ultima: cheamă o furtună de gheață peste inamici — o zonă care face damage pe secundă și îi încetinește câteva secunde.',
     params: {
       tier: 1, cooldown: 60, manaCost: 120,
       radius: 160,       // storm radius
-      dps: 90, dps1: 0, dps2: 0, dps3: 0, // per-rank damage/s (0 = auto)
+      dps: 90,           // damage/s (ultimate = a single rank)
       moveSlow: 45,      // % movement slow inside the storm
       duration: 5,       // seconds the storm lasts
       range: 500,        // how far she can drop the storm
@@ -518,13 +520,13 @@ export const ABILITIES = {
     name: 'Soul Harvest',
     kind: 'active', // ultimate
     color: '#d14b8f',
-    desc: 'Ultima: se transformă (mărime setabilă) câteva secunde — drenează toți inamicii dintr-o zonă (damage/s, care o vindecă și pe ea) și în același timp vindecă aliații din altă zonă (HP/s). Ambele cresc cu rangul.',
+    desc: 'Ultima: se transformă (mărime setabilă) câteva secunde — drenează toți inamicii dintr-o zonă (damage/s, care o vindecă și pe ea) și în același timp vindecă aliații din altă zonă (HP/s).',
     params: {
       tier: 1, cooldown: 70, manaCost: 120,
       duration: 6,        // seconds the form lasts
       size: 160,          // % visual size while active
-      drainRadius: 220, drainDps: 60, drainDps1: 0, drainDps2: 0, drainDps3: 0, // damage/s to enemies (also heals her)
-      healRadius: 260, healHps: 40, healHps1: 0, healHps2: 0, healHps3: 0,      // HP/s to allies
+      drainRadius: 220, drainDps: 60, // damage/s to enemies (also heals her) — ult = 1 rank
+      healRadius: 260, healHps: 40,   // HP/s to allies
       castPrepare: 0,
     },
   },
@@ -619,10 +621,9 @@ export const ABILITY_PARAM_LABELS = {
   dps1: 'Damage/s rang 1 (0 = auto)',
   dps2: 'Damage/s rang 2 (0 = auto)',
   dps3: 'Damage/s rang 3 (0 = auto)',
-  manaGain: 'Mana regenerată/s (dată aliaților)',
-  manaGain1: 'Mana regen/s rang 1 (0 = auto)',
-  manaGain2: 'Mana regen/s rang 2 (0 = auto)',
-  manaGain3: 'Mana regen/s rang 3 (0 = auto)',
+  manaGain1: 'Mana regen/s rang 1 (dată aliaților)',
+  manaGain2: 'Mana regen/s rang 2',
+  manaGain3: 'Mana regen/s rang 3',
   // Spirit Huntress kit
   dotDuration: 'Durată poison pe lovitură (s)',
   drainPerSec: 'HP furat/s (de la țintă)',
@@ -637,14 +638,8 @@ export const ABILITY_PARAM_LABELS = {
   corpseLife: 'Cât rămâne cadavrul (s)',
   drainRadius: 'Rază dren inamici (Soul Harvest)',
   drainDps: 'Damage/s dren (o vindecă și pe ea)',
-  drainDps1: 'Dren/s rang 1 (0 = auto)',
-  drainDps2: 'Dren/s rang 2 (0 = auto)',
-  drainDps3: 'Dren/s rang 3 (0 = auto)',
   healRadius: 'Rază heal aliați (Soul Harvest)',
   healHps: 'HP/s heal aliați',
-  healHps1: 'Heal/s rang 1 (0 = auto)',
-  healHps2: 'Heal/s rang 2 (0 = auto)',
-  healHps3: 'Heal/s rang 3 (0 = auto)',
   manaPerSec: 'Mana pe secundă (canalizare)',
   frame1Time: 'Timp pe Cast 1 (s)',
   frame2Time: 'Timp pe Cast 2 (s)',

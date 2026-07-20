@@ -207,7 +207,7 @@ export function updateAbilities(game, dt) {
     const until = time + AURA_TICK;
     for (const a of game.entities) {
       if (a.hp <= 0 || a.team !== u.team || a.manaMax <= 0) continue;
-      if (inRadius(a, u, ma.radius)) applyEffect(a, 'manaregen', ma.manaGain, until, time);
+      if (inRadius(a, u, ma.radius)) applyEffect(a, 'manaregen', ma.manaGain || 0, until, time);
     }
   }
 

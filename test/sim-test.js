@@ -1060,7 +1060,7 @@ console.log('abilities (casters, auras, status effects)');
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['manaaura'], mana: 100, manaRegen: 0 } } } } });
     const ab = resolvedAbility('manaaura'); const saved = { ...ab.params };
-    Object.assign(ab.params, { radius: 300, manaGain: 30, tier: 1 });
+    Object.assign(ab.params, { radius: 300, manaGain1: 30, tier: 1 }); // rank-1 value
     const game = new Game(22, { races: ['humans', 'orcs'] });
     // she's a hero with the passive learned; the aura applies while she lives
     const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = caster.manaMax = 100;
