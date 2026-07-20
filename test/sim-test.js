@@ -1056,16 +1056,18 @@ console.log('abilities (casters, auras, status effects)');
     check('water elemental: rank-2 HP = base+perRank (200+100)', elem && elem.maxHp === 300, elem && `${elem.maxHp}`);
     ab.params = saved;
   }
-  // Mana Regen Aura: nearby allies regenerate extra mana
+  // Mana Regen Aura (PASSIVE): nearby allies regenerate extra mana, always on
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, abilities: ['manaaura'], mana: 100, manaRegen: 0 } } } } });
     const ab = resolvedAbility('manaaura'); const saved = { ...ab.params };
-    Object.assign(ab.params, { radius: 300, manaPerSec: 30, duration: 10, manaCost: 0, tier: 1 });
+    Object.assign(ab.params, { radius: 300, manaPerSec: 30, tier: 1 });
     const game = new Game(22, { races: ['humans', 'orcs'] });
+    // she's a hero with the passive learned; the aura applies while she lives
     const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = caster.manaMax = 100;
+    caster.hero = true; caster.heroRanks = { manaaura: 1 };
     const ally = spawnUnit(game, 0, 'slinger', 640, 400); ally.mana = 0; ally.manaMax = 100; // low mana, in range
     run(game, 1);
-    check('mana aura: nearby ally regenerates mana', ally.mana > 10, `${ally.mana}`);
+    check('mana aura (passive): nearby ally regenerates mana', ally.mana > 10, `${ally.mana}`);
     ab.params = saved;
   }
   // Blizzard (ult): a frost storm zone that damages AND slows enemies in it

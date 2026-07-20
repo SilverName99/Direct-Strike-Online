@@ -73,7 +73,7 @@ const ABILITY_INFO = [
   // Battle Mage (Human hero 3) kit
   'bigfrostbolt' => ['Bigger Frost Bolt', true, true],  // cast frame + a big frost projectile
   'waterelemental' => ['Water Elemental', true, false], // summon (cast frame; elemental sprites below)
-  'manaaura' => ['Mana Regen Aura', true, false],       // cast frame, then the zone persists
+  'manaaura' => ['Mana Regen Aura', false, false],      // passive aura — no cast frame
   'blizzard' => ['Blizzard', true, false, 1, true],     // ultimate: cast frame + a storm-zone effect image
   // Spirit Huntress (Orc hero 3) kit
   'poisonarrow' => ['Poison Arrow', true, true],   // cast frame + a poison projectile (used while active)

@@ -439,14 +439,13 @@ export const ABILITIES = {
   },
   manaaura: {
     name: 'Mana Regen Aura',
-    kind: 'castaura',
+    kind: 'passive', // always on while she lives (like Devotion Aura) — no cast
     color: '#6f8bff',
-    desc: 'Ridică o zonă în care aliații primesc mana regen extra. Cantitatea crește cu rangul (setabilă per rang).',
+    desc: 'Pasivă: aliații din jurul ei primesc mana regen extra, permanent. Cantitatea crește cu rangul (setabilă per rang).',
     params: {
-      tier: 1, manaCost: 30,
+      tier: 1,
       radius: 200,
       manaPerSec: 6, manaPerSec1: 0, manaPerSec2: 0, manaPerSec3: 0, // per-rank mana/s (0 = auto)
-      duration: 12,      // seconds the zone lasts
     },
   },
   blizzard: {

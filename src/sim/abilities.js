@@ -198,6 +198,19 @@ export function updateAbilities(game, dt) {
     }
   }
 
+  // Mana Regen Aura (Battle Mage passive): always on while she lives — allies in
+  // range gain extra mana regen (the mana-regen loop above reads the effect).
+  for (const u of game.entities) {
+    if (u.hp <= 0) continue;
+    const ma = learnedAbilityParams(u, 'manaaura');
+    if (!ma) continue;
+    const until = time + AURA_TICK;
+    for (const a of game.entities) {
+      if (a.hp <= 0 || a.team !== u.team || a.manaMax <= 0) continue;
+      if (inRadius(a, u, ma.radius)) applyEffect(a, 'manaregen', ma.manaPerSec, until, time);
+    }
+  }
+
   // Slowing Totems: each living totem slows enemies in its radius (attack +
   // movement), re-applied every tick while it stands.
   for (const u of game.entities) {
@@ -347,9 +360,6 @@ function tickCastAura(game, caster, aid, ab, time) {
       if (u.team === caster.team && u !== caster) applyEffect(u, 'haste', p.haste, until, time);
     } else if (aid === 'regenaura') {
       if (u.team === caster.team) applyEffect(u, 'regen', p.hps, until, time);
-    } else if (aid === 'manaaura') {
-      // allies in range gain extra mana regen (the mana-regen loop reads it)
-      if (u.team === caster.team && u.manaMax > 0) applyEffect(u, 'manaregen', p.manaPerSec, until, time);
     }
   }
 }
@@ -436,7 +446,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 // Life Drain / Rise Dead reach further than the caster's basic attack (their own
 // range/corpse-range), and their findAbilityTarget already requires a valid
 // target — so exempt them from the "enemy in attack range" engage gate.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'manaaura', 'lifedrain', 'risedead']);
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'lifedrain', 'risedead']);
 
 // Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
@@ -557,7 +567,6 @@ function canAutoAttack(game, u) {
 const SELF_MANUAL = new Set([
   'regenaura', 'hasteaura', 'slowaura', 'warstomp', 'bloodlust',
   'divineshield', 'holynova', 'divineregen', 'backlineteleport',
-  'manaaura',
 ]);
 
 // The target a given ability would act on, or null if there is none. `manual`
@@ -781,13 +790,6 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
       if (hit && (!target || u.id < target.id)) target = u;
     }
     return target;
-  }
-  if (aid === 'manaaura') {
-    // raise the zone when an ally in range (self counts) has mana to top up
-    for (const u of game.entities) {
-      if (u.hp > 0 && u.team === caster.team && u.manaMax > 0 && u.mana < u.manaMax && inRadius(u, caster, p.radius)) return caster;
-    }
-    return null;
   }
   if (aid === 'blizzard') {
     // drop the storm on the nearest enemy in cast range (it centres on them)
