@@ -231,6 +231,7 @@ export function spawnProjectile(game, source, stats, target) {
     // others in the radius, and the burst stays on the target's air/ground plane
     aoe: stats.aoe || null,
     targetAir: !!target.isAir, // the struck plane (fixed at launch)
+    ability: stats.projAbility || null, // basic-attack projectiles that borrow an ability's sprite (Poison Arrow)
     acid: stats.acid || null, // {dot, dur} -> damage-over-time on impact (Acid Spit)
     fire: stats.fire || null, // {dps, dur, radius} -> burning ground on impact (Fireball)
     // "Bounce": on impact the projectile ricochets to the next nearby enemy

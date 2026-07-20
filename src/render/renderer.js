@@ -238,6 +238,8 @@ export class Renderer {
     this.drawField(ctx, game);
     this.drawGrid(ctx, uiState);
     this.drawFireZones(ctx, game); // burning ground sits on the terrain, under everything
+    this.drawHarvestZones(ctx, game); // Soul Harvest drain/heal rings (ground)
+    this.drawRaiseCorpses(ctx, game); // raisable corpses lie on the ground
     this.drawTemplates(ctx, game, uiState);
     this.drawMineSpots(ctx, game); // ghost plots where the player's mines can rise
     this.drawStructures(ctx, game);
@@ -245,6 +247,7 @@ export class Renderer {
     this.drawWorkers(ctx, game); // little miners shuttling gold to the base
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
+    this.drawDrainBeams(ctx, game, alpha); // Life Drain: a wavy beam over the fighters
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
     if (uiState.showRanges) this.drawRanges(ctx, game); // 🎯 debug overlay
@@ -397,15 +400,116 @@ export class Renderer {
       const fade = Math.max(0, Math.min(1, left / 0.6)); // ease out over the last 0.6s
       const flick = 0.72 + 0.28 * Math.sin(this.now * 9 + z.x * 0.05);
       ctx.save();
-      ctx.globalAlpha = 0.34 * fade * flick;
       const g = ctx.createRadialGradient(z.x, z.y, z.radius * 0.12, z.x, z.y, z.radius);
-      g.addColorStop(0, '#ffe08a');
-      g.addColorStop(0.45, '#ff7a1a');
-      g.addColorStop(1, 'rgba(150, 30, 8, 0)');
+      if (z.frost) {
+        // Blizzard: an icy storm patch (swirling frost) instead of fire
+        ctx.globalAlpha = 0.30 * fade * (0.8 + 0.2 * Math.sin(this.now * 4 + z.x * 0.05));
+        g.addColorStop(0, '#eaffff');
+        g.addColorStop(0.5, '#8fd8ff');
+        g.addColorStop(1, 'rgba(90, 150, 210, 0)');
+      } else {
+        ctx.globalAlpha = 0.34 * fade * flick;
+        g.addColorStop(0, '#ffe08a');
+        g.addColorStop(0.45, '#ff7a1a');
+        g.addColorStop(1, 'rgba(150, 30, 8, 0)');
+      }
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
       ctx.fill();
+      // Blizzard: a few drifting snow flecks so it reads as ice, not smoke
+      if (z.frost) {
+        ctx.globalAlpha = 0.5 * fade;
+        ctx.fillStyle = '#f2fbff';
+        for (let i = 0; i < 10; i++) {
+          const a = i * 2.399 + this.now * 1.5;
+          const rr = z.radius * (0.2 + 0.7 * ((i * 37) % 100) / 100);
+          ctx.beginPath();
+          ctx.arc(z.x + Math.cos(a) * rr, z.y + Math.sin(a * 1.3) * rr * 0.7, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  // Raisable corpses the Spirit Huntress can turn into skeletons (Rise Dead).
+  // A simple pale bone pile until a corpse frame is uploaded; fades out near end.
+  drawRaiseCorpses(ctx, game) {
+    const cs = game.corpses;
+    if (!cs || !cs.length) return;
+    for (const c of cs) {
+      if (!this.visible(c.x, c.y, 30)) continue;
+      const fade = Math.max(0, Math.min(1, (c.until - game.time) / 1.5));
+      ctx.save();
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.strokeStyle = '#d8d2c0'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(c.x - 9, c.y - 4); ctx.lineTo(c.x + 9, c.y + 4);
+      ctx.moveTo(c.x - 9, c.y + 4); ctx.lineTo(c.x + 9, c.y - 4);
+      ctx.stroke();
+      ctx.fillStyle = '#e8e2d2';
+      ctx.beginPath(); ctx.arc(c.x - 9, c.y, 3, 0, Math.PI * 2); ctx.arc(c.x + 9, c.y, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Soul Harvest: the drain ring (magenta, enemies) + the heal ring (green,
+  // allies) pulsing around the transformed Spirit Huntress.
+  drawHarvestZones(ctx, game) {
+    for (const u of game.entities) {
+      if (!(u.harvestUntil > game.time) || !u.harvest) continue;
+      const h = u.harvest;
+      const rMax = Math.max(h.drainRadius || 0, h.healRadius || 0);
+      if (!this.visible(u.x, u.y, rMax + 20)) continue;
+      const pulse = 0.6 + 0.4 * Math.sin(this.now * 3);
+      const ring = (radius, inner, edge) => {
+        const g = ctx.createRadialGradient(u.x, u.y, radius * 0.2, u.x, u.y, radius);
+        g.addColorStop(0, inner); g.addColorStop(1, edge);
+        ctx.globalAlpha = 0.12 * pulse; ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(u.x, u.y, radius, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.5 * pulse; ctx.lineWidth = 2; ctx.strokeStyle = inner;
+        ctx.beginPath(); ctx.arc(u.x, u.y, radius, 0, Math.PI * 2); ctx.stroke();
+      };
+      ctx.save();
+      if (h.healRadius > 0) ring(h.healRadius, 'rgba(120,230,150,0.55)', 'rgba(120,230,150,0)');
+      if (h.drainRadius > 0) ring(h.drainRadius, 'rgba(209,75,143,0.6)', 'rgba(209,75,143,0)');
+      ctx.restore();
+    }
+  }
+
+  // Life Drain: a wavy magenta tendril from the Spirit Huntress to the drained
+  // target, with orbs of stolen life flowing back toward her.
+  drawDrainBeams(ctx, game, alpha) {
+    for (const u of game.entities) {
+      if (!(u.drainUntil > game.time) || u.drainTargetId == null) continue;
+      const t = game.byId.get(u.drainTargetId);
+      if (!t || t.hp <= 0) continue;
+      const x0 = u.prevX + (u.x - u.prevX) * alpha, y0 = u.prevY + (u.y - u.prevY) * alpha;
+      const x1 = t.prevX + (t.x - t.prevX) * alpha, y1 = t.prevY + (t.y - t.prevY) * alpha;
+      const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
+      if (!this.visible((x0 + x1) / 2, (y0 + y1) / 2, len / 2 + 20)) continue;
+      const nx = -dy / len, ny = dx / len;
+      const segs = Math.max(6, Math.floor(len / 18));
+      ctx.save();
+      ctx.strokeStyle = 'rgba(209,75,203,0.85)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.shadowColor = '#d14bcb'; ctx.shadowBlur = 8;
+      ctx.beginPath();
+      for (let i = 0; i <= segs; i++) {
+        const f = i / segs;
+        const wob = Math.sin(f * Math.PI * 3 + this.now * 14) * 8 * Math.sin(f * Math.PI);
+        const px = x0 + dx * f + nx * wob, py = y0 + dy * f + ny * wob;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#f0a8ff';
+      for (let k = 0; k < 3; k++) {
+        const g = 1 - ((this.now * 0.9 + k / 3) % 1); // flows target -> her
+        const wob = Math.sin(g * Math.PI * 3 + this.now * 14) * 8 * Math.sin(g * Math.PI);
+        const px = x0 + dx * g + nx * wob, py = y0 + dy * g + ny * wob;
+        ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
     }
   }
@@ -1109,6 +1213,8 @@ export class Renderer {
       if (u.morph && u.morphUntil > game.time && !u.castState) vScale *= u.morph.size;
       // Vortex of Light: the Sword Saint swells while spinning (visual only)
       if (u.vortexUntil > game.time && u.vortex) vScale *= (u.vortex.size || 100) / 100;
+      // Soul Harvest: the Spirit Huntress grows into her harvest form (visual only)
+      if (u.harvestUntil > game.time && u.harvest) vScale *= (u.harvest.size || 100) / 100;
       // temporary size buff (Bloodlust makes the Chieftain grow while raging) —
       // purely visual, so the deterministic sim/collision is untouched
       const sizeUp = effectVal(u, 'sizeup', game.time);
@@ -1373,12 +1479,15 @@ export class Renderer {
         ctx.rotate(ang);
         // Acid Spit / Fireball: their own uploaded projectile image, else the
         // unit's normal one; frost & other ability bolts use the per-ability image.
-        drawn = p.acid
-          ? (drawAcidProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
-          : p.fire
-            ? (drawFireProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
-            : p.ability
-              ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
+        // An ability projectile (Frost Bolt, Poison Arrow…) uses its per-ability
+        // image first — even when it also carries acid (Poison Arrow) — so the
+        // poison arrow shows its own sprite while the stance is up.
+        drawn = p.ability
+          ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
+          : p.acid
+            ? (drawAcidProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
+            : p.fire
+              ? (drawFireProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
               : drawProjectileSprite(ctx, p.srcType, p.team, size);
         ctx.restore();
       }
