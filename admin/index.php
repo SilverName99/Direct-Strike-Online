@@ -404,10 +404,13 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['attack_0'] = 'Attack';
   } else {
     // fighters — and heroes, who fight melee-first — use a full 2-frame attack
-    // cycle (Attack 1 while winding up, Attack 2 after the hit). Heroes cast
-    // instantly (no prepare frame); their per-ability "Cast …" slots stay below.
+    // cycle (Attack 1 while winding up, Attack 2 after the hit).
     $slots['attack_0'] = 'Attack 1';
     $slots['attack_1'] = 'Attack 2';
+    // A hero can ALSO use a shared "Prepare spell" wind-up frame: any ability
+    // with a Prepare/wind-up time > 0 (e.g. the Battle Mage's spells) plays it
+    // before the "Cast …" frame. Optional — leave it empty for instant casters.
+    if ($isHero) $slots['prepare_0'] = 'Prepare spell';
   }
   $slots['die_0'] = 'Die';
   // a unit dashes if its own Dash toggle is on OR a mount/split upgrade makes
