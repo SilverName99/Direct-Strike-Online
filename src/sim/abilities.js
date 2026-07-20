@@ -310,6 +310,7 @@ function endCast(caster) {
   caster.castState = null;
   caster.castAbility = null;
   caster.castTargetId = null;
+  caster.castManual = false;
 }
 
 export function stepCaster(game, caster, stats, dt, engaged) {
@@ -337,6 +338,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   if (!pick) return false;
   caster.castAbility = pick.aid;
   caster.castTargetId = pick.target.id;
+  caster.castManual = !!pick.manual; // a player-triggered cast keeps relaxed targeting
   // per-ability wind-up: castPrepare (seconds). 0 = instant cast, no prepare
   // frame (heroes) — fire the effect right away and jump to the cast frame.
   const pab = resolvedAbility(pick.aid);
@@ -418,8 +420,8 @@ function pickCastable(game, caster, stats, time, engaged) {
       if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // OFF / locked
       if ((caster.abilityCd[aid] || 0) > time) continue;
       if ((ab.params.manaCost || 0) > caster.mana) continue;
-      const target = findAbilityTarget(game, caster, aid, ab, time);
-      if (target) return { aid, ab, target };
+      const target = findAbilityTarget(game, caster, aid, ab, time, true);
+      if (target) return { aid, ab, target, manual: true };
     }
   }
   let combatFlag = null; // combatNear(), computed at most once per pick
@@ -482,9 +484,28 @@ function canAutoAttack(game, u) {
   return (st.damage || 0) > 0;
 }
 
-// The target a given ability would act on, or null if there is none.
-function findAbilityTarget(game, caster, aid, ab, time) {
+// Self-centred active abilities whose auto-cast has a "smart" gate (HP
+// threshold, enemy/wounded in range, ally ahead…). On a MANUAL cast that gate
+// is dropped — the player fires them on demand, targeting the caster.
+const SELF_MANUAL = new Set([
+  'regenaura', 'hasteaura', 'slowaura', 'warstomp', 'bloodlust',
+  'divineshield', 'holynova', 'divineregen', 'backlineteleport',
+]);
+
+// The target a given ability would act on, or null if there is none. `manual`
+// marks a player-triggered cast: self-centred actives fire on demand (their
+// "worth it" condition is skipped), so e.g. Backline Teleport works the instant
+// the hero spawns. Re-cast guards (already morphed / spinning) still hold.
+function findAbilityTarget(game, caster, aid, ab, time, manual) {
   const p = abParams(caster, aid, ab);
+  if (manual) {
+    if (aid === 'beastform') return (caster.morphUntil || 0) > time ? null : caster;
+    if (aid === 'vortexoflight') return (caster.vortexUntil || 0) > time ? null : caster;
+    if (SELF_MANUAL.has(aid)) return caster;
+    // ally/enemy-targeted actives (heal, holylight, frostbolt, summons…) fall
+    // through: they still need a valid target in range — you can't heal or bolt
+    // nothing — but with no other "worth it" gate they fire whenever one exists.
+  }
   if (ab.kind === 'summon') {
     // castable while THIS shaman keeps fewer than its cap of this animal alive
     // (counted per individual caster entity)
@@ -680,7 +701,7 @@ function releaseSpell(game, caster, time) {
   const p = abParams(caster, aid, ab);
   // seconds held on the "Cast X" frame after the effect fires (per-ability)
   const hold = ab.params.castHold != null ? ab.params.castHold : CAST_RELEASE;
-  const target = findAbilityTarget(game, caster, aid, ab, time);
+  const target = findAbilityTarget(game, caster, aid, ab, time, caster.castManual);
   if (!target) return null; // nothing valid to hit -> abort with no cost
 
   // cast buff-zones use `duration` as their cooldown (not recastable until the

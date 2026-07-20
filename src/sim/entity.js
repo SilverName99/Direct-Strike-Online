@@ -30,6 +30,7 @@ export function spawnUnit(game, team, type, x, y) {
     castState: null,  // null | 'prepare' | 'release' — active-cast FSM phase
     castAbility: null,// ability id currently being cast (drives the render pose)
     castTargetId: null,
+    castManual: false,// true while a player-triggered (manual) cast is in flight
     castPhaseEnd: 0,  // game.time when the current cast phase ends
     spellHold: false, // caster is holding at range, saving up for a spell
     dashing: false,   // charging in at dashSpeed toward a target in dashRange
@@ -125,7 +126,7 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     hp: stats.hp, maxHp: stats.hp,
     cooldown: 0, windup: 0, windupMax: 0,
     effects: [], abilityCd: {}, auraUntil: {},
-    castState: null, castAbility: null, castTargetId: null, castPhaseEnd: 0, spellHold: false,
+    castState: null, castAbility: null, castTargetId: null, castManual: false, castPhaseEnd: 0, spellHold: false,
     dashing: false, dashCharge: false, dashReadyAt: 0, dashVel: 0,
     mountTargetId: null, splitTargetId: null, dismounted: false, beast: false,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovRanged: null,

@@ -610,6 +610,44 @@ console.log('hero ability auto/manual/off');
   ab.params = saved;
 }
 
+// ------------------------- manual actives fire ON DEMAND (relaxed targeting)
+console.log('manual cast on demand');
+{
+  // Backline Teleport on manual: fires with NO allies ahead and NO enemies —
+  // e.g. right after the hero spawns (auto would refuse; manual obeys the player)
+  {
+    const ab = resolvedAbility('backlineteleport');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, { distance: 240, manaCost: 0, cooldown: 5, castPrepare: 0.1, castHold: 0.1, retreatHp: 35 });
+    const game = new Game(97, { races: ['humans', 'orcs'] });
+    game.abilityManual[0].add('hero/backlineteleport');
+    game.abilityCastReq[0].add('hero/backlineteleport');
+    const hero = spawnUnit(game, 0, 'hero', 600, 400);
+    hero.hero = true; hero.heroRanks = { backlineteleport: 1 }; hero.mana = 100; hero.abilityCd = {};
+    const x0 = hero.x;
+    const stats = { caster: true, autoAttackBetween: true, abilities: ['backlineteleport'] };
+    for (let i = 0; i < 40 && Math.abs(hero.x - x0) < 1; i++) { game.time += DT; stepCaster(game, hero, stats, DT, false); }
+    check('manual: teleport fires with no allies/enemies (on demand)', Math.abs(hero.x - x0) > 100, `${hero.x} vs ${x0}`);
+    ab.params = saved;
+  }
+  // Divine Regen on manual: fires even at FULL HP (auto needs to be under 50%)
+  {
+    const ab = resolvedAbility('divineregen');
+    const saved = { ...ab.params };
+    Object.assign(ab.params, { hps: 80, duration: 4, manaCost: 0, cooldown: 10, castPrepare: 0, threshold: 50 });
+    const game = new Game(98, { races: ['humans', 'orcs'] });
+    game.abilityManual[0].add('hero/divineregen');
+    game.abilityCastReq[0].add('hero/divineregen');
+    const hero = spawnUnit(game, 0, 'hero', 300, 400);
+    hero.hero = true; hero.heroRanks = { divineregen: 1 }; hero.mana = 100; hero.abilityCd = {};
+    hero.hp = hero.maxHp; // FULL HP -> auto would NOT enter the stance
+    const stats = { caster: true, autoAttackBetween: true, abilities: ['divineregen'] };
+    game.time += DT; stepCaster(game, hero, stats, DT, false);
+    check('manual: divine regen fires at full HP', hero.effects.some((e) => e.kind === 'regen' && e.until > game.time));
+    ab.params = saved;
+  }
+}
+
 // ------------------------------------------- regen aura max-targets cap
 console.log('regen aura target cap');
 {
