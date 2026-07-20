@@ -445,7 +445,8 @@ export const ABILITIES = {
     params: {
       tier: 1,
       radius: 200,
-      manaPerSec: 6, manaPerSec1: 0, manaPerSec2: 0, manaPerSec3: 0, // per-rank mana/s (0 = auto)
+      // mana GIVEN to allies per second (not consumed — it's a passive)
+      manaGain: 6, manaGain1: 0, manaGain2: 0, manaGain3: 0, // per-rank (0 = auto)
     },
   },
   blizzard: {
@@ -618,9 +619,10 @@ export const ABILITY_PARAM_LABELS = {
   dps1: 'Damage/s rang 1 (0 = auto)',
   dps2: 'Damage/s rang 2 (0 = auto)',
   dps3: 'Damage/s rang 3 (0 = auto)',
-  manaPerSec1: 'Mana/s rang 1 (0 = auto)',
-  manaPerSec2: 'Mana/s rang 2 (0 = auto)',
-  manaPerSec3: 'Mana/s rang 3 (0 = auto)',
+  manaGain: 'Mana regenerată/s (dată aliaților)',
+  manaGain1: 'Mana regen/s rang 1 (0 = auto)',
+  manaGain2: 'Mana regen/s rang 2 (0 = auto)',
+  manaGain3: 'Mana regen/s rang 3 (0 = auto)',
   // Spirit Huntress kit
   dotDuration: 'Durată poison pe lovitură (s)',
   drainPerSec: 'HP furat/s (de la țintă)',

@@ -28,7 +28,7 @@ function isCastable(ab) {
 // params below (rankStep 0.5 => rank 2 = 1.5×, rank 3 = 2×; 0 => no scaling).
 // Set per ability in the balance editor. Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankStep
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaPerSec', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaGain', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   const overrides = ab.rankOverrides;
@@ -207,7 +207,7 @@ export function updateAbilities(game, dt) {
     const until = time + AURA_TICK;
     for (const a of game.entities) {
       if (a.hp <= 0 || a.team !== u.team || a.manaMax <= 0) continue;
-      if (inRadius(a, u, ma.radius)) applyEffect(a, 'manaregen', ma.manaPerSec, until, time);
+      if (inRadius(a, u, ma.radius)) applyEffect(a, 'manaregen', ma.manaGain, until, time);
     }
   }
 
