@@ -32,6 +32,10 @@ const barSkins = new Map();    // race -> url of the uploaded bottom-bar backgro
 const barOverlays = new Map(); // race -> url of the bottom-bar overlay (drawn over the UI)
 const portraitVideos = new Map(); // `${race}/${ent}` -> url of the idle portrait clip (mp4/webm)
 const mapVideoUrls = new Map();   // `${race}/${which}` -> url of a mine/worker idle clip (portrait box only)
+let spritesLoaded = false;     // true once the manifest + all its images finished (or none to load)
+// Have the sprite assets finished loading? The loading screen waits on this so
+// a match never starts with placeholder shapes (entering too fast).
+export function spritesReady() { return spritesLoaded; }
 const towerVideoUrls = new Map(); // `${race}/tier{1..3}` -> url of a tower's per-tier portrait clip
 let teamRaces = ['humans', 'humans'];
 
@@ -47,10 +51,10 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
   fetch(`${base}manifest.json`, { cache: 'no-cache' })
     .then((r) => (r.ok ? r.json() : null))
     .then((man) => {
-      if (!man || !man.races) return;
+      if (!man || !man.races) { spritesLoaded = true; return; } // nothing to load
       let pending = 1; // guard so done() can't fire before the loop ends
       const done = () => {
-        if (--pending === 0 && onReady) onReady();
+        if (--pending === 0) { spritesLoaded = true; if (onReady) onReady(); }
       };
       const load = (url, cb) => {
         pending++;
@@ -216,7 +220,7 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       }
       done();
     })
-    .catch(() => { /* no manifest (static/file hosting) — fallbacks apply */ });
+    .catch(() => { spritesLoaded = true; /* no manifest (static/file hosting) — fallbacks apply */ });
 }
 
 // Native + team-tinted (blue/red) variants for one image.

@@ -3,7 +3,7 @@
 // Owns the #overlay element (main menu AND the game-over screen).
 
 import { CONFIG, RACES } from '../config.js';
-import { getLoadingScreens } from '../render/sprites.js';
+import { getLoadingScreens, spritesReady } from '../render/sprites.js';
 
 const TIPS = [
   'Generatoarele sunt economia ta — protejează-le cu ziduri și turnuri.',
@@ -440,13 +440,32 @@ export class Menu {
     fill.style.transition = 'none'; fill.style.width = '0%';
     void fill.offsetWidth;
     fill.style.transition = 'width 1.4s cubic-bezier(.4,.5,.2,1)';
-    fill.style.width = '100%';
-    this.later(() => {
-      if (this.netPending) { this.netPending = false; if (this.hooks.onNetReveal) this.hooks.onNetReveal(); }
-      else if (this.hooks.onStart) this.hooks.onStart({ ...this.sel });
-      this.hide();
-    }, 1550);
+    fill.style.width = '92%'; // hold near the end until the sprites are actually ready
+    const startLoad = this.nowMs();
+    const MIN_MS = 1550;   // minimum time on the loading screen (feels intentional)
+    const CAP_MS = 25000;  // hard cap so a stuck/failed load can't hang the menu
+    const finish = () => {
+      fill.style.transition = 'width 0.2s ease'; fill.style.width = '100%';
+      this.later(() => {
+        if (this.netPending) { this.netPending = false; if (this.hooks.onNetReveal) this.hooks.onNetReveal(); }
+        else if (this.hooks.onStart) this.hooks.onStart({ ...this.sel });
+        this.hide();
+      }, 200);
+    };
+    // Wait for the sprite assets to finish loading (so a match never opens with
+    // placeholder shapes when you enter fast), but keep a minimum + a safety cap.
+    const step = () => {
+      const elapsed = this.nowMs() - startLoad;
+      const ready = spritesReady();
+      if (elapsed >= CAP_MS || (elapsed >= MIN_MS && ready)) { finish(); return; }
+      this.later(step, 120);
+    };
+    this.later(step, MIN_MS);
   }
+
+  // wall-clock ms for the (UI-only) loading timer; falls back if performance is
+  // unavailable in some embed. Never used by the deterministic sim.
+  nowMs() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
 
   // tiny non-seeded shuffle just for picking a tip (UI only, never the sim)
   mix() { this._m = ((this._m || Date.now()) * 1103515245 + 12345) & 0x7fffffff; return this._m / 0x7fffffff; }
