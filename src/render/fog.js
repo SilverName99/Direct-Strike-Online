@@ -16,6 +16,10 @@ const A_UNSEEN = 190;   // never seen -> dark but see-through
 // Fraction of the player's OWN half that's always revealed (measured from their
 // back edge), so they're never blind at home.
 const HOME_REVEAL = 2 / 3;
+// Softening: blow the tiny vision grid up onto a supersampled buffer and blur it
+// so the fog reads as round, organic patches instead of blocky cells.
+const SUPERSAMPLE = 5;
+const BLUR = 4;
 
 export class Fog {
   constructor() {
@@ -41,6 +45,11 @@ export class Fog {
       this.canvas.width = this.cols; this.canvas.height = this.rows;
       this.ctx = this.canvas.getContext('2d');
       this.img = this.ctx.createImageData(this.cols, this.rows);
+      // supersampled buffer for the blur pass (cheap: a few hundred px per side)
+      this.blur = document.createElement('canvas');
+      this.blur.width = this.cols * SUPERSAMPLE;
+      this.blur.height = this.rows * SUPERSAMPLE;
+      this.blurCtx = this.blur.getContext('2d');
     }
     this._dirty = true;
   }
@@ -128,7 +137,18 @@ export class Fog {
     this._repaint();
     const prev = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, fieldW, fieldH);
+    if (this.blurCtx) {
+      // blur the grid on the small supersampled buffer, then upscale to the field
+      const bw = this.blur.width, bh = this.blur.height;
+      this.blurCtx.clearRect(0, 0, bw, bh);
+      this.blurCtx.imageSmoothingEnabled = true;
+      this.blurCtx.filter = `blur(${BLUR}px)`;
+      this.blurCtx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, bw, bh);
+      this.blurCtx.filter = 'none';
+      ctx.drawImage(this.blur, 0, 0, bw, bh, 0, 0, fieldW, fieldH);
+    } else {
+      ctx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, fieldW, fieldH);
+    }
     ctx.imageSmoothingEnabled = prev;
   }
 }
