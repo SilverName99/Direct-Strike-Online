@@ -46,12 +46,13 @@ export class Minimap {
     });
   }
 
-  draw(game) {
+  draw(game, fog = null, myTeam = 0) {
     const { ctx } = this;
     const s = this.scale;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = 'rgba(10, 14, 20, 0.92)';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    const fogOn = !!fog && game && game.winner === null;
 
     // base quadrants (construction + army zones)
     const tints = ['rgba(77, 166, 255, 0.18)', 'rgba(255, 85, 102, 0.18)'];
@@ -65,18 +66,22 @@ export class Minimap {
     }
 
     if (game) {
-      // structures
+      // structures (enemy ones only once their spot is explored)
       for (const st of game.structures) {
         if (st.hp <= 0) continue;
+        if (fogOn && st.team !== myTeam && !fog.exploredAt(st.x, st.y)) continue;
         ctx.fillStyle = teamColor(st.team);
         const r = Math.max(2.5, st.radius * s * 1.6);
         ctx.fillRect(st.x * s - r / 2, st.y * s - r / 2, r, r);
       }
-      // live units as dots
+      // live units as dots (enemy ones only while in your sight)
       for (const u of game.entities) {
+        if (fogOn && u.team !== myTeam && !fog.visibleAt(u.x, u.y)) continue;
         ctx.fillStyle = teamColor(u.team);
         ctx.fillRect(u.x * s - 1, u.y * s - 1, 2.5, 2.5);
       }
+      // dim the unexplored / out-of-sight areas on the minimap too
+      if (fogOn) this.drawFogOverlay(fog, s);
     }
 
     // camera viewport rectangle
@@ -88,5 +93,18 @@ export class Minimap {
       this.camera.viewW() * s,
       this.camera.viewH() * s
     );
+  }
+
+  // Upscale the fog's tiny grid canvas over the minimap (soft edges via
+  // smoothing). The renderer already repainted it this frame.
+  drawFogOverlay(fog, s) {
+    if (!fog.canvas) return;
+    const { ctx } = this;
+    const prev = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(fog.canvas, 0, 0, fog.cols, fog.rows, 0, 0, CONFIG.FIELD_W * s, CONFIG.FIELD_H * s);
+    ctx.globalAlpha = 1;
+    ctx.imageSmoothingEnabled = prev;
   }
 }

@@ -207,6 +207,7 @@ function baseUnits(race) {
       caster: false, autoAttackBetween: false, abilities: [], mana: 100, manaRegen: 2,
       xp: 1,               // XP granted to the enemy hero when this unit dies
       food: 1,             // food/supply this unit consumes when placed
+      vision: 0,           // fog-of-war sight radius (0 = auto: attack range + bonus)
     };
     // the hero carries its own leveling config (thresholds + per-level growth)
     // plus its 3 skill abilities + 1 ultimate (assigned in admin, ranked in-game)
@@ -324,7 +325,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'costStep', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'chainMax', 'chainDelay', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed'];
+const BUILDING_SCALARS = ['cost', 'costStep', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'chainMax', 'chainDelay', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed', 'vision'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -351,7 +352,7 @@ function raceUnitsSnapshot(race) {
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
       slot: Number.isInteger(u.slot) ? u.slot : -1,
-      xp: u.xp, food: u.food,
+      xp: u.xp, food: u.food, vision: u.vision,
       tip: u.tip || '', // hover description (admin-editable)
     };
     out[id].isHero = !!u.isHero; // admin can flag up to 3 heroes per race
@@ -402,6 +403,7 @@ function snapshot() {
     middleEmpty: CONFIG.MIDDLE_EMPTY,
     tint: CONFIG.TEAM_TINT,
     healthbarAlways: CONFIG.HEALTHBAR_ALWAYS,
+    fogOfWar: CONFIG.FOG_OF_WAR,
     goldIcon: CONFIG.GOLD_ICON || '',
     menuLogo: CONFIG.MENU_LOGO || '',
     menuBtn: CONFIG.MENU_BTN || '',
@@ -466,6 +468,7 @@ export function applyBalance(data) {
   }
   if (TINT_MODES.includes(data.tint)) CONFIG.TEAM_TINT = data.tint;
   if (typeof data.healthbarAlways === 'boolean') CONFIG.HEALTHBAR_ALWAYS = data.healthbarAlways;
+  if (typeof data.fogOfWar === 'boolean') CONFIG.FOG_OF_WAR = data.fogOfWar;
   CONFIG.GOLD_ICON = typeof data.goldIcon === 'string' ? data.goldIcon : '';
   CONFIG.MENU_LOGO = typeof data.menuLogo === 'string' ? data.menuLogo : '';
   CONFIG.MENU_BTN = typeof data.menuBtn === 'string' ? data.menuBtn : '';
@@ -585,6 +588,7 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.slot) !== undefined) u.slot = Math.round(clamp(vals.slot, -1, 8));
     if (num(vals.xp) !== undefined) u.xp = clamp(vals.xp, 0, 100000);
     if (num(vals.food) !== undefined) u.food = clamp(vals.food, 0, 100000);
+    if (num(vals.vision) !== undefined) u.vision = clamp(vals.vision, 0, 100000);
     // admin can promote/demote a unit to hero (up to 3 heroes per race). A unit
     // that just became a hero gets default leveling + kit so it works right away.
     if (typeof vals.isHero === 'boolean') {

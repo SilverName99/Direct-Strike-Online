@@ -67,6 +67,13 @@ function render() {
   html += `<div class="group"><h3>Bare de viață</h3>
     <label class="fld" style="width:100%"><span>Afișare</span>
       <select data-scope="healthbar" style="width:auto;flex:1;max-width:340px">${hbOpts}</select></label></div>`;
+  // fog of war
+  const fogOpts = [['0', 'Oprit (vezi tot)'], ['1', 'Pornit (ceață clasică — descoperi pe unde treci)']]
+    .map(([v, l]) => `<option value="${v}" ${(!!CONFIG.FOG_OF_WAR === (v === '1')) ? 'selected' : ''}>${l}</option>`)
+    .join('');
+  html += `<div class="group"><h3>Fog of war (ceața războiului)</h3>
+    <label class="fld" style="width:100%"><span>Mod</span>
+      <select data-scope="fog" style="width:auto;flex:1;max-width:340px">${fogOpts}</select></label></div>`;
   // how units behave when they try to pass one another
   const pmOpts = [['mass', 'Big units push small units'], ['equal', 'All friendly units push the same']]
     .map(([v, l]) => `<option value="${v}" ${((CONFIG.PUSH_MODE || 'mass') === v) ? 'selected' : ''}>${l}</option>`).join('');
@@ -378,6 +385,7 @@ function collect() {
     const { scope, id, field } = el.dataset;
     if (scope === 'tint') { CONFIG.TEAM_TINT = el.value; continue; }
     if (scope === 'healthbar') { CONFIG.HEALTHBAR_ALWAYS = el.value === '1'; continue; }
+    if (scope === 'fog') { CONFIG.FOG_OF_WAR = el.value === '1'; continue; }
     if (scope === 'pushmode') { CONFIG.PUSH_MODE = el.value === 'equal' ? 'equal' : 'mass'; continue; }
     if (scope === 'pushcross') { CONFIG.PUSH_CROSS_TEAM = !el.checked; continue; } // checkbox = "Blue can't push Red"
     if (scope === 'pushforce') { const v = Number(el.value); if (isFinite(v)) CONFIG.PUSH_FORCE = Math.max(0.2, v); continue; }

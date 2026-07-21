@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v12.69';
+export const VERSION = 'v12.70';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -43,6 +43,7 @@ export const CONFIG = {
   SIZES: {},            // entity id -> visual scale multiplier (default 1)
   TEAM_TINT: 'enemy',   // sprite coloring: 'team' | 'enemy' | 'none'
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
+  FOG_OF_WAR: false,    // classic fog: reveal around your units; enemy units hidden in the dark, terrain/buildings remembered dim
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback
   MENU_BTN: '',         // main-menu button skin (ornate banner PNG, data URL); '' = plain buttons

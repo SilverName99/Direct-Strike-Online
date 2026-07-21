@@ -170,6 +170,11 @@ function fieldsFor(ent, kind) {
       group: G, label: 'Food (cost supply)', type: 'num', value: u.food ?? 1,
       apply: (v) => { u.food = clamp(Math.round(v), 0, 100000); },
     });
+    // Fog-of-war sight radius (0 = auto: attack range + a bonus)
+    out.push({
+      group: G, label: 'Vedere (fog, 0 = auto)', type: 'num', value: u.vision ?? 0,
+      apply: (v) => { u.vision = clamp(Math.round(v), 0, 100000); },
+    });
     // Promote to hero (up to 3 per race; recruited from the Hero Hall, gated by
     // the tier below). Toggling re-renders so the hero fields appear/disappear.
     out.push({
@@ -413,6 +418,11 @@ function fieldsFor(ent, kind) {
       apply: (v) => { b.idleSpeed = clamp(v, 0.2, 10); },
     });
   }
+  // Fog-of-war sight radius (0 = auto: attack range + a bonus, min ~340)
+  out.push({
+    group: G, label: 'Vedere (fog, 0 = auto)', type: 'num', value: b.vision ?? 0,
+    apply: (v) => { b.vision = clamp(Math.round(v), 0, 100000); },
+  });
 
   if (ent === 'turret') {
     for (const [f, label] of TURRET_FIELDS) {

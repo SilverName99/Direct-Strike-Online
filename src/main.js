@@ -249,6 +249,7 @@ function newGame(playerRace, enemyRace, difficulty) {
   if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
   uiState.myTeam = 0;
   setViewerTeam(0);
+  renderer.resetFog(); // fresh fog of war for the new match
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
   const diff = CONFIG.DIFFICULTY[difficulty] || CONFIG.DIFFICULTY.normal;
   setTeamRaces([playerRace, enemyRace]);
@@ -314,6 +315,7 @@ function startNetMatch(m) {
   setTeamRaces(m.races);
   uiState.myTeam = m.youAre;
   setViewerTeam(m.youAre);
+  renderer.resetFog(); // fresh fog of war for the new match
   bottombar.refresh();
   applyCursor(m.races[m.youAre]);
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
@@ -455,7 +457,7 @@ function frame(now) {
     const alpha = state === 'playing' ? (netmatch ? netmatch.alpha() : accumulator / CONFIG.FIXED_DT) : 1;
     renderer.draw(game, alpha, uiState, effects);
   }
-  minimap.draw(game);
+  minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null, uiState.myTeam);
   requestAnimationFrame(frame);
 }
 

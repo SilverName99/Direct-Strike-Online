@@ -7,6 +7,7 @@ import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
 import { effectVal } from '../sim/abilities.js';
 import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo, drawLightShield } from './vfx.js';
+import { Fog } from './fog.js';
 
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 // viewer-relative team color: MY team is always blue, the enemy always red —
@@ -152,7 +153,13 @@ export class Renderer {
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
+    this.fog = new Fog();        // fog of war (client-side, per-viewer)
+    this._fogOn = false;         // set each frame: is fog active this draw?
+    this._fogTeam = 0;           // the viewer's team (whose vision we render)
   }
+
+  // Start a fresh fog for a new match (forget everything explored).
+  resetFog() { this.fog.reset(CONFIG.FIELD_W, CONFIG.FIELD_H); }
 
   // Attack frame driven purely by the swing state, so it's perfectly synced and
   // never flickers: Attack 1 while winding up (raising / aiming), Attack 2 once
@@ -235,6 +242,15 @@ export class Renderer {
     ctx.save();
     ctx.setTransform(z, 0, 0, z, -cam.x * z, -cam.y * z);
 
+    // Fog of war: light the viewer team's vision this frame; the draw methods
+    // below cull hidden enemies, and the overlay is painted on top afterwards.
+    this._fogTeam = (uiState && uiState.myTeam) || 0;
+    this._fogOn = !!CONFIG.FOG_OF_WAR && !!game && game.winner === null;
+    if (this._fogOn) {
+      if (this.fog.cols !== Math.ceil(CONFIG.FIELD_W / 40)) this.resetFog();
+      this.fog.update(game, this._fogTeam);
+    }
+
     this.drawField(ctx, game);
     this.drawGrid(ctx, uiState);
     this.drawFireZones(ctx, game); // burning ground sits on the terrain, under everything
@@ -250,6 +266,7 @@ export class Renderer {
     this.drawDrainBeams(ctx, game, alpha); // Life Drain: a wavy beam over the fighters
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
+    if (this._fogOn) this.fog.draw(ctx, CONFIG.FIELD_W, CONFIG.FIELD_H); // fog over the battlefield
     if (uiState.showRanges) this.drawRanges(ctx, game); // 🎯 debug overlay
     this.drawInspect(ctx, game, uiState, alpha);
     this.drawGhost(ctx, game, uiState);
@@ -783,6 +800,9 @@ export class Renderer {
     const ordered = [...game.structures].sort((a, b) => baseY(a) - baseY(b));
     for (const s of ordered) {
       if (!this.visible(s.x, s.y, s.radius + 320)) continue;
+      // fog of war: an enemy building shows once you've explored its spot
+      // (remembered, then dimmed by the overlay) — not before you scout it
+      if (this._fogOn && s.team !== this._fogTeam && !this.fog.exploredAt(s.x, s.y)) continue;
       const color = teamColor(s.team);
       const dark = teamColorDark(s.team);
       const r = s.radius;
@@ -1212,6 +1232,8 @@ export class Renderer {
       const x = u.prevX + (u.x - u.prevX) * alpha;
       const y = u.prevY + (u.y - u.prevY) * alpha;
       if (!this.visible(x, y)) continue;
+      // fog of war: an enemy unit is only drawn while it stands in your sight
+      if (this._fogOn && u.team !== this._fogTeam && !this.fog.visibleAt(x, y)) continue;
       const color = teamColor(u.team);
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
@@ -1472,6 +1494,8 @@ export class Renderer {
       const x = p.prevX + (p.x - p.prevX) * alpha;
       const y = p.prevY + (p.y - p.prevY) * alpha;
       if (!this.visible(x, y)) continue;
+      // fog of war: hide enemy shots flying through the dark
+      if (this._fogOn && p.team !== this._fogTeam && !this.fog.visibleAt(x, y)) continue;
 
       // uploaded projectile art (rotated toward travel), else the default dot;
       // both scaled by the per-entity projectile size multiplier. Ability
