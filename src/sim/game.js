@@ -893,7 +893,10 @@ export class Game {
           // the corpse only becomes raisable AFTER the death animation has fully
           // played out (readyAt); the raisable window (corpseLife) runs from then.
           const delay = CONFIG.CORPSE_RAISE_DELAY || 0;
-          this.corpses.push({ x: e.x, y: e.y, readyAt: this.time + delay, until: this.time + delay + corpseLife });
+          // units bigger than 1×1 leave the larger corpse decal (if uploaded)
+          const us = this.ustatOf(e);
+          const big = !!(us && ((us.cw || 1) > 1 || (us.ch || 1) > 1));
+          this.corpses.push({ x: e.x, y: e.y, big, readyAt: this.time + delay, until: this.time + delay + corpseLife });
         }
         this.byId.delete(e.id);
       }

@@ -637,10 +637,11 @@ function regenManifest(string $assetsDir): void {
     if ($mf) $middle[] = $mf;
   }
   $corpse = is_file("$assetsDir/corpse.png"); // GLOBAL raisable-corpse decal (Rise Dead)
+  $corpseBig = is_file("$assetsDir/corpse-big.png"); // corpse decal for units bigger than 1×1
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse, 'corpseBig' => $corpseBig], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -797,6 +798,37 @@ if ($authed && $action === 'deletecorpse') {
     @unlink("$assetsDir/corpse.png");
     regenManifest($assetsDir);
     $msg = 'Cadavru (decal) șters.';
+  }
+}
+// GLOBAL corpse decal for units bigger than 1×1 — corpse-big.png
+if ($authed && $action === 'uploadcorpsebig') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir($assetsDir, 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/corpse-big.png")) {
+        regenManifest($assetsDir);
+        $msg = 'Cadavru mare (decal) încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletecorpsebig') {
+  if (checkCsrf()) {
+    @unlink("$assetsDir/corpse-big.png");
+    regenManifest($assetsDir);
+    $msg = 'Cadavru mare (decal) șters.';
   }
 }
 // Per-race loading screens (5 slots): loading-<n>.png
@@ -1409,12 +1441,15 @@ if ($authed && $action === 'deletebarover') {
       </div>
     </div>
   </div>
-  <?php $corpseFile = "$assetsDir/corpse.png"; $hasCorpse = is_file($corpseFile); ?>
+  <?php
+    $corpseFile = "$assetsDir/corpse.png"; $hasCorpse = is_file($corpseFile);
+    $corpseBigFile = "$assetsDir/corpse-big.png"; $hasCorpseBig = is_file($corpseBigFile);
+  ?>
   <div class="ent" id="corpse-decal">
     <div class="title"><b>Cadavru (Rise Dead)</b><span>global — rămășițele lăsate pe jos când moare o unitate (le poate ridica Spirit Huntress)</span></div>
     <div class="slots">
       <div class="slot">
-        <span class="lbl" style="color:#ffd35c">Decal cadavru</span>
+        <span class="lbl" style="color:#ffd35c">Decal cadavru (1×1)</span>
         <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
           <?php if ($hasCorpse): ?>
             <img src="<?= $assetsUrl ?>/corpse.png?t=<?= filemtime($corpseFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
@@ -1433,11 +1468,43 @@ if ($authed && $action === 'deletebarover') {
         </form>
         <?php endif; ?>
       </div>
-      <div class="slot" style="max-width:280px">
-        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
-          PNG mic (ex. <b>48×48</b>), văzut de sus, cu fundal transparent. Apare centrat pe locul morții,
-          câteva secunde (durata o setezi la abilitatea <b>Rise Dead → „Cât rămâne cadavrul (s)"</b>).
-          Fără el, se desenează un morman de oase simplu.
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Decal cadavru (unități mari)</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasCorpseBig): ?>
+            <img src="<?= $assetsUrl ?>/corpse-big.png?t=<?= filemtime($corpseBigFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadcorpsebig">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasCorpseBig ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasCorpseBig): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletecorpsebig">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi decalul de cadavru mare?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:300px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6;margin-bottom:8px">
+          PNG mic (ex. <b>48×48</b>), văzut de sus, cu fundal transparent. Apare centrat pe locul morții.
+          Cel de <b>„unități mari"</b> se folosește pentru unitățile mai mari de 1×1 (dacă lipsește, se
+          folosește cel normal). Fără niciunul, se desenează un morman de oase.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">
+            <span>Cât rămâne (s)</span><input id="corpse-life" type="number" step="any" min="0" style="width:90px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>
+          <label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">
+            <span>Mărime (%)</span><input id="corpse-size" type="number" step="any" min="10" style="width:90px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>
+          <label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">
+            <span>Transparență (%) — 100 = opac</span><input id="corpse-opacity" type="number" step="any" min="0" max="100" style="width:90px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+            <button type="button" id="corpse-save" class="mini" style="background:#1d4e89;border:1px solid #4da6ff;color:#dbe4f0;border-radius:6px;padding:6px 14px;cursor:pointer">Salvează</button>
+            <span id="corpse-status" style="font-size:12px;color:#7c8ba1"></span>
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage } from './sprites.js';
+import { getBackground, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage, getCorpseImageBig } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility } from '../ui/balance.js';
@@ -455,13 +455,16 @@ export class Renderer {
   drawRaiseCorpses(ctx, game) {
     const cs = game.corpses;
     if (!cs || !cs.length) return;
-    const img = getCorpseImage();
+    const imgSmall = getCorpseImage();
+    const imgBig = getCorpseImageBig();
     // admin-tunable look of the raisable-corpse decal (Rise Dead params)
     const rp = (resolvedAbility('risedead') || {}).params || {};
     const sizeMul = Math.max(0.1, (rp.corpseSize != null ? rp.corpseSize : 100) / 100);
     const opac = Math.max(0, Math.min(1, (rp.corpseOpacity != null ? rp.corpseOpacity : 100) / 100));
     for (const c of cs) {
       if ((c.readyAt || 0) > game.time) continue; // still mid death-animation — bones not shown yet
+      // bigger units (>1×1) use the big decal if one was uploaded, else the normal
+      const img = (c.big && imgBig) ? imgBig : imgSmall;
       if (!this.visible(c.x, c.y, 40 * sizeMul + 20)) continue;
       const fade = Math.max(0, Math.min(1, (c.until - game.time) / 1.5));
       ctx.save();
