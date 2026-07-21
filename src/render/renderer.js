@@ -457,14 +457,18 @@ export class Renderer {
     if (!cs || !cs.length) return;
     const imgSmall = getCorpseImage();
     const imgBig = getCorpseImageBig();
-    // admin-tunable look of the raisable-corpse decal (Rise Dead params)
+    // admin-tunable look of the raisable-corpse decal (Rise Dead params), per size
     const rp = (resolvedAbility('risedead') || {}).params || {};
-    const sizeMul = Math.max(0.1, (rp.corpseSize != null ? rp.corpseSize : 100) / 100);
-    const opac = Math.max(0, Math.min(1, (rp.corpseOpacity != null ? rp.corpseOpacity : 100) / 100));
+    const sizeSmall = Math.max(0.1, (rp.corpseSize != null ? rp.corpseSize : 100) / 100);
+    const opacSmall = Math.max(0, Math.min(1, (rp.corpseOpacity != null ? rp.corpseOpacity : 100) / 100));
+    const sizeBig = Math.max(0.1, (rp.corpseBigSize != null ? rp.corpseBigSize : 130) / 100);
+    const opacBig = Math.max(0, Math.min(1, (rp.corpseBigOpacity != null ? rp.corpseBigOpacity : 100) / 100));
     for (const c of cs) {
       if ((c.readyAt || 0) > game.time) continue; // still mid death-animation — bones not shown yet
       // bigger units (>1×1) use the big decal if one was uploaded, else the normal
       const img = (c.big && imgBig) ? imgBig : imgSmall;
+      const sizeMul = c.big ? sizeBig : sizeSmall;
+      const opac = c.big ? opacBig : opacSmall;
       if (!this.visible(c.x, c.y, 40 * sizeMul + 20)) continue;
       const fade = Math.max(0, Math.min(1, (c.until - game.time) / 1.5));
       ctx.save();

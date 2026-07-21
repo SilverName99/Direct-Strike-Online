@@ -1488,26 +1488,58 @@ if ($authed && $action === 'deletebarover') {
         </form>
         <?php endif; ?>
       </div>
-      <div class="slot" style="max-width:300px">
-        <div style="color:#7c8ba1;font-size:12px;line-height:1.6;margin-bottom:8px">
+      <div class="slot" style="max-width:520px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6;margin-bottom:10px">
           PNG mic (ex. <b>48×48</b>), văzut de sus, cu fundal transparent. Apare centrat pe locul morții.
           Cel de <b>„unități mari"</b> se folosește pentru unitățile mai mari de 1×1 (dacă lipsește, se
-          folosește cel normal). Fără niciunul, se desenează un morman de oase.
+          folosește cel normal). Fiecare are setările lui de mai jos.
         </div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">
-            <span>Cât rămâne (s)</span><input id="corpse-life" type="number" step="any" min="0" style="width:90px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>
-          <label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">
-            <span>Mărime (%)</span><input id="corpse-size" type="number" step="any" min="10" style="width:90px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>
-          <label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">
-            <span>Transparență (%) — 100 = opac</span><input id="corpse-opacity" type="number" step="any" min="0" max="100" style="width:90px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
-            <button type="button" id="corpse-save" class="mini" style="background:#1d4e89;border:1px solid #4da6ff;color:#dbe4f0;border-radius:6px;padding:6px 14px;cursor:pointer">Salvează</button>
-            <span id="corpse-status" style="font-size:12px;color:#7c8ba1"></span>
+        <?php
+          $corpseNum = function (string $id, string $lbl, float $min = 0) {
+            echo '<label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">'
+              . '<span>' . $lbl . '</span><input id="' . $id . '" type="number" step="any" min="' . $min . '" '
+              . 'style="width:88px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>';
+          };
+        ?>
+        <div style="display:flex;gap:22px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:210px">
+            <div style="color:#ffd35c;font-size:11px;text-transform:uppercase;letter-spacing:1px">Cadavru 1×1</div>
+            <?php $corpseNum('corpse-life', 'Cât rămâne (s)'); $corpseNum('corpse-size', 'Mărime (%)', 10); $corpseNum('corpse-opacity', 'Transparență (%)'); ?>
           </div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:210px">
+            <div style="color:#ffd35c;font-size:11px;text-transform:uppercase;letter-spacing:1px">Cadavru unități mari</div>
+            <?php $corpseNum('corpse-big-life', 'Cât rămâne (s)'); $corpseNum('corpse-big-size', 'Mărime (%)', 10); $corpseNum('corpse-big-opacity', 'Transparență (%)'); ?>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+          <button type="button" id="corpse-save" class="mini" style="background:#1d4e89;border:1px solid #4da6ff;color:#dbe4f0;border-radius:6px;padding:6px 16px;cursor:pointer">Salvează</button>
+          <span id="corpse-status" style="font-size:12px;color:#7c8ba1"></span>
         </div>
       </div>
     </div>
+    <script type="module">
+      import { loadBalance, resolvedAbility, saveBalance, ensureBalanceLoadedUI } from '../src/ui/balance.js?v=<?= time() ?>';
+      const $ = (id) => document.getElementById(id);
+      const F = [
+        ['corpse-life', 'corpseLife', 8], ['corpse-size', 'corpseSize', 100], ['corpse-opacity', 'corpseOpacity', 100],
+        ['corpse-big-life', 'corpseBigLife', 8], ['corpse-big-size', 'corpseBigSize', 130], ['corpse-big-opacity', 'corpseBigOpacity', 100],
+      ];
+      loadBalance('../assets/').then(() => {
+        if (!ensureBalanceLoadedUI()) return;
+        const ab = resolvedAbility('risedead');
+        if (!ab) return;
+        for (const [id, key, def] of F) { const el = $(id); if (el) el.value = ab.params[key] != null ? ab.params[key] : def; }
+        const btn = $('corpse-save'), st = $('corpse-status');
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+          const a = resolvedAbility('risedead'); if (!a) return;
+          for (const [id, key] of F) { const el = $(id); if (!el) continue; const n = Number(el.value); if (isFinite(n)) a.params[key] = Math.max(0, n); }
+          if (st) { st.textContent = 'Se salvează…'; st.style.color = '#7c8ba1'; }
+          const res = await saveBalance('save-balance.php');
+          if (st) { st.textContent = res === 'ok' ? 'Salvat ✓ (activ la următorul meci)' : 'Salvare eșuată (' + res + ')'; st.style.color = res === 'ok' ? '#58d68d' : '#ff8090'; }
+        });
+      });
+    </script>
   </div>
   <?php else: ?>
 

@@ -11,7 +11,7 @@ import {
   UNIT_NUM_FIELDS, UNIT_SELECT_FIELDS, BUILDING_FIELDS, TURRET_FIELDS,
   TECH_BUILDINGS, FOOTPRINT_BUILDINGS, statsUnit, statsBuilding, buildingNameOf,
   resetRaceUnit, resetRaceBuilding, loadBalance, saveBalance, setUnitOrder,
-  musicVolumeOf, setMusicVolume, ensureBalanceLoadedUI, resolvedAbility,
+  musicVolumeOf, setMusicVolume, ensureBalanceLoadedUI,
 } from './balance.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -706,36 +706,4 @@ loadBalance('../assets/').then(() => {
   refreshNames();
   wireReorder();
   wireMusicVolume();
-  wireCorpseControls();
 });
-
-// Inline editor for the raisable-corpse decal look (Rise Dead params), so the
-// duration/size/opacity can be tuned right next to the decal upload instead of
-// on the abilities page. Writes the whole balance on Save.
-function wireCorpseControls() {
-  const life = document.getElementById('corpse-life');
-  const size = document.getElementById('corpse-size');
-  const opac = document.getElementById('corpse-opacity');
-  const btn = document.getElementById('corpse-save');
-  const st = document.getElementById('corpse-status');
-  if (!life || !size || !opac || !btn) return;
-  const ab = resolvedAbility('risedead');
-  if (!ab) return;
-  life.value = ab.params.corpseLife != null ? ab.params.corpseLife : 8;
-  size.value = ab.params.corpseSize != null ? ab.params.corpseSize : 100;
-  opac.value = ab.params.corpseOpacity != null ? ab.params.corpseOpacity : 100;
-  btn.addEventListener('click', async () => {
-    const a = resolvedAbility('risedead');
-    if (!a) return;
-    const num = (el, def) => { const n = Number(el.value); return isFinite(n) ? n : def; };
-    a.params.corpseLife = Math.max(0, num(life, 8));
-    a.params.corpseSize = Math.max(10, num(size, 100));
-    a.params.corpseOpacity = clamp(num(opac, 100), 0, 100);
-    if (st) { st.textContent = 'Se salvează…'; st.style.color = '#7c8ba1'; }
-    const res = await saveBalance('save-balance.php');
-    if (st) {
-      st.textContent = res === 'ok' ? 'Salvat ✓ (activ la următorul meci)' : 'Salvare eșuată';
-      st.style.color = res === 'ok' ? '#58d68d' : '#ff8090';
-    }
-  });
-}

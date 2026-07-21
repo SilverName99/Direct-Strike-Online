@@ -505,9 +505,12 @@ export const ABILITIES = {
     params: {
       tier: 1, manaCost: 35, cooldown: 6,
       corpseRange: 220,   // how far she can reach a corpse to raise
-      corpseLife: 8,      // seconds a corpse stays raisable after any death
-      corpseSize: 100,    // % size of the raisable-corpse decal on the ground
-      corpseOpacity: 100, // % opacity of the raisable-corpse decal (100 = opac)
+      corpseLife: 8,      // seconds a 1×1-unit corpse stays raisable after death
+      corpseSize: 100,    // % size of the 1×1 corpse decal on the ground
+      corpseOpacity: 100, // % opacity of the 1×1 corpse decal (100 = opac)
+      corpseBigLife: 8,      // seconds a big-unit (>1×1) corpse stays raisable
+      corpseBigSize: 130,    // % size of the big-unit corpse decal
+      corpseBigOpacity: 100, // % opacity of the big-unit corpse decal
       cap: 3, life: 15,   // skeleton lifetime (scales per rank)
       hp: 120, damage: 16, range: 28, period: 1.1, speed: 95,
       hpPerRank: 60, damagePerRank: 8,
@@ -637,9 +640,12 @@ export const ABILITY_PARAM_LABELS = {
   healPerSec2: 'HP primit/s rang 2 (0 = auto)',
   healPerSec3: 'HP primit/s rang 3 (0 = auto)',
   corpseRange: 'Rază cadavru (Rise Dead)',
-  corpseLife: 'Cât rămâne cadavrul (s)',
-  corpseSize: 'Mărime cadavru (%)',
-  corpseOpacity: 'Transparență cadavru (%) — 100 = opac',
+  corpseLife: 'Cât rămâne cadavrul 1×1 (s)',
+  corpseSize: 'Mărime cadavru 1×1 (%)',
+  corpseOpacity: 'Transparență cadavru 1×1 (%) — 100 = opac',
+  corpseBigLife: 'Cât rămâne cadavrul mare (s)',
+  corpseBigSize: 'Mărime cadavru mare (%)',
+  corpseBigOpacity: 'Transparență cadavru mare (%) — 100 = opac',
   drainRadius: 'Rază dren inamici (Soul Harvest)',
   drainDps: 'Damage/s dren (o vindecă și pe ea)',
   healRadius: 'Rază heal aliați (Soul Harvest)',
