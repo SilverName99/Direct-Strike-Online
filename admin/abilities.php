@@ -23,6 +23,14 @@ $authed = !empty($_SESSION['auth']);
     h1 .accent { color: #b58cff; }
     .sub { color: #7c8ba1; font-size: 13px; margin-bottom: 18px; }
     a { color: #4da6ff; }
+    /* "by character" filter bar */
+    .ab-filter { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+      background: #161c26; border: 1px solid #2a3446; border-radius: 10px; padding: 10px 14px; }
+    .ab-filter label { font-size: 13px; color: #b9c4d4; font-weight: 600; }
+    .ab-filter select { padding: 7px 10px; background: #0a0e14; color: #dbe4f0;
+      border: 1px solid #2a3446; border-radius: 7px; font-size: 13px; min-width: 240px; cursor: pointer; }
+    .ab-filter select:focus { outline: none; border-color: #4da6ff; }
+    #ab-filter-note { font-size: 12px; color: #7c8ba1; }
     /* abilities laid out 3 per row (they're getting numerous) */
     #ab-app { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
     @media (max-width: 1200px) { #ab-app { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -45,6 +53,8 @@ $authed = !empty($_SESSION['auth']);
     .kind.aura { background: #1c2b1e; color: #58d68d; border: 1px solid #2b4a30; }
     .kind.castaura { background: #2b2a16; color: #ffd35c; border: 1px solid #4a4526; }
     .kind.active { background: #2b1e33; color: #b58cff; border: 1px solid #45325a; }
+    .kind.passive { background: #16242b; color: #5cc6d6; border: 1px solid #26454a; }
+    .kind.summon { background: #2b2416; color: #d6a35c; border: 1px solid #4a3d26; }
     .group .desc { color: #7c8ba1; font-size: 12px; margin-bottom: 10px; }
     .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 16px; }
     .fld { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
@@ -87,6 +97,11 @@ $authed = !empty($_SESSION['auth']);
     per unitate din <b>⚙ stats</b> (bifa „Caster" + selecția de abilități) în pagina de
     <a href="./">sprites</a>. Apasă <b>Salvează</b> — se scrie în <code>assets/balance.json</code>. ·
     <a href="../" target="_blank">Deschide jocul ↗</a></div>
+  <div id="ab-filter" class="ab-filter">
+    <label for="ab-filter-sel">🧙 Caracter:</label>
+    <select id="ab-filter-sel"><option value="all">Toate abilitățile</option></select>
+    <span id="ab-filter-note"></span>
+  </div>
   <div id="ab-app">Se încarcă…</div>
   <div class="bar">
     <button id="save-btn">Salvează pe server</button>
