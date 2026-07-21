@@ -77,7 +77,10 @@ function applyFilter(chars) {
 // and hit), not a casting distance — the generic "Cast range" label is
 // misleading there. The real casting reach for Rise Dead is `corpseRange`.
 const KIND_LABELS = {
-  summon: { range: 'Rază atac (invocat)', damage: 'Damage (invocat)' },
+  summon: {
+    range: 'Rază atac (invocat)', damage: 'Damage (invocat)',
+    size: 'Mărime invocat (%)', opacity: 'Transparență invocat (%) — 100 = opac',
+  },
 };
 function paramLabel(base, k) {
   const byKind = KIND_LABELS[base.kind];

@@ -134,6 +134,7 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     mountTargetId: null, splitTargetId: null, dismounted: false, beast: false,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovRanged: null,
     ovSize: stats.size, // drawn scale (renderer reuses the ov-size path for summons)
+    ovAlpha: Math.max(0, Math.min(1, (p.opacity != null ? p.opacity : 100) / 100)), // drawn opacity (Rise Dead / summons)
     mana: 0, manaMax: 0,
     targetId: null, state: 'march',
     radius, baseRadius: radius, footprint: false, hw: radius, hh: radius,

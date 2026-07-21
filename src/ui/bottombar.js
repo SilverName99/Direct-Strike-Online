@@ -810,6 +810,19 @@ export class BottomBar {
       return items;
     }
 
+    // an ENEMY hero: show, read-only, the abilities it has LEARNED (rank ≥ 1)
+    // with their live cooldowns — so you can see what it can cast and when.
+    if (!isStruct && !own && stats.isHero) {
+      const tpl = game && game.heroTemplateOf(info.team, info.type);
+      const ranks = (tpl && tpl.ranks) || {};
+      for (const slot of heroAbilitySlots(raceOf(info.team), info.type)) {
+        if (slot.id && (ranks[slot.id] || 0) > 0) {
+          items.push({ kind: 'ability', id: slot.id, team: info.team, unit: info.type, own: false });
+        }
+      }
+      return items;
+    }
+
     if (!isStruct && stats.caster && stats.abilities) {
       for (const aid of stats.abilities) {
         const ab = resolvedAbility(aid);
@@ -1095,15 +1108,21 @@ export class BottomBar {
           const ab = resolvedAbility(d.id);
           cdTotal = (ab && ab.params.cooldown) || 0;
         }
-        // "ready to use" marching-dashes ring: an ACTIVE ability that's learned,
-        // not off, off-cooldown and affordable — regardless of Auto/Manual mode.
+        // Usable-now feedback for an ACTIVE learned ability (off-cooldown, enough
+        // mana, not mid-ultimate). Presentation depends on the cast mode:
+        //  • AUTO   → the golden marching-dashes ring appears when it's ready.
+        //  • MANUAL → no ring; the icon is dimmed while it can't be cast and shows
+        //             full colour the moment you can press it.
+        el.classList.remove('ready', 'manual-dim');
         if (rank > 0 && !isOff && liveHero && isActiveAbility(d.id)) {
           const ab = resolvedAbility(d.id);
           const manaOk = (liveHero.mana || 0) >= ((ab && ab.params.manaCost) || 0);
-          const ready = cd <= 0.05 && manaOk && !((liveHero.vortexUntil || 0) > game.time);
-          el.classList.toggle('ready', ready);
-        } else {
-          el.classList.remove('ready');
+          const usable = cd <= 0.05 && manaOk && !((liveHero.vortexUntil || 0) > game.time);
+          if (game.abilityManual[this.team].has(key)) {
+            el.classList.toggle('manual-dim', !usable); // manual: dim until castable
+          } else {
+            el.classList.toggle('ready', usable);       // auto: marching-dashes ring
+          }
         }
       } else if (d.kind === 'sell') {
         el.classList.add('sell');

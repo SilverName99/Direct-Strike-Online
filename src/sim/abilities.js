@@ -319,6 +319,7 @@ function nearestCorpse(game, caster, radius, time) {
   let best = null, bestD = Infinity;
   for (const c of game.corpses) {
     if (c.until <= time) continue;
+    if ((c.readyAt || 0) > time) continue; // death animation still playing — not raisable yet
     const dx = c.x - caster.x, dy = c.y - caster.y, d = dx * dx + dy * dy;
     if (d <= r2 && d < bestD) { bestD = d; best = c; }
   }

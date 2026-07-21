@@ -457,6 +457,7 @@ export class Renderer {
     if (!cs || !cs.length) return;
     const img = getCorpseImage();
     for (const c of cs) {
+      if ((c.readyAt || 0) > game.time) continue; // still mid death-animation — bones not shown yet
       if (!this.visible(c.x, c.y, 40)) continue;
       const fade = Math.max(0, Math.min(1, (c.until - game.time) / 1.5));
       ctx.save();
@@ -504,39 +505,71 @@ export class Renderer {
     }
   }
 
-  // Life Drain: a wavy magenta tendril from the Spirit Huntress to the drained
-  // target, with orbs of stolen life flowing back toward her.
+  // A wavy magenta tendril from (x0,y0) to (x1,y1) with orbs of stolen life
+  // flowing back toward (x0,y0). Used by Life Drain (one target) and Soul
+  // Harvest (one tendril per drained enemy).
+  drawTendril(ctx, x0, y0, x1, y1, stroke, orb, glow) {
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
+    if (!this.visible((x0 + x1) / 2, (y0 + y1) / 2, len / 2 + 20)) return;
+    const nx = -dy / len, ny = dx / len;
+    const segs = Math.max(6, Math.floor(len / 18));
+    ctx.save();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.shadowColor = glow; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    for (let i = 0; i <= segs; i++) {
+      const f = i / segs;
+      const wob = Math.sin(f * Math.PI * 3 + this.now * 14) * 8 * Math.sin(f * Math.PI);
+      const px = x0 + dx * f + nx * wob, py = y0 + dy * f + ny * wob;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = orb;
+    for (let k = 0; k < 3; k++) {
+      const g = 1 - ((this.now * 0.9 + k / 3) % 1); // flows target -> her
+      const wob = Math.sin(g * Math.PI * 3 + this.now * 14) * 8 * Math.sin(g * Math.PI);
+      const px = x0 + dx * g + nx * wob, py = y0 + dy * g + ny * wob;
+      ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  _lerpXY(u, alpha) {
+    return [u.prevX + (u.x - u.prevX) * alpha, u.prevY + (u.y - u.prevY) * alpha];
+  }
+
+  // Life Drain: a single magenta tendril from the Spirit Huntress to her target.
+  // Soul Harvest: while she's transformed, a tendril from EVERY enemy she's
+  // draining in the ring flows life back to her (and a green one to each healed ally).
   drawDrainBeams(ctx, game, alpha) {
     for (const u of game.entities) {
-      if (!(u.drainUntil > game.time) || u.drainTargetId == null) continue;
-      const t = game.byId.get(u.drainTargetId);
-      if (!t || t.hp <= 0) continue;
-      const x0 = u.prevX + (u.x - u.prevX) * alpha, y0 = u.prevY + (u.y - u.prevY) * alpha;
-      const x1 = t.prevX + (t.x - t.prevX) * alpha, y1 = t.prevY + (t.y - t.prevY) * alpha;
-      const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
-      if (!this.visible((x0 + x1) / 2, (y0 + y1) / 2, len / 2 + 20)) continue;
-      const nx = -dy / len, ny = dx / len;
-      const segs = Math.max(6, Math.floor(len / 18));
-      ctx.save();
-      ctx.strokeStyle = 'rgba(209,75,203,0.85)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.shadowColor = '#d14bcb'; ctx.shadowBlur = 8;
-      ctx.beginPath();
-      for (let i = 0; i <= segs; i++) {
-        const f = i / segs;
-        const wob = Math.sin(f * Math.PI * 3 + this.now * 14) * 8 * Math.sin(f * Math.PI);
-        const px = x0 + dx * f + nx * wob, py = y0 + dy * f + ny * wob;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      // Life Drain (single-target channel)
+      if (u.drainUntil > game.time && u.drainTargetId != null) {
+        const t = game.byId.get(u.drainTargetId);
+        if (t && t.hp > 0) {
+          const [x0, y0] = this._lerpXY(u, alpha);
+          const [x1, y1] = this._lerpXY(t, alpha);
+          this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(209,75,203,0.85)', '#f0a8ff', '#d14bcb');
+        }
       }
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#f0a8ff';
-      for (let k = 0; k < 3; k++) {
-        const g = 1 - ((this.now * 0.9 + k / 3) % 1); // flows target -> her
-        const wob = Math.sin(g * Math.PI * 3 + this.now * 14) * 8 * Math.sin(g * Math.PI);
-        const px = x0 + dx * g + nx * wob, py = y0 + dy * g + ny * wob;
-        ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+      // Soul Harvest: one drain tendril per enemy in the ring, one heal tendril per ally
+      if (u.harvestUntil > game.time && u.harvest) {
+        const h = u.harvest;
+        const [x0, y0] = this._lerpXY(u, alpha);
+        const dr2 = (h.drainRadius || 0) * (h.drainRadius || 0);
+        const hr2 = (h.healRadius || 0) * (h.healRadius || 0);
+        for (const e of game.entities) {
+          if (e === u || e.hp <= 0 || e.isStructure) continue;
+          const [ex, ey] = this._lerpXY(e, alpha);
+          const dd = (ex - x0) * (ex - x0) + (ey - y0) * (ey - y0);
+          if (e.team !== u.team) {
+            if (dr2 > 0 && dd <= dr2) this.drawTendril(ctx, x0, y0, ex, ey, 'rgba(209,75,143,0.8)', '#ff9ad4', '#d14b8f');
+          } else if (e.hp < e.maxHp) {
+            if (hr2 > 0 && dd <= hr2) this.drawTendril(ctx, ex, ey, x0, y0, 'rgba(120,230,150,0.75)', '#c6ffd6', '#78e696');
+          }
+        }
       }
-      ctx.restore();
     }
   }
 
@@ -1271,6 +1304,10 @@ export class Renderer {
       }
       ctx.save();
       ctx.translate(x, y);
+      // summon opacity (Rise Dead / elementals): a ghostly skeleton draws
+      // semi-transparent. Only the body fades — HP/lifetime bars (drawn after
+      // the restore) stay solid.
+      if (u.ovAlpha != null && u.ovAlpha < 1) ctx.globalAlpha = u.ovAlpha;
       if (hasCharacter(u.type, u.team)) {
         // character path: side-view sprite/puppet, mirrored to face where it is
         // GOING (or its target) — a unit walking back toward its own base flips

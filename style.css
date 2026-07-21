@@ -410,6 +410,9 @@ html, body {
 @keyframes slot-ants {
   to { background-position: 9px 0, -9px 100%, 0 -9px, 100% 9px; }
 }
+/* manual ability that can't be cast yet (on cooldown / not enough mana): the
+   icon dims; it snaps back to full colour the instant it becomes castable. */
+.slot.manual-dim { opacity: 0.42; filter: saturate(0.55); }
 .slot.sell { border-color: #7a2a33; }
 .slot .s-cost { position: absolute; bottom: 1px; right: 3px; font-size: 13px; color: var(--gold);
   font-weight: 800; pointer-events: none;

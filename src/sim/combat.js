@@ -398,7 +398,9 @@ function updateFighter(game, u, stats, dt) {
           // arrow spends manaPerShot and lands a poison damage-over-time, using
           // the Poison Arrow sprite. Out of mana -> plain arrows.
           let shotStats = stats;
-          const pa = u.hero ? learnedAbilityParams(u, 'poisonarrow') : null;
+          // structures can't be poisoned -> she fires a plain arrow and spends
+          // no mana when the target is a building
+          const pa = (u.hero && !target.isStructure) ? learnedAbilityParams(u, 'poisonarrow') : null;
           if (pa) {
             const cost = pa.manaPerShot || 0;
             if ((u.mana || 0) >= cost) {

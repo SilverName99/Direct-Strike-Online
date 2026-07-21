@@ -431,7 +431,7 @@ export const ABILITIES = {
       hp: 300, damage: 28, range: 30, period: 1.1, speed: 95,
       hpPerRank: 150,     // extra HP per rank learned above rank 1
       damagePerRank: 16,  // extra damage per rank learned above rank 1
-      animSpeed: 5, size: 110,
+      animSpeed: 5, size: 110, opacity: 100,
       splash: 0, flying: 0, projectile: 0, armored: 0,
       targetsAir: 0, targetsGround: 1,
       castPrepare: 0.3,
@@ -509,7 +509,7 @@ export const ABILITIES = {
       cap: 3, life: 15,   // skeleton lifetime (scales per rank)
       hp: 120, damage: 16, range: 28, period: 1.1, speed: 95,
       hpPerRank: 60, damagePerRank: 8,
-      animSpeed: 5, size: 100,
+      animSpeed: 5, size: 100, opacity: 100,
       splash: 0, flying: 0, projectile: 0, armored: 0,
       targetsAir: 0, targetsGround: 1,
       castPrepare: 0,
@@ -654,6 +654,7 @@ export const ABILITY_PARAM_LABELS = {
   speed: 'Viteză mișcare',
   animSpeed: 'Viteză animație mers (flip/s)',
   size: 'Mărime (%)',
+  opacity: 'Opacitate (%) — 100 = opac, mai mic = transparent',
   splash: 'Splash (rază, 0 = fără)',
   flying: 'Zboară (1/0)',
   projectile: 'Atac la distanță (1/0)',

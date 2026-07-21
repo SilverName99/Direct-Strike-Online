@@ -890,7 +890,10 @@ export class Game {
         alive.push(e);
       } else {
         if (corpseLife > 0 && !e.summon && !e.isStructure) {
-          this.corpses.push({ x: e.x, y: e.y, until: this.time + corpseLife });
+          // the corpse only becomes raisable AFTER the death animation has fully
+          // played out (readyAt); the raisable window (corpseLife) runs from then.
+          const delay = CONFIG.CORPSE_RAISE_DELAY || 0;
+          this.corpses.push({ x: e.x, y: e.y, readyAt: this.time + delay, until: this.time + delay + corpseLife });
         }
         this.byId.delete(e.id);
       }

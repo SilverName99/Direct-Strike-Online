@@ -1105,6 +1105,21 @@ console.log('abilities (casters, auras, status effects)');
     check('poison arrow: no mana -> plain arrows (no poison)', !(enemy2.effects || []).some((x) => x.kind === 'acid'), JSON.stringify(enemy2.effects));
     ab.params = saved;
   }
+  // Poison Arrow vs a building: no poison (structures can't be poisoned) and no
+  // mana is spent on the shot.
+  {
+    applyBalance();
+    const ab = resolvedAbility('poisonarrow'); const saved = { ...ab.params };
+    Object.assign(ab.params, { dps: 20, dps1: 0, dps2: 0, dps3: 0, dotDuration: 3, manaPerShot: 6, tier: 1 });
+    const game = new Game(30, { races: ['humans', 'orcs'] });
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400);
+    caster.hero = true; caster.heroRanks = { poisonarrow: 1 }; caster.mana = 100;
+    const bld = spawnUnit(game, 1, 'grunt', 700, 400); bld.hp = bld.maxHp = 100000; bld.isStructure = true;
+    run(game, 2);
+    check('poison arrow: no poison on a building', !(bld.effects || []).some((x) => x.kind === 'acid'), JSON.stringify(bld.effects));
+    check('poison arrow: no mana spent shooting a building', caster.mana === 100, `${caster.mana}`);
+    ab.params = saved;
+  }
   // Life Drain: channel damages the target and heals her
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['lifedrain'], mana: 100 } } } } });
@@ -1127,6 +1142,8 @@ console.log('abilities (casters, auras, status effects)');
       const v = spawnUnit(g0, 1, 'grunt', 700, 400); v.hp = 0; // dead this tick
       g0.update(1 / 30);
       check('death leaves a raisable corpse', g0.corpses.length >= 1, `${g0.corpses.length}`);
+      // the corpse only becomes raisable AFTER the death animation (readyAt > now)
+      check('corpse not raisable until the death animation finishes', g0.corpses[0].readyAt > g0.time, `${g0.corpses[0].readyAt} vs ${g0.time}`);
       ab0.params = s0;
     }
     applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['risedead'], mana: 100 } } } } });
