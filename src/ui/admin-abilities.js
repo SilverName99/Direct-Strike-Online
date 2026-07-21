@@ -72,6 +72,18 @@ function applyFilter(chars) {
   if (note) note.textContent = set ? `${shown} abilități pentru acest caracter` : '';
 }
 
+// A few param labels read differently depending on the ability kind. For a
+// SUMMON, `range`/`damage` are the summoned unit's OWN stats (its attack reach
+// and hit), not a casting distance — the generic "Cast range" label is
+// misleading there. The real casting reach for Rise Dead is `corpseRange`.
+const KIND_LABELS = {
+  summon: { range: 'Rază atac (invocat)', damage: 'Damage (invocat)' },
+};
+function paramLabel(base, k) {
+  const byKind = KIND_LABELS[base.kind];
+  return (byKind && byKind[k]) || ABILITY_PARAM_LABELS[k] || k;
+}
+
 function render() {
   let html = '';
   for (const [id, base] of Object.entries(ABILITIES)) {
@@ -91,7 +103,7 @@ function render() {
       </div>
       <div class="fields">`;
     for (const [k, v] of Object.entries(ab.params)) {
-      const label = ABILITY_PARAM_LABELS[k] || k;
+      const label = paramLabel(base, k);
       html += `<label class="fld"><span>${label}</span>
         <input type="number" step="any" data-ab="${id}" data-k="${k}" value="${v}"></label>`;
     }
