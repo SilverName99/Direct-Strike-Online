@@ -7,7 +7,15 @@
 // The renderer culls enemy units (need `visible`) and enemy structures (need
 // `explored`), then paints this overlay on top.
 
-const CELL = 40; // vision-grid cell size in sim units (matches the placement grid)
+const CELL = 20; // vision-grid cell size in sim units (fine grid -> smooth, round fog edges)
+
+// Fog darkness (alpha 0-255): a translucent veil, NOT solid black, so the
+// terrain still shows faintly underneath (Warcraft-style).
+const A_EXPLORED = 96;  // seen before, not now -> lightly dimmed
+const A_UNSEEN = 190;   // never seen -> dark but see-through
+// Fraction of the player's OWN half that's always revealed (measured from their
+// back edge), so they're never blind at home.
+const HOME_REVEAL = 2 / 3;
 
 export class Fog {
   constructor() {
@@ -22,6 +30,7 @@ export class Fog {
 
   // (Re)allocate for a field size and forget everything explored (new match).
   reset(fieldW, fieldH) {
+    this.fieldW = fieldW; this.fieldH = fieldH;
     this.cols = Math.max(1, Math.ceil(fieldW / CELL));
     this.rows = Math.max(1, Math.ceil(fieldH / CELL));
     const n = this.cols * this.rows;
@@ -80,6 +89,21 @@ export class Fog {
     for (const s of game.structures) {
       if (s.hp > 0 && s.team === team) light(s.x, s.y, visionOfStructure(game, s));
     }
+    // The player's own back field is always known: reveal the 2/3 of THEIR half
+    // nearest their base (team 0 = left, team 1 = right), so home is never dark.
+    const W = this.fieldW || this.cols * CELL;
+    const span = (W / 2) * HOME_REVEAL; // depth revealed from the player's edge
+    const cxEdge = team === 0
+      ? Math.min(this.cols, Math.ceil(span / CELL))          // columns [0 .. span)
+      : Math.max(0, Math.floor((W - span) / CELL));          // columns [(W-span) .. end]
+    for (let cy = 0; cy < this.rows; cy++) {
+      const row = cy * this.cols;
+      if (team === 0) {
+        for (let cx = 0; cx < cxEdge; cx++) { this.visible[row + cx] = 1; this.explored[row + cx] = 1; }
+      } else {
+        for (let cx = cxEdge; cx < this.cols; cx++) { this.visible[row + cx] = 1; this.explored[row + cx] = 1; }
+      }
+    }
     this._dirty = true;
   }
 
@@ -88,8 +112,8 @@ export class Fog {
     if (!this._dirty || !this.ctx) return;
     const d = this.img.data, n = this.cols * this.rows;
     for (let i = 0; i < n; i++) {
-      // clear where visible, dim where explored, black where unseen
-      const a = this.visible[i] ? 0 : (this.explored[i] ? 148 : 255);
+      // clear where visible, lightly dim where explored, dark veil where unseen
+      const a = this.visible[i] ? 0 : (this.explored[i] ? A_EXPLORED : A_UNSEEN);
       const p = i * 4;
       d[p] = 6; d[p + 1] = 9; d[p + 2] = 16; d[p + 3] = a; // matches the dark backdrop
     }
