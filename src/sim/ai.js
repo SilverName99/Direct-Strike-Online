@@ -322,14 +322,22 @@ export class AIController {
       // far out of reach, so the army doesn't stall on an absurdly-priced unit.
       const income = Math.max(1, game.incomePerSecond(t));
       const secondsToAfford = (stats.cost - money) / income;
-      if (secondsToAfford <= this.g.savePatience) {
+      // (B) Be MORE patient for pricier, higher-tier units: a Tier 3 unit is
+      // worth saving ~2.5× as long as a Tier 1 filler. Without this, a small
+      // save-patience made the AI bail on every expensive pick and spam the
+      // cheap tier-1 melee it could always afford.
+      const patience = this.g.savePatience * (stats.tier >= 3 ? 2.5 : stats.tier === 2 ? 1.6 : 1);
+      if (secondsToAfford <= patience) {
         this.intent = `💰 economisește ${Math.ceil(stats.cost)} → ${stats.name}${this.aggro ? ' (ofensiv)' : ''}`;
         return; // save up a few ticks, then buy it
       }
+      // (A) Fall back to the strongest thing we can afford — ranked by TIER first
+      // (cost only breaks ties). Ranking by raw cost made the AI grab an
+      // expensive-but-weak tier-1 (e.g. a 170g Grunt) over a cheaper tier-2.
       const affordable = UNIT_IDS
         .map((id) => ({ id, s: game.ustat(t, id) }))
         .filter(({ s }) => s.tier <= game.tier[t] && this.unlocked(game, s) && s.cost <= money)
-        .sort((a, b) => b.s.cost - a.s.cost)[0];
+        .sort((a, b) => (b.s.tier - a.s.tier) || (b.s.cost - a.s.cost))[0];
       if (!affordable) { this.intent = '💰 fără bani — așteaptă venit'; return; } // genuinely broke
       want = affordable.id;
       stats = game.ustat(t, want);
@@ -648,13 +656,14 @@ export class AIController {
           return s.tier <= tier && this.unlocked(game, s);
         });
     if (pool.length === 0) return null;
-    // Prefer stronger (higher-tier) units so a well-off AI stops spamming tier 1
-    // once tier 2/3 is unlocked — weight each candidate by tier² (t1=1, t2=4,
-    // t3=9), still leaving room for the occasional cheap filler.
+    // (C) Prefer stronger (higher-tier) units so a well-off AI stops spamming
+    // tier 1 once tier 2/3 is unlocked — weight each candidate by tier³
+    // (t1=1, t2=8, t3=27), so the higher tiers clearly dominate the pick while a
+    // tier-1 filler still shows up occasionally.
     const weighted = [];
     for (const id of pool) {
       const tw = game.ustat(this.team, id).tier || 1;
-      for (let k = 0; k < tw * tw; k++) weighted.push(id);
+      for (let k = 0; k < tw * tw * tw; k++) weighted.push(id);
     }
     return weighted[Math.floor(this.rng() * weighted.length)];
   }
