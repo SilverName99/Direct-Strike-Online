@@ -103,6 +103,12 @@ $authed = !empty($_SESSION['auth']);
     <table id="unit-stats"><thead><tr><th>Unitate</th><th>Rasă</th><th>Pick %</th><th>Win %</th></tr></thead><tbody></tbody></table>
   </div>
 
+  <h2>Recomandări modificări?</h2>
+  <div class="panel">
+    <div class="sub" style="margin-bottom:8px">Sugestii automate din statistici (după destule meciuri): <b style="color:#ff8090">🔻 nerf</b> = prea puternic + folosit des · <b style="color:#8fe3ff">🔺 buff</b> = ignorat sau subperformează. Orientative — verifică și cu ochiul tău.</div>
+    <ul id="reco" style="margin:0;padding-left:18px;line-height:1.75;font-size:13px"><li style="color:#7c8ba1">Rulează antrenamentul ca să se adune date…</li></ul>
+  </div>
+
   <script type="module" src="../src/ui/admin-train.js?v=<?= time() ?>"></script>
 <?php endif; ?>
 </body>

@@ -17,13 +17,14 @@ const SPEC = {
   tier2Wave: { min: 1, max: 8, int: true }, tier3Wave: { min: 4, max: 14, int: true },
   savePatience: { min: 3, max: 40 }, farmBuffer: { min: 1, max: 10, int: true },
   maxGens: { min: 2, max: 10, int: true },
+  midTowers: { min: 0, max: 5, int: true },
 };
 const KEYS = Object.keys(SPEC);
 const LABELS = {
   tFront: 'Frontline %', tRanged: 'Ranged %', tSpecial: 'Special %', tSupport: 'Support %',
   counterChance: 'Șansă counter', aggression: 'Agresivitate',
   tier2Wave: 'Wave → Tier 2', tier3Wave: 'Wave → Tier 3', savePatience: 'Răbdare economie (s)',
-  farmBuffer: 'Rezervă food (ferme)', maxGens: 'Generatoare max',
+  farmBuffer: 'Rezervă food (ferme)', maxGens: 'Generatoare max', midTowers: 'Turnuri în față (mijloc)',
 };
 const clampGene = (k, v) => { const s = SPEC[k]; v = Math.max(s.min, Math.min(s.max, v)); return s.int ? Math.round(v) : v; };
 const rng = mulberry32((Date.now() % 2 ** 31) >>> 0);
@@ -212,6 +213,7 @@ function render() {
   renderGenome();
   renderRaces();
   renderUnits();
+  renderRecommendations();
 }
 const tile = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 
@@ -253,6 +255,45 @@ function renderUnits() {
     <td><span class="bar" style="width:${Math.min(100, r.pick)}%;background:#4da6ff"></span> ${r.pick.toFixed(0)}%</td>
     <td><span class="bar" style="width:${r.win}%;background:${r.win >= 60 ? '#ff8090' : '#58d68d'}"></span> ${r.win.toFixed(0)}%</td></tr>`).join('');
   $('unit-stats').querySelector('tbody').innerHTML = html || '<tr><td colspan="4">Rulează antrenamentul ca să se adune date…</td></tr>';
+}
+
+// Turn the accumulated pick/win stats into plain-language balance suggestions.
+// Heuristics (need a decent sample first): a unit that wins a lot AND is picked
+// a lot = nerf candidate; a nearly-unpicked unit = buff candidate; a heavily
+// used unit that still loses = buff candidate. Race win% far from 50% = a
+// race-wide tilt.
+function renderRecommendations() {
+  const el = $('reco');
+  if (!el) return;
+  if (stat.matches < 15) {
+    el.innerHTML = '<li style="color:#7c8ba1">Mai rulează câteva meciuri ca să se adune destule date pentru recomandări…</li>';
+    return;
+  }
+  const recos = [];
+  // race-wide tilt
+  for (const r of RACES) {
+    const p = stat.races[r] || 0, w = stat.raceWins[r] || 0;
+    if (p < 20) continue;
+    const wr = w / p * 100;
+    if (wr >= 55) recos.push({ sev: 2, t: `⚖ <b>Rasa ${r}</b> pare prea puternică (${wr.toFixed(0)}% win) — un nerf general ușor.` });
+    else if (wr <= 45) recos.push({ sev: 2, t: `⚖ <b>Rasa ${r}</b> pare prea slabă (${wr.toFixed(0)}% win) — un buff general ușor.` });
+  }
+  // per-unit
+  for (const key of Object.keys(stat.units)) {
+    const [race, unit] = key.split(':');
+    const plays = stat.units[key], wins = stat.unitWins[key] || 0;
+    const racePlays = stat.races[race] || 1;
+    if (racePlays < 20 || plays < 8) continue; // too little data on this unit
+    const pick = plays / racePlays * 100;
+    const win = plays ? wins / plays * 100 : 0;
+    const name = (statsUnit(race, unit) || {}).name || unit;
+    if (win >= 60 && pick >= 25) recos.push({ sev: 3, t: `🔻 <b>Nerf ${name}</b> (${race}) — ${win.toFixed(0)}% win la pick ${pick.toFixed(0)}%: prea tare și folosit des.` });
+    else if (pick < 8) recos.push({ sev: 1, t: `🔺 <b>Buff ${name}</b> (${race}) — pick doar ${pick.toFixed(0)}%: aproape ignorat (prea slab sau prea scump).` });
+    else if (win <= 38 && pick >= 15) recos.push({ sev: 1, t: `🔺 <b>Buff ${name}</b> (${race}) — doar ${win.toFixed(0)}% win deși e folosit des: subperformează.` });
+  }
+  if (!recos.length) { el.innerHTML = '<li style="color:#58d68d">Echilibrat — nicio modificare evidentă din date. 👍</li>'; return; }
+  recos.sort((a, b) => b.sev - a.sev);
+  el.innerHTML = recos.map((r) => `<li>${r.t}</li>`).join('');
 }
 
 function drawChart() {
