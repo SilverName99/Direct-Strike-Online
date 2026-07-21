@@ -6,6 +6,7 @@
 
 import { RACES } from '../config.js';
 import { DEFAULT_GENOME, randomGenome } from '../sim/ai.js';
+import { runMatch } from '../sim/match.js';
 import { loadBalance, applyBalance, statsUnit, resolvedUnitOrder, setAIGenome, saveBalance } from './balance.js';
 import { mulberry32 } from '../sim/rng.js';
 
@@ -96,6 +97,9 @@ let history = [];
 let running = false, paused = false, stopReq = false;
 // cumulative balance stats
 let stat = { races: {}, raceWins: {}, units: {}, unitWins: {}, matches: 0 };
+// one "showcase" match played by the current best brain, refreshed each
+// generation — drives the human-readable match summary.
+let showcase = null;
 
 const pickRace = () => RACES[Math.floor(Math.random() * RACES.length)];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -149,6 +153,9 @@ async function evolve(cfg) {
     generation++;
     history.push({ gen: generation, best: bestFitness, avg });
     if (history.length > 500) history.shift();
+    // let the current best brain play ONE showcase match (main thread — it's a
+    // single headless game) so we can tell the story of how this generation fights
+    runShowcase(cfg.secs);
     // breed
     const elites = Math.max(1, Math.round(population.length * 0.15));
     const next = ranked.slice(0, elites).map((r) => r.g);
@@ -167,7 +174,7 @@ async function evolve(cfg) {
 // ---- persistence -----------------------------------------------------------
 const LS_KEY = 'ds-train-state';
 function saveCheckpoint() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ population, generation, history, stat, best })); } catch { /* quota / private */ }
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ population, generation, history, stat, best, showcase })); } catch { /* quota / private */ }
 }
 function loadCheckpoint() {
   try {
@@ -176,6 +183,7 @@ function loadCheckpoint() {
       population = s.population.map(cleanGenome); generation = s.generation || 0;
       history = Array.isArray(s.history) ? s.history : []; stat = s.stat || stat;
       best = s.best ? cleanGenome(s.best) : population[0];
+      showcase = s.showcase || null;
       return true;
     }
   } catch { /* ignore */ }
@@ -185,6 +193,7 @@ function seedPopulation(size) {
   population = [cleanGenome(DEFAULT_GENOME)];
   while (population.length < size) population.push(randomGenome(rng));
   generation = 0; history = []; best = population[0]; bestFitness = 0;
+  showcase = null;
   stat = { races: {}, raceWins: {}, units: {}, unitWins: {}, matches: 0 };
 }
 
@@ -213,6 +222,7 @@ function render() {
   renderGenome();
   renderRaces();
   renderUnits();
+  renderSummary();
   renderRecommendations();
 }
 const tile = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
@@ -255,6 +265,73 @@ function renderUnits() {
     <td><span class="bar" style="width:${Math.min(100, r.pick)}%;background:#4da6ff"></span> ${r.pick.toFixed(0)}%</td>
     <td><span class="bar" style="width:${r.win}%;background:${r.win >= 60 ? '#ff8090' : '#58d68d'}"></span> ${r.win.toFixed(0)}%</td></tr>`).join('');
   $('unit-stats').querySelector('tbody').innerHTML = html || '<tr><td colspan="4">Rulează antrenamentul ca să se adune date…</td></tr>';
+}
+
+// Let the current best brain play one headless showcase match (main thread —
+// a single game is cheap) with a recorded timeline, so we can narrate it.
+function runShowcase(secs) {
+  if (!best) return;
+  try {
+    showcase = {
+      gen: generation,
+      res: runMatch({
+        seed: (Math.random() * 2 ** 31) | 0,
+        races: [pickRace(), pickRace()],
+        genomeA: cleanGenome(best), genomeB: cleanGenome(best),
+        maxSeconds: Math.max(40, secs || 140),
+        summarize: true,
+      }),
+    };
+  } catch { /* a bad showcase shouldn't stop training */ }
+}
+
+const fmtTime = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+
+// Human-readable story of the showcase match — who won, when, and what each
+// side did. Refreshes every generation as the best brain evolves.
+function renderSummary() {
+  const el = $('summary');
+  if (!el) return;
+  if (!showcase || !showcase.res) {
+    el.innerHTML = '<div style="color:#7c8ba1">Pornește antrenamentul — după prima generație apare povestea unui meci jucat de cel mai bun creier.</div>';
+    return;
+  }
+  const { gen, res } = showcase;
+  const races = res.races;
+  const teamName = (t) => `${races[t]} (E${t + 1})`;
+  let head;
+  if (res.winner === 0 || res.winner === 1) {
+    const w = res.winner;
+    head = `🏆 <b>${teamName(w)}</b> a distrus baza inamică la minutul <b>${fmtTime(res.seconds)}</b>, după ${res.waves} valuri.`;
+  } else {
+    const lead0 = res.lead0 != null ? res.lead0 : 0.5;
+    const leader = lead0 >= 0.5 ? 0 : 1;
+    head = `⏱ Egal la timeout (${fmtTime(res.seconds)}, ${res.waves} valuri) — <b>${teamName(leader)}</b> a condus ca valoare de armată ${(Math.max(lead0, 1 - lead0) * 100).toFixed(0)}% din meci.`;
+  }
+  const evs = (res.events || []).filter((e) => e.kind !== 'end');
+  const lines = evs.map((e) => {
+    let txt;
+    if (e.kind === 'tier') txt = `${teamName(e.team)} → Tier ${e.tier}`;
+    else if (e.kind === 'hero') txt = `${teamName(e.team)} recrutează un erou${e.n > 1 ? ` (al ${e.n}-lea)` : ''}`;
+    else if (e.kind === 'basehit') txt = `baza ${teamName(e.team)} e lovită prima oară`;
+    else txt = e.kind;
+    return `<li><span style="color:#7c8ba1">${fmtTime(e.t)}</span> — ${txt}</li>`;
+  });
+  const compLine = (t) => {
+    const m = res.comp[t] || {};
+    const arr = Object.entries(m).map(([u, c]) => ({ name: (statsUnit(races[t], u) || {}).name || u, c }))
+      .sort((a, b) => b.c - a.c).slice(0, 4);
+    return arr.length ? arr.map((x) => `${x.c}× ${x.name}`).join(', ') : 'armată distrusă';
+  };
+  el.innerHTML = `
+    <div style="margin-bottom:8px;color:#a97bff;font-size:11px;letter-spacing:1px;text-transform:uppercase">Generația ${gen}</div>
+    <div style="margin-bottom:10px;font-size:14px">${head}</div>
+    <div class="two" style="gap:10px;margin-bottom:10px">
+      <div class="stat"><div class="k">${teamName(0)} — tier ${res.tier[0]} · ${Math.round(res.spent[0])}g cheltuiți</div><div style="font-size:12px;color:#dbe4f0;margin-top:3px">${compLine(0)}</div></div>
+      <div class="stat"><div class="k">${teamName(1)} — tier ${res.tier[1]} · ${Math.round(res.spent[1])}g cheltuiți</div><div style="font-size:12px;color:#dbe4f0;margin-top:3px">${compLine(1)}</div></div>
+    </div>
+    ${lines.length ? `<div class="k" style="color:#7c8ba1;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Cronologie</div><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px">${lines.join('')}</ul>` : '<div style="color:#7c8ba1;font-size:13px">Fără evenimente notabile (meci scurt).</div>'}
+  `;
 }
 
 // Turn the accumulated pick/win stats into plain-language balance suggestions.

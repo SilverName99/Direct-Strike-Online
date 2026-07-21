@@ -86,6 +86,12 @@ $authed = !empty($_SESSION['auth']);
     <canvas id="chart" width="900" height="200" style="margin-top:12px"></canvas>
   </div>
 
+  <h2>Rezumat meci — se schimbă cu fiecare generație</h2>
+  <div class="panel">
+    <div class="sub" style="margin-bottom:8px">Cel mai bun creier al generației curente joacă un meci demonstrativ: cine a câștigat, la ce minut și ce a făcut fiecare tabără.</div>
+    <div id="summary"><div style="color:#7c8ba1">Pornește antrenamentul — după prima generație apare povestea unui meci.</div></div>
+  </div>
+
   <div class="two">
     <div>
       <h2>Cel mai bun creier</h2>

@@ -17,6 +17,7 @@ export function runMatch({
   genomeB = null,
   difficulty = 'normal',
   maxSeconds = 300,
+  summarize = false,
 } = {}) {
   const game = new Game(seed >>> 0, { races });
   const ai0 = new AIController(0, difficulty, (seed ^ 0x9e3779b9) >>> 0, genomeA);
@@ -30,6 +31,13 @@ export function runMatch({
   let armyVal0 = 0;
   let armyVal1 = 0;
   let samples = 0;
+  // Optional narrative timeline: milestones (tier-ups, hero recruits, first
+  // base damage) with their timestamp, plus who was ahead on army value.
+  const events = [];
+  const prevTier = [game.tier[0], game.tier[1]];
+  const prevHeroes = [0, 0];
+  const baseHit = [false, false];
+  let leadSamples0 = 0;
   while (game.winner === null && steps < maxSteps) {
     ai0.update(game, DT);
     ai1.update(game, DT);
@@ -46,8 +54,29 @@ export function runMatch({
       armyVal0 += v0;
       armyVal1 += v1;
       samples++;
+      if (summarize) {
+        const tsec = Math.round(steps * DT);
+        if (v0 >= v1) leadSamples0++;
+        for (const team of [0, 1]) {
+          if (game.tier[team] > prevTier[team]) {
+            prevTier[team] = game.tier[team];
+            events.push({ t: tsec, team, kind: 'tier', tier: game.tier[team] });
+          }
+          const hc = game.heroTemplates(team).length;
+          if (hc > prevHeroes[team]) {
+            prevHeroes[team] = hc;
+            events.push({ t: tsec, team, kind: 'hero', n: hc });
+          }
+          const main = game.mainOf(team);
+          if (!baseHit[team] && main && main.hp < main.maxHp * 0.98) {
+            baseHit[team] = true;
+            events.push({ t: tsec, team, kind: 'basehit' });
+          }
+        }
+      }
     }
   }
+  if (summarize) events.push({ t: Math.round(steps * DT), kind: 'end', winner: game.winner });
   const totVal = armyVal0 + armyVal1;
   const armyAdv = totVal > 0 ? armyVal0 / totVal : 0.5; // 0..1, 0.5 = even
 
@@ -72,6 +101,9 @@ export function runMatch({
     spent: [game.spent[0], game.spent[1]],
     baseFrac: [baseFrac(0), baseFrac(1)], // remaining base HP
     armyAdv: armyAdv,                     // team 0's share of living army value
+    // narrative extras (only when summarize=true)
+    events: summarize ? events : undefined,
+    lead0: summarize && samples ? leadSamples0 / samples : undefined, // share of match team 0 led
   };
 }
 
