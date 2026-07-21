@@ -72,7 +72,7 @@ const ABILITY_INFO = [
   'vortexoflight' => ['Vortex of Light', true, false, 1],    // 1 spin frame (held while channeling)
   // Battle Mage (Human hero 3) kit
   'bigfrostbolt' => ['Bigger Frost Bolt', true, true],  // cast frame + a big frost projectile
-  'waterelemental' => ['Water Elemental', true, false], // summon (cast frame; elemental sprites below)
+  'waterelemental' => ['Ice Chad Elemental', true, false], // summon (cast frame; elemental sprites below)
   'manaaura' => ['Mana Regen Aura', false, false],      // passive aura — no cast frame
   'blizzard' => ['Blizzard', true, false, 1, true],     // ultimate: cast frame + a storm-zone effect image
   // Spirit Huntress (Orc hero 3) kit
@@ -83,7 +83,7 @@ const ABILITY_INFO = [
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Water Elemental', 'skeleton' => 'Schelet'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet'];
 // summon abilities whose spawned entity is a stationary totem (idle-only sprite,
 // no walk/attack/die, no portrait animation)
 const TOTEM_ABILITIES = ['slowingtotem'];

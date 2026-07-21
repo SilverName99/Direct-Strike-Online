@@ -419,10 +419,10 @@ export const ABILITIES = {
     },
   },
   waterelemental: {
-    name: 'Water Elemental',
+    name: 'Ice Chad Elemental',
     kind: 'summon',
     animal: 'waterelemental',
-    animalName: 'Water Elemental',
+    animalName: 'Ice Chad Elemental',
     color: '#4aa3ff',
     desc: 'Invocă un elemental de apă care luptă în melee. HP-ul și damage-ul cresc cu rangul (setabile per rang).',
     params: {
