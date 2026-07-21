@@ -371,6 +371,9 @@ export class Menu {
   }
   ensureMusic() {
     if (!CONFIG.MENU_MUSIC) return;
+    // once Play is pressed the menu music is off for good (the match has its own);
+    // without this, a click on the countdown/loading overlay would restart it.
+    if (this._musicOff) return;
     if (!this.music) { // no preload ran (e.g. music set after boot)
       try { this.music = new Audio(CONFIG.MENU_MUSIC); this.music.loop = true; this.music.volume = this.musicVol; }
       catch { this.music = null; return; }
@@ -411,6 +414,7 @@ export class Menu {
   play() {
     this.clearTimers();
     this.hideGalleryArrows(); // no gallery arrows over the countdown/loading
+    this._musicOff = true;    // block any restart while the countdown/loading runs
     this.stopMusic(); // menu music off; the match starts its own
     this.setLoadingBg(this.pickLoadingBg()); // roll one of the 3 loading variants
     if (this.hooks.enterFullscreen) this.hooks.enterFullscreen();
@@ -470,7 +474,7 @@ export class Menu {
   // tiny non-seeded shuffle just for picking a tip (UI only, never the sim)
   mix() { this._m = ((this._m || Date.now()) * 1103515245 + 12345) & 0x7fffffff; return this._m / 0x7fffffff; }
 
-  show() { this.clearTimers(); this.galleryIdx = 0; this.refreshGallery(); this.go('main'); this.el.classList.add('visible'); this.armMusic(); }
+  show() { this.clearTimers(); this._musicOff = false; this.galleryIdx = 0; this.refreshGallery(); this.go('main'); this.el.classList.add('visible'); this.armMusic(); }
   hide() { this.clearTimers(); this.stopMusic(); this.el.classList.remove('visible'); }
 
   showGameOver(game, playerWon, team = 0, isNet = false) {

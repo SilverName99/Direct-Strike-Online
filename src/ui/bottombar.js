@@ -831,7 +831,12 @@ export class BottomBar {
     }
     if (!isStruct) {
       const race = raceOf(info.team);
+      // Ability-unlock upgrades are represented on the unit panel by the ability
+      // icon itself (locked until bought) — the "buy" card belongs only on the
+      // tech building's upgrades page, so skip them here (no duplicate icon).
+      const unlockIds = new Set(Object.values(ABILITY_UNLOCK_UPGRADE));
       for (const id of UPGRADE_IDS) {
+        if (unlockIds.has(id)) continue;
         const up = resolvedUpgrade(id);
         if (up && up.unit === info.type && (!up.race || up.race === race)) {
           items.push({ kind: 'upgrade', id, team: info.team, own, cost: up.params.cost || 0 });
