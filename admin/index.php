@@ -638,10 +638,11 @@ function regenManifest(string $assetsDir): void {
   }
   $corpse = is_file("$assetsDir/corpse.png"); // GLOBAL raisable-corpse decal (Rise Dead)
   $corpseBig = is_file("$assetsDir/corpse-big.png"); // corpse decal for units bigger than 1×1
+  $favicon = is_file("$assetsDir/favicon.png"); // browser-tab icon
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse, 'corpseBig' => $corpseBig], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -829,6 +830,37 @@ if ($authed && $action === 'deletecorpsebig') {
     @unlink("$assetsDir/corpse-big.png");
     regenManifest($assetsDir);
     $msg = 'Cadavru mare (decal) șters.';
+  }
+}
+// GLOBAL browser-tab icon — favicon.png
+if ($authed && $action === 'uploadfavicon') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir($assetsDir, 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/favicon.png")) {
+        regenManifest($assetsDir);
+        $msg = 'Favicon încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletefavicon') {
+  if (checkCsrf()) {
+    @unlink("$assetsDir/favicon.png");
+    regenManifest($assetsDir);
+    $msg = 'Favicon șters.';
   }
 }
 // Per-race loading screens (5 slots): loading-<n>.png
@@ -1540,6 +1572,38 @@ if ($authed && $action === 'deletebarover') {
         });
       });
     </script>
+  </div>
+  <?php $favFile = "$assetsDir/favicon.png"; $hasFav = is_file($favFile); ?>
+  <div class="ent" id="favicon-asset">
+    <div class="title"><b>Favicon (iconița din tab)</b><span>global — iconița site-ului în tab-ul browserului</span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Favicon</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasFav): ?>
+            <img src="<?= $assetsUrl ?>/favicon.png?t=<?= filemtime($favFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadfavicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasFav ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasFav): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletefavicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi favicon-ul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:300px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          PNG pătrat, mic (ex. <b>32×32</b> sau <b>64×64</b>), cu fundal transparent. Apare în tab-ul
+          browserului și la favorite. După încărcare, dă <b>Ctrl+Shift+R</b> în joc ca să-l vezi.
+        </div>
+      </div>
+    </div>
   </div>
   <?php else: ?>
 

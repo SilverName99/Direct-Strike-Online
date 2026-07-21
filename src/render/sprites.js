@@ -179,6 +179,11 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       if (man.corpse) load(`${base}corpse.png?v=${man.v || 0}`, (img) => { corpseImg = img; });
       // GLOBAL corpse decal for units bigger than 1×1 (falls back to the normal one)
       if (man.corpseBig) load(`${base}corpse-big.png?v=${man.v || 0}`, (img) => { corpseImgBig = img; });
+      // GLOBAL browser-tab icon (favicon)
+      if (man.favicon && typeof document !== 'undefined') {
+        const link = document.getElementById('favicon');
+        if (link) link.href = `${base}favicon.png?v=${man.v || 0}`;
+      }
       // per-race UNITS / CLĂDIRI shop-tab button art
       for (const [race, slots] of Object.entries(man.tabs || {})) {
         for (const [slot, file] of Object.entries(slots)) {
