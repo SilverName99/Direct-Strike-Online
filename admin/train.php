@@ -30,6 +30,7 @@ $authed = !empty($_SESSION['auth']);
     .fld { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
     .fld span { color: #b9c4d4; }
     .fld input { width: 96px; padding: 6px 8px; background: #0a0e14; color: #dbe4f0; border: 1px solid #2a3446; border-radius: 6px; font-size: 13px; }
+    .fld select { width: 118px; padding: 6px 8px; background: #0a0e14; color: #dbe4f0; border: 1px solid #2a3446; border-radius: 6px; font-size: 13px; cursor: pointer; }
     button { padding: 8px 16px; border-radius: 8px; border: 1px solid #3a2b6b; background: #2a1e55; color: #d9ccff; font-weight: 700; font-size: 13px; cursor: pointer; }
     button:hover { background: #35266b; }
     button.ghost { background: #10151d; color: #9fb0c8; border-color: #2a3446; }
@@ -65,6 +66,8 @@ $authed = !empty($_SESSION['auth']);
       <label class="fld"><span>Meciuri / genom</span><input id="c-matches" type="number" value="6" min="2" max="30"></label>
       <label class="fld"><span>Durată meci (s)</span><input id="c-secs" type="number" value="140" min="40" max="400"></label>
       <label class="fld"><span>Mutație (%)</span><input id="c-mut" type="number" value="25" min="1" max="90"></label>
+      <label class="fld"><span>Rasă stânga (E1)</span><select id="c-raceA"></select></label>
+      <label class="fld"><span>Rasă dreapta (E2)</span><select id="c-raceB"></select></label>
       <div class="row" style="gap:8px">
         <button id="b-start">▶ Start</button>
         <button id="b-pause" class="ghost" disabled>⏸ Pauză</button>
@@ -88,7 +91,7 @@ $authed = !empty($_SESSION['auth']);
 
   <h2>Rezumat meci — se schimbă cu fiecare generație</h2>
   <div class="panel">
-    <div class="sub" style="margin-bottom:8px">Cel mai bun creier al generației curente joacă un meci demonstrativ: cine a câștigat, la ce minut și ce a făcut fiecare tabără.</div>
+    <div class="sub" style="margin-bottom:8px">Cel mai bun creier al generației curente joacă un meci demonstrativ: cine a câștigat, la ce minut și — în stânga vs. dreapta — ce a făcut fiecare tabără. Rasele se aleg sus (E1 = stânga, E2 = dreapta; „Aleatoriu" = la întâmplare).</div>
     <div id="summary"><div style="color:#7c8ba1">Pornește antrenamentul — după prima generație apare povestea unui meci.</div></div>
   </div>
 

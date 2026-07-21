@@ -267,6 +267,14 @@ function renderUnits() {
   $('unit-stats').querySelector('tbody').innerHTML = html || '<tr><td colspan="4">Rulează antrenamentul ca să se adune date…</td></tr>';
 }
 
+// The showcase matchup: each side is the chosen race, or a random one when set
+// to "Aleatoriu" (empty value). Training itself stays mixed/random — only this
+// demo match honours the picker.
+function showcaseRaces() {
+  const pick = (id) => { const v = $(id) && $(id).value; return v && RACES.includes(v) ? v : pickRace(); };
+  return [pick('c-raceA'), pick('c-raceB')];
+}
+
 // Let the current best brain play one headless showcase match (main thread —
 // a single game is cheap) with a recorded timeline, so we can narrate it.
 function runShowcase(secs) {
@@ -276,7 +284,7 @@ function runShowcase(secs) {
       gen: generation,
       res: runMatch({
         seed: (Math.random() * 2 ** 31) | 0,
-        races: [pickRace(), pickRace()],
+        races: showcaseRaces(),
         genomeA: cleanGenome(best), genomeB: cleanGenome(best),
         maxSeconds: Math.max(40, secs || 140),
         summarize: true,
@@ -309,28 +317,39 @@ function renderSummary() {
     head = `⏱ Egal la timeout (${fmtTime(res.seconds)}, ${res.waves} valuri) — <b>${teamName(leader)}</b> a condus ca valoare de armată ${(Math.max(lead0, 1 - lead0) * 100).toFixed(0)}% din meci.`;
   }
   const evs = (res.events || []).filter((e) => e.kind !== 'end');
-  const lines = evs.map((e) => {
-    let txt;
-    if (e.kind === 'tier') txt = `${teamName(e.team)} → Tier ${e.tier}`;
-    else if (e.kind === 'hero') txt = `${teamName(e.team)} recrutează un erou${e.n > 1 ? ` (al ${e.n}-lea)` : ''}`;
-    else if (e.kind === 'basehit') txt = `baza ${teamName(e.team)} e lovită prima oară`;
-    else txt = e.kind;
-    return `<li><span style="color:#7c8ba1">${fmtTime(e.t)}</span> — ${txt}</li>`;
-  });
   const compLine = (t) => {
     const m = res.comp[t] || {};
     const arr = Object.entries(m).map(([u, c]) => ({ name: (statsUnit(races[t], u) || {}).name || u, c }))
-      .sort((a, b) => b.c - a.c).slice(0, 4);
+      .sort((a, b) => b.c - a.c).slice(0, 5);
     return arr.length ? arr.map((x) => `${x.c}× ${x.name}`).join(', ') : 'armată distrusă';
+  };
+  // one column per team: what THAT AI did (its own timeline + final army)
+  const col = (t) => {
+    const won = res.winner === t;
+    const mine = evs.filter((e) => e.team === t).map((e) => {
+      let txt;
+      if (e.kind === 'tier') txt = `Tier ${e.tier}`;
+      else if (e.kind === 'hero') txt = `recrutează erou${e.n > 1 ? ` (al ${e.n}-lea)` : ''}`;
+      else if (e.kind === 'basehit') txt = 'baza proprie lovită prima oară';
+      else txt = e.kind;
+      return `<li><span style="color:#7c8ba1">${fmtTime(e.t)}</span> — ${txt}</li>`;
+    });
+    const side = t === 0 ? '◀ stânga' : 'dreapta ▶';
+    return `<div class="stat" style="align-self:start">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="font-weight:700;color:${won ? '#ffd35c' : '#dbe4f0'}">${won ? '🏆 ' : ''}${teamName(t)}</span>
+        <span style="font-size:10px;color:#7c8ba1;text-transform:uppercase;letter-spacing:1px">${side}</span>
+      </div>
+      <div style="font-size:12px;color:#7c8ba1;margin-bottom:4px">Tier ${res.tier[t]} · ${Math.round(res.spent[t])}g cheltuiți</div>
+      <div style="font-size:12px;color:#dbe4f0;margin-bottom:8px"><span style="color:#7c8ba1">Armată:</span> ${compLine(t)}</div>
+      <div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#7c8ba1;margin-bottom:3px">Ce a făcut</div>
+      ${mine.length ? `<ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px">${mine.join('')}</ul>` : '<div style="color:#7c8ba1;font-size:13px">puține acțiuni notabile</div>'}
+    </div>`;
   };
   el.innerHTML = `
     <div style="margin-bottom:8px;color:#a97bff;font-size:11px;letter-spacing:1px;text-transform:uppercase">Generația ${gen}</div>
-    <div style="margin-bottom:10px;font-size:14px">${head}</div>
-    <div class="two" style="gap:10px;margin-bottom:10px">
-      <div class="stat"><div class="k">${teamName(0)} — tier ${res.tier[0]} · ${Math.round(res.spent[0])}g cheltuiți</div><div style="font-size:12px;color:#dbe4f0;margin-top:3px">${compLine(0)}</div></div>
-      <div class="stat"><div class="k">${teamName(1)} — tier ${res.tier[1]} · ${Math.round(res.spent[1])}g cheltuiți</div><div style="font-size:12px;color:#dbe4f0;margin-top:3px">${compLine(1)}</div></div>
-    </div>
-    ${lines.length ? `<div class="k" style="color:#7c8ba1;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Cronologie</div><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px">${lines.join('')}</ul>` : '<div style="color:#7c8ba1;font-size:13px">Fără evenimente notabile (meci scurt).</div>'}
+    <div style="margin-bottom:12px;font-size:14px">${head}</div>
+    <div class="two" style="gap:12px">${col(0)}${col(1)}</div>
   `;
 }
 
@@ -404,11 +423,18 @@ async function init() {
     balanceData = await res.json();
     if (balanceData && typeof balanceData === 'object') applyBalance(balanceData);
   } catch { balanceData = {}; }
+  populateRaceSelects();
   const n = setupWorkers(balanceData);
   setStatus(`gata · ${n} nuclee`, false);
   if (loadCheckpoint()) setStatus(`checkpoint găsit · generația ${generation}. Apasă Start pentru a continua.`, false);
   else seedPopulation(clampInt($('c-pop').value, 24));
   render(); updateButtons();
+}
+
+// Fill the two showcase race dropdowns: "Aleatoriu" + every race.
+function populateRaceSelects() {
+  const opts = '<option value="">Aleatoriu</option>' + RACES.map((r) => `<option value="${r}">${r}</option>`).join('');
+  for (const id of ['c-raceA', 'c-raceB']) { const s = $(id); if (s && !s.options.length) s.innerHTML = opts; }
 }
 
 const clampInt = (v, d) => { const n = parseInt(v, 10); return isFinite(n) ? n : d; };
