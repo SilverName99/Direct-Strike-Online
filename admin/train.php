@@ -79,6 +79,7 @@ $authed = !empty($_SESSION['auth']);
       <button id="b-export" class="ghost">⬇ Export JSON</button>
       <button id="b-import" class="ghost">⬆ Import JSON</button>
       <button id="b-reset" class="ghost">♻ Reset antrenament</button>
+      <button id="b-brain-reset" class="ghost">🧠 Reset creier din joc (AI default)</button>
       <span id="status">gata.</span>
     </div>
   </div>

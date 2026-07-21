@@ -470,6 +470,15 @@ $('b-apply').addEventListener('click', async () => {
   const r = await saveBalance('save-balance.php');
   setStatus(r === 'ok' ? 'aplicat ✓ AI-ul din joc folosește creierul evoluat.' : 'salvare eșuată (' + r + ')', false);
 });
+// Clear the applied brain from balance.json — the in-game AI reverts to the
+// hand-tuned default. (Doesn't touch the current training population.)
+$('b-brain-reset').addEventListener('click', async () => {
+  if (!confirm('Resetezi creierul din joc? AI-ul revine la comportamentul default (nu se șterge antrenamentul curent).')) return;
+  setAIGenome(null);
+  setStatus('se resetează creierul din joc…', false);
+  const r = await saveBalance('save-balance.php');
+  setStatus(r === 'ok' ? 'creier resetat ✓ AI-ul din joc folosește comportamentul default.' : 'salvare eșuată (' + r + ')', false);
+});
 $('b-export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify({ best, population, generation, history, stat }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ds-ai-training.json'; a.click();
