@@ -521,14 +521,15 @@ export class Renderer {
   // A wavy magenta tendril from (x0,y0) to (x1,y1) with orbs of stolen life
   // flowing back toward (x0,y0). Used by Life Drain (one target) and Soul
   // Harvest (one tendril per drained enemy).
-  drawTendril(ctx, x0, y0, x1, y1, stroke, orb, glow) {
+  drawTendril(ctx, x0, y0, x1, y1, stroke, orb, glow, width = 3) {
     const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1;
     if (!this.visible((x0 + x1) / 2, (y0 + y1) / 2, len / 2 + 20)) return;
     const nx = -dy / len, ny = dx / len;
     const segs = Math.max(6, Math.floor(len / 18));
+    const orbR = Math.max(1.5, width * 0.9); // orbs scale with the beam thickness
     ctx.save();
-    ctx.strokeStyle = stroke; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    ctx.shadowColor = glow; ctx.shadowBlur = 8;
+    ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.lineCap = 'round';
+    ctx.shadowColor = glow; ctx.shadowBlur = Math.max(3, width * 2);
     ctx.beginPath();
     for (let i = 0; i <= segs; i++) {
       const f = i / segs;
@@ -543,7 +544,7 @@ export class Renderer {
       const g = 1 - ((this.now * 0.9 + k / 3) % 1); // flows target -> her
       const wob = Math.sin(g * Math.PI * 3 + this.now * 14) * 8 * Math.sin(g * Math.PI);
       const px = x0 + dx * g + nx * wob, py = y0 + dy * g + ny * wob;
-      ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, orbR, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
@@ -569,17 +570,22 @@ export class Renderer {
       // Soul Harvest: one drain tendril per enemy in the ring, one heal tendril per ally
       if (u.harvestUntil > game.time && u.harvest) {
         const h = u.harvest;
-        const [x0, y0] = this._lerpXY(u, alpha);
+        const [x0f, y0f] = this._lerpXY(u, alpha);
+        const x0 = x0f;
+        // her end leaves from around chest/hands, not from under her feet — lift
+        // it up, scaled by how much she's grown in harvest form
+        const y0 = y0f - (UNITS[u.type]?.radius || 15) * 1.4 * ((h.size || 100) / 100);
+        const W = 1.6; // thinner beams for Soul Harvest (many at once)
         const dr2 = (h.drainRadius || 0) * (h.drainRadius || 0);
         const hr2 = (h.healRadius || 0) * (h.healRadius || 0);
         for (const e of game.entities) {
           if (e === u || e.hp <= 0 || e.isStructure) continue;
           const [ex, ey] = this._lerpXY(e, alpha);
-          const dd = (ex - x0) * (ex - x0) + (ey - y0) * (ey - y0);
+          const dd = (ex - x0f) * (ex - x0f) + (ey - y0f) * (ey - y0f); // range test from her feet
           if (e.team !== u.team) {
-            if (dr2 > 0 && dd <= dr2) this.drawTendril(ctx, x0, y0, ex, ey, 'rgba(209,75,143,0.8)', '#ff9ad4', '#d14b8f');
+            if (dr2 > 0 && dd <= dr2) this.drawTendril(ctx, x0, y0, ex, ey, 'rgba(209,75,143,0.8)', '#ff9ad4', '#d14b8f', W);
           } else if (e.hp < e.maxHp) {
-            if (hr2 > 0 && dd <= hr2) this.drawTendril(ctx, ex, ey, x0, y0, 'rgba(120,230,150,0.75)', '#c6ffd6', '#78e696');
+            if (hr2 > 0 && dd <= hr2) this.drawTendril(ctx, ex, ey, x0, y0, 'rgba(120,230,150,0.75)', '#c6ffd6', '#78e696', W);
           }
         }
       }
@@ -1465,6 +1471,9 @@ export class Renderer {
       // bars sit above the *visual* height, which scales with Size (%) (or the
       // dismounted size), so a big unit doesn't overlap its own HP/mana bar
       const drawR = stats.radius * Math.max(1, vScale);
+      // Soul Harvest enlarges her a lot and the sprite is taller than the hitbox,
+      // so lift the bars extra to clear her face
+      const barR = drawR + ((u.harvestUntil > game.time && u.harvest) ? drawR * 0.8 : 0);
 
       // HP + mana as slim rounded pills (matching the building bars): dark inset
       // with a hairline border and a rounded inner fill — clean, not chunky
@@ -1475,20 +1484,20 @@ export class Renderer {
         const w = Math.max(20, drawR * 2.4);
         const ratio = Math.max(0, u.hp / u.maxHp);
         const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
-        this.pillBar(ctx, x - w / 2, y - drawR - 10, w, 4, ratio, color);
+        this.pillBar(ctx, x - w / 2, y - barR - 10, w, 4, ratio, color);
         const tleft = Math.max(0, Math.min(1, (u.despawnAt - game.time) / u.maxLife));
-        this.pillBar(ctx, x - w / 2, y - drawR - 15, w, 3, tleft, '#7fb4ff');
+        this.pillBar(ctx, x - w / 2, y - barR - 15, w, 3, tleft, '#7fb4ff');
       } else if (u.hp < u.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
         const w = Math.max(20, drawR * 2.4);
         const ratio = Math.max(0, u.hp / u.maxHp);
         const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
-        this.pillBar(ctx, x - w / 2, y - drawR - 10, w, 4, ratio, color);
+        this.pillBar(ctx, x - w / 2, y - barR - 10, w, 4, ratio, color);
       }
       // mana bar (casters only), right under the HP bar slot
       if (u.manaMax > 0) {
         const w = Math.max(20, drawR * 2.4);
         const mratio = Math.max(0, Math.min(1, u.mana / u.manaMax));
-        this.pillBar(ctx, x - w / 2, y - drawR - 5, w, 3, mratio, '#4da6ff');
+        this.pillBar(ctx, x - w / 2, y - barR - 5, w, 3, mratio, '#4da6ff');
       }
 
       // status-effect indicators (slow swirl, haste sparks, regen cross...)
