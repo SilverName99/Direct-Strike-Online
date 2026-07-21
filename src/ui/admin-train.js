@@ -15,7 +15,7 @@ const SPEC = {
   tFront: { min: 0.02, max: 0.9 }, tRanged: { min: 0.02, max: 0.9 },
   tSpecial: { min: 0.02, max: 0.9 }, tSupport: { min: 0.02, max: 0.9 },
   counterChance: { min: 0, max: 1 }, aggression: { min: 0, max: 0.8 },
-  tier2Wave: { min: 1, max: 8, int: true }, tier3Wave: { min: 4, max: 14, int: true },
+  tier2Wave: { min: 1, max: 5, int: true }, tier3Wave: { min: 3, max: 9, int: true },
   savePatience: { min: 3, max: 40 }, farmBuffer: { min: 1, max: 10, int: true },
   maxGens: { min: 2, max: 10, int: true },
   midTowers: { min: 0, max: 5, int: true },

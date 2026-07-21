@@ -37,7 +37,7 @@ export function randomGenome(rand) {
   return {
     tFront: raw.front / sum, tRanged: raw.ranged / sum, tSpecial: raw.special / sum, tSupport: raw.support / sum,
     counterChance: r(0, 1), aggression: r(0, 0.7),
-    tier2Wave: Math.round(r(1, 6)), tier3Wave: Math.round(r(5, 12)),
+    tier2Wave: Math.round(r(1, 5)), tier3Wave: Math.round(r(4, 9)),
     savePatience: r(5, 30), farmBuffer: Math.round(r(1, 8)), maxGens: Math.round(r(3, 8)),
   };
 }

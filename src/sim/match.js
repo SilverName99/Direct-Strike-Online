@@ -107,12 +107,16 @@ export function runMatch({
   };
 }
 
-// Fitness of team 0 in [0,1]: a clean base kill = 1 / loss = 0; otherwise the
-// match is scored mostly by the living-army-value advantage (who won the
-// engagements), nudged by any base-HP differential.
+// Fitness of team 0 in [0,1]: a clean base kill = 1 / loss = 0. On a timeout the
+// score is driven mainly by how much MORE of the enemy base you tore down than
+// they tore down yours (decisive, breakthrough play) — with living-army value
+// only a secondary tiebreak. Scoring a timeout mostly by raw army value made
+// evolution mass cheap tier-1 units for a value lead and never try to break
+// through; rewarding base damage pushes it toward armies that actually win.
 export function scoreFor0(r) {
   if (r.winner === 0) return 1;
   if (r.winner === 1) return 0;
-  const base = (r.baseFrac[0] - r.baseFrac[1]) * 0.15; // small tiebreak
-  return Math.max(0, Math.min(1, r.armyAdv + base));
+  const baseAdv = r.baseFrac[0] - r.baseFrac[1]; // -1..1: >0 = we hurt their base more
+  const armyTilt = r.armyAdv - 0.5;              // -0.5..0.5
+  return Math.max(0, Math.min(1, 0.5 + baseAdv * 0.42 + armyTilt * 0.3));
 }
