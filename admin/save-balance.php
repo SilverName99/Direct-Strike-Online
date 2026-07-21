@@ -54,7 +54,7 @@ if (!is_array($data)) {
 }
 
 // keep only known top-level sections; re-encode to sanitize
-$clean = array_intersect_key($data, array_flip(['buildings', 'turret', 'mainHp', 'mainIdleSpeed', 'tierCosts', 'general', 'middles', 'middleEmpty', 'buildingSizes', 'tint', 'healthbarAlways', 'pushMode', 'pushCrossTeam', 'pushForce', 'goldIcon', 'menuLogo', 'menuBtn', 'menuCard', 'menuBack', 'menuSlideFrame', 'menuFsBtn', 'menuSoundBtn', 'menuPwf', 'menuPlay', 'menuSetupFrame', 'menuOptionsFrame', 'menuRacePill', 'menuRaceHumans', 'menuRaceOrcs', 'menuBg', 'loadingBg', 'loadingBgs', 'menuMusic', 'menuMusicVol', 'loadingTips', 'tutorials', 'unitOrder', 'music', 'abilities', 'upgrades', 'races', 'aiGenome']));
+$clean = array_intersect_key($data, array_flip(['buildings', 'turret', 'mainHp', 'mainIdleSpeed', 'tierCosts', 'general', 'middles', 'middleEmpty', 'buildingSizes', 'tint', 'healthbarAlways', 'fogOfWar', 'pushMode', 'pushCrossTeam', 'pushForce', 'goldIcon', 'menuLogo', 'menuBtn', 'menuCard', 'menuBack', 'menuSlideFrame', 'menuFsBtn', 'menuSoundBtn', 'menuPwf', 'menuPlay', 'menuSetupFrame', 'menuOptionsFrame', 'menuRacePill', 'menuRaceHumans', 'menuRaceOrcs', 'menuBg', 'loadingBg', 'loadingBgs', 'menuMusic', 'menuMusicVol', 'loadingTips', 'tutorials', 'unitOrder', 'music', 'abilities', 'upgrades', 'races', 'aiGenome']));
 @mkdir(dirname($file), 0755, true);
 if (file_put_contents($file, json_encode($clean, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false) {
   http_response_code(500);
