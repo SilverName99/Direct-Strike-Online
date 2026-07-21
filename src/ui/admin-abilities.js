@@ -79,7 +79,7 @@ function applyFilter(chars) {
 const KIND_LABELS = {
   summon: {
     range: 'Rază atac (invocat)', damage: 'Damage (invocat)',
-    size: 'Mărime invocat (%)', opacity: 'Transparență invocat (%) — 100 = opac',
+    size: 'Mărime invocat (%)',
   },
 };
 function paramLabel(base, k) {

@@ -431,7 +431,7 @@ export const ABILITIES = {
       hp: 300, damage: 28, range: 30, period: 1.1, speed: 95,
       hpPerRank: 150,     // extra HP per rank learned above rank 1
       damagePerRank: 16,  // extra damage per rank learned above rank 1
-      animSpeed: 5, size: 110, opacity: 100,
+      animSpeed: 5, size: 110,
       splash: 0, flying: 0, projectile: 0, armored: 0,
       targetsAir: 0, targetsGround: 1,
       castPrepare: 0.3,
@@ -506,10 +506,12 @@ export const ABILITIES = {
       tier: 1, manaCost: 35, cooldown: 6,
       corpseRange: 220,   // how far she can reach a corpse to raise
       corpseLife: 8,      // seconds a corpse stays raisable after any death
+      corpseSize: 100,    // % size of the raisable-corpse decal on the ground
+      corpseOpacity: 100, // % opacity of the raisable-corpse decal (100 = opac)
       cap: 3, life: 15,   // skeleton lifetime (scales per rank)
       hp: 120, damage: 16, range: 28, period: 1.1, speed: 95,
       hpPerRank: 60, damagePerRank: 8,
-      animSpeed: 5, size: 100, opacity: 100,
+      animSpeed: 5, size: 100,
       splash: 0, flying: 0, projectile: 0, armored: 0,
       targetsAir: 0, targetsGround: 1,
       castPrepare: 0,
@@ -636,6 +638,8 @@ export const ABILITY_PARAM_LABELS = {
   healPerSec3: 'HP primit/s rang 3 (0 = auto)',
   corpseRange: 'Rază cadavru (Rise Dead)',
   corpseLife: 'Cât rămâne cadavrul (s)',
+  corpseSize: 'Mărime cadavru (%)',
+  corpseOpacity: 'Transparență cadavru (%) — 100 = opac',
   drainRadius: 'Rază dren inamici (Soul Harvest)',
   drainDps: 'Damage/s dren (o vindecă și pe ea)',
   healRadius: 'Rază heal aliați (Soul Harvest)',
@@ -654,7 +658,6 @@ export const ABILITY_PARAM_LABELS = {
   speed: 'Viteză mișcare',
   animSpeed: 'Viteză animație mers (flip/s)',
   size: 'Mărime (%)',
-  opacity: 'Opacitate (%) — 100 = opac, mai mic = transparent',
   splash: 'Splash (rază, 0 = fără)',
   flying: 'Zboară (1/0)',
   projectile: 'Atac la distanță (1/0)',
