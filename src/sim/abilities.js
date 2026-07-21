@@ -256,12 +256,6 @@ export function updateAbilities(game, dt) {
     }
   }
 
-  // Poison Arrow stance: expire it once its time is up (effStats reads u.poison
-  // while it's live and tags her attacks with the poison-on-hit).
-  for (const u of game.entities) {
-    if ((u.poisonUntil || 0) && time >= u.poisonUntil) { u.poisonUntil = 0; u.poison = null; }
-  }
-
   // Life Drain channel: while committed to a target, drain its HP each tick and
   // heal the caster; ends when the time is up, the target is lost/out of range,
   // or she runs out of mana.
@@ -578,7 +572,6 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
   if (manual) {
     if (aid === 'beastform') return (caster.morphUntil || 0) > time ? null : caster;
     if (aid === 'vortexoflight') return (caster.vortexUntil || 0) > time ? null : caster;
-    if (aid === 'poisonarrow') return (caster.poisonUntil || 0) > time ? null : caster;
     if (aid === 'soulharvest') return (caster.harvestUntil || 0) > time ? null : caster;
     if (SELF_MANUAL.has(aid)) return caster;
     // ally/enemy-targeted actives (heal, holylight, frostbolt, summons…) fall
@@ -609,15 +602,6 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
       if (alive >= cap) return null;
     }
     return caster; // self-cast: the animal appears beside the caster
-  }
-  if (aid === 'poisonarrow') {
-    // enter the stance when a fight is on and it isn't already active
-    if ((caster.poisonUntil || 0) > time) return null;
-    const reach = (game.ustatOf(caster).range || 0) + 30;
-    for (const u of game.entities) {
-      if (u.hp > 0 && u.team !== caster.team && !u.isStructure && inRadius(u, caster, reach)) return caster;
-    }
-    return null;
   }
   if (aid === 'lifedrain') {
     if ((caster.drainUntil || 0) > time) return null; // already channelling
@@ -1016,14 +1000,6 @@ function releaseSpell(game, caster, time) {
     caster.vortexUntil = time + (p.duration || 0);
     caster.vortex = { radius: p.radius || 0, dps: p.dps || 0, size: p.size || 100 };
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
-    return hold;
-  }
-  if (aid === 'poisonarrow') {
-    // enter the poison stance: effStats tags her attacks with poison-on-hit
-    // while it's live (updateAbilities expires it)
-    caster.poisonUntil = time + (p.duration || 0);
-    caster.poison = { dot: p.dps || 0, dur: p.dotDuration || 0 };
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     return hold;
   }
   if (aid === 'lifedrain') {

@@ -32,12 +32,6 @@ export function effStats(u, stats) {
       period: stats.period * Math.max(0.25, 1 - (dbuff.haste || 0) / 100),
     };
   }
-  // Poison Arrow stance (Spirit Huntress): while live, every attack carries a
-  // poison damage-over-time on hit (u.poison is cleared when the stance expires),
-  // and her projectile borrows the Poison Arrow sprite.
-  if (u.poison) {
-    stats = { ...stats, acid: { dot: u.poison.dot, dur: u.poison.dur }, projAbility: 'poisonarrow' };
-  }
   // Elemental Form (hero ultimate): a giant MELEE beast — +damage, short reach, and
   // a splash applied in the melee branch (morphSplash/morphSplashPct). Being a
   // grounded melee colossus, it can no longer reach fliers (targetsAir off) even
@@ -400,7 +394,19 @@ function updateFighter(game, u, stats, dt) {
       if (u.windup <= 0) {
         u.windup = 0;
         if (stats.projectile) {
-          spawnProjectile(game, u, stats, target);
+          // Poison Arrow (Spirit Huntress passive): while she has mana, every
+          // arrow spends manaPerShot and lands a poison damage-over-time, using
+          // the Poison Arrow sprite. Out of mana -> plain arrows.
+          let shotStats = stats;
+          const pa = u.hero ? learnedAbilityParams(u, 'poisonarrow') : null;
+          if (pa) {
+            const cost = pa.manaPerShot || 0;
+            if ((u.mana || 0) >= cost) {
+              u.mana = (u.mana || 0) - cost;
+              shotStats = { ...stats, acid: { dot: pa.dps || 0, dur: pa.dotDuration || 0 }, projAbility: 'poisonarrow' };
+            }
+          }
+          spawnProjectile(game, u, shotStats, target);
           game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
         } else {
           const dmg = dmgVsTarget(stats.damage, stats.buildingDamage, target);

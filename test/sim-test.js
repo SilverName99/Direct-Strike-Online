@@ -1085,18 +1085,24 @@ console.log('abilities (casters, auras, status effects)');
   }
 
   // ---------------------------------------- Spirit Huntress (Orc hero 3) kit
-  // (casters here use autoAttackBetween:true, like a real hero, so basic attacks
-  //  land between spells — Poison Arrow needs her to actually shoot.)
-  // Poison Arrow: while the stance is live, her arrows apply a poison DoT
+  // Poison Arrow is now a PASSIVE: while she has mana, every arrow spends
+  // manaPerShot and lands a poison (acid) DoT; out of mana -> plain arrows.
   {
-    applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['poisonarrow'], mana: 100 } } } } });
+    applyBalance();
     const ab = resolvedAbility('poisonarrow'); const saved = { ...ab.params };
-    Object.assign(ab.params, { duration: 8, dps: 20, dotDuration: 3, manaCost: 0, cooldown: 8, castPrepare: 0, tier: 1 });
+    Object.assign(ab.params, { dps: 20, dps1: 0, dps2: 0, dps3: 0, dotDuration: 3, manaPerShot: 6, tier: 1 });
     const game = new Game(30, { races: ['humans', 'orcs'] });
-    const caster = spawnUnit(game, 0, 'slinger', 600, 400); caster.mana = 100;
+    const caster = spawnUnit(game, 0, 'slinger', 600, 400);
+    caster.hero = true; caster.heroRanks = { poisonarrow: 1 }; caster.mana = 100;
     const enemy = spawnUnit(game, 1, 'grunt', 700, 400); enemy.hp = enemy.maxHp = 100000;
     run(game, 2);
     check('poison arrow: target gains a poison (acid) DoT', (enemy.effects || []).some((x) => x.kind === 'acid'), JSON.stringify(enemy.effects));
+    check('poison arrow: passive spends mana per shot', caster.mana < 100, `${caster.mana}`);
+    // out of mana -> arrows go back to plain (no new poison applied)
+    caster.mana = 0;
+    const enemy2 = spawnUnit(game, 1, 'grunt', 640, 400); enemy2.hp = enemy2.maxHp = 100000;
+    run(game, 2);
+    check('poison arrow: no mana -> plain arrows (no poison)', !(enemy2.effects || []).some((x) => x.kind === 'acid'), JSON.stringify(enemy2.effects));
     ab.params = saved;
   }
   // Life Drain: channel damages the target and heals her

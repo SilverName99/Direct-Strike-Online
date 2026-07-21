@@ -470,15 +470,14 @@ export const ABILITIES = {
   // ---- Spirit Huntress (orc hero, female, ranger/mage) --------------------
   poisonarrow: {
     name: 'Poison Arrow',
-    kind: 'active',
+    kind: 'passive', // always on: each arrow poisons AND costs mana per shot
     color: '#8fd04a',
-    desc: 'Intră într-o stare pe timp: cât e activă, săgețile ei aplică poison damage (damage-over-time). Puterea otrăvii crește cu rangul (setabilă per rang).',
+    desc: 'Pasivă: cât are mana, fiecare săgeată aplică poison (damage-over-time) și consumă mana per tragere. Fără mana → săgeți normale. Puterea otrăvii crește cu rangul (setabilă per rang).',
     params: {
-      tier: 1, cooldown: 8, manaCost: 40,
-      duration: 8,        // seconds the stance lasts
+      tier: 1,
+      manaPerShot: 6,     // mana spent per poisoned arrow (0 = free)
       dps: 12, dps1: 0, dps2: 0, dps3: 0, // poison damage/s applied on hit (per-rank)
       dotDuration: 3,     // how long each poison stack lasts on a struck target
-      castPrepare: 0,     // orc heroine casts directly (no prepare frame)
     },
   },
   lifedrain: {
@@ -625,6 +624,7 @@ export const ABILITY_PARAM_LABELS = {
   manaGain2: 'Mana regen/s rang 2',
   manaGain3: 'Mana regen/s rang 3',
   // Spirit Huntress kit
+  manaPerShot: 'Mana pe săgeată otrăvită',
   dotDuration: 'Durată poison pe lovitură (s)',
   drainPerSec: 'HP furat/s (de la țintă)',
   drainPerSec1: 'HP furat/s rang 1 (0 = auto)',
