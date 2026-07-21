@@ -8,6 +8,7 @@ $navActive = $navActive ?? '';
 $navTabs = [
   ['humans',    'index.php?race=humans', '⚔ Humans'],
   ['orcs',      'index.php?race=orcs',   '🪓 Orcs'],
+  ['undead',    'index.php?race=undead', '💀 Undead'],
   ['icons',     'index.php?view=icons',  '🎨 Iconițe'],
   ['balance',   'balance.php',           '⚙ Balance'],
   ['abilities', 'abilities.php',         '✨ Abilități'],

@@ -14,7 +14,7 @@ session_start();
 
 define('DS_ADMIN', 1);
 
-const RACES = ['humans', 'orcs'];
+const RACES = ['humans', 'orcs', 'undead'];
 const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
 // Heroes are units too (sprites/portrait), but live on their own admin tab and
 // are NOT part of the shop order.
@@ -92,7 +92,7 @@ const TOTEM_ABILITIES = ['slowingtotem'];
 const ATTACK_REPLACING_ABILITIES = ['empower'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
-const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova']];
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova'], 'undead' => ['warstomp', 'cleave', 'lifedrain', 'bloodlust']];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',

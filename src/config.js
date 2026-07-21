@@ -2,11 +2,11 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v12.88';
+export const VERSION = 'v12.89';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
-export const RACES = ['humans', 'orcs'];
+export const RACES = ['humans', 'orcs', 'undead'];
 
 export const CONFIG = {
   // Simulation

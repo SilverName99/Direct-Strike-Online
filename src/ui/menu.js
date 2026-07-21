@@ -497,6 +497,7 @@ const races = (opt) => `
   <div class="m-opts" data-opt="${opt}">
     <button class="m-pill" data-race="humans">⚔ Humans</button>
     <button class="m-pill" data-race="orcs">🪓 Orcs</button>
+    <button class="m-pill" data-race="undead">💀 Undead</button>
   </div>`;
 
 const TEMPLATE = `

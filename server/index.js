@@ -29,7 +29,7 @@ const TICK_HZ = 30;                 // must match CONFIG.FIXED_DT (1/30) on the 
 const INPUT_DELAY = Number(process.env.INPUT_DELAY || 2);
 const CLOCK_EVERY = 6;              // broadcast the authoritative tick every N ticks (~5 Hz)
 const PROTOCOL = 2;                 // v2: races picked in the lobby travel in matchmaking + start
-const RACES = ['humans', 'orcs'];
+const RACES = ['humans', 'orcs', 'undead'];
 const raceOf = (v) => (RACES.includes(v) ? v : 'humans');
 
 let nextId = 1;
