@@ -40,6 +40,8 @@ export function spawnUnit(game, team, type, x, y) {
     dashCharge: false,// a dash is committed; its bonus lands on arrival
     dashReadyAt: 0,   // game.time when the next dash is allowed (cooldown)
     dashVel: 0,       // effective charge speed while dashing (set by combat)
+    // Grave Digger (Undead): dig timer + current grave spot + count of graves dug
+    digTimer: 0, digTargetX: null, digTargetY: null, digCount: 0,
     // "Dashing & Fleeing mount" upgrade: charge a ranged intruder, then fight
     // on foot with dismounted stat overrides for the rest of this life.
     // "Landing Split" reuses the same overrides for the landed rider, and

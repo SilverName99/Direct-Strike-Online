@@ -880,29 +880,33 @@ export class Game {
     this.structures = this.structures.filter((x) => x !== s);
   }
 
+  // Drop a raisable corpse (game.corpses) the Spirit Huntress / Necromancer can
+  // raise (Rise Dead). `big` picks the larger decal + its own duration. `immediate`
+  // = raisable at once (dug up by a Grave Digger); otherwise it waits out the
+  // death animation (CORPSE_RAISE_DELAY) before it can be raised.
+  addCorpse(x, y, big, immediate) {
+    const rp = resolvedAbility('risedead')?.params || {};
+    const lifeSmall = rp.corpseLife || 0;
+    const lifeBig = rp.corpseBigLife != null ? rp.corpseBigLife : lifeSmall;
+    const life = big ? lifeBig : lifeSmall;
+    if (life <= 0) return;
+    const delay = immediate ? 0 : (CONFIG.CORPSE_RAISE_DELAY || 0);
+    this.corpses.push({ x, y, big: !!big, readyAt: this.time + delay, until: this.time + delay + life });
+  }
+
   removeDead() {
     const alive = [];
     // a dead fighter leaves a corpse the Spirit Huntress can raise (Rise Dead).
     // Summons and structures leave nothing (no skeleton-from-skeleton loops).
-    const rp = resolvedAbility('risedead')?.params || {};
-    const lifeSmall = rp.corpseLife || 0;
-    const lifeBig = rp.corpseBigLife != null ? rp.corpseBigLife : lifeSmall;
     for (const e of this.entities) {
       if (e.hp > 0) {
         alive.push(e);
       } else {
         if (!e.summon && !e.isStructure) {
-          // units bigger than 1×1 leave the larger corpse decal (if uploaded) and
-          // use its own raisable duration
+          // units bigger than 1×1 leave the larger corpse decal (if uploaded)
           const us = this.ustatOf(e);
           const big = !!(us && ((us.cw || 1) > 1 || (us.ch || 1) > 1));
-          const life = big ? lifeBig : lifeSmall;
-          if (life > 0) {
-            // the corpse only becomes raisable AFTER the death animation has fully
-            // played out (readyAt); the raisable window (life) runs from then.
-            const delay = CONFIG.CORPSE_RAISE_DELAY || 0;
-            this.corpses.push({ x: e.x, y: e.y, big, readyAt: this.time + delay, until: this.time + delay + life });
-          }
+          this.addCorpse(e.x, e.y, big, false);
         }
         this.byId.delete(e.id);
       }

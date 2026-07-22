@@ -159,6 +159,16 @@ export const UPGRADES = {
       allyRange: 250,  // radius to look for those allies (0 = whole field)
     },
   },
+  gravedigflee: {
+    name: 'Fugă (Groapar)',
+    desc: 'Groaparul Undead: când un inamic intră în raza lui de fugă, o ia la fugă spre baza ta, apoi revine să sape. Raza și viteza de fugă se setează în ⚙ stats la unitatea groapar. Se cumpără o dată din bază, ieftin.',
+    kind: 'gravedigflee',
+    race: 'undead', // implicit pe rasa Undead
+    unit: 'dasher', // implicit pe slotul groaparului (unitatea 3)
+    params: {
+      cost: 60, // aur, din Bază
+    },
+  },
 };
 
 export const UPGRADE_IDS = Object.keys(UPGRADES);

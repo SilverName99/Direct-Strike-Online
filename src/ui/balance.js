@@ -209,6 +209,15 @@ function baseUnits(race) {
       xp: 1,               // XP granted to the enemy hero when this unit dies
       food: 1,             // food/supply this unit consumes when placed
       vision: 0,           // fog-of-war sight radius (0 = auto: attack range + bonus)
+      // Grave Digger (Undead): a non-combat unit that digs corpses out of the
+      // ground when an enemy comes near, then hops to a new spot and digs again.
+      gravedig: false,     // is this a grave digger (no attack, digs corpses)
+      digRange: 260,       // an enemy within this radius makes it start digging
+      digInterval: 4,      // seconds between the corpses it produces
+      hopRadius: 70,       // how far it moves to the next grave after each dig
+      digBig: false,       // dig the big corpse decal instead of the 1×1 one
+      fleeRange: 140,      // (with the flee upgrade) enemy this close -> it flees
+      fleeSpeed: 130,      // flee movement speed
     };
     // the hero carries its own leveling config (thresholds + per-level growth)
     // plus its 3 skill abilities + 1 ultimate (assigned in admin, ranked in-game)
@@ -351,6 +360,8 @@ function raceUnitsSnapshot(race) {
       bounce: !!u.bounce, bouncePower: u.bouncePower, bounceRadius: u.bounceRadius, bounceMax: u.bounceMax,
       dash: !!u.dash, dashDamage: u.dashDamage, dashSpeed: u.dashSpeed, dashRange: u.dashRange, dashCd: u.dashCd,
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
+      gravedig: !!u.gravedig, digRange: u.digRange, digInterval: u.digInterval, hopRadius: u.hopRadius,
+      digBig: !!u.digBig, fleeRange: u.fleeRange, fleeSpeed: u.fleeSpeed,
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
       slot: Number.isInteger(u.slot) ? u.slot : -1,
       xp: u.xp, food: u.food, vision: u.vision,
@@ -632,6 +643,14 @@ function applyRaceUnits(race, unitsData) {
     }
     if (num(vals.mana) !== undefined) u.mana = clamp(vals.mana, 0, 100000);
     if (num(vals.manaRegen) !== undefined) u.manaRegen = clamp(vals.manaRegen, 0, 1000);
+    // Grave Digger (Undead) config
+    if (typeof vals.gravedig === 'boolean') u.gravedig = vals.gravedig;
+    if (typeof vals.digBig === 'boolean') u.digBig = vals.digBig;
+    if (num(vals.digRange) !== undefined) u.digRange = clamp(vals.digRange, 0, 4000);
+    if (num(vals.digInterval) !== undefined) u.digInterval = clamp(vals.digInterval, 0.2, 120);
+    if (num(vals.hopRadius) !== undefined) u.hopRadius = clamp(vals.hopRadius, 0, 800);
+    if (num(vals.fleeRange) !== undefined) u.fleeRange = clamp(vals.fleeRange, 0, 4000);
+    if (num(vals.fleeSpeed) !== undefined) u.fleeSpeed = clamp(vals.fleeSpeed, 0, 1000);
     // "Ranged" drives whether the basic attack fires a projectile + its speed
     u.projectile = !!u.ranged;
     u.projectileSpeed = u.projSpeed;

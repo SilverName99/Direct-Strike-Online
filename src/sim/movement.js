@@ -6,6 +6,7 @@ export function updateMovement(game, dt) {
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
     const stats = game.ustatOf(u);
+    if (stats.gravedig) continue; // grave diggers drive their own movement (combat.js)
     // dashing units close the gap at their charge speed (basic dash or mount);
     // dismounted riders / split beasts move at their override speed
     let base;

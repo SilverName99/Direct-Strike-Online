@@ -150,7 +150,9 @@ export function updateCombat(game, dt) {
     // healer or a fighter. It only falls through to the basic attack/heal
     // when out of mana (or the admin opted into auto-attacks between spells).
     if (hasActiveAbility(game, u, stats) && stepCasterHold(game, u, stats, dt)) continue;
-    if (stats.heal) {
+    if (stats.gravedig) {
+      updateGraveDigger(game, u, stats, dt);
+    } else if (stats.heal) {
       updateHealer(game, u, stats);
     } else {
       updateFighter(game, u, stats, dt);
@@ -454,6 +456,85 @@ function updateFighter(game, u, stats, dt) {
   } else {
     u.state = 'march';
     u.windup = 0; // moved out of range -> the swing is interrupted
+  }
+}
+
+// Grave Digger (Undead): a non-combat unit. It marches with the army; when an
+// enemy comes within digRange it stops and digs corpses out of the ground (one
+// every digInterval, hopping to a fresh spot each time); with the flee upgrade,
+// an enemy inside fleeRange makes it run for home. Its movement is fully handled
+// here (movement.js skips grave diggers), so `state` is only a render pose.
+function updateGraveDigger(game, u, stats, dt) {
+  u.windup = 0; u.dashing = false; u.dashCharge = false; u.targetId = null;
+  // nearest living enemy UNIT (structures don't trigger it)
+  let nd2 = Infinity, nx = 0, ny = 0;
+  for (const e of game.entities) {
+    if (e.team === u.team || e.hp <= 0 || e.isStructure) continue;
+    const dx = e.x - u.x, dy = e.y - u.y, d2 = dx * dx + dy * dy;
+    if (d2 < nd2) { nd2 = d2; nx = e.x; ny = e.y; }
+  }
+  const nd = Math.sqrt(nd2);
+  const digRange = stats.digRange || 0;
+  const fleeRange = stats.fleeRange || 0;
+  const fleeOn = game.upgradeActive(u.team, 'gravedigflee');
+
+  // 1) FLEE (upgrade only): a threat is dangerously close -> run away, toward home.
+  if (fleeOn && nd <= fleeRange) {
+    u.digTimer = 0; u.digTargetX = null;
+    const home = game.mainOf(u.team);
+    let ax = u.x - nx, ay = u.y - ny; // away from the enemy
+    if (home) { ax += (home.x - u.x) * 0.5; ay += (home.y - u.y) * 0.5; } // biased home
+    const al = Math.hypot(ax, ay) || 1;
+    const sp = stats.fleeSpeed || stats.speed || 100;
+    u.x += (ax / al) * sp * dt; u.y += (ay / al) * sp * dt;
+    u.mvx = ax / al; u.mvy = ay / al; u.state = 'march';
+    return;
+  }
+
+  // 2) DIG: an enemy is within reach -> dig here, then hop to a fresh grave.
+  if (digRange > 0 && nd <= digRange) {
+    if (u.digTargetX == null) { u.digTargetX = u.x; u.digTargetY = u.y; }
+    const dx = u.digTargetX - u.x, dy = u.digTargetY - u.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 6) { // walk to the grave spot
+      const step = Math.min((stats.speed || 70) * dt, dist);
+      u.x += (dx / dist) * step; u.y += (dy / dist) * step;
+      u.mvx = dx / dist; u.mvy = dy / dist; u.state = 'march';
+    } else { // at the spot: dig
+      u.state = 'attack'; // "digging" pose
+      u.digTimer = (u.digTimer || 0) + dt;
+      if (u.digTimer >= (stats.digInterval || 4)) {
+        u.digTimer = 0;
+        game.addCorpse(u.x, u.y, !!stats.digBig, true);
+        game.events.push({ type: 'dig', x: u.x, y: u.y, team: u.team });
+        u.digCount = (u.digCount || 0) + 1;
+        // next grave within hopRadius (deterministic hash -> angle + distance)
+        const hop = stats.hopRadius || 0;
+        const h1 = ((u.id * 2654435761 + u.digCount * 40503) >>> 0) / 4294967296;
+        const h2 = ((u.id * 40503 + (u.digCount + 7) * 2654435761) >>> 0) / 4294967296;
+        const ang = h1 * Math.PI * 2, r = hop * (0.4 + 0.6 * h2);
+        u.digTargetX = u.x + Math.cos(ang) * r; u.digTargetY = u.y + Math.sin(ang) * r;
+      }
+    }
+    return;
+  }
+
+  // 3) Nobody near -> advance WITH the army: only move up while a friendly unit
+  //    is ahead of us (toward the enemy). Alone at the front, hold — don't march
+  //    into the enemy and die pointlessly.
+  u.digTimer = 0; u.digTargetX = null;
+  const enemyMain = game.mainOf(1 - u.team);
+  const dir = enemyMain ? (Math.sign(enemyMain.x - u.x) || 1) : (u.team === 0 ? 1 : -1);
+  let allyAhead = false;
+  for (const a of game.entities) {
+    if (a === u || a.team !== u.team || a.hp <= 0 || a.isStructure) continue;
+    if ((a.x - u.x) * dir > 20) { allyAhead = true; break; }
+  }
+  if (allyAhead) {
+    u.x += (stats.speed || 70) * dt * dir;
+    u.mvx = dir; u.mvy = 0; u.state = 'march';
+  } else {
+    u.state = 'idle'; u.mvx = 0; u.mvy = 0;
   }
 }
 

@@ -47,6 +47,7 @@ export function randomGenome(rand) {
 // front even on the old "archon" (ranged) slot, a shooter as ranged, etc.
 export function categoryOf(s) {
   if (!s) return 'front';
+  if (s.gravedig) return 'support'; // Grave Digger: economy unit, sits in the back
   if (s.heal || (s.caster && s.abilities && s.abilities.length)) return 'support';
   if (s.isAir || ((s.splash || 0) > 0 && s.ranged)) return 'special'; // fliers + artillery
   if (s.ranged) return 'ranged';
@@ -64,6 +65,7 @@ const ROLE_BANDS = {
 // Role from RESOLVED stats (works for fully custom units): healers/casters and
 // artillery sit in the back, ranged/fliers mid, everyone else up front.
 function roleOf(s) {
+  if (s.gravedig) return 'back'; // Grave Digger stays behind the line
   if (s.heal || (s.caster && s.abilities && s.abilities.length)) return 'back';
   if ((s.range || 0) >= 250) return 'back';
   if (s.isAir || (s.range || 0) >= 100) return 'mid';

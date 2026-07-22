@@ -116,7 +116,7 @@ function fieldsFor(ent, kind) {
     // per-race unit: grouped sections (General / Luptă / Ranged & Bounce /
     // Caster & Abilități) — all for THIS race only.
     const u = statsUnit(RACE, ent);
-    const G = 'General', F = 'Luptă', R = 'Ranged & Bounce', C = 'Caster & Abilități';
+    const G = 'General', F = 'Luptă', R = 'Ranged & Bounce', C = 'Caster & Abilități', D = 'Groapar (Grave Digger)';
 
     out.push({ group: G, label: 'Nume', type: 'text', value: u.name, apply: (v) => { u.name = v; } });
     out.push({
@@ -372,6 +372,40 @@ function fieldsFor(ent, kind) {
       group: C, type: 'note',
       label: 'După Salvează + refresh: la caster, atacul devine 1 frame + un frame comun „Prepare spell", iar fiecare abilitate activă primește 1 frame „Cast …". Bifa „Ranged" adaugă slotul de imagine „Proiectil".',
     });
+
+    // Grave Digger (Undead): non-combat unit that digs corpses out of the ground.
+    out.push({
+      group: D, label: 'Groapar (sapă cadavre, nu atacă)', type: 'check', cls: 'gravedig-chk', value: !!u.gravedig,
+      apply: (v) => { u.gravedig = !!v; },
+    });
+    out.push({
+      group: D, label: 'Rază de săpat (inamic în ea → sapă)', type: 'num', cls: 'gd-sel', disabled: !u.gravedig,
+      value: u.digRange ?? 260, apply: (v) => { u.digRange = clamp(v, 0, 4000); },
+    });
+    out.push({
+      group: D, label: 'Ritm săpat (s / cadavru)', type: 'num', cls: 'gd-sel', disabled: !u.gravedig,
+      value: u.digInterval ?? 4, apply: (v) => { u.digInterval = clamp(v, 0.2, 120); },
+    });
+    out.push({
+      group: D, label: 'Rază hop (mută între gropi)', type: 'num', cls: 'gd-sel', disabled: !u.gravedig,
+      value: u.hopRadius ?? 70, apply: (v) => { u.hopRadius = clamp(v, 0, 800); },
+    });
+    out.push({
+      group: D, label: 'Cadavru mare (decal mare)', type: 'check', cls: 'gd-sel', disabled: !u.gravedig,
+      value: !!u.digBig, apply: (v) => { u.digBig = !!v; },
+    });
+    out.push({
+      group: D, label: 'Rază de fugă (upgrade)', type: 'num', cls: 'gd-sel', disabled: !u.gravedig,
+      value: u.fleeRange ?? 140, apply: (v) => { u.fleeRange = clamp(v, 0, 4000); },
+    });
+    out.push({
+      group: D, label: 'Viteză de fugă (upgrade)', type: 'num', cls: 'gd-sel', disabled: !u.gravedig,
+      value: u.fleeSpeed ?? 130, apply: (v) => { u.fleeSpeed = clamp(v, 0, 1000); },
+    });
+    out.push({
+      group: D, type: 'note',
+      label: 'Groaparul merge cu armata; când un inamic intră în „raza de săpat" se oprește și scoate cadavre din pământ (pe care Necromancer-ul le poate ridica). Cu upgrade-ul „Fugă", inamicul apropiat îl face să fugă spre bază.',
+    });
     return out;
   }
 
@@ -520,6 +554,12 @@ function open(ent, kind) {
   if (casterChk) {
     casterChk.addEventListener('change', () => {
       for (const s of bodyEl.querySelectorAll('.ab-sel')) s.disabled = !casterChk.checked;
+    });
+  }
+  const gravedigChk = bodyEl.querySelector('.gravedig-chk');
+  if (gravedigChk) {
+    gravedigChk.addEventListener('change', () => {
+      for (const s of bodyEl.querySelectorAll('.gd-sel')) s.disabled = !gravedigChk.checked;
     });
   }
   const rangedChk = bodyEl.querySelector('.ranged-chk');

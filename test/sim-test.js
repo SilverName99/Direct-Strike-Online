@@ -1159,6 +1159,31 @@ console.log('abilities (casters, auras, status effects)');
     check('rise dead: skeleton rose from the corpse (not beside her)', skel && skel.x > 750, skel && `${skel.x}`);
     ab.params = saved;
   }
+  // Grave Digger (Undead unit 3): digs corpses when an enemy is near; flees with the upgrade
+  {
+    applyBalance();
+    const ab = resolvedAbility('risedead'); const saved = { ...ab.params };
+    Object.assign(ab.params, { corpseLife: 20, corpseBigLife: 20 });
+    // enemy nearby -> it digs corpses
+    const g1 = new Game(41, { races: ['undead', 'orcs'] });
+    const d1 = spawnUnit(g1, 0, 'dasher', 600, 400); d1.hp = d1.maxHp = 100000; // survive being hit
+    const e1 = spawnUnit(g1, 1, 'grunt', 750, 400); e1.hp = e1.maxHp = 100000;
+    run(g1, 10);
+    check('grave digger: digs corpses when an enemy is near', g1.corpses.length >= 1, `${g1.corpses.length}`);
+    // no enemy -> nothing dug
+    const g2 = new Game(42, { races: ['undead', 'orcs'] });
+    const d2 = spawnUnit(g2, 0, 'dasher', 300, 400); d2.hp = d2.maxHp = 100000;
+    run(g2, 6);
+    check('grave digger: no enemy -> no corpses', g2.corpses.length === 0, `${g2.corpses.length}`);
+    // flee upgrade: runs from a close enemy
+    const g3 = new Game(43, { races: ['undead', 'orcs'] });
+    g3.upgrades[0].add('gravedigflee');
+    const d3 = spawnUnit(g3, 0, 'dasher', 600, 400); d3.hp = d3.maxHp = 100000;
+    const e3 = spawnUnit(g3, 1, 'grunt', 665, 400); e3.hp = e3.maxHp = 100000;
+    run(g3, 2);
+    check('grave digger: flees from a close enemy (with upgrade)', d3.x < 590, `${d3.x}`);
+    ab.params = saved;
+  }
   // Soul Harvest (ult): drains enemies (feeding her) AND heals allies, dual zones
   {
     applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['soulharvest'], mana: 200 } } } } });
