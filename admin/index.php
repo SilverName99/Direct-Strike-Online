@@ -82,7 +82,7 @@ const ABILITY_INFO = [
   'soulharvest' => ['Soul Harvest', true, false, 1, true], // ultimate: cast frame + a harvest-zone effect image
   // Necromancer (Undead unit 2) kit: three corpse-summons sharing a team cap.
   'skeletonmelee' => ['Melee Skeleton', true, false],   // summon (cast frame; melee skeleton sprites below)
-  'skeletonranged' => ['Ranged Skeleton', true, false], // summon (cast frame; ranged skeleton sprites, SEPARATE art)
+  'skeletonranged' => ['Ranged Skeleton', true, true], // summon (cast frame + its own projectile art; ranged skeleton sprites, SEPARATE)
   'skeletonbrothers' => ['Brothers Skeleton', true, false], // raises 1 melee + 1 ranged (reuses both sprite sets)
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit

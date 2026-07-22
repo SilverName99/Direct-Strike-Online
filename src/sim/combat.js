@@ -410,6 +410,12 @@ function updateFighter(game, u, stats, dt) {
               shotStats = { ...stats, acid: { dot: pa.dps || 0, dur: pa.dotDuration || 0 }, projAbility: 'poisonarrow' };
             }
           }
+          // Ranged skeleton (Necromancer summon): its arrow uses the dedicated
+          // "Proiectil Ranged Skeleton" sprite hosted on the Necromancer, so it
+          // looks different from the Necromancer's own shot.
+          if (u.summon && u.summonKind === 'skeletonranged') {
+            shotStats = { ...shotStats, projAbility: 'skeletonranged' };
+          }
           spawnProjectile(game, u, shotStats, target);
           game.events.push({ type: 'shot', x: u.x, y: u.y, tx: target.x, ty: target.y, team: u.team });
         } else {
