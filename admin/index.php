@@ -181,6 +181,10 @@ function unitIsCaster(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
   return $u && !empty($u['caster']);
 }
+function unitIsGravedig(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['gravedig']);
+}
 function unitHasDash(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
   return $u && !empty($u['dash']);
@@ -413,6 +417,11 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     if ($isHero) $slots['prepare_0'] = 'Prepare spell';
   }
   $slots['die_0'] = 'Die';
+  // a Grave Digger doesn't attack — its "attack" frames ARE the digging animation
+  if (unitIsGravedig($race, $ent)) {
+    if (isset($slots['attack_0'])) $slots['attack_0'] = 'Săpat 1';
+    if (isset($slots['attack_1'])) $slots['attack_1'] = 'Săpat 2';
+  }
   // a unit dashes if its own Dash toggle is on OR a mount/split upgrade makes
   // it charge/dive
   // the hero's "Charge" ability uses the same single "Dash" (charge) frame
