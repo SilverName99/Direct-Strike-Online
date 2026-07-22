@@ -66,6 +66,11 @@ export const GENERAL_FIELDS = [
   ['HERO_UNLOCK_TIME', 'Secunde până eroii pot fi cumpărați (0 = de la start)'],
   ['SELL_REFUND', 'Unit sell refund (0-1)'],
   ['SELL_BUILDING_REFUND', 'Building sell refund (0-1)'],
+  ['SKEL_CAP_BASE', 'Undead: plafon schelete de start'],
+  ['SKEL_CAP_STEP', 'Undead: +plafon per upgrade la bază'],
+  ['SKEL_CAP_MAX', 'Undead: plafon schelete maxim'],
+  ['SKEL_CAP_COST', 'Undead: cost prima cumpărare de plafon'],
+  ['SKEL_CAP_COST_STEP', 'Undead: +cost la fiecare cumpărare'],
 ];
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],

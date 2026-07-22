@@ -20,6 +20,7 @@ export function hashGame(game) {
   mixf(game.time); mix(game.waveCount);
   mixf(game.money[0]); mixf(game.money[1]);
   mix(game.tier[0]); mix(game.tier[1]);
+  if (game.skelBought) { mix(game.skelBought[0]); mix(game.skelBought[1]); }
   mix(game.templates[0].length); mix(game.templates[1].length);
   for (const u of game.entities) { mixf(u.x); mixf(u.y); mixf(u.hp); }
   for (const s of game.structures) { mixf(s.x); mixf(s.y); mixf(s.hp); }

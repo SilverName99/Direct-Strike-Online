@@ -18,6 +18,8 @@ export class Hud {
       moneyIcon: document.querySelector('#chip-gold .money-icon'),
       income: document.getElementById('income'),
       food: document.getElementById('food'),
+      skel: document.getElementById('skel'),
+      skelChip: document.getElementById('chip-skel'),
       tier: document.getElementById('tier'),
       waveNum: document.getElementById('wave-num'),
       waveTimer: document.getElementById('wave-timer'),
@@ -68,6 +70,17 @@ export class Hud {
       const cap = game.foodCap(this.team);
       this.el.food.textContent = `${used}/${cap}`;
       this.el.food.classList.toggle('food-full', used >= cap);
+    }
+    // Undead-only: live skeleton count / team cap (💀). Hidden for other races.
+    if (this.el.skelChip) {
+      const undead = game.races && game.races[this.team] === 'undead';
+      this.el.skelChip.style.display = undead ? '' : 'none';
+      if (undead && this.el.skel) {
+        const live = game.livingSkeletons(this.team);
+        const scap = game.skelCapOf(this.team);
+        this.el.skel.textContent = `${live}/${scap}`;
+        this.el.skel.classList.toggle('food-full', live >= scap);
+      }
     }
     this.el.waveNum.textContent = game.waveCount + 1;
     this.el.waveTimer.textContent = Math.ceil(game.waveTimer);

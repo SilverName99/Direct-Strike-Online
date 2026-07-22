@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v12.92';
+export const VERSION = 'v12.93';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -45,6 +45,14 @@ export const CONFIG = {
   HEALTHBAR_ALWAYS: false, // show unit/building HP bars even at full health
   FOG_OF_WAR: false,    // classic fog: reveal around your units; enemy units hidden in the dark, terrain/buildings remembered dim
   CORPSE_RAISE_DELAY: 1.2, // seconds after a unit dies before its corpse becomes raisable (Rise Dead) — lets the death animation fully play out first
+  // Undead skeleton cap (team-wide max living Necromancer skeletons). Starts at
+  // SKEL_CAP_BASE; a repeatable base upgrade raises it by SKEL_CAP_STEP up to
+  // SKEL_CAP_MAX; each purchase costs SKEL_CAP_COST + (bought)·SKEL_CAP_COST_STEP.
+  SKEL_CAP_BASE: 3,
+  SKEL_CAP_STEP: 1,
+  SKEL_CAP_MAX: 12,
+  SKEL_CAP_COST: 100,
+  SKEL_CAP_COST_STEP: 60,
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback
   MENU_BTN: '',         // main-menu button skin (ornate banner PNG, data URL); '' = plain buttons

@@ -80,10 +80,14 @@ const ABILITY_INFO = [
   'lifedrain' => ['Life Drain', true, false],      // cast frame; the drain beam is drawn automatically
   'risedead' => ['Rise Dead', true, false],        // summon (cast frame; skeleton sprites below)
   'soulharvest' => ['Soul Harvest', true, false, 1, true], // ultimate: cast frame + a harvest-zone effect image
+  // Necromancer (Undead unit 2) kit: three corpse-summons sharing a team cap.
+  'skeletonmelee' => ['Melee Skeleton', true, false],   // summon (cast frame; melee skeleton sprites below)
+  'skeletonranged' => ['Ranged Skeleton', true, false], // summon (cast frame; ranged skeleton sprites, SEPARATE art)
+  'skeletonbrothers' => ['Brothers Skeleton', true, false], // raises 1 melee + 1 ranged (reuses both sprite sets)
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet', 'skeletonranged' => 'Schelet ranged'];
 // summon abilities whose spawned entity is a stationary totem (idle-only sprite,
 // no walk/attack/die, no portrait animation)
 const TOTEM_ABILITIES = ['slowingtotem'];
@@ -105,6 +109,7 @@ const UPGRADE_INFO = [
   'focusbuilding' => 'Focus building',
   'totemtraining' => 'Slowing Totem (deblocare)',
   'frosttraining' => 'Frost Bolt (deblocare)',
+  'skelcap' => 'Undead: plafon schelete (buton bază) — fallback 💀',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {

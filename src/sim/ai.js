@@ -177,6 +177,19 @@ export class AIController {
       }
     }
 
+    // 1.6 Undead: nudge the shared skeleton cap up when flush and fielding a
+    // Necromancer — more living skeletons = more board pressure. Keep a healthy
+    // buffer so it never starves the army.
+    if (game.races[t] === 'undead' && game.waveCount >= 3
+        && game.skelCapOf(t) < (CONFIG.SKEL_CAP_MAX || 0)
+        && game.templates[t].some((tpl) => tpl.type === 'slinger')) {
+      const capCost = game.skelCapCostOf(t);
+      if (money >= capCost + 300) {
+        this.intent = '💀 plafon schelete';
+        if (game.issueCommand({ type: 'buySkelCap', team: t }).ok) return;
+      }
+    }
+
     // 2. Tier up at sensible timings. (Skip entirely while a tier-up is already
     // in progress — can't queue a second one, and no point hoarding for it.)
     const upCost = game.tierUpCost(t);

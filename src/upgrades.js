@@ -159,6 +159,34 @@ export const UPGRADES = {
       allyRange: 250,  // radius to look for those allies (0 = whole field)
     },
   },
+  skeletonmeleeunlock: {
+    name: 'Melee Skeleton',
+    desc: 'Deblochează abilitatea Necromancer-ului de a ridica un schelet MELEE dintr-un cadavru. Se poate cumpăra de la tier 1. Preț/tier setabile în admin.',
+    kind: 'unlock',
+    unlocks: 'skeletonmelee',
+    race: 'undead',
+    unit: 'slinger', // Necromancer slot (unitatea 2)
+    params: { cost: 120, tier: 1 },
+  },
+  skeletonrangedunlock: {
+    name: 'Ranged Skeleton',
+    desc: 'Deblochează abilitatea Necromancer-ului de a ridica un schelet RANGED dintr-un cadavru. Se poate cumpăra de la tier 1. Preț/tier setabile în admin.',
+    kind: 'unlock',
+    unlocks: 'skeletonranged',
+    race: 'undead',
+    unit: 'slinger',
+    params: { cost: 140, tier: 1 },
+  },
+  skeletonbrothersunlock: {
+    name: 'Brothers Skeleton',
+    desc: 'Deblochează abilitatea de a ridica un schelet melee ȘI unul ranged dintr-un singur cadavru. Se cumpără de la tier 2, DOAR dacă ai deja Melee Skeleton și Ranged Skeleton. Preț/tier setabile în admin.',
+    kind: 'unlock',
+    unlocks: 'skeletonbrothers',
+    race: 'undead',
+    unit: 'slinger',
+    requires: ['skeletonmeleeunlock', 'skeletonrangedunlock'], // prerechizite (ambele single-uri)
+    params: { cost: 260, tier: 2 },
+  },
   gravedigflee: {
     name: 'Fugă (Groapar)',
     desc: 'Groaparul Undead: când un inamic intră în raza lui de fugă, o ia la fugă spre baza ta, apoi revine să sape. Raza și viteza de fugă se setează în ⚙ stats la unitatea groapar. Se cumpără o dată din bază, ieftin.',

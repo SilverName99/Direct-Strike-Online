@@ -2367,6 +2367,94 @@ console.log('abilities (casters, auras, status effects)');
   resetAll(); // leave the shared balance pristine for any later tests
 }
 
+// -------------------------------------------------- Undead Necromancer kit
+// The Necromancer (undead unit 2 / slinger slot) raises skeletons from corpses.
+// Three purchasable abilities share a team-wide living-skeleton cap.
+console.log('undead necromancer skeleton kit');
+{
+  const necroStats = { caster: true, autoAttackBetween: true,
+    abilities: ['skeletonmelee', 'skeletonranged', 'skeletonbrothers'] };
+  const mkNecro = () => {
+    const game = new Game(71, { races: ['undead', 'undead'] });
+    game.money[0] = 99999;
+    const u = spawnUnit(game, 0, 'slinger', 600, 400);
+    u.mana = 9999; u.abilityCd = {}; u.castState = undefined;
+    return { game, u };
+  };
+  const stepNecro = (game, u, ticks) => {
+    for (let i = 0; i < ticks; i++) {
+      game.time += DT; stepCaster(game, u, necroStats, DT, false);
+      game.update(DT); game.drainEvents();
+    }
+  };
+  const countKind = (game, kind) =>
+    game.entities.filter((e) => e.summon && e.summonKind === kind && e.hp > 0).length;
+
+  // melee unlock -> a melee skeleton rises from the corpse (no enemy needed:
+  // raising is engage-exempt like Rise Dead)
+  {
+    const { game, u } = mkNecro();
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonmeleeunlock' });
+    game.addCorpse(620, 400, false, true);
+    stepNecro(game, u, 120);
+    check('necromancer raises a MELEE skeleton from a corpse', countKind(game, 'skeleton') >= 1);
+  }
+  // ranged unlock -> a ranged skeleton (SEPARATE summonKind) rises
+  {
+    const { game, u } = mkNecro();
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonrangedunlock' });
+    game.addCorpse(620, 400, false, true);
+    stepNecro(game, u, 120);
+    check('necromancer raises a RANGED skeleton from a corpse', countKind(game, 'skeletonranged') >= 1);
+  }
+  // shared cap enforced: plenty of corpses, but living skeletons never exceed it
+  {
+    const { game, u } = mkNecro();
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonmeleeunlock' });
+    for (let i = 0; i < 12; i++) game.addCorpse(590 + (i % 4) * 12, 400 + Math.floor(i / 4) * 12, false, true);
+    stepNecro(game, u, 200);
+    check('living skeletons never exceed the team cap',
+      game.livingSkeletons(0) <= game.skelCapOf(0) && game.livingSkeletons(0) >= 1,
+      `alive=${game.livingSkeletons(0)} cap=${game.skelCapOf(0)}`);
+  }
+  // the base skeleton-cap upgrade raises the cap by SKEL_CAP_STEP and costs gold
+  {
+    const { game } = mkNecro();
+    const before = game.skelCapOf(0);
+    const cost = game.skelCapCostOf(0);
+    const money0 = game.money[0];
+    const r = game.issueCommand({ type: 'buySkelCap', team: 0 });
+    check('buySkelCap raises the cap by SKEL_CAP_STEP',
+      r.ok && game.skelCapOf(0) === before + CONFIG.SKEL_CAP_STEP);
+    check('buySkelCap deducts its cost', game.money[0] === money0 - cost);
+    check('next cap step costs more', game.skelCapCostOf(0) === cost + CONFIG.SKEL_CAP_COST_STEP);
+  }
+  // Brothers Skeleton needs BOTH singles bought first (prerequisite gate)
+  {
+    const { game } = mkNecro();
+    game.tier[0] = 2;
+    const blocked = game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonbrothersunlock' });
+    check('brothers blocked without both single unlocks', !blocked.ok && blocked.reason === 'requires');
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonmeleeunlock' });
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonrangedunlock' });
+    const ok = game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonbrothersunlock' });
+    check('brothers allowed once both singles are owned', ok.ok);
+  }
+  // Brothers raises BOTH a melee and a ranged skeleton from ONE corpse
+  {
+    const { game, u } = mkNecro();
+    game.tier[0] = 2;
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonmeleeunlock' });
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonrangedunlock' });
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'skeletonbrothersunlock' });
+    game.addCorpse(620, 400, false, true);
+    stepNecro(game, u, 120);
+    check('brothers raises a melee + a ranged from one corpse',
+      countKind(game, 'skeleton') >= 1 && countKind(game, 'skeletonranged') >= 1);
+    check('brothers consumes the single corpse it used', game.corpses.length === 0);
+  }
+}
+
 // ----------------------------------------------------------------- done
 console.log('');
 if (failures > 0) {

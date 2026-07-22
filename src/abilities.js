@@ -520,6 +520,60 @@ export const ABILITIES = {
       castPrepare: 0,
     },
   },
+  // --- Necromancer (Undead unit 2) skeleton kit: three summon variants, each
+  // unlocked by a bought upgrade. All share the team-wide skeleton cap (a
+  // repeatable base upgrade). Skeletons have a limited lifetime (despawn).
+  skeletonmelee: {
+    name: 'Melee Skeleton',
+    kind: 'summon',
+    animal: 'skeleton',
+    animalName: 'Schelet melee',
+    color: '#cdd3da',
+    desc: 'Necromancer: ridică un schelet MELEE dintr-un cadavru din apropiere. Se deblochează cu upgrade-ul „Melee Skeleton" (tier 1). Limitat de cap-ul de schelete (upgrade la Bază).',
+    params: {
+      tier: 1, manaCost: 25, cooldown: 4,
+      corpseRange: 220,
+      life: 20,
+      hp: 90, damage: 12, range: 28, period: 1.0, speed: 95,
+      hpPerRank: 0, damagePerRank: 0,
+      animSpeed: 5, size: 100,
+      splash: 0, flying: 0, projectile: 0, armored: 0,
+      targetsAir: 0, targetsGround: 1,
+      castPrepare: 0,
+    },
+  },
+  skeletonranged: {
+    name: 'Ranged Skeleton',
+    kind: 'summon',
+    animal: 'skeletonranged',
+    animalName: 'Schelet ranged',
+    color: '#bcd0a8',
+    desc: 'Necromancer: ridică un schelet RANGED (trage) dintr-un cadavru din apropiere. Se deblochează cu upgrade-ul „Ranged Skeleton" (tier 1). Limitat de cap-ul de schelete (upgrade la Bază).',
+    params: {
+      tier: 1, manaCost: 30, cooldown: 4,
+      corpseRange: 220,
+      life: 20,
+      hp: 70, damage: 11, range: 170, period: 1.2, speed: 90,
+      hpPerRank: 0, damagePerRank: 0,
+      animSpeed: 5, size: 100,
+      splash: 0, flying: 0, projectile: 1, armored: 0,
+      targetsAir: 1, targetsGround: 1,
+      castPrepare: 0,
+    },
+  },
+  skeletonbrothers: {
+    name: 'Brothers Skeleton',
+    kind: 'summon',
+    animal: 'skeleton', // reuses the melee + ranged skeleton art (via those abilities)
+    animalName: 'Frați schelete',
+    color: '#e0c07a',
+    desc: 'Necromancer: dintr-UN singur cadavru ridică un schelet melee ȘI unul ranged (statele lor vin din abilitățile Melee/Ranged Skeleton). Se deblochează cu upgrade-ul „Brothers Skeleton" (tier 2), doar dacă ai deja Melee + Ranged. Ocupă 2 din cap.',
+    params: {
+      tier: 2, manaCost: 45, cooldown: 6,
+      corpseRange: 220,
+      castPrepare: 0,
+    },
+  },
   soulharvest: {
     name: 'Soul Harvest',
     kind: 'active', // ultimate

@@ -752,6 +752,9 @@ export class BottomBar {
     if (own && isStruct && info.type === 'main') {
       const grid = new Array(9).fill(null);
       grid[8] = { kind: 'upgradeBase', id: 'upgrade' }; // always the last cell
+      // Undead: repeatable skeleton-cap upgrade lives at the base (raises how many
+      // Necromancer skeletons the team may keep alive).
+      if (raceOf(this.team) === 'undead') grid[0] = { kind: 'buySkelCap' };
       return grid;
     }
 
@@ -906,6 +909,19 @@ export class BottomBar {
       ctx.fillText('▲', 23, 24);
       return;
     }
+    if (data.kind === 'buySkelCap') {
+      const img = getUiIcon('upgrade-skelcap');
+      if (img) {
+        const s = Math.min(46 / img.width, 46 / img.height);
+        ctx.drawImage(img, (46 - img.width * s) / 2, (46 - img.height * s) / 2, img.width * s, img.height * s);
+        return;
+      }
+      ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('💀', 23, 25);
+      return;
+    }
     if (data.kind === 'ability' || data.kind === 'upgrade' || data.kind === 'buyUpgrade' || data.kind === 'heroAbility') {
       const isAb = data.kind === 'ability' || data.kind === 'heroAbility';
       const img = getUiIcon(`${isAb ? 'ability' : 'upgrade'}-${data.id}`);
@@ -1045,6 +1061,14 @@ export class BottomBar {
             cdTotal = Math.max(0.001, game.baseUpgradeDuration(this.team));
           }
         }
+      } else if (d.kind === 'buySkelCap') {
+        if (game) {
+          const maxed = game.skelCapOf(this.team) >= (CONFIG.SKEL_CAP_MAX || 0);
+          const cost = maxed ? Infinity : game.skelCapCostOf(this.team);
+          if (maxed || game.money[this.team] < cost) el.classList.add('disabled');
+          const c = el.querySelector('.s-cost');
+          if (c) c.textContent = maxed ? 'MAX' : cost;
+        }
       } else if (d.kind === 'ability' && game) {
         const ab = resolvedAbility(d.id);
         const req = Math.max(1, (ab && ab.params.tier) || 1);
@@ -1076,10 +1100,14 @@ export class BottomBar {
           const want = owned ? '' : String(d.cost);
           if (c.textContent !== want) c.textContent = want;
         }
+        const up = resolvedUpgrade(d.id);
+        const needMet = !up || !Array.isArray(up.requires) || up.requires.every((r) => game.upgrades[this.team].has(r));
         if (owned) {
           tog = !game.upgradeOff[this.team].has(d.id); // ✔ activ / ✖ dezactivat
         } else if (d.tier && d.tier > game.tier[this.team]) {
           el.classList.add('locked'); this.setLockTier(el, d.tier); // needs the unit's tier
+        } else if (!needMet) {
+          el.classList.add('locked'); this.setLock(el, '🔒'); // prerequisite upgrade(s) not owned yet
         } else if (game.money[this.team] < d.cost) {
           el.classList.add('disabled');
         }
@@ -1225,6 +1253,11 @@ export class BottomBar {
       this.onShopClick('upgrade');
       return;
     }
+    if (d.kind === 'buySkelCap') {
+      if (el.classList.contains('disabled')) return;
+      if (game) game.issueCommand({ type: 'buySkelCap', team: this.team });
+      return;
+    }
     if (d.kind === 'bldgView') {
       this.bldgView = d.to;
       this.sig = null; // force the grid to rebuild for the new page
@@ -1274,6 +1307,7 @@ export class BottomBar {
         const on = game.upgradeOff[this.team].has(d.id); // owned -> toggle
         game.issueCommand({ type: 'toggleUpgrade', team: this.team, id: d.id, on });
       } else {
+        if (el.classList.contains('locked')) return; // tier- or prerequisite-locked
         game.issueCommand({ type: 'buyUpgrade', team: this.team, id: d.id });
       }
       return;
@@ -1362,6 +1396,17 @@ export class BottomBar {
         <div>Deblochează următorul tier de unități și adaugă +1000 HP bazei. ${timing}</div>
         <div class="p-dim">${maxed ? 'Toate tier-ele deblocate' : next}</div>`;
     }
+    if (d.kind === 'buySkelCap') {
+      const cap = game ? game.skelCapOf(this.team) : (CONFIG.SKEL_CAP_BASE || 0);
+      const max = CONFIG.SKEL_CAP_MAX || 0;
+      const maxed = cap >= max;
+      const cost = game ? game.skelCapCostOf(this.team) : (CONFIG.SKEL_CAP_COST || 0);
+      const step = CONFIG.SKEL_CAP_STEP || 0;
+      const priceLine = maxed ? 'Plafon la maxim' : `◆ ${cost} — click: +${step} plafon`;
+      return `<div class="p-title">💀 Plafon schelete · ${priceLine}</div>
+        <div>Crește câte schelete de Necromancer poate menține echipa ta vii în același timp.</div>
+        <div class="p-dim">Acum: ${cap}/${max}${maxed ? '' : ` · fiecare cumpărare crește costul cu ◆ ${CONFIG.SKEL_CAP_COST_STEP || 0}`}</div>`;
+    }
     if (d.kind === 'ability') {
       const ab = resolvedAbility(d.id);
       if (!ab) return '';
@@ -1387,13 +1432,19 @@ export class BottomBar {
       const uname = ustats.name || up.unit;
       const unitTier = ustats.tier || 1;
       const tierLocked = !owned && d.kind === 'buyUpgrade' && game && unitTier > game.tier[this.team];
+      // prerequisite upgrades (e.g. Brothers needs both single skeleton unlocks)
+      const missing = (!owned && game && Array.isArray(up.requires))
+        ? up.requires.filter((r) => !game.upgrades[team].has(r)) : [];
+      const reqNames = missing.map((r) => (resolvedUpgrade(r) || {}).name || r).join(', ');
       const state = owned
         ? (off ? 'DEZACTIVAT' : 'ACTIV')
         : tierLocked
           ? `blocat — necesită Tier ${'I'.repeat(unitTier)}`
-          : d.kind === 'buyUpgrade'
-            ? `◆ ${up.params.cost || 0} — click pentru a cumpăra`
-            : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
+          : missing.length
+            ? `blocat — necesită întâi: ${reqNames}`
+            : d.kind === 'buyUpgrade'
+              ? `◆ ${up.params.cost || 0} — click pentru a cumpăra`
+              : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
       return `<div class="p-title">🐗 ${up.name} — ${state}</div>
         <div>${up.desc || ''}</div>
         <div class="p-dim">Unitate: ${uname} (Tier ${'I'.repeat(unitTier)})</div>

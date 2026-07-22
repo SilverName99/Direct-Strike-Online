@@ -32,6 +32,7 @@ export class Game {
     // once game.time reaches `done`. The base stays busy meanwhile.
     this.baseUpgrade = [null, null];
     this.upgrades = [new Set(), new Set()]; // bought upgrade ids, per team (permanent)
+    this.skelBought = [0, 0]; // Undead: times the skeleton-cap base upgrade was bought, per team
     // Player-facing toggles (via the selection panel). Both are OFF-lists so
     // everything defaults to ON (the AI never toggles — full behavior).
     this.abilityOff = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` autocast disabled
@@ -428,6 +429,24 @@ export class Game {
     return CONFIG.TIER_COSTS[this.tier[team] + 1] ?? null;
   }
 
+  // Undead skeleton cap: current team-wide max living Necromancer skeletons.
+  skelCapOf(team) {
+    const max = CONFIG.SKEL_CAP_MAX != null ? CONFIG.SKEL_CAP_MAX : Infinity;
+    return Math.min(max, (CONFIG.SKEL_CAP_BASE || 0) + (this.skelBought[team] || 0) * (CONFIG.SKEL_CAP_STEP || 0));
+  }
+  // Cost of the NEXT skeleton-cap upgrade step (rises with each purchase).
+  skelCapCostOf(team) {
+    return (CONFIG.SKEL_CAP_COST || 0) + (this.skelBought[team] || 0) * (CONFIG.SKEL_CAP_COST_STEP || 0);
+  }
+  // How many Necromancer skeletons (melee + ranged) this team has alive now.
+  livingSkeletons(team) {
+    let n = 0;
+    for (const e of this.entities) {
+      if (e.hp > 0 && e.team === team && e.summon && (e.summonKind === 'skeleton' || e.summonKind === 'skeletonranged')) n++;
+    }
+    return n;
+  }
+
   // Seconds this base takes to upgrade OUT of its current tier (1→2 uses
   // index 0, 2→3 uses index 1). Per race, editable in ⚙ stats. 0 = instant.
   baseUpgradeDuration(team) {
@@ -701,6 +720,11 @@ export class Game {
       const upUnit = this.ustat(cmd.team, up.unit);
       const needTier = Math.max((upUnit && upUnit.tier) || 1, up.params.tier || 1);
       if (this.tier[cmd.team] < needTier) return { ok: false, reason: 'tier-locked' };
+      // prerequisite upgrades must be owned first (e.g. Brothers Skeleton needs
+      // both Melee + Ranged unlocks).
+      if (Array.isArray(up.requires) && up.requires.some((r) => !this.upgrades[cmd.team].has(r))) {
+        return { ok: false, reason: 'requires' };
+      }
       if (this.upgrades[cmd.team].has(cmd.id)) return { ok: false, reason: 'owned' };
       const cost = up.params.cost || 0;
       if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };
@@ -708,6 +732,18 @@ export class Game {
       this.spent[cmd.team] += cost;
       this.upgrades[cmd.team].add(cmd.id);
       this.events.push({ type: 'upgradeBought', team: cmd.team, id: cmd.id });
+      return { ok: true };
+    }
+
+    // Undead: buy one step of the skeleton-cap base upgrade (repeatable).
+    if (cmd.type === 'buySkelCap') {
+      if (this.skelCapOf(cmd.team) >= (CONFIG.SKEL_CAP_MAX || 0)) return { ok: false, reason: 'max' };
+      const cost = this.skelCapCostOf(cmd.team);
+      if (this.money[cmd.team] < cost) return { ok: false, reason: 'money' };
+      this.money[cmd.team] -= cost;
+      this.spent[cmd.team] += cost;
+      this.skelBought[cmd.team]++;
+      this.events.push({ type: 'skelCapUp', team: cmd.team, cap: this.skelCapOf(cmd.team) });
       return { ok: true };
     }
 

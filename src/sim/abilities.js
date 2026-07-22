@@ -326,6 +326,15 @@ function nearestCorpse(game, caster, radius, time) {
   return best;
 }
 
+// Spawn one skeleton from a specific skeleton ability's params (used by Brothers
+// Skeleton, which raises a melee + a ranged one from the same corpse).
+function raiseSkeleton(game, caster, aid) {
+  const ab = resolvedAbility(aid);
+  if (!ab) return null;
+  const p = abParams(caster, aid, ab);
+  return spawnSummon(game, caster, ab, p, 1);
+}
+
 // A cast buff-zone: applies its effect to units in radius every frame, but
 // only while the caster's cast is still live (auraUntil[aid] > time). The mana
 // was paid once at cast time (see releaseSpell), so there is no per-tick drain.
@@ -441,7 +450,10 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 // Life Drain / Rise Dead reach further than the caster's basic attack (their own
 // range/corpse-range), and their findAbilityTarget already requires a valid
 // target — so exempt them from the "enemy in attack range" engage gate.
-const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'lifedrain', 'risedead']);
+const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'lifedrain', 'risedead',
+  // Necromancer raises skeletons from any corpse in reach — like Rise Dead, it
+  // shouldn't wait for an enemy to walk into the caster's own attack range.
+  'skeletonmelee', 'skeletonranged', 'skeletonbrothers']);
 
 // Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
@@ -590,6 +602,34 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
       if (alive >= cap) return null;
     }
     return nearestCorpse(game, caster, p.corpseRange || 0, time) ? caster : null;
+  }
+  // Necromancer skeleton kit: all three share the team-wide skeleton cap.
+  if (aid === 'skeletonbrothers') {
+    // needs a corpse in reach AND room for TWO under the cap
+    if (game.livingSkeletons(caster.team) + 2 > game.skelCapOf(caster.team)) return null;
+    return nearestCorpse(game, caster, p.corpseRange || 0, time) ? caster : null;
+  }
+  if (aid === 'skeletonmelee' || aid === 'skeletonranged') {
+    // once Brothers is unlocked it supersedes the singles
+    if (game.abilityUsable(caster.team, caster.type, 'skeletonbrothers')) return null;
+    if (game.livingSkeletons(caster.team) + 1 > game.skelCapOf(caster.team)) return null;
+    if (!nearestCorpse(game, caster, p.corpseRange || 0, time)) return null;
+    const meleeOn = game.abilityUsable(caster.team, caster.type, 'skeletonmelee');
+    const rangedOn = game.abilityUsable(caster.team, caster.type, 'skeletonranged');
+    if (meleeOn && rangedOn) {
+      // both unlocked -> alternate toward the type we have FEWER of (ties: melee).
+      // Returning null for the "wrong" type also drops it from summon-priority,
+      // so the other one gets cast this tick.
+      let melee = 0, ranged = 0;
+      for (const e of game.entities) {
+        if (e.hp <= 0 || e.team !== caster.team || !e.summon) continue;
+        if (e.summonKind === 'skeleton') melee++;
+        else if (e.summonKind === 'skeletonranged') ranged++;
+      }
+      const wantRanged = ranged < melee;
+      return ((aid === 'skeletonranged') === wantRanged) ? caster : null;
+    }
+    return caster; // only one single unlocked -> just cast it
   }
   if (ab.kind === 'summon') {
     // castable while THIS shaman keeps fewer than its cap of this animal alive
@@ -822,11 +862,27 @@ function releaseSpell(game, caster, time) {
   caster.mana -= p.manaCost || 0;
 
   if (ab.kind === 'summon') {
+    // Brothers Skeleton: raise a melee + a ranged skeleton (their stats come from
+    // the two single abilities) from ONE corpse.
+    if (aid === 'skeletonbrothers') {
+      const corpse = nearestCorpse(game, caster, p.corpseRange || 0, time);
+      const m = raiseSkeleton(game, caster, 'skeletonmelee');
+      const r = raiseSkeleton(game, caster, 'skeletonranged');
+      if (corpse) {
+        m.x = m.prevX = corpse.x - 12; m.y = m.prevY = corpse.y;
+        r.x = r.prevX = corpse.x + 12; r.y = r.prevY = corpse.y;
+        game.corpses = game.corpses.filter((c) => c !== corpse);
+      }
+      const ex = corpse ? corpse.x : caster.x, ey = corpse ? corpse.y : caster.y;
+      game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: ex, y: ey });
+      game.events.push({ type: 'summon', x: ex, y: ey, team: caster.team });
+      return hold;
+    }
     // pass the caster's learned rank so the animal's HP/damage grow per-rank
     const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
     const animal = spawnSummon(game, caster, ab, p, rank);
-    // Rise Dead raises the skeleton FROM a corpse: place it there and consume it
-    if (aid === 'risedead') {
+    // Rise Dead / single skeletons are raised FROM a corpse: place there + consume
+    if (aid === 'risedead' || aid === 'skeletonmelee' || aid === 'skeletonranged') {
       const corpse = nearestCorpse(game, caster, p.corpseRange || 0, time);
       if (corpse) {
         animal.x = animal.prevX = corpse.x;
