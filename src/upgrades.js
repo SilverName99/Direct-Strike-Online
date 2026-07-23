@@ -197,6 +197,21 @@ export const UPGRADES = {
       cost: 60, // aur, din Bază
     },
   },
+  batland: {
+    name: 'Aterizare (Liliac)',
+    desc: 'Liliacul-tanc: fără upgrade e doar zburător (lovește doar aerul, de aproape). Cu el, aterizează AUTOMAT când un inamic terestru (sau o clădire) intră în rază și devine un tanc melee la sol (statele de mai jos); decolează înapoi când solul e liber. Armura la sol se setează în ⚙ stats („landArmor"). Are nevoie de setul de sprite-uri „La sol" (mers + atac) pe unitate.',
+    kind: 'batland',
+    race: 'undead',
+    unit: 'wasp', // slotul liliacului (unitatea 7)
+    params: {
+      cost: 250,       // aur, din Bază
+      radius: 190,     // rază auto: un inamic terestru/clădire atât de aproape -> aterizează
+      groundDamage: 0, // forma la sol (0 = păstrează damage-ul din aer)
+      groundRange: 34, // rază melee la sol
+      groundPeriod: 0, // perioadă atac la sol (0 = ca în aer)
+      groundSpeed: 0,  // viteză mișcare la sol (0 = ca în aer)
+    },
+  },
 };
 
 export const UPGRADE_IDS = Object.keys(UPGRADES);
@@ -245,4 +260,9 @@ export const UPGRADE_PARAM_LABELS = {
   beastPeriod: 'Perioadă atac bestie (s)',
   beastSpeed: 'Viteză bestie',
   beastSize: 'Mărime bestie (Size %)',
+  // Liliac „Aterizare": forma la sol (override peste statele din aer)
+  groundDamage: 'Sol: damage (0 = ca în aer)',
+  groundRange: 'Sol: rază melee',
+  groundPeriod: 'Sol: perioadă atac (s, 0 = ca în aer)',
+  groundSpeed: 'Sol: viteză mișcare (0 = ca în aer)',
 };

@@ -453,10 +453,7 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'lifedrain', 'risedead',
   // Necromancer raises skeletons from any corpse in reach — like Rise Dead, it
   // shouldn't wait for an enemy to walk into the caster's own attack range.
-  'skeletonmelee', 'skeletonranged', 'skeletonbrothers',
-  // Bat stance toggle: it must be able to LAND when a ground enemy approaches
-  // (which its air attack can't reach), so it can't wait to be "engaged".
-  'batform']);
+  'skeletonmelee', 'skeletonranged', 'skeletonbrothers']);
 
 // Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
@@ -589,7 +586,6 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     if (aid === 'beastform') return (caster.morphUntil || 0) > time ? null : caster;
     if (aid === 'vortexoflight') return (caster.vortexUntil || 0) > time ? null : caster;
     if (aid === 'soulharvest') return (caster.harvestUntil || 0) > time ? null : caster;
-    if (aid === 'batform') return caster; // player forces the stance flip
     if (SELF_MANUAL.has(aid)) return caster;
     // ally/enemy-targeted actives (heal, holylight, frostbolt, summons…) fall
     // through: they still need a valid target in range — you can't heal or bolt
@@ -634,34 +630,6 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
       return ((aid === 'skeletonranged') === wantRanged) ? caster : null;
     }
     return caster; // only one single unlocked -> just cast it
-  }
-  // Bat stance toggle (auto): land to fight ground, take off to intercept air.
-  if (aid === 'batform') {
-    const r = p.landRange || 0;
-    const r2 = r * r;
-    let groundEnemy = false, airEnemy = false;
-    for (const e of game.entities) {
-      if (e.hp <= 0 || e.team === caster.team || e.isStructure) continue;
-      const dx = e.x - caster.x, dy = e.y - caster.y;
-      if (dx * dx + dy * dy > r2) continue;
-      if (e.isAir) airEnemy = true; else groundEnemy = true;
-    }
-    // enemy buildings are ground targets too: the bat must land to smash the
-    // base (its air bite can't reach the ground), so they count as "ground".
-    if (!groundEnemy) {
-      for (const s of game.structures) {
-        if (s.hp <= 0 || s.team === caster.team) continue;
-        const dx = s.x - caster.x, dy = s.y - caster.y;
-        if (dx * dx + dy * dy <= r2) { groundEnemy = true; break; }
-      }
-    }
-    if (!caster.landed) {
-      // airborne -> land when a ground enemy is near and there's nothing to bite up high
-      return (groundEnemy && !airEnemy) ? caster : null;
-    }
-    // landed -> return to its flying default as soon as no ground enemy is near
-    // (so it never gets stuck grounded at a wall after clearing the ground)
-    return !groundEnemy ? caster : null;
   }
   if (ab.kind === 'summon') {
     // castable while THIS shaman keeps fewer than its cap of this animal alive
@@ -1056,32 +1024,6 @@ function releaseSpell(game, caster, time) {
     };
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'morph', team: caster.team, x: caster.x, y: caster.y });
-    return hold;
-  }
-
-  if (aid === 'batform') {
-    // Toggle stance. Base stats are the AIR form (flyer, air-only melee, no
-    // projectile); landing stashes ground overrides read by effStats + flips
-    // isAir so it collides/renders as a ground unit and can be hit in melee.
-    if (!caster.landed) {
-      caster.landed = true;
-      caster.isAir = false;
-      caster.ovLandDamage = (p.groundDamage || 0) > 0 ? p.groundDamage : null;
-      caster.ovLandRange = (p.groundRange || 0) > 0 ? p.groundRange : null;
-      caster.ovLandPeriod = (p.groundPeriod || 0) > 0 ? p.groundPeriod : null;
-      caster.ovLandSpeed = (p.groundSpeed || 0) > 0 ? p.groundSpeed : null;
-      // per-form armor: admin sets `landArmor` on the unit (falls back to base)
-      const base = game.ustatOf(caster);
-      if (base && base.landArmor) { caster.armorSaved = caster.armor; caster.armor = base.landArmor; }
-      game.events.push({ type: 'land', team: caster.team, x: caster.x, y: caster.y, unitId: caster.id });
-    } else {
-      caster.landed = false;
-      caster.isAir = true;
-      caster.ovLandDamage = caster.ovLandRange = caster.ovLandPeriod = caster.ovLandSpeed = null;
-      if (caster.armorSaved != null) { caster.armor = caster.armorSaved; caster.armorSaved = null; }
-      game.events.push({ type: 'takeoff', team: caster.team, x: caster.x, y: caster.y, unitId: caster.id });
-    }
-    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     return hold;
   }
 

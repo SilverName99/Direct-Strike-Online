@@ -2455,41 +2455,55 @@ console.log('undead necromancer skeleton kit');
   }
 }
 
-// -------------------------------------------------- Undead bat-tank stance
-// The bat (undead unit 7) flies and bites only air; its "Aterizare" toggle
-// lands it as a ground melee tank that hits only the ground. Auto-cast lands
-// it when a ground enemy is near and takes off once the ground is clear.
-console.log('undead bat-tank land/air stance');
+// -------------------------------------------------- Undead bat-tank (Aterizare)
+// The bat (undead unit 7) flies and bites only air. The "Aterizare" UPGRADE
+// (kind 'batland') gives it an auto land/take-off: it lands as a ground melee
+// tank when a ground enemy is near and takes off once the ground is clear.
+console.log('undead bat-tank land/air (Aterizare upgrade)');
 {
   const es = (game, u) => effStats(u, game.ustatOf(u));
   const runG = (game, secs, extra) => {
     const n = Math.ceil(secs / DT);
     for (let i = 0; i < n; i++) { if (extra) extra(); game.update(DT); game.drainEvents(); }
   };
+  const withBat = () => {
+    const game = new Game(84, { races: ['undead', 'humans'] });
+    game.money[0] = 99999;
+    game.tier[0] = 3; // the bat (and its Aterizare upgrade) are tier 3
+    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    return { game, bat };
+  };
   // default airborne, air-only melee, no projectile
   {
-    const game = new Game(81, { races: ['undead', 'humans'] });
-    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    const { game, bat } = withBat();
     check('bat spawns airborne', bat.isAir === true && !bat.landed);
     const s = es(game, bat);
     check('air form bites air only (no projectile)',
       s.targetsAir === true && s.targetsGround === false && !s.ranged);
   }
-  // a ground enemy in reach -> auto-land into a ground melee tank
+  // WITHOUT the upgrade it never lands, even with a ground enemy right next to it
   {
-    const game = new Game(82, { races: ['undead', 'humans'] });
-    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    const { game, bat } = withBat();
+    const foe = spawnUnit(game, 1, 'grunt', 560, 400);
+    runG(game, 3, () => { foe.x = 560; foe.y = 400; foe.hp = foe.maxHp; });
+    check('no Aterizare upgrade -> bat stays airborne', bat.isAir === true && !bat.landed);
+  }
+  // WITH the upgrade: a ground enemy in reach -> auto-land into a ground tank
+  {
+    const { game, bat } = withBat();
+    const bought = game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'batland' });
+    check('Aterizare upgrade is buyable', bought.ok);
     const foe = spawnUnit(game, 1, 'grunt', 560, 400);
     runG(game, 4, () => { foe.x = 560; foe.y = 400; foe.hp = foe.maxHp; });
-    check('bat auto-lands when a ground enemy is near', bat.landed === true && bat.isAir === false);
+    check('bat auto-lands vs a ground enemy', bat.landed === true && bat.isAir === false);
     const s = es(game, bat);
     check('ground form hits ground only', s.targetsAir === false && s.targetsGround === true && !s.ranged);
     check('landArmor applied while grounded', bat.armor === 'armored');
   }
   // ground clears -> auto take-off back to the flying default
   {
-    const game = new Game(83, { races: ['undead', 'humans'] });
-    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    const { game, bat } = withBat();
+    game.issueCommand({ type: 'buyUpgrade', team: 0, id: 'batland' });
     const foe = spawnUnit(game, 1, 'grunt', 560, 400);
     runG(game, 4, () => { foe.x = 560; foe.hp = foe.maxHp; });
     const landedMid = bat.landed;

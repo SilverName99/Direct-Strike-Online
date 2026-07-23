@@ -159,6 +159,11 @@ export function updateCombat(game, dt) {
     // Mount upgrade (e.g. boar rider): while still mounted, charge a ranged
     // intruder and dismount on arrival — takes over from normal combat.
     if (!u.dismounted && !u.beast && mountCharge(game, u)) continue;
+    // Bat "Aterizare" upgrade: auto-toggle between the flying air form and the
+    // grounded melee form (form flip only — the unit still fights this tick).
+    const batUp = batLandUpgradeFor(game, u);
+    if (batUp) updateBatLand(game, u, batUp);
+    else if (u.landed) setBatLanded(game, u, false); // upgrade gone -> back to flying
     // A caster is defined by its active abilities and runs the prepare ->
     // release FSM before (and instead of) its basic action, whether it is a
     // healer or a fighter. It only falls through to the basic attack/heal
@@ -626,6 +631,73 @@ function groundUpgradeFor(game, u) {
     if (up && up.kind === 'ground' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return true;
   }
   return false;
+}
+
+// The active "Aterizare" (kind 'batland') upgrade for u's type, else null.
+function batLandUpgradeFor(game, u) {
+  for (const id of game.upgrades[u.team]) {
+    if (!game.upgradeActive(u.team, id)) continue;
+    const up = resolvedUpgrade(id);
+    if (up && up.kind === 'batland' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+  }
+  return null;
+}
+
+// Flip the bat between its AIR form (base stats: flyer, air-only melee) and its
+// grounded melee form. Landing stashes the ground overrides read by effStats and
+// clears isAir so it collides/renders/gets-hit as a ground unit; taking off
+// restores the flyer. Armor while landed comes from the unit's `landArmor`.
+function setBatLanded(game, u, landed) {
+  if (!!u.landed === !!landed) return;
+  if (landed) {
+    const up = batLandUpgradeFor(game, u);
+    const p = (up && up.params) || {};
+    u.landed = true;
+    u.isAir = false;
+    u.ovLandDamage = (p.groundDamage || 0) > 0 ? p.groundDamage : null;
+    u.ovLandRange = (p.groundRange || 0) > 0 ? p.groundRange : null;
+    u.ovLandPeriod = (p.groundPeriod || 0) > 0 ? p.groundPeriod : null;
+    u.ovLandSpeed = (p.groundSpeed || 0) > 0 ? p.groundSpeed : null;
+    const base = game.ustatOf(u);
+    if (base && base.landArmor) { u.armorSaved = u.armor; u.armor = base.landArmor; }
+    game.events.push({ type: 'land', team: u.team, x: u.x, y: u.y, unitId: u.id });
+  } else {
+    u.landed = false;
+    u.isAir = true;
+    u.ovLandDamage = u.ovLandRange = u.ovLandPeriod = u.ovLandSpeed = null;
+    if (u.armorSaved != null) { u.armor = u.armorSaved; u.armorSaved = null; }
+    game.events.push({ type: 'takeoff', team: u.team, x: u.x, y: u.y, unitId: u.id });
+  }
+}
+
+// Auto land/take-off decision, once the bat owns the Aterizare upgrade: land when
+// a ground enemy (or enemy building) is within `radius` and nothing to bite up
+// high; return to flying as soon as the ground is clear. A short cooldown between
+// flips prevents thrash at the range boundary.
+function updateBatLand(game, u, up) {
+  if ((u.batCd || 0) > game.time) return;
+  const r = up.params.radius || 0, r2 = r * r;
+  let groundEnemy = false, airEnemy = false;
+  for (const e of game.entities) {
+    if (e.hp <= 0 || e.team === u.team || e.isStructure) continue;
+    const dx = e.x - u.x, dy = e.y - u.y;
+    if (dx * dx + dy * dy > r2) continue;
+    if (e.isAir) airEnemy = true; else groundEnemy = true;
+  }
+  if (!groundEnemy) {
+    for (const s of game.structures) {
+      if (s.hp <= 0 || s.team === u.team) continue;
+      const dx = s.x - u.x, dy = s.y - u.y;
+      if (dx * dx + dy * dy <= r2) { groundEnemy = true; break; }
+    }
+  }
+  // desired form: airborne -> land only vs a ground threat with no air target;
+  // landed -> stay down while a ground threat remains, else take off.
+  const wantLanded = u.landed ? groundEnemy : (groundEnemy && !airEnemy);
+  if (wantLanded !== !!u.landed) {
+    setBatLanded(game, u, wantLanded);
+    u.batCd = game.time + 2; // anti-thrash cooldown between flips
+  }
 }
 
 // The active "Acid Spit" (kind 'acid') upgrade transforming u's type, else null.

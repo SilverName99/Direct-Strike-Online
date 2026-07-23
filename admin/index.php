@@ -38,6 +38,9 @@ const SHIELD_UPGRADES = ['lightshield'];
 // upgrades of kind 'split' (Landing Split) — the unit splits into rider +
 // beast, so it gets BOTH the "foot-" (rider on foot) and "beast-" sprite sets
 const SPLIT_UPGRADES = ['splitmount'];
+// upgrades of kind 'batland' (Aterizare) — the bat gains a grounded melee form,
+// so it gets a "ground-" walk + attack sprite set
+const BATLAND_UPGRADES = ['batland'];
 // ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
 // — every aura is now cast (a "Cast X" frame, then the zone persists for its
 // duration); projectile abilities also get a per-caster projectile image slot
@@ -84,9 +87,6 @@ const ABILITY_INFO = [
   'skeletonmelee' => ['Melee Skeleton', true, false],   // summon (cast frame; melee skeleton sprites below)
   'skeletonranged' => ['Ranged Skeleton', true, true], // summon (cast frame + its own projectile art; ranged skeleton sprites, SEPARATE)
   'skeletonbrothers' => ['Brothers Skeleton', true, false], // raises 1 melee + 1 ranged (reuses both sprite sets)
-  // Bat-tank (Undead unit 7) stance toggle. No cast/projectile frames — the
-  // ground form gets its own walk/attack sprite set (see slotsFor: "ground-").
-  'batform' => ['Aterizare', false, false],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];
@@ -113,6 +113,7 @@ const UPGRADE_INFO = [
   'totemtraining' => 'Slowing Totem (deblocare)',
   'frosttraining' => 'Frost Bolt (deblocare)',
   'skelcap' => 'Undead: plafon schelete (buton bază) — fallback 💀',
+  'batland' => 'Undead: Aterizare (liliac)',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
@@ -217,6 +218,10 @@ function unitHasShield(string $race, string $ent): bool {
 // True when this race's unit is targeted by a "Landing Split" upgrade.
 function unitHasSplit(string $race, string $ent): bool {
   return unitHasUpgradeKind($race, $ent, SPLIT_UPGRADES);
+}
+// True when this race's unit is targeted by an "Aterizare" (batland) upgrade.
+function unitHasBatland(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, BATLAND_UPGRADES);
 }
 // Shared: is $ent (this race) the target of any upgrade whose id is in $ids?
 function unitHasUpgradeKind(string $race, string $ent, array $ids): bool {
@@ -514,9 +519,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['morph-attack_1'] = 'Elemental Form: Atac 2';
     $slots['morph-die_0'] = 'Elemental Form: Die';
   }
-  // Bat-tank "Aterizare": the LANDED ground form gets its own walk + attack set
-  // (hosted under a "ground-" prefix). In air it uses the unit's normal frames.
-  if (in_array('batform', unitAbilities($race, $ent), true)) {
+  // Bat-tank "Aterizare" upgrade: the LANDED ground form gets its own walk +
+  // attack set (hosted under a "ground-" prefix). In air it uses normal frames.
+  if (unitHasBatland($race, $ent)) {
     $slots['ground-walk_0'] = 'La sol: Mers 1';
     $slots['ground-walk_1'] = 'La sol: Mers 2';
     $slots['ground-attack_0'] = 'La sol: Atac 1';
