@@ -342,7 +342,7 @@ export function buildingNameOf(race, kind) {
 
 // ---------------------------- snapshot ----------------------------
 // Scalar building stat fields that may exist on a resolved building.
-const BUILDING_SCALARS = ['cost', 'costStep', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'chainMax', 'chainDelay', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed', 'vision'];
+const BUILDING_SCALARS = ['cost', 'costStep', 'buildTime', 'slot', 'hp', 'cap', 'tier', 'food', 'chainMax', 'chainDelay', 'range', 'damage', 'period', 'income', 'projectileSpeed', 'regen', 'bounty', 'buildCd', 'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed', 'hp2', 'hp3', 'damage2', 'damage3', 'period2', 'period3', 'shots', 'shots2', 'shots3', 'attackHold', 'campfireDelay', 'campSize', 'campSize2', 'campSize3', 'campSpeed', 'vision', 'blightRadius'];
 
 // Effective tower HP / damage for a base tier (1..3). Towers scale with the
 // owner's Main Base tier: tier 1 = hp/damage, tier 2 = hp2/damage2, tier 3 =
@@ -398,7 +398,7 @@ function raceBuildingsSnapshot(race) {
     if (kind === 'main') {
       o.hp = [...b.hp];
       if (Array.isArray(b.upgradeTime)) o.upgradeTime = [...b.upgradeTime];
-      for (const f of ['damage', 'range', 'period', 'projectileSpeed']) if (b[f] !== undefined) o[f] = b[f];
+      for (const f of ['damage', 'range', 'period', 'projectileSpeed', 'blightRadius']) if (b[f] !== undefined) o[f] = b[f];
       o.dmgType = b.dmgType; o.targetsAir = !!b.targetsAir;
     } else for (const f of BUILDING_SCALARS) if (b[f] !== undefined) o[f] = b[f];
     if (b.cw !== undefined) { o.cw = b.cw; o.ch = b.ch; }
@@ -685,7 +685,7 @@ function applyBuilding(b, kind, vals) {
       if (!Array.isArray(b.upgradeTime)) b.upgradeTime = [20, 20];
       for (let i = 0; i < 2; i++) if (num(vals.upgradeTime[i]) !== undefined) b.upgradeTime[i] = clamp(vals.upgradeTime[i], 0, 600);
     }
-    for (const f of ['damage', 'range', 'period', 'projectileSpeed']) if (num(vals[f]) !== undefined) b[f] = clamp(vals[f], 0, 100000);
+    for (const f of ['damage', 'range', 'period', 'projectileSpeed', 'blightRadius']) if (num(vals[f]) !== undefined) b[f] = clamp(vals[f], 0, 100000);
     if (['normal', 'piercing', 'explosive'].includes(vals.dmgType)) b.dmgType = vals.dmgType;
     if (typeof vals.targetsAir === 'boolean') b.targetsAir = vals.targetsAir;
     return;

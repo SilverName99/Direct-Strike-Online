@@ -598,6 +598,7 @@ function regenManifest(string $assetsDir): void {
     }
   }
   $backgrounds = [];
+  $backgrounds2 = [];
   $loadings = [];
   $music = [];
   $cursors = [];
@@ -610,6 +611,7 @@ function regenManifest(string $assetsDir): void {
   $towervids = [];
   foreach (RACES as $r) {
     if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
+    if (is_file("$assetsDir/$r/background2.png")) $backgrounds2[$r] = true;
     $lo = [];
     foreach (LOADING_SLOTS as $n) { $lf = loadingFileFor($assetsDir, $r, $n); if ($lf) $lo[] = $lf; }
     if ($lo) $loadings[$r] = $lo;
@@ -672,7 +674,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'backgrounds2' => (object)$backgrounds2, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -798,6 +800,37 @@ if ($authed && $action === 'deletebg') {
     @unlink("$assetsDir/$race/background.png");
     regenManifest($assetsDir);
     $msg = "Background șters: $race";
+  }
+}
+// CORRUPT ("blight") background — the terrain shown inside the corruption blobs
+if ($authed && $action === 'uploadbg2') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/background2.png")) {
+        regenManifest($assetsDir);
+        $msg = "Background corupt încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebg2') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    @unlink("$assetsDir/$race/background2.png");
+    regenManifest($assetsDir);
+    $msg = "Background corupt șters: $race";
   }
 }
 // GLOBAL raisable-corpse decal (Rise Dead) — corpse.png
@@ -1639,6 +1672,7 @@ if ($authed && $action === 'deletebarover') {
 
   <?php
     $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile);
+    $bg2File = "$assetsDir/$race/background2.png"; $hasBg2 = is_file($bg2File);
     $musicFile = musicFileFor($assetsDir, $race); $hasMusic = $musicFile !== null;
     $cursorFile = cursorFileFor($assetsDir, $race); $hasCursor = $cursorFile !== null;
   ?>
@@ -1669,6 +1703,31 @@ if ($authed && $action === 'deletebarover') {
         <button type="button" id="dl-map-template" class="pick" style="cursor:pointer;margin-top:8px">⬇ Șablon zone (PNG)</button>
         <div style="color:#7c8ba1;font-size:11px;max-width:170px;margin-top:6px;line-height:1.5">
           Arată unde cad baza, zona de unități și turela — pictează decorul aliniat, exportă la <b>3600×1920</b>.
+        </div>
+      </div>
+      <div class="slot">
+        <span class="lbl" style="color:#c58cff">Jumătatea <?= $race ?> 2 (corupt)</span>
+        <div class="thumb" style="width:160px;height:90px">
+          <?php if ($hasBg2): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/background2.png?t=<?= filemtime($bg2File) ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbg2">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBg2 ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBg2): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebg2">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi background-ul corupt?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <div style="color:#7c8ba1;font-size:11px;max-width:170px;margin-top:6px;line-height:1.5">
+          Aceeași dimensiune/aliniere ca background-ul normal. Apare doar în petele de „blight" din jurul clădirilor (rază setată la fiecare clădire în ⚙ stats).
         </div>
       </div>
       <div class="slot" style="min-width:240px">

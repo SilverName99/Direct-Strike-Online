@@ -457,6 +457,13 @@ function fieldsFor(ent, kind) {
     group: G, label: 'Vedere (fog, 0 = auto)', type: 'num', value: b.vision ?? 0,
     apply: (v) => { b.vision = clamp(Math.round(v), 0, 100000); },
   });
+  // Blight (Undead): radius of the corrupt-terrain blob drawn around this
+  // building once placed (0 = none). Needs the race's "corupt" background
+  // uploaded; only shows on the undead half.
+  out.push({
+    group: G, label: 'Blight: rază corupție (0 = fără)', type: 'num', value: b.blightRadius ?? 0,
+    apply: (v) => { b.blightRadius = clamp(Math.round(v), 0, 100000); },
+  });
 
   if (ent === 'turret') {
     for (const [f, label] of TURRET_FIELDS) {

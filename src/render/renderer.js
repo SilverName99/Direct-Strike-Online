@@ -1,10 +1,10 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage, getCorpseImageBig } from './sprites.js';
+import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage, getCorpseImageBig } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
-import { resolvedAbility } from '../ui/balance.js';
+import { resolvedAbility, statsBuilding } from '../ui/balance.js';
 import { effectVal } from '../sim/abilities.js';
 import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo, drawLightShield } from './vfx.js';
 import { Fog } from './fog.js';
@@ -284,6 +284,10 @@ export class Renderer {
     const mid = CONFIG.FIELD_W / 2;
     this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid, false);
     this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid, true);
+    // "Blight": the corrupt terrain overlay, shown only inside organic blobs
+    // around each team's buildings (undead), on top of the normal terrain.
+    this.drawBlight(ctx, game, 0, 0, mid, false);
+    this.drawBlight(ctx, game, 1, mid, mid, true);
     // GLOBAL neutral strip over the seam (the variant the sim picked this match)
     this.drawMiddleStrip(ctx, getMiddleImage(game.middleSlot != null ? game.middleSlot : -1), mid);
 
@@ -383,6 +387,75 @@ export class Renderer {
       // mirror about the half's center: local x grows leftward from the outer
       // edge, so the image's left side (the base) lands on the outer edge and
       // its right side (the neutral seam) meets the middle
+      ctx.translate(rx + rw, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    } else {
+      ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    }
+    ctx.restore();
+  }
+
+  // Deterministic 0..1 pseudo-noise from an integer (stable across frames, so a
+  // building's blight blob keeps the same organic shape instead of shimmering).
+  blightNoise(n) {
+    const x = Math.sin(n * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  // Trace ONE organic corruption blob (a wobbly closed curve, not a plain circle)
+  // as a subpath on the current ctx path. Radius varies per angle from a hash of
+  // the building id, and the ring is smoothed with midpoint quadratics.
+  addBlightBlob(ctx, cx, cy, r, seed) {
+    const N = 20;
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const ang = (i / N) * Math.PI * 2;
+      const w = this.blightNoise(seed * 131.1 + i * 7.77); // 0..1 per vertex
+      const rr = r * (0.70 + 0.48 * w); // jagged edge between 0.70R and 1.18R
+      pts.push([cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr]);
+    }
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    let m = mid(pts[N - 1], pts[0]);
+    ctx.moveTo(m[0], m[1]);
+    for (let i = 0; i < N; i++) {
+      const cur = pts[i], nxt = pts[(i + 1) % N];
+      const mm = mid(cur, nxt);
+      ctx.quadraticCurveTo(cur[0], cur[1], mm[0], mm[1]);
+    }
+    ctx.closePath();
+  }
+
+  // Draw the corrupt terrain (background2) for one team, clipped to the union of
+  // organic blobs around that team's buildings (each with a per-building
+  // `blightRadius`). Aligned with the normal background so it reads as the same
+  // ground turning corrupt under the buildings. No-op unless a corrupt image is
+  // uploaded and at least one building has a blight radius.
+  drawBlight(ctx, game, team, rx, rw, flip) {
+    const race = raceOf(team);
+    const img = getBackground2(race);
+    if (!img) return;
+    const blobs = [];
+    for (const s of game.structures) {
+      if (s.team !== team || s.hp <= 0) continue;
+      const r = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
+      if (r > 0) blobs.push([s.x, s.y, r, s.id]);
+    }
+    if (!blobs.length) return;
+    const rh = CONFIG.FIELD_H;
+    ctx.save();
+    // clip to this half, then to the union of the corruption blobs
+    ctx.beginPath();
+    ctx.rect(rx, 0, rw, rh);
+    ctx.clip();
+    ctx.beginPath();
+    for (const [x, y, r, id] of blobs) this.addBlightBlob(ctx, x, y, r, id);
+    ctx.clip();
+    // same cover-fit + mirror as the base half, so the corrupt texture lines up
+    const s = Math.max(rw / img.width, rh / img.height);
+    const dw = img.width * s, dh = img.height * s;
+    ctx.globalAlpha = 0.9;
+    if (flip) {
       ctx.translate(rx + rw, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh);

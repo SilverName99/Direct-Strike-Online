@@ -20,6 +20,7 @@ const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit pr
 const fireProjectiles = new Map();    // `${race}/${ent}` -> entry (Fireball projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
 const backgrounds = new Map(); // race -> Image
+const backgrounds2 = new Map(); // race -> Image (corrupt "blight" overlay terrain)
 const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
 const musicUrls = new Map();   // race -> url of the uploaded background track
 const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
@@ -150,6 +151,11 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const race of Object.keys(man.backgrounds || {})) {
         load(`${base}${race}/background.png?v=${man.v || 0}`, (img) => backgrounds.set(race, img));
       }
+      // per-race CORRUPT background ("blight"): shown only inside the corruption
+      // blobs around that race's buildings (aligned with the normal background)
+      for (const race of Object.keys(man.backgrounds2 || {})) {
+        load(`${base}${race}/background2.png?v=${man.v || 0}`, (img) => backgrounds2.set(race, img));
+      }
       // GLOBAL middle-of-map strip variants (drawn over the seam; one random
       // variant is chosen per match)
       const midList = Array.isArray(man.middle) ? man.middle : (man.middle ? [man.middle] : []);
@@ -268,6 +274,11 @@ export function pickImg(entry, team) {
 
 export function getBackground(race) {
   return backgrounds.get(race) || null;
+}
+
+// The corrupt "blight" terrain overlay for a race, or null if none uploaded.
+export function getBackground2(race) {
+  return backgrounds2.get(race) || null;
 }
 
 // GLOBAL raisable-corpse decal (Rise Dead), or null if none uploaded (the
