@@ -45,6 +45,20 @@ export function effStats(u, stats) {
       morphSplash: u.morph.splash, morphSplashPct: u.morph.splashPct,
     };
   }
+  // Bat "Aterizare": the LANDED form is a ground melee tank. Base stats are the
+  // AIR form (flyer, air-only melee), so landing overrides to ground melee and
+  // flips targeting (can't reach fliers while grounded; hits ground only).
+  if (u.landed) {
+    return {
+      ...stats,
+      damage: u.ovLandDamage != null ? u.ovLandDamage : stats.damage,
+      range: u.ovLandRange != null ? u.ovLandRange : stats.range,
+      period: u.ovLandPeriod != null ? u.ovLandPeriod : stats.period,
+      speed: u.ovLandSpeed != null ? u.ovLandSpeed : stats.speed,
+      projectile: false, ranged: false, splash: 0,
+      isAir: false, targetsAir: false, targetsGround: true,
+    };
+  }
   if (!u.dismounted && !u.beast) return stats;
   const ranged = !!u.ovRanged;
   return {

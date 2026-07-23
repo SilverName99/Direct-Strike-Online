@@ -588,6 +588,26 @@ export const ABILITIES = {
       castPrepare: 0,
     },
   },
+  batform: {
+    name: 'Aterizare',
+    kind: 'active',
+    color: '#9b8cc4',
+    desc: 'Liliacul-tanc comută între două forme. În AER: zboară, lovește doar zburătorii de aproape (fără proiectil) — interceptor anti-air. La SOL: aterizează și devine un tanc melee terestru care blochează lane-ul și lovește doar la sol (statele de mai jos). Auto-cast: aterizează când un inamic terestru intră în rază și nu are ținte aeriene; decolează când nu mai are ce lovi jos dar apare o țintă aeriană. Se poate forța manual din panou.',
+    params: {
+      tier: 1,
+      manaCost: 0,        // stance-ul nu costă mană
+      cooldown: 2,        // secunde între comutări (anti-thrash)
+      // forma de SOL (override față de statele de bază, care sunt forma de AER):
+      groundDamage: 0,    // 0 = păstrează damage-ul de bază
+      groundRange: 34,    // rază melee la sol
+      groundPeriod: 0,    // 0 = păstrează perioada de bază
+      groundSpeed: 0,     // 0 = păstrează viteza de bază
+      // auto-cast: rază în care caută inamici (terestru -> aterizează, aerian -> decolează)
+      landRange: 190,
+      castPrepare: 0,     // comutare instant (fără cadru de „prepare")
+      castHold: 0,        // fără frame de „cast" ținut — doar comută forma
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -724,4 +744,10 @@ export const ABILITY_PARAM_LABELS = {
   armored: 'Armură grea (1/0)',
   targetsAir: 'Atacă aerul (1/0)',
   targetsGround: 'Atacă solul (1/0)',
+  // Liliac-tanc (Aterizare): forma de SOL — override peste statele de bază (aer)
+  groundDamage: 'Sol: damage (0 = ca de bază)',
+  groundRange: 'Sol: rază melee',
+  groundPeriod: 'Sol: perioadă atac (s, 0 = ca de bază)',
+  groundSpeed: 'Sol: viteză mișcare (0 = ca de bază)',
+  landRange: 'Auto: rază detecție (aterizare/decolare)',
 };

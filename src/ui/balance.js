@@ -29,6 +29,8 @@ export const UNIT_NUM_FIELDS = [
 export const UNIT_SELECT_FIELDS = {
   armor: ['light', 'armored'],
   dmgType: ['normal', 'piercing', 'explosive'],
+  // Bat-tank only (shown just for units that define it): armor while landed.
+  landArmor: ['light', 'armored'],
 };
 export const BUILDING_FIELDS = {
   wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['regen', 'Regenerare HP/s (0 = oprit)'], ['cap', 'Max pe teren'], ['chainMax', 'Stoc max wall-uri (0/1 = oprit)'], ['chainDelay', 'Secunde pentru +1 în stoc']],

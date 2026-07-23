@@ -2455,6 +2455,51 @@ console.log('undead necromancer skeleton kit');
   }
 }
 
+// -------------------------------------------------- Undead bat-tank stance
+// The bat (undead unit 7) flies and bites only air; its "Aterizare" toggle
+// lands it as a ground melee tank that hits only the ground. Auto-cast lands
+// it when a ground enemy is near and takes off once the ground is clear.
+console.log('undead bat-tank land/air stance');
+{
+  const es = (game, u) => effStats(u, game.ustatOf(u));
+  const runG = (game, secs, extra) => {
+    const n = Math.ceil(secs / DT);
+    for (let i = 0; i < n; i++) { if (extra) extra(); game.update(DT); game.drainEvents(); }
+  };
+  // default airborne, air-only melee, no projectile
+  {
+    const game = new Game(81, { races: ['undead', 'humans'] });
+    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    check('bat spawns airborne', bat.isAir === true && !bat.landed);
+    const s = es(game, bat);
+    check('air form bites air only (no projectile)',
+      s.targetsAir === true && s.targetsGround === false && !s.ranged);
+  }
+  // a ground enemy in reach -> auto-land into a ground melee tank
+  {
+    const game = new Game(82, { races: ['undead', 'humans'] });
+    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    const foe = spawnUnit(game, 1, 'grunt', 560, 400);
+    runG(game, 4, () => { foe.x = 560; foe.y = 400; foe.hp = foe.maxHp; });
+    check('bat auto-lands when a ground enemy is near', bat.landed === true && bat.isAir === false);
+    const s = es(game, bat);
+    check('ground form hits ground only', s.targetsAir === false && s.targetsGround === true && !s.ranged);
+    check('landArmor applied while grounded', bat.armor === 'armored');
+  }
+  // ground clears -> auto take-off back to the flying default
+  {
+    const game = new Game(83, { races: ['undead', 'humans'] });
+    const bat = spawnUnit(game, 0, 'wasp', 500, 400);
+    const foe = spawnUnit(game, 1, 'grunt', 560, 400);
+    runG(game, 4, () => { foe.x = 560; foe.hp = foe.maxHp; });
+    const landedMid = bat.landed;
+    foe.hp = 0; // clear the ground threat
+    runG(game, 5);
+    check('bat takes off again once the ground is clear',
+      landedMid === true && bat.landed === false && bat.isAir === true);
+  }
+}
+
 // ----------------------------------------------------------------- done
 console.log('');
 if (failures > 0) {

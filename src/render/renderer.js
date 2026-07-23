@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage, getCorpseImageBig } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -1439,6 +1439,10 @@ export class Renderer {
         // those in its own form first, then the beast bursts out.
         if (u.morph && u.morphUntil > game.time && !u.castState && !anim.startsWith('morph-') && hasMorphAnim(u.type, u.team, anim)) {
           anim = `morph-${anim}`;
+        }
+        // Landed bat: swap to the uploaded ground-form ("ground-") sprite set.
+        if (u.landed && !anim.startsWith('ground-') && hasGroundAnim(u.type, u.team, anim)) {
+          anim = `ground-${anim}`;
         }
         // Scut de lumină: show the "shield" pose only for the ACTIVATION moment
         // (configurable); after that the unit keeps fighting normally, with the

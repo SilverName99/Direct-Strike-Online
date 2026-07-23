@@ -84,6 +84,9 @@ const ABILITY_INFO = [
   'skeletonmelee' => ['Melee Skeleton', true, false],   // summon (cast frame; melee skeleton sprites below)
   'skeletonranged' => ['Ranged Skeleton', true, true], // summon (cast frame + its own projectile art; ranged skeleton sprites, SEPARATE)
   'skeletonbrothers' => ['Brothers Skeleton', true, false], // raises 1 melee + 1 ranged (reuses both sprite sets)
+  // Bat-tank (Undead unit 7) stance toggle. No cast/projectile frames — the
+  // ground form gets its own walk/attack sprite set (see slotsFor: "ground-").
+  'batform' => ['Aterizare', false, false],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];
@@ -510,6 +513,14 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     $slots['morph-attack_0'] = 'Elemental Form: Atac 1';
     $slots['morph-attack_1'] = 'Elemental Form: Atac 2';
     $slots['morph-die_0'] = 'Elemental Form: Die';
+  }
+  // Bat-tank "Aterizare": the LANDED ground form gets its own walk + attack set
+  // (hosted under a "ground-" prefix). In air it uses the unit's normal frames.
+  if (in_array('batform', unitAbilities($race, $ent), true)) {
+    $slots['ground-walk_0'] = 'La sol: Mers 1';
+    $slots['ground-walk_1'] = 'La sol: Mers 2';
+    $slots['ground-attack_0'] = 'La sol: Atac 1';
+    $slots['ground-attack_1'] = 'La sol: Atac 2';
   }
   // cast frames (per-ability: 1 or 2) + per-ability projectile for each ability
   foreach (unitAbilities($race, $ent) as $aid) {

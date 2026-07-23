@@ -113,6 +113,11 @@ export function hasMorphAnim(type, team, anim) {
   return hasSpriteAnim(raceOf(team), type, `morph-${anim}`);
 }
 
+// True when a landed bat has an uploaded ground-form ("ground-<anim>") sprite.
+export function hasGroundAnim(type, team, anim) {
+  return hasSpriteAnim(raceOf(team), type, `ground-${anim}`);
+}
+
 // Uploaded projectile image for a unit type, contain-fit into a targetH
 // square (caller rotates the context toward travel). False -> caller draws
 // the default dot.
