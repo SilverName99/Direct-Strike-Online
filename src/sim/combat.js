@@ -544,16 +544,19 @@ function updateGraveDigger(game, u, stats, dt) {
     return;
   }
 
-  // 3) Nobody near -> advance WITH the army: only move up while a friendly unit
-  //    is ahead of us (toward the enemy). Alone at the front, hold — don't march
-  //    into the enemy and die pointlessly.
+  // 3) Nobody near -> advance WITH the army. It marches as long as it isn't the
+  //    FRONT-MOST unit: an ally that's alongside or ahead (i.e. not clearly
+  //    behind it) counts as support, so it moves off with the pack from spawn
+  //    instead of waiting for someone to pull past it. Only when every ally is
+  //    well behind it (it would lead the charge alone) does it hold — a
+  //    non-combat unit shouldn't walk into the enemy by itself.
   u.digTimer = 0; u.digTargetX = null;
   const enemyMain = game.mainOf(1 - u.team);
   const dir = enemyMain ? (Math.sign(enemyMain.x - u.x) || 1) : (u.team === 0 ? 1 : -1);
   let allyAhead = false;
   for (const a of game.entities) {
     if (a === u || a.team !== u.team || a.hp <= 0 || a.isStructure) continue;
-    if ((a.x - u.x) * dir > 20) { allyAhead = true; break; }
+    if ((a.x - u.x) * dir > -25) { allyAhead = true; break; } // alongside or ahead
   }
   if (allyAhead) {
     u.x += (stats.speed || 70) * dt * dir;

@@ -1175,6 +1175,20 @@ console.log('abilities (casters, auras, status effects)');
     const d2 = spawnUnit(g2, 0, 'dasher', 300, 400); d2.hp = d2.maxHp = 100000;
     run(g2, 6);
     check('grave digger: no enemy -> no corpses', g2.corpses.length === 0, `${g2.corpses.length}`);
+    // marches WITH the pack: an ally spawned alongside (same column) is enough
+    // support to move off from spawn — it doesn't wait to be pulled past.
+    const g2b = new Game(44, { races: ['undead', 'orcs'] });
+    const d2b = spawnUnit(g2b, 0, 'dasher', 300, 360); d2b.hp = d2b.maxHp = 100000;
+    spawnUnit(g2b, 0, 'grunt', 300, 440); // ally at the SAME x, different row
+    const x0 = d2b.x;
+    run(g2b, 2);
+    check('grave digger: advances with an ally alongside (no lag)', d2b.x > x0 + 30, `moved ${(d2b.x - x0).toFixed(0)}`);
+    // alone (no ally) -> holds instead of walking into the enemy by itself
+    const g2c = new Game(45, { races: ['undead', 'orcs'] });
+    const d2c = spawnUnit(g2c, 0, 'dasher', 300, 400); d2c.hp = d2c.maxHp = 100000;
+    const x0c = d2c.x;
+    run(g2c, 2);
+    check('grave digger: alone -> holds position', Math.abs(d2c.x - x0c) < 6, `moved ${(d2c.x - x0c).toFixed(0)}`);
     // flee upgrade: runs from a close enemy
     const g3 = new Game(43, { races: ['undead', 'orcs'] });
     g3.upgrades[0].add('gravedigflee');

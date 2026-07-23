@@ -924,7 +924,14 @@ export class BottomBar {
     }
     if (data.kind === 'ability' || data.kind === 'upgrade' || data.kind === 'buyUpgrade' || data.kind === 'heroAbility') {
       const isAb = data.kind === 'ability' || data.kind === 'heroAbility';
-      const img = getUiIcon(`${isAb ? 'ability' : 'upgrade'}-${data.id}`);
+      let img = getUiIcon(`${isAb ? 'ability' : 'upgrade'}-${data.id}`);
+      // An ability-unlock upgrade (e.g. "Melee Skeleton") with no dedicated
+      // upgrade icon falls back to the UNLOCKED ability's icon — so the icon you
+      // uploaded to that ability appears on the buy card too, not just the unit panel.
+      if (!img && data.kind === 'buyUpgrade') {
+        const up = resolvedUpgrade(data.id);
+        if (up && up.unlocks) img = getUiIcon(`ability-${up.unlocks}`);
+      }
       if (img) {
         const s = Math.min(46 / img.width, 46 / img.height);
         ctx.drawImage(img, (46 - img.width * s) / 2, (46 - img.height * s) / 2, img.width * s, img.height * s);
