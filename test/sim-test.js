@@ -1240,6 +1240,27 @@ console.log('abilities (casters, auras, status effects)');
     check('acid paste: vulnerable multiplies damage ~1.5x', Math.abs(amp / base - 1.5) < 0.01, `base=${base.toFixed(0)} amp=${amp.toFixed(0)}`);
     ab.params = saved;
   }
+  // Suicide bomber: a unit that charges the nearest enemy and detonates (no
+  // basic attack, no corpse), damaging everyone in the blast radius.
+  {
+    applyBalance({ races: { humans: { units: { grunt: { bomber: true, explodeRange: 34, explodeRadius: 120, explodeDamage: 200, speed: 120 } } } } });
+    const game = new Game(66, { races: ['humans', 'orcs'] });
+    const bomber = spawnUnit(game, 0, 'grunt', 300, 400);
+    const bomberId = bomber.id;
+    const foeA = spawnUnit(game, 1, 'grunt', 460, 400); foeA.hp = foeA.maxHp = 500;
+    const foeB = spawnUnit(game, 1, 'grunt', 500, 420); foeB.hp = foeB.maxHp = 500; // in the blast
+    run(game, 4);
+    check('bomber: detonates and is gone', !game.entities.some((e) => e.id === bomberId));
+    check('bomber: primary target took the blast', foeA.hp < 500, `${foeA.hp}`);
+    check('bomber: nearby enemy caught in AoE', foeB.hp < 500, `${foeB.hp}`);
+    check('bomber: leaves no corpse', game.corpses.length === 0, `${game.corpses.length}`);
+    // with no enemy units, it runs to the base and blows it up
+    const g2 = new Game(67, { races: ['humans', 'orcs'] });
+    const main2 = g2.mainOf(1); const hp0 = main2.hp;
+    spawnUnit(g2, 0, 'grunt', main2.x - 200, main2.y);
+    run(g2, 6);
+    check('bomber: damages the enemy base when no units are near', main2.hp < hp0, `${hp0}->${main2.hp}`);
+  }
 
   // dispell: an allied caster cleanses the frost slow
   {

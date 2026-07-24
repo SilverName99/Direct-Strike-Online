@@ -225,6 +225,14 @@ function baseUnits(race) {
       digBig: false,       // dig the big corpse decal instead of the 1×1 one
       fleeRange: 140,      // (with the flee upgrade) enemy this close -> it flees
       fleeSpeed: 130,      // flee movement speed
+      // Suicide bomber: a unit that runs at the nearest enemy and explodes on
+      // contact for area damage, then dies. No basic attack.
+      bomber: false,       // is this a suicide bomber
+      explodeRange: 34,    // detonate when this close to the target (box-to-box)
+      explodeRadius: 100,  // blast radius (enemies inside take the blast)
+      explodeDamage: 140,  // damage to each enemy caught in the blast
+      explodeBuildingDamage: 0, // special damage vs structures (0 = as normal)
+      explodeAir: false,   // the blast also catches fliers
     };
     // the hero carries its own leveling config (thresholds + per-level growth)
     // plus its 3 skill abilities + 1 ultimate (assigned in admin, ranked in-game)
@@ -369,6 +377,8 @@ function raceUnitsSnapshot(race) {
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       gravedig: !!u.gravedig, digRange: u.digRange, digInterval: u.digInterval, hopRadius: u.hopRadius,
       digBig: !!u.digBig, fleeRange: u.fleeRange, fleeSpeed: u.fleeSpeed,
+      bomber: !!u.bomber, explodeRange: u.explodeRange, explodeRadius: u.explodeRadius,
+      explodeDamage: u.explodeDamage, explodeBuildingDamage: u.explodeBuildingDamage, explodeAir: !!u.explodeAir,
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
       slot: Number.isInteger(u.slot) ? u.slot : -1,
       xp: u.xp, food: u.food, vision: u.vision,
@@ -658,6 +668,13 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.hopRadius) !== undefined) u.hopRadius = clamp(vals.hopRadius, 0, 800);
     if (num(vals.fleeRange) !== undefined) u.fleeRange = clamp(vals.fleeRange, 0, 4000);
     if (num(vals.fleeSpeed) !== undefined) u.fleeSpeed = clamp(vals.fleeSpeed, 0, 1000);
+    // Suicide bomber config
+    if (typeof vals.bomber === 'boolean') u.bomber = vals.bomber;
+    if (typeof vals.explodeAir === 'boolean') u.explodeAir = vals.explodeAir;
+    if (num(vals.explodeRange) !== undefined) u.explodeRange = clamp(vals.explodeRange, 0, 4000);
+    if (num(vals.explodeRadius) !== undefined) u.explodeRadius = clamp(vals.explodeRadius, 0, 4000);
+    if (num(vals.explodeDamage) !== undefined) u.explodeDamage = clamp(vals.explodeDamage, 0, 100000);
+    if (num(vals.explodeBuildingDamage) !== undefined) u.explodeBuildingDamage = clamp(vals.explodeBuildingDamage, 0, 100000);
     // "Ranged" drives whether the basic attack fires a projectile + its speed
     u.projectile = !!u.ranged;
     u.projectileSpeed = u.projSpeed;

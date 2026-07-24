@@ -406,6 +406,36 @@ function fieldsFor(ent, kind) {
       group: D, type: 'note',
       label: 'Groaparul merge cu armata; când un inamic intră în „raza de săpat" se oprește și scoate cadavre din pământ (pe care Necromancer-ul le poate ridica). Cu upgrade-ul „Fugă", inamicul apropiat îl face să fugă spre bază.',
     });
+    // Suicide bomber: runs at the nearest enemy and detonates on contact.
+    const E = 'Kamikaze (Bomber)';
+    out.push({
+      group: E, label: 'Kamikaze (fuge la inamic și explodează)', type: 'check', cls: 'bomber-chk', value: !!u.bomber,
+      apply: (v) => { u.bomber = !!v; },
+    });
+    out.push({
+      group: E, label: 'Rază detonare (cât de aproape → explodează)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
+      value: u.explodeRange ?? 34, apply: (v) => { u.explodeRange = clamp(v, 0, 4000); },
+    });
+    out.push({
+      group: E, label: 'Rază explozie (AoE)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
+      value: u.explodeRadius ?? 100, apply: (v) => { u.explodeRadius = clamp(v, 0, 4000); },
+    });
+    out.push({
+      group: E, label: 'Damage explozie (per inamic)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
+      value: u.explodeDamage ?? 140, apply: (v) => { u.explodeDamage = clamp(v, 0, 100000); },
+    });
+    out.push({
+      group: E, label: 'Damage vs clădiri (0 = ca normal)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
+      value: u.explodeBuildingDamage ?? 0, apply: (v) => { u.explodeBuildingDamage = clamp(v, 0, 100000); },
+    });
+    out.push({
+      group: E, label: 'Explozia prinde și zburătorii', type: 'check', cls: 'bmb-sel', disabled: !u.bomber,
+      value: !!u.explodeAir, apply: (v) => { u.explodeAir = !!v; },
+    });
+    out.push({
+      group: E, type: 'note',
+      label: 'Kamikaze nu atacă: aleargă spre cel mai apropiat inamic (unitate sau clădire) și, când ajunge la el, explodează — damage în „raza explozie" tuturor inamicilor din jur — apoi moare. Fără cadavru.',
+    });
     return out;
   }
 
@@ -567,6 +597,12 @@ function open(ent, kind) {
   if (gravedigChk) {
     gravedigChk.addEventListener('change', () => {
       for (const s of bodyEl.querySelectorAll('.gd-sel')) s.disabled = !gravedigChk.checked;
+    });
+  }
+  const bomberChk = bodyEl.querySelector('.bomber-chk');
+  if (bomberChk) {
+    bomberChk.addEventListener('change', () => {
+      for (const s of bodyEl.querySelectorAll('.bmb-sel')) s.disabled = !bomberChk.checked;
     });
   }
   const rangedChk = bodyEl.querySelector('.ranged-chk');

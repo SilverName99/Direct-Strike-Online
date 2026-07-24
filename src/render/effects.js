@@ -50,9 +50,11 @@ export class Effects {
           break;
         }
         case 'explosion':
-          this.burst(e.x, e.y, e.fire ? 20 : 14, e.acid ? '#8fd14f' : e.fire ? '#ff7a1a' : '#ffb347', e.fire ? 210 : 180, 0.45, e.fire ? 4 : 3.5);
+          this.burst(e.x, e.y, e.blast ? 26 : e.fire ? 20 : 14, e.acid ? '#8fd14f' : e.fire ? '#ff7a1a' : '#ffb347', e.blast ? 240 : e.fire ? 210 : 180, e.blast ? 0.5 : 0.45, e.blast ? 4.5 : e.fire ? 4 : 3.5);
           if (e.acid) this.rings.push({ x: e.x, y: e.y, r0: 4, r1: (e.radius || 90), life: 0.5, maxLife: 0.5, color: '#8fd14f' });
           if (e.fire) this.rings.push({ x: e.x, y: e.y, r0: 6, r1: (e.radius || 90), life: 0.45, maxLife: 0.45, color: '#ff9636' });
+          // Kamikaze blast: a bright shockwave ring scaled to the actual radius
+          if (e.blast) this.rings.push({ x: e.x, y: e.y, r0: 8, r1: (e.radius || 100), life: 0.4, maxLife: 0.4, color: '#ffd27a' });
           break;
         case 'dash': {
           // charge impact: a quick ring + a spray of chips at the target

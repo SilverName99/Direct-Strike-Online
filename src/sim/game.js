@@ -939,8 +939,9 @@ export class Game {
       if (e.hp > 0) {
         alive.push(e);
       } else {
-        if (!e.summon && !e.isStructure) {
-          // units bigger than 1×1 leave the larger corpse decal (if uploaded)
+        if (!e.summon && !e.isStructure && !e.exploded) {
+          // units bigger than 1×1 leave the larger corpse decal (if uploaded).
+          // A bomber that detonated leaves nothing (it blew itself up).
           const us = this.ustatOf(e);
           const big = !!(us && ((us.cw || 1) > 1 || (us.ch || 1) > 1));
           this.addCorpse(e.x, e.y, big, false);

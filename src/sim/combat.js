@@ -171,6 +171,8 @@ export function updateCombat(game, dt) {
     if (hasActiveAbility(game, u, stats) && stepCasterHold(game, u, stats, dt)) continue;
     if (stats.gravedig) {
       updateGraveDigger(game, u, stats, dt);
+    } else if (stats.bomber) {
+      updateBomber(game, u, stats, dt);
     } else if (stats.heal) {
       updateHealer(game, u, stats);
     } else {
@@ -585,6 +587,54 @@ function updateGraveDigger(game, u, stats, dt) {
   } else {
     u.state = 'idle'; u.mvx = 0; u.mvy = 0;
   }
+}
+
+// Suicide bomber: charges the NEAREST enemy (unit or structure) and detonates on
+// contact for area damage, then dies (no basic attack, no corpse).
+function updateBomber(game, u, stats, dt) {
+  u.windup = 0; u.dashing = false; u.dashCharge = false;
+  let tx = 0, ty = 0, td2 = Infinity, tr = 0;
+  const air = !!stats.explodeAir;
+  for (const e of game.entities) {
+    if (e === u || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
+    if (e.isAir && !air) continue; // can't reach fliers unless the blast hits air
+    const dx = e.x - u.x, dy = e.y - u.y, d2 = dx * dx + dy * dy;
+    if (d2 < td2) { td2 = d2; tx = e.x; ty = e.y; tr = e.radius || 0; }
+  }
+  for (const s of game.enemyStructures(u.team)) {
+    const dx = s.x - u.x, dy = s.y - u.y, d2 = dx * dx + dy * dy;
+    if (d2 < td2) { td2 = d2; tx = s.x; ty = s.y; tr = s.radius || 0; }
+  }
+  if (td2 === Infinity) { u.state = 'march'; u.mvx = 0; u.mvy = 0; return; } // nothing to hit
+  const dist = Math.sqrt(td2);
+  // detonate once the boxes are touching (trigger range + both radii)
+  if (dist <= (stats.explodeRange || 0) + tr + (u.radius || 0)) {
+    explodeBomber(game, u, stats);
+    return;
+  }
+  const sp = stats.speed || 100;
+  u.x += (tx - u.x) / dist * sp * dt;
+  u.y += (ty - u.y) / dist * sp * dt;
+  u.mvx = (tx - u.x) >= 0 ? 1 : -1; u.mvy = 0; u.state = 'march';
+}
+
+function explodeBomber(game, u, stats) {
+  const R = stats.explodeRadius || 0;
+  const dmg = stats.explodeDamage || 0;
+  game.events.push({ type: 'explosion', x: u.x, y: u.y, radius: R, blast: true });
+  for (const e of game.entities) {
+    if (e === u || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
+    if (e.isAir && !stats.explodeAir) continue;
+    const dx = e.x - u.x, dy = e.y - u.y;
+    if (dx * dx + dy * dy <= R * R) applyDamage(game, e, dmg, stats.dmgType);
+  }
+  for (const s of game.enemyStructures(u.team)) {
+    const dx = s.x - u.x, dy = s.y - u.y;
+    if (Math.sqrt(dx * dx + dy * dy) <= R + s.radius) {
+      applyDamage(game, s, dmgVsTarget(dmg, stats.explodeBuildingDamage || 0, s), stats.dmgType);
+    }
+  }
+  u.hp = 0; u.exploded = true; // dies now; removeDead leaves no corpse for it
 }
 
 function updateHealer(game, u, stats) {
