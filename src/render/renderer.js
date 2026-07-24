@@ -444,19 +444,21 @@ export class Renderer {
     // from ~0 to the full blightRadius over BLIGHT_GROW_TIME, with an easing so
     // it blooms out nicely instead of popping in all at once.
     const grow = CONFIG.BLIGHT_GROW_TIME || 0;
+    const start0 = CONFIG.BLIGHT_START_RADIUS || 0;
     const blobs = [];
     for (const s of game.structures) {
       if (s.team !== team || s.hp <= 0) continue;
       const full = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
       if (full <= 0) continue;
+      const start = Math.min(start0, full); // never start bigger than the target
       let seen = this.blightSeen.get(s.id);
       if (seen === undefined) { seen = this.now; this.blightSeen.set(s.id, seen); }
       const t = grow > 0 ? Math.max(0, Math.min(1, (this.now - seen) / grow)) : 1;
-      // ease-in-out cubic: a small seed forms, the corruption spreads faster and
-      // faster, then eases softly to its full edge — visible across the whole X
+      // ease-in-out cubic: appears at the initial radius, then the corruption
+      // spreads faster and faster and eases softly out to the building's radius
       const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const r = full * e;
-      if (r < 2) continue; // still just appearing
+      const r = start + (full - start) * e;
+      if (r < 2) continue; // still just appearing (only when the initial radius is 0)
       blobs.push([s.x, s.y, r, s.id, e]);
     }
     if (!blobs.length) return;
@@ -498,23 +500,6 @@ export class Renderer {
         ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh); ctx.restore();
       } else {
         ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
-      }
-    }
-    ctx.restore();
-
-    // ---- glowing violet rim + veins: stroke each blob edge, clipped to the
-    //      union so it reads as an inner-edge glow (and veins where blobs meet) --
-    ctx.save();
-    unionPath();
-    ctx.clip();
-    ctx.lineJoin = 'round';
-    for (const pass of [[14, 0.14], [7, 0.26], [3, 0.55], [1.4, 0.9]]) {
-      ctx.lineWidth = pass[0];
-      ctx.strokeStyle = `rgba(198, 104, 240, ${pass[1]})`;
-      for (const [x, y, r, id] of blobs) {
-        ctx.beginPath();
-        this.addBlightBlob(ctx, x, y, r, id);
-        ctx.stroke();
       }
     }
     ctx.restore();

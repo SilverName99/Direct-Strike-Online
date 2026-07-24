@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v13.4';
+export const VERSION = 'v13.5';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -54,6 +54,7 @@ export const CONFIG = {
   SKEL_CAP_COST: 100,
   SKEL_CAP_COST_STEP: 60,
   BLIGHT_GROW_TIME: 4, // seconds the corruption pool takes to spread to full size after a building is placed
+  BLIGHT_START_RADIUS: 40, // the pool appears at this radius, then grows to each building's blightRadius
 
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback
