@@ -73,6 +73,7 @@ export const GENERAL_FIELDS = [
   ['SKEL_CAP_MAX', 'Undead: plafon schelete maxim'],
   ['SKEL_CAP_COST', 'Undead: cost prima cumpărare de plafon'],
   ['SKEL_CAP_COST_STEP', 'Undead: +cost la fiecare cumpărare'],
+  ['BLIGHT_GROW_TIME', 'Undead: secunde de răspândire a coruperii (0 = instant)'],
 ];
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],

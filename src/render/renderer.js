@@ -152,6 +152,7 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
+    this.blightSeen = new Map(); // structure id -> render time first seen (blight grow-in)
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
     this.fog = new Fog();        // fog of war (client-side, per-viewer)
     this._fogOn = false;         // set each frame: is fog active this draw?
@@ -289,6 +290,11 @@ export class Renderer {
     // around each team's buildings (undead), on top of the normal terrain.
     this.drawBlight(ctx, game, 0, 0, mid, false);
     this.drawBlight(ctx, game, 1, mid, mid, true);
+    // forget grow-in timers for buildings that are gone (a rebuild re-blooms)
+    if (this.blightSeen.size) {
+      const live = new Set(game.structures.map((s) => s.id));
+      for (const id of this.blightSeen.keys()) if (!live.has(id)) this.blightSeen.delete(id);
+    }
     // GLOBAL neutral strip over the seam (the variant the sim picked this match)
     this.drawMiddleStrip(ctx, getMiddleImage(game.middleSlot != null ? game.middleSlot : -1), mid);
 
@@ -434,11 +440,24 @@ export class Renderer {
   // opaquely on top for a custom look.
   drawBlight(ctx, game, team, rx, rw, flip) {
     const race = raceOf(team);
+    // corruption spreads from each building's placement: its blob radius grows
+    // from ~0 to the full blightRadius over BLIGHT_GROW_TIME, with an easing so
+    // it blooms out nicely instead of popping in all at once.
+    const grow = CONFIG.BLIGHT_GROW_TIME || 0;
     const blobs = [];
     for (const s of game.structures) {
       if (s.team !== team || s.hp <= 0) continue;
-      const r = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
-      if (r > 0) blobs.push([s.x, s.y, r, s.id]);
+      const full = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
+      if (full <= 0) continue;
+      let seen = this.blightSeen.get(s.id);
+      if (seen === undefined) { seen = this.now; this.blightSeen.set(s.id, seen); }
+      const t = grow > 0 ? Math.max(0, Math.min(1, (this.now - seen) / grow)) : 1;
+      // ease-in-out cubic: a small seed forms, the corruption spreads faster and
+      // faster, then eases softly to its full edge — visible across the whole X
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const r = full * e;
+      if (r < 2) continue; // still just appearing
+      blobs.push([s.x, s.y, r, s.id, e]);
     }
     if (!blobs.length) return;
     const rh = CONFIG.FIELD_H;
