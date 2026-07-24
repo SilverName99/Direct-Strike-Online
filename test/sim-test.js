@@ -1260,6 +1260,19 @@ console.log('abilities (casters, auras, status effects)');
     spawnUnit(g2, 0, 'grunt', main2.x - 200, main2.y);
     run(g2, 6);
     check('bomber: damages the enemy base when no units are near', main2.hp < hp0, `${hp0}->${main2.hp}`);
+    // walks at normal speed with nothing near; RUNS (charge) once an enemy is in range
+    applyBalance({ races: { humans: { units: { grunt: { bomber: true, speed: 60, runSpeed: 300, runRange: 150, explodeRange: 30 } } } } });
+    const g3 = new Game(68, { races: ['humans', 'orcs'] });
+    const b3 = spawnUnit(g3, 0, 'grunt', 300, 400); const bx0 = b3.x;
+    run(g3, 1);
+    check('bomber: walks at normal speed when nobody is near', !b3.running && b3.state === 'march' && Math.abs((b3.x - bx0) - 60) < 12, `moved ${(b3.x - bx0).toFixed(0)}`);
+    const g4 = new Game(69, { races: ['humans', 'orcs'] });
+    const b4 = spawnUnit(g4, 0, 'grunt', 300, 400);
+    const near = spawnUnit(g4, 1, 'grunt', 420, 400); near.hp = near.maxHp = 100000; // within runRange
+    const bx1 = b4.x;
+    for (let i = 0; i < 2; i++) { g4.update(DT); g4.drainEvents(); }
+    check('bomber: runs (charges) when an enemy enters run range',
+      b4.running && b4.state === 'run' && (b4.x - bx1) / (2 * DT) > 200, `state=${b4.state}`);
   }
 
   // dispell: an allied caster cleanses the frost slow

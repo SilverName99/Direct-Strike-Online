@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage, getCorpseImageBig } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
 import { structureExtents } from '../sim/entity.js';
@@ -1514,6 +1514,10 @@ export class Renderer {
             anim = 'attack';
             frame = this.attackFrame(u);
           }
+        } else if (u.running) {
+          // Kamikaze charging an in-range enemy: its "Fugă" (run) frames, else walk
+          anim = hasRunAnim(u.type, u.team) ? 'run' : 'walk';
+          frame = (Math.floor(this.now * (rstats.animSpeed || 5) * 1.6) + u.id) % 2;
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk
           anim = hasDashAnim(u.type, u.team) ? 'dash' : 'walk';

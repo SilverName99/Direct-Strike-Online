@@ -197,6 +197,10 @@ function unitIsGravedig(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
   return $u && !empty($u['gravedig']);
 }
+function unitIsBomber(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['bomber']);
+}
 function unitHasDash(string $race, string $ent): bool {
   $u = unitCfg($race, $ent);
   return $u && !empty($u['dash']);
@@ -437,6 +441,14 @@ function slotsFor(string $ent, string $race = 'humans'): array {
   if (unitIsGravedig($race, $ent)) {
     if (isset($slots['attack_0'])) $slots['attack_0'] = 'Săpat 1';
     if (isset($slots['attack_1'])) $slots['attack_1'] = 'Săpat 2';
+  }
+  // a Kamikaze bomber never attacks: drop the attack/prepare frames and give it
+  // a "Fugă" (run/charge) set + a single "Explozie" detonation frame instead
+  if (unitIsBomber($race, $ent)) {
+    unset($slots['attack_0'], $slots['attack_1'], $slots['prepare_0']);
+    $slots['run_0'] = 'Fugă 1';
+    $slots['run_1'] = 'Fugă 2';
+    $slots['explosion_0'] = 'Explozie';
   }
   // a unit dashes if its own Dash toggle is on OR a mount/split upgrade makes
   // it charge/dive

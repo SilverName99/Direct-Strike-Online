@@ -413,6 +413,14 @@ function fieldsFor(ent, kind) {
       apply: (v) => { u.bomber = !!v; },
     });
     out.push({
+      group: E, label: 'Rază de fugă (inamic în ea → aleargă)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
+      value: u.runRange ?? 260, apply: (v) => { u.runRange = clamp(v, 0, 4000); },
+    });
+    out.push({
+      group: E, label: 'Viteză de fugă (charge)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
+      value: u.runSpeed ?? 200, apply: (v) => { u.runSpeed = clamp(v, 0, 2000); },
+    });
+    out.push({
       group: E, label: 'Rază detonare (cât de aproape → explodează)', type: 'num', cls: 'bmb-sel', disabled: !u.bomber,
       value: u.explodeRange ?? 34, apply: (v) => { u.explodeRange = clamp(v, 0, 4000); },
     });
@@ -434,7 +442,7 @@ function fieldsFor(ent, kind) {
     });
     out.push({
       group: E, type: 'note',
-      label: 'Kamikaze nu atacă: aleargă spre cel mai apropiat inamic (unitate sau clădire) și, când ajunge la el, explodează — damage în „raza explozie" tuturor inamicilor din jur — apoi moare. Fără cadavru.',
+      label: 'Kamikaze nu atacă: MERGE cu armata (walk) până când un inamic (unitate sau clădire) intră în „raza de fugă", apoi ALEARGĂ spre el (frame-urile „Fugă", cu viteza de fugă) și, când ajunge, explodează — damage în „raza explozie" tuturor din jur — apoi moare. Frame-uri: idle, walk, Fugă (run), Die (dacă e ucis înainte), Explozie. Fără cadru de atac, fără cadavru.',
     });
     return out;
   }

@@ -589,8 +589,9 @@ function updateGraveDigger(game, u, stats, dt) {
   }
 }
 
-// Suicide bomber: charges the NEAREST enemy (unit or structure) and detonates on
-// contact for area damage, then dies (no basic attack, no corpse).
+// Suicide bomber: marches with the army until an enemy enters its run range,
+// then RUNS (charges, at runSpeed) at the nearest enemy and detonates on contact
+// for area damage — then dies (no basic attack, no corpse).
 function updateBomber(game, u, stats, dt) {
   u.windup = 0; u.dashing = false; u.dashCharge = false;
   let tx = 0, ty = 0, td2 = Infinity, tr = 0;
@@ -605,23 +606,31 @@ function updateBomber(game, u, stats, dt) {
     const dx = s.x - u.x, dy = s.y - u.y, d2 = dx * dx + dy * dy;
     if (d2 < td2) { td2 = d2; tx = s.x; ty = s.y; tr = s.radius || 0; }
   }
-  if (td2 === Infinity) { u.state = 'march'; u.mvx = 0; u.mvy = 0; return; } // nothing to hit
   const dist = Math.sqrt(td2);
-  // detonate once the boxes are touching (trigger range + both radii)
-  if (dist <= (stats.explodeRange || 0) + tr + (u.radius || 0)) {
-    explodeBomber(game, u, stats);
+  // an enemy is inside the run range -> RUN at it and detonate on contact
+  if (td2 !== Infinity && dist <= (stats.runRange || 0)) {
+    if (dist <= (stats.explodeRange || 0) + tr + (u.radius || 0)) {
+      explodeBomber(game, u, stats);
+      return;
+    }
+    const sp = stats.runSpeed || stats.speed || 100;
+    u.x += (tx - u.x) / dist * sp * dt;
+    u.y += (ty - u.y) / dist * sp * dt;
+    u.mvx = (tx - u.x) >= 0 ? 1 : -1; u.mvy = 0; u.state = 'run'; u.running = true;
     return;
   }
-  const sp = stats.speed || 100;
-  u.x += (tx - u.x) / dist * sp * dt;
-  u.y += (ty - u.y) / dist * sp * dt;
-  u.mvx = (tx - u.x) >= 0 ? 1 : -1; u.mvy = 0; u.state = 'march';
+  // nobody in range -> WALK forward with the army toward the enemy side
+  u.running = false;
+  const enemyMain = game.mainOf(1 - u.team);
+  const dir = enemyMain ? (Math.sign(enemyMain.x - u.x) || 1) : (u.team === 0 ? 1 : -1);
+  u.x += (stats.speed || 70) * dt * dir;
+  u.mvx = dir; u.mvy = 0; u.state = 'march';
 }
 
 function explodeBomber(game, u, stats) {
   const R = stats.explodeRadius || 0;
   const dmg = stats.explodeDamage || 0;
-  game.events.push({ type: 'explosion', x: u.x, y: u.y, radius: R, blast: true });
+  game.events.push({ type: 'explosion', x: u.x, y: u.y, radius: R, blast: true, unitType: u.type, team: u.team });
   for (const e of game.entities) {
     if (e === u || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
     if (e.isAir && !stats.explodeAir) continue;

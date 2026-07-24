@@ -2,19 +2,21 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { hasDeathAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
+import { hasDeathAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, hasExplosionAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
 import { raceOf, getAbilityFx } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
 
 const CORPSE_LIFE = 1.2;
 const STRUCT_CORPSE_LIFE = 1.6; // rubble lingers a touch longer than a body
+const BLAST_LIFE = 0.5; // Kamikaze detonation sprite flashes briefly
 
 export class Effects {
   constructor() {
     this.particles = [];
     this.corpses = [];
     this.structCorpses = []; // toppled towers showing their per-tier die frame
+    this.blasts = []; // Kamikaze detonation frames (unit's "Explozie" sprite)
     this.rings = []; // expanding spell rings (dispell etc.)
     this.domes = []; // uploaded AoE effect images scaled to an ability's radius
     this.portals = []; // Backline Teleport landing telegraphs (golden swirl)
@@ -24,6 +26,7 @@ export class Effects {
     this.particles = [];
     this.corpses = [];
     this.structCorpses = [];
+    this.blasts = [];
     this.rings = [];
     this.domes = [];
     this.portals = [];
@@ -55,6 +58,10 @@ export class Effects {
           if (e.fire) this.rings.push({ x: e.x, y: e.y, r0: 6, r1: (e.radius || 90), life: 0.45, maxLife: 0.45, color: '#ff9636' });
           // Kamikaze blast: a bright shockwave ring scaled to the actual radius
           if (e.blast) this.rings.push({ x: e.x, y: e.y, r0: 8, r1: (e.radius || 100), life: 0.4, maxLife: 0.4, color: '#ffd27a' });
+          // ...and the unit's own "Explozie" detonation sprite, if uploaded
+          if (e.blast && e.unitType && hasExplosionAnim(e.unitType, e.team)) {
+            this.blasts.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0 });
+          }
           break;
         case 'dash': {
           // charge impact: a quick ring + a spray of chips at the target
@@ -168,6 +175,7 @@ export class Effects {
     this.particles = alive;
     this.corpses = this.corpses.filter((c) => (c.t += dt) < CORPSE_LIFE);
     this.structCorpses = this.structCorpses.filter((c) => (c.t += dt) < STRUCT_CORPSE_LIFE);
+    this.blasts = this.blasts.filter((b) => (b.t += dt) < BLAST_LIFE);
     this.rings = this.rings.filter((r) => (r.life -= dt) > 0);
     this.domes = this.domes.filter((d) => (d.t += dt) < d.life);
     // teleport portals: age them + keep spilling rising golden sparkles
@@ -255,6 +263,17 @@ export class Effects {
       const rot = pl.t * 6;
       ctx.globalAlpha = fade; ctx.lineWidth = 3.5; ctx.strokeStyle = '#fff2b0';
       ctx.beginPath(); ctx.arc(0, 0, 32, rot, rot + 1.3); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+    // Kamikaze detonation: the unit's "Explozie" sprite, flashing + expanding out
+    for (const b of this.blasts) {
+      const k = b.t / BLAST_LIFE;
+      ctx.save();
+      ctx.globalAlpha = k < 0.4 ? 1 : Math.max(0, 1 - (k - 0.4) / 0.6);
+      ctx.translate(b.x, b.y);
+      if (b.team === 1) ctx.scale(-1, 1);
+      drawCharacter(ctx, b.type, 'explosion', 0, b.team, sizeOf(raceOf(b.team), b.type) * (1 + 0.18 * k));
       ctx.restore();
     }
     ctx.globalAlpha = 1;

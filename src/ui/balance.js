@@ -228,6 +228,8 @@ function baseUnits(race) {
       // Suicide bomber: a unit that runs at the nearest enemy and explodes on
       // contact for area damage, then dies. No basic attack.
       bomber: false,       // is this a suicide bomber
+      runRange: 260,       // an enemy within this radius makes it RUN (charge) at it
+      runSpeed: 200,       // charge speed while running (walks at `speed` otherwise)
       explodeRange: 34,    // detonate when this close to the target (box-to-box)
       explodeRadius: 100,  // blast radius (enemies inside take the blast)
       explodeDamage: 140,  // damage to each enemy caught in the blast
@@ -377,7 +379,7 @@ function raceUnitsSnapshot(race) {
       caster: !!u.caster, autoAttackBetween: !!u.autoAttackBetween, abilities: [...(u.abilities || [])],
       gravedig: !!u.gravedig, digRange: u.digRange, digInterval: u.digInterval, hopRadius: u.hopRadius,
       digBig: !!u.digBig, fleeRange: u.fleeRange, fleeSpeed: u.fleeSpeed,
-      bomber: !!u.bomber, explodeRange: u.explodeRange, explodeRadius: u.explodeRadius,
+      bomber: !!u.bomber, runRange: u.runRange, runSpeed: u.runSpeed, explodeRange: u.explodeRange, explodeRadius: u.explodeRadius,
       explodeDamage: u.explodeDamage, explodeBuildingDamage: u.explodeBuildingDamage, explodeAir: !!u.explodeAir,
       mana: u.mana, manaRegen: u.manaRegen, building: u.building || '',
       slot: Number.isInteger(u.slot) ? u.slot : -1,
@@ -671,6 +673,8 @@ function applyRaceUnits(race, unitsData) {
     // Suicide bomber config
     if (typeof vals.bomber === 'boolean') u.bomber = vals.bomber;
     if (typeof vals.explodeAir === 'boolean') u.explodeAir = vals.explodeAir;
+    if (num(vals.runRange) !== undefined) u.runRange = clamp(vals.runRange, 0, 4000);
+    if (num(vals.runSpeed) !== undefined) u.runSpeed = clamp(vals.runSpeed, 0, 2000);
     if (num(vals.explodeRange) !== undefined) u.explodeRange = clamp(vals.explodeRange, 0, 4000);
     if (num(vals.explodeRadius) !== undefined) u.explodeRadius = clamp(vals.explodeRadius, 0, 4000);
     if (num(vals.explodeDamage) !== undefined) u.explodeDamage = clamp(vals.explodeDamage, 0, 100000);

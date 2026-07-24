@@ -76,6 +76,16 @@ export function hasDashAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'dash');
 }
 
+// True when a Kamikaze bomber has uploaded its "Fugă" (run/charge) frames.
+export function hasRunAnim(type, team) {
+  return hasSpriteAnim(raceOf(team), type, 'run');
+}
+
+// True when a Kamikaze bomber has uploaded its "Explozie" detonation frame.
+export function hasExplosionAnim(type, team) {
+  return hasSpriteAnim(raceOf(team), type, 'explosion');
+}
+
 // True when an acid-spit unit has uploaded its "Acid" attack frames.
 export function hasAcidAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'acid');
