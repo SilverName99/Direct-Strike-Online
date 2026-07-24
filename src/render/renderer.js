@@ -152,7 +152,7 @@ export class Renderer {
     this.camera = null; // wired in main.js
     this.view = { x0: 0, y0: 0, x1: CONFIG.FIELD_W, y1: CONFIG.FIELD_H };
     this.attackHold = new Map(); // unit id -> last time seen attacking
-    this.blightSeen = new Map(); // structure id -> render time first seen (blight grow-in)
+    this.blightAnim = new Map(); // structure id -> {fromR, t0, target} for the eased blight growth
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
     this.fog = new Fog();        // fog of war (client-side, per-viewer)
     this._fogOn = false;         // set each frame: is fog active this draw?
@@ -290,10 +290,10 @@ export class Renderer {
     // around each team's buildings (undead), on top of the normal terrain.
     this.drawBlight(ctx, game, 0, 0, mid, false);
     this.drawBlight(ctx, game, 1, mid, mid, true);
-    // forget grow-in timers for buildings that are gone (a rebuild re-blooms)
-    if (this.blightSeen.size) {
+    // forget grow-in state for buildings that are gone (a rebuild re-blooms)
+    if (this.blightAnim.size) {
       const live = new Set(game.structures.map((s) => s.id));
-      for (const id of this.blightSeen.keys()) if (!live.has(id)) this.blightSeen.delete(id);
+      for (const id of this.blightAnim.keys()) if (!live.has(id)) this.blightAnim.delete(id);
     }
     // GLOBAL neutral strip over the seam (the variant the sim picked this match)
     this.drawMiddleStrip(ctx, getMiddleImage(game.middleSlot != null ? game.middleSlot : -1), mid);
@@ -445,21 +445,35 @@ export class Renderer {
     // it blooms out nicely instead of popping in all at once.
     const grow = CONFIG.BLIGHT_GROW_TIME || 0;
     const start0 = CONFIG.BLIGHT_START_RADIUS || 0;
+    // higher tiers spread the corruption wider: every building's radius grows by
+    // a settable % at Tier 2 / Tier 3 (so the half is engulfed by late game)
+    const tier = (game.tier && game.tier[team]) || 1;
+    const tierMul = tier >= 3 ? 1 + (CONFIG.BLIGHT_TIER3_PCT || 0) / 100
+      : tier >= 2 ? 1 + (CONFIG.BLIGHT_TIER2_PCT || 0) / 100 : 1;
+    // eased radius toward a moving target (grows again, smoothly, on tier-up)
+    const curR = (a) => {
+      const t = grow > 0 ? Math.max(0, Math.min(1, (this.now - a.t0) / grow)) : 1;
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // ease-in-out cubic
+      return a.fromR + (a.target - a.fromR) * e;
+    };
     const blobs = [];
     for (const s of game.structures) {
       if (s.team !== team || s.hp <= 0) continue;
-      const full = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
-      if (full <= 0) continue;
-      const start = Math.min(start0, full); // never start bigger than the target
-      let seen = this.blightSeen.get(s.id);
-      if (seen === undefined) { seen = this.now; this.blightSeen.set(s.id, seen); }
-      const t = grow > 0 ? Math.max(0, Math.min(1, (this.now - seen) / grow)) : 1;
-      // ease-in-out cubic: appears at the initial radius, then the corruption
-      // spreads faster and faster and eases softly out to the building's radius
-      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const r = start + (full - start) * e;
-      if (r < 2) continue; // still just appearing (only when the initial radius is 0)
-      blobs.push([s.x, s.y, r, s.id, e]);
+      const base = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
+      if (base <= 0) continue;
+      const target = base * tierMul;
+      let a = this.blightAnim.get(s.id);
+      if (!a) {
+        // first seen: appear IMMEDIATELY at the initial radius, then grow from it
+        a = { fromR: Math.min(start0, target), t0: this.now, target };
+        this.blightAnim.set(s.id, a);
+      } else if (Math.abs(a.target - target) > 0.5) {
+        // target changed (tier up/down): re-ease from the CURRENT radius, no pop
+        a.fromR = curR(a); a.t0 = this.now; a.target = target;
+      }
+      const r = curR(a);
+      if (r < 2) continue; // only when the initial radius is 0 (grows from nothing)
+      blobs.push([s.x, s.y, r, s.id]);
     }
     if (!blobs.length) return;
     const rh = CONFIG.FIELD_H;

@@ -75,6 +75,8 @@ export const GENERAL_FIELDS = [
   ['SKEL_CAP_COST_STEP', 'Undead: +cost la fiecare cumpărare'],
   ['BLIGHT_GROW_TIME', 'Undead: secunde de răspândire a coruperii (0 = instant)'],
   ['BLIGHT_START_RADIUS', 'Undead: rază inițială a coruperii (crește de aici la raza clădirii)'],
+  ['BLIGHT_TIER2_PCT', 'Undead: +% rază corupție la Tier 2 (toate clădirile)'],
+  ['BLIGHT_TIER3_PCT', 'Undead: +% rază corupție la Tier 3 (toate clădirile)'],
 ];
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],
