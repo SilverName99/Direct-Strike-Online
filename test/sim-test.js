@@ -1274,6 +1274,15 @@ console.log('abilities (casters, auras, status effects)');
     check('bomber: runs (charges) when an enemy enters run range',
       b4.running && b4.state === 'run' && (b4.x - bx1) / (2 * DT) > 200, `state=${b4.state}`);
   }
+  // Blight: per-building blightRadius must survive a balance save/reload (the
+  // apply guard only writes fields already defined on the base template).
+  {
+    applyBalance({ races: { undead: { buildings: { tower: { blightRadius: 220 }, main: { blightRadius: 300 } } } } });
+    check('blight: tower blightRadius loads back after apply', statsBuilding('undead', 'tower').blightRadius === 220);
+    check('blight: main blightRadius loads back after apply', statsBuilding('undead', 'main').blightRadius === 300);
+    check('blight: defaults to 0 where unset', statsBuilding('humans', 'tower').blightRadius === 0);
+    applyBalance({}); // reset the shared balance for later tests
+  }
 
   // dispell: an allied caster cleanses the frost slow
   {

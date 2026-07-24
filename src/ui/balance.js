@@ -280,7 +280,7 @@ function seedHeroDefaults(u, race) {
 }
 
 function baseBuildings() {
-  return {
+  const t = {
     main: {
       hp: [...CONFIG.MAIN.hp], radius: CONFIG.MAIN.radius, idleSpeed: CONFIG.MAIN.idleSpeed, name: CONFIG.MAIN.name,
       damage: CONFIG.MAIN.damage, range: CONFIG.MAIN.range, period: CONFIG.MAIN.period,
@@ -298,6 +298,11 @@ function baseBuildings() {
     farm: { ...CONFIG.BUILDINGS.farm, size: 1, projSize: 1, slot: -1 },
     herohall: { ...CONFIG.BUILDINGS.herohall, size: 1, projSize: 1, slot: -1 },
   };
+  // Blight radius must exist (0) on EVERY building template — the apply loop only
+  // writes a saved value when the field is already defined, so without this the
+  // admin's blightRadius never loads back into the game (bug: no corruption).
+  for (const k of Object.keys(t)) if (t[k].blightRadius === undefined) t[k].blightRadius = 0;
+  return t;
 }
 // Abilities are GLOBAL (one balance shared by both races); which units carry
 // them is stored per-race on the unit (caster + abilities list).
