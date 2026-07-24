@@ -588,6 +588,24 @@ export const ABILITIES = {
       castPrepare: 0,
     },
   },
+  acidpaste: {
+    name: 'Acid Paste',
+    kind: 'active',
+    color: '#7fd44a',
+    desc: 'Scuipă (consumă mană) o pastă verde care se lipește de pământ. Inamicii TERESTRI care stau pe ea primesc cu X% mai mult damage din orice sursă, cât timp sunt pe baltă (și puțin după). Se deblochează cu un upgrade — atașează abilitatea la o unitate marcată Caster.',
+    params: {
+      tier: 1,
+      manaCost: 30,
+      cooldown: 6,
+      range: 260,            // cast range — cea mai apropiată țintă inamică
+      projectileSpeed: 340,  // viteza scuipatului
+      damage: 0,             // damage direct la impact (0 = doar balta)
+      pasteRadius: 90,       // raza bălții
+      pasteDuration: 6,      // cât rămâne balta pe jos (s)
+      ampPct: 30,            // +X% damage pentru cine stă pe ea (setabil)
+      castPrepare: 0,
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -724,4 +742,8 @@ export const ABILITY_PARAM_LABELS = {
   armored: 'Armură grea (1/0)',
   targetsAir: 'Atacă aerul (1/0)',
   targetsGround: 'Atacă solul (1/0)',
+  // Acid Paste
+  pasteRadius: 'Pastă: rază baltă',
+  pasteDuration: 'Pastă: durată baltă (s)',
+  ampPct: 'Pastă: +damage pe cine stă (%)',
 };

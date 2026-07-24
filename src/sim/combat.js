@@ -206,6 +206,27 @@ export function updateCombat(game, dt) {
     game.fireZones = kept;
   }
 
+  // Acid Paste puddles: enemy GROUND units standing in one take amplified damage
+  // (a 'vulnerable' debuff, refreshed while on the paste so it fades after they
+  // step off). The puddle stays until it expires.
+  if (game.pasteZones.length) {
+    const kept = [];
+    for (const z of game.pasteZones) {
+      if (game.time >= z.until) continue;
+      if (z.amp > 0) {
+        for (const e of game.entities) {
+          if (e.team === z.team || e.hp <= 0 || e.isAir || e.isStructure) continue;
+          const dx = e.x - z.x, dy = e.y - z.y;
+          if (dx * dx + dy * dy <= z.radius * z.radius) {
+            applyEffect(e, 'vulnerable', z.amp, game.time + 0.4, game.time);
+          }
+        }
+      }
+      kept.push(z);
+    }
+    game.pasteZones = kept;
+  }
+
   // Armed structures (starting turret + built towers) shoot the nearest
   // enemy unit in range. A tower still under construction can't shoot yet.
   for (const s of game.structures) {
@@ -1036,6 +1057,9 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
   // Devotion Aura: allies inside the Paladin's aura take less damage
   const reduce = effectVal(target, 'dmgReduce', game.time);
   if (reduce > 0) dmg *= 1 - Math.min(reduce, 90) / 100;
+  // Acid Paste: a unit standing on the green puddle takes amplified damage
+  const vuln = effectVal(target, 'vulnerable', game.time);
+  if (vuln > 0) dmg *= 1 + vuln / 100;
   target.hp -= dmg;
   if (!silent) game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
@@ -1087,6 +1111,11 @@ function impact(game, p, target) {
   if (p.fire) {
     game.fireZones.push({ x: p.tx, y: p.ty, radius: p.fire.radius, dps: p.fire.dps, until: game.time + p.fire.dur, team: p.team, dmgType: p.dmgType });
     game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.fire.radius, fire: true });
+  }
+  // Acid Paste: leave a green puddle that amplifies damage taken by enemies on it
+  if (p.paste && p.paste.radius > 0) {
+    game.pasteZones.push({ x: p.tx, y: p.ty, radius: p.paste.radius, amp: p.paste.amp || 0, until: game.time + (p.paste.dur || 0), team: p.team, id: game.nextId++ });
+    game.events.push({ type: 'paste', x: p.tx, y: p.ty, radius: p.paste.radius, team: p.team });
   }
   if (p.splash > 0) {
     game.events.push({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, acid: !!p.acid });

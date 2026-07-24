@@ -125,7 +125,7 @@ export function isStunned(u, time) {
   return hasEffect(u, 'stun', time);
 }
 
-const DEBUFFS = ['atkslow', 'moveslow', 'stun'];
+const DEBUFFS = ['atkslow', 'moveslow', 'stun', 'vulnerable'];
 const BUFFS = ['haste', 'movehaste', 'regen', 'dmgReduce'];
 
 // Apply an effect, honoring dispell's immunity (allies) / buff-block (enemies).
@@ -840,6 +840,17 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     }
     return best;
   }
+  if (aid === 'acidpaste') {
+    // nearest enemy GROUND unit in range (the paste sticks to the ground)
+    let best = null, bestD = Infinity;
+    for (const u of game.entities) {
+      if (u.team === caster.team || u.hp <= 0 || u.isAir || u.isStructure) continue;
+      if (!inRadius(u, caster, p.range)) continue;
+      const dx = u.x - caster.x, dy = u.y - caster.y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = u; }
+    }
+    return best;
+  }
   return null;
 }
 
@@ -1100,6 +1111,23 @@ function releaseSpell(game, caster, time) {
     const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     const travel = speed > 0 ? dist / speed : 0;
     return Math.max(hold, travel);
+  }
+
+  if (aid === 'acidpaste') {
+    // spit a green glob at the target; where it lands it leaves a paste puddle
+    // (impact() reads proj.paste and drops a pasteZone that amplifies damage).
+    spawnProjectile(game, caster, {
+      damage: p.damage || 0, dmgType: 'normal',
+      projectileSpeed: p.projectileSpeed, projSize: 1,
+    }, target);
+    const proj = game.projectiles[game.projectiles.length - 1];
+    proj.ability = aid; // draws the ability's own projectile sprite
+    proj.paste = { radius: p.pasteRadius || 0, dur: p.pasteDuration || 0, amp: p.ampPct || 0 };
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, tx: target.x, ty: target.y });
+    const dx = target.x - caster.x, dy = target.y - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
+    return Math.max(hold, speed > 0 ? dist / speed : 0);
   }
 
   if (aid === 'blizzard') {

@@ -87,6 +87,9 @@ const ABILITY_INFO = [
   'skeletonmelee' => ['Melee Skeleton', true, false],   // summon (cast frame; melee skeleton sprites below)
   'skeletonranged' => ['Ranged Skeleton', true, true], // summon (cast frame + its own projectile art; ranged skeleton sprites, SEPARATE)
   'skeletonbrothers' => ['Brothers Skeleton', true, false], // raises 1 melee + 1 ranged (reuses both sprite sets)
+  // Acid Paste: a cast frame + its own green-spit projectile (the puddle itself
+  // is drawn procedurally by the game).
+  'acidpaste' => ['Acid Paste', true, true],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];

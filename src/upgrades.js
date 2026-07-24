@@ -187,6 +187,18 @@ export const UPGRADES = {
     requires: ['skeletonmeleeunlock', 'skeletonrangedunlock'], // prerechizite (ambele single-uri)
     params: { cost: 260, tier: 2 },
   },
+  acidpasteunlock: {
+    name: 'Acid Paste',
+    desc: 'Deblochează abilitatea Acid Paste pentru unitatea aleasă: fără upgrade abilitatea e blocată; după ce îl cumperi o dată, unitatea (marcată Caster, cu mană) scuipă pasta verde care amplifică damage-ul. Preț/tier și unitatea-țintă se setează din admin. Cumpărat o dată din clădirea unității; permanent pe meci.',
+    kind: 'unlock',        // no combat effect on its own — gates ability `unlocks`
+    unlocks: 'acidpaste',  // the ability id this upgrade unlocks (see abilityUsable)
+    race: '',              // any race — reassignable in admin
+    unit: '',              // which unit gets it — set in admin
+    params: {
+      cost: 200, // gold to buy from the unit's building
+      tier: 1,   // base tier required before it can be bought (settable)
+    },
+  },
   gravedigflee: {
     name: 'Fugă (Groapar)',
     desc: 'Groaparul Undead: când un inamic intră în raza lui de fugă, o ia la fugă spre baza ta, apoi revine să sape. Raza și viteza de fugă se setează în ⚙ stats la unitatea groapar. Se cumpără o dată din bază, ieftin.',

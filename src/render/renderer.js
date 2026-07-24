@@ -254,6 +254,7 @@ export class Renderer {
     this.drawField(ctx, game);
     this.drawGrid(ctx, uiState);
     this.drawFireZones(ctx, game); // burning ground sits on the terrain, under everything
+    this.drawPasteZones(ctx, game); // Acid Paste puddles sit on the ground too
     this.drawHarvestZones(ctx, game); // Soul Harvest drain/heal rings (ground)
     this.drawRaiseCorpses(ctx, game); // raisable corpses lie on the ground
     this.drawTemplates(ctx, game, uiState);
@@ -518,6 +519,43 @@ export class Renderer {
           ctx.arc(z.x + Math.cos(a) * rr, z.y + Math.sin(a * 1.3) * rr * 0.7, 2, 0, Math.PI * 2);
           ctx.fill();
         }
+      }
+      ctx.restore();
+    }
+  }
+
+  // Acid Paste puddles: an organic (non-circular) green goo splat with a soft
+  // radial glow + a few darker bubbles. Fades out over its last moments.
+  drawPasteZones(ctx, game) {
+    const zones = game.pasteZones;
+    if (!zones || !zones.length) return;
+    for (const z of zones) {
+      if (!this.visible(z.x, z.y, z.radius + 40)) continue;
+      const seed = z.id || 1;
+      const fade = Math.max(0, Math.min(1, (z.until - game.time) / 0.8));
+      const pulse = 0.85 + 0.15 * Math.sin(this.now * 3 + z.x * 0.05);
+      ctx.save();
+      // clip to the irregular puddle outline, then fill with a green gradient
+      ctx.beginPath();
+      this.addBlightBlob(ctx, z.x, z.y, z.radius, seed);
+      ctx.clip();
+      const g = ctx.createRadialGradient(z.x, z.y, z.radius * 0.1, z.x, z.y, z.radius);
+      g.addColorStop(0, '#c2ff63');
+      g.addColorStop(0.55, '#5fbf2a');
+      g.addColorStop(1, 'rgba(38, 84, 12, 0.12)');
+      ctx.globalAlpha = 0.52 * fade * pulse;
+      ctx.fillStyle = g;
+      ctx.fillRect(z.x - z.radius, z.y - z.radius, z.radius * 2, z.radius * 2);
+      // darker goo bubbles for texture (stable positions from the zone seed)
+      ctx.globalAlpha = 0.42 * fade;
+      ctx.fillStyle = '#3f8a1e';
+      for (let i = 0; i < 7; i++) {
+        const a = this.blightNoise(seed * 3 + i * 29) * Math.PI * 2;
+        const rr = z.radius * (0.12 + 0.62 * this.blightNoise(seed * 7 + i * 13));
+        const br = 2 + 4 * this.blightNoise(seed + i * 5);
+        ctx.beginPath();
+        ctx.arc(z.x + Math.cos(a) * rr, z.y + Math.sin(a) * rr, br, 0, Math.PI * 2);
+        ctx.fill();
       }
       ctx.restore();
     }

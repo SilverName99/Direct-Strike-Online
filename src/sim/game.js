@@ -72,6 +72,7 @@ export class Game {
     this.projectiles = [];
     this.structures = [];
     this.fireZones = []; // burning ground left by the Fireball upgrade
+    this.pasteZones = []; // green Acid Paste puddles: {x,y,radius,amp,until,team} — amplify damage taken by enemies standing on them
     this.corpses = [];   // {x, y, until} — fresh bodies the Spirit Huntress can raise
     this.byId = new Map();
     this.events = []; // drained by the render layer

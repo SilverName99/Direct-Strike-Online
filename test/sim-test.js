@@ -8,8 +8,8 @@ import { dirname, join } from 'node:path';
 import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
-import { stepCaster, updateAbilities, isStunned, learnedAbilityParams } from '../src/sim/abilities.js';
-import { effStats } from '../src/sim/combat.js';
+import { stepCaster, updateAbilities, isStunned, learnedAbilityParams, effectVal } from '../src/sim/abilities.js';
+import { effStats, applyDamage } from '../src/sim/combat.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 import { statsBuilding, resolvedAbility, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
@@ -1211,6 +1211,33 @@ console.log('abilities (casters, auras, status effects)');
     check('soul harvest: drains the enemy', enemy.hp < 100000, `${enemy.hp}`);
     check('soul harvest: the drain heals her', caster.hp > 100, `${caster.hp}`);
     check('soul harvest: heals an ally in the heal zone', ally.hp > 50, `${ally.hp}`);
+    ab.params = saved;
+  }
+  // Acid Paste: a mana ability (unlock-gated) that spits a puddle amplifying
+  // damage taken by enemies standing on it.
+  {
+    applyBalance({ races: { humans: { units: { slinger: { caster: true, autoAttackBetween: true, abilities: ['acidpaste'], mana: 200, manaRegen: 5 } } } } });
+    const ab = resolvedAbility('acidpaste'); const saved = { ...ab.params };
+    Object.assign(ab.params, { manaCost: 30, cooldown: 6, range: 300, projectileSpeed: 400, pasteRadius: 90, pasteDuration: 6, ampPct: 50, castPrepare: 0, tier: 1 });
+    // locked until its unlock upgrade is owned
+    const g0 = new Game(64, { races: ['humans', 'orcs'] });
+    check('acid paste: locked without the unlock upgrade', !g0.abilityUsable(0, 'slinger', 'acidpaste'));
+    // with the upgrade: the caster spits a puddle; an enemy on it turns vulnerable
+    const game = new Game(65, { races: ['humans', 'orcs'] });
+    game.upgrades[0].add('acidpasteunlock');
+    check('acid paste: usable once unlocked', game.abilityUsable(0, 'slinger', 'acidpaste'));
+    const caster = spawnUnit(game, 0, 'slinger', 500, 400); caster.mana = 200;
+    const foe = spawnUnit(game, 1, 'grunt', 640, 400); foe.hp = foe.maxHp = 100000;
+    run(game, 4);
+    check('acid paste: a puddle is dropped on cast', game.pasteZones.length >= 1, `${game.pasteZones.length}`);
+    check('acid paste: an enemy on the puddle is vulnerable (+50%)',
+      Math.abs(effectVal(foe, 'vulnerable', game.time) - 50) < 0.01, `${effectVal(foe, 'vulnerable', game.time)}`);
+    // the 'vulnerable' effect amplifies incoming damage in applyDamage
+    const t = spawnUnit(game, 1, 'grunt', 200, 700); t.hp = t.maxHp = 100000; t.armor = 'light';
+    const b0 = t.hp; applyDamage(game, t, 100, 'normal', true); const base = b0 - t.hp;
+    t.effects = [{ kind: 'vulnerable', val: 50, until: game.time + 1 }];
+    const b1 = t.hp; applyDamage(game, t, 100, 'normal', true); const amp = b1 - t.hp;
+    check('acid paste: vulnerable multiplies damage ~1.5x', Math.abs(amp / base - 1.5) < 0.01, `base=${base.toFixed(0)} amp=${amp.toFixed(0)}`);
     ab.params = saved;
   }
 
