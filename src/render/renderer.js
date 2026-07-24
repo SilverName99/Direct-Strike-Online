@@ -427,15 +427,13 @@ export class Renderer {
     ctx.closePath();
   }
 
-  // Draw the corrupt terrain (background2) for one team, clipped to the union of
-  // organic blobs around that team's buildings (each with a per-building
-  // `blightRadius`). Aligned with the normal background so it reads as the same
-  // ground turning corrupt under the buildings. No-op unless a corrupt image is
-  // uploaded and at least one building has a blight radius.
+  // Corruption ("blight"): an OPAQUE purple void puddle around each of a team's
+  // buildings (per-building `blightRadius`), with an organic edge and a glowing
+  // violet rim/veins — like an Undead corruption pool. It fully covers the ground
+  // (no see-through filter). An uploaded "corrupt" texture, if present, is layered
+  // opaquely on top for a custom look.
   drawBlight(ctx, game, team, rx, rw, flip) {
     const race = raceOf(team);
-    const img = getBackground2(race);
-    if (!img) return;
     const blobs = [];
     for (const s of game.structures) {
       if (s.team !== team || s.hp <= 0) continue;
@@ -444,25 +442,64 @@ export class Renderer {
     }
     if (!blobs.length) return;
     const rh = CONFIG.FIELD_H;
+    const unionPath = () => {
+      ctx.beginPath();
+      for (const [x, y, r, id] of blobs) this.addBlightBlob(ctx, x, y, r, id);
+    };
     ctx.save();
-    // clip to this half, then to the union of the corruption blobs
+    // clip to this half
     ctx.beginPath();
     ctx.rect(rx, 0, rw, rh);
     ctx.clip();
-    ctx.beginPath();
-    for (const [x, y, r, id] of blobs) this.addBlightBlob(ctx, x, y, r, id);
+
+    // ---- opaque purple pool, clipped to the union of the blobs ----
+    ctx.save();
+    unionPath();
     ctx.clip();
-    // same cover-fit + mirror as the base half, so the corrupt texture lines up
-    const s = Math.max(rw / img.width, rh / img.height);
-    const dw = img.width * s, dh = img.height * s;
-    ctx.globalAlpha = 0.9;
-    if (flip) {
-      ctx.translate(rx + rw, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh);
-    } else {
-      ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+    // solid dark-purple base so nothing of the map shows through
+    ctx.fillStyle = '#1c0a2e';
+    ctx.fillRect(rx, 0, rw, rh);
+    // per-building glow patch: a brighter magenta core fading to the dark base
+    for (const [x, y, r] of blobs) {
+      const g = ctx.createRadialGradient(x, y, r * 0.05, x, y, r * 1.02);
+      g.addColorStop(0, 'rgba(150, 55, 205, 0.9)');
+      g.addColorStop(0.4, 'rgba(95, 30, 140, 0.7)');
+      g.addColorStop(0.8, 'rgba(45, 15, 70, 0.35)');
+      g.addColorStop(1, 'rgba(28, 10, 46, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
+    // optional uploaded texture, FULLY opaque (custom look over the purple base)
+    const img = getBackground2(race);
+    if (img) {
+      const s = Math.max(rw / img.width, rh / img.height);
+      const dw = img.width * s, dh = img.height * s;
+      if (flip) {
+        ctx.save(); ctx.translate(rx + rw, 0); ctx.scale(-1, 1);
+        ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh); ctx.restore();
+      } else {
+        ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+      }
+    }
+    ctx.restore();
+
+    // ---- glowing violet rim + veins: stroke each blob edge, clipped to the
+    //      union so it reads as an inner-edge glow (and veins where blobs meet) --
+    ctx.save();
+    unionPath();
+    ctx.clip();
+    ctx.lineJoin = 'round';
+    for (const pass of [[14, 0.14], [7, 0.26], [3, 0.55], [1.4, 0.9]]) {
+      ctx.lineWidth = pass[0];
+      ctx.strokeStyle = `rgba(198, 104, 240, ${pass[1]})`;
+      for (const [x, y, r, id] of blobs) {
+        ctx.beginPath();
+        this.addBlightBlob(ctx, x, y, r, id);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
     ctx.restore();
   }
 

@@ -1742,7 +1742,7 @@ if ($authed && $action === 'deletebarover') {
         </form>
         <?php endif; ?>
         <div style="color:#7c8ba1;font-size:11px;max-width:170px;margin-top:6px;line-height:1.5">
-          Aceeași dimensiune/aliniere ca background-ul normal. Apare doar în petele de „blight" din jurul clădirilor (rază setată la fiecare clădire în ⚙ stats).
+          OPȚIONAL. Coruperea e desenată automat ca o baltă mov opacă (rază la fiecare clădire în ⚙ stats). Dacă încarci o textură aici, se afișează OPAC peste balta mov (aceeași dimensiune ca background-ul normal). Lasă gol pentru balta mov standard.
         </div>
       </div>
       <div class="slot" style="min-width:240px">
