@@ -412,9 +412,12 @@ export class Renderer {
 
   // Trace ONE organic corruption blob (a wobbly closed curve, not a plain circle)
   // as a subpath on the current ctx path. Radius varies per angle from a hash of
-  // the building id, and the ring is smoothed with midpoint quadratics.
+  // the building id, and the ring is smoothed with midpoint quadratics. The number
+  // of undulations (edge vertices) is picked per-blob in [WOBBLE_MIN, WOBBLE_MAX].
   addBlightBlob(ctx, cx, cy, r, seed) {
-    const N = 20;
+    const wmin = Math.max(3, Math.round(CONFIG.BLIGHT_WOBBLE_MIN || 14));
+    const wmax = Math.max(wmin, Math.round(CONFIG.BLIGHT_WOBBLE_MAX || wmin));
+    const N = wmin + Math.floor(this.blightNoise(seed * 2.71 + 1.31) * (wmax - wmin + 1));
     const pts = [];
     for (let i = 0; i < N; i++) {
       const ang = (i / N) * Math.PI * 2;

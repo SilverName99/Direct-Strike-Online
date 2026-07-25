@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v13.8';
+export const VERSION = 'v13.9';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -59,6 +59,8 @@ export const CONFIG = {
   BLIGHT_TIER3_PCT: 140, // at Tier 3, every building's blight radius grows by this % (over the base)
   BLIGHT_FADE_TIME: 3,   // seconds the pool takes to fade in from BLIGHT_START_OPACITY to 100% (0 = instant, full opacity)
   BLIGHT_START_OPACITY: 0, // % opacity the pool appears at (then fades to 100% over BLIGHT_FADE_TIME)
+  BLIGHT_WOBBLE_MIN: 14, // fewest undulations (edge vertices) a corruption pool's outline can have
+  BLIGHT_WOBBLE_MAX: 24, // most undulations — each pool picks a count in [min,max] from its own seed
 
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback
