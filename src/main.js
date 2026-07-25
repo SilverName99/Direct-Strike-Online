@@ -402,6 +402,17 @@ let last = performance.now();
 let accumulator = 0;
 
 function frame(now) {
+  // A thrown error anywhere in a frame must NEVER stop the loop — otherwise the
+  // whole game freezes (rAF never re-scheduled). Guard the body; always re-arm.
+  try {
+    frameBody(now);
+  } catch (err) {
+    console.error('frame error (kept the loop alive):', err);
+  }
+  requestAnimationFrame(frame);
+}
+
+function frameBody(now) {
   const delta = Math.min((now - last) / 1000, 0.25);
   last = now;
 
@@ -458,7 +469,6 @@ function frame(now) {
     renderer.draw(game, alpha, uiState, effects);
   }
   minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null, uiState.myTeam);
-  requestAnimationFrame(frame);
 }
 
 requestAnimationFrame(frame);
