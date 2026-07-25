@@ -445,6 +445,8 @@ export class Renderer {
     // it blooms out nicely instead of popping in all at once.
     const grow = CONFIG.BLIGHT_GROW_TIME || 0;
     const start0 = CONFIG.BLIGHT_START_RADIUS || 0;
+    const fade = CONFIG.BLIGHT_FADE_TIME || 0;            // opacity fade-in seconds
+    const startOp = Math.max(0, Math.min(1, (CONFIG.BLIGHT_START_OPACITY || 0) / 100));
     // higher tiers spread the corruption wider: every building's radius grows by
     // a settable % at Tier 2 / Tier 3 (so the half is engulfed by late game)
     const tier = (game.tier && game.tier[team]) || 1;
@@ -464,8 +466,9 @@ export class Renderer {
       const target = base * tierMul;
       let a = this.blightAnim.get(s.id);
       if (!a) {
-        // first seen: appear IMMEDIATELY at the initial radius, then grow from it
-        a = { fromR: Math.min(start0, target), t0: this.now, target };
+        // first seen: appear IMMEDIATELY at the initial radius, then grow from it.
+        // `born` (never reset) drives the one-time opacity fade-in on placement.
+        a = { fromR: Math.min(start0, target), t0: this.now, target, born: this.now };
         this.blightAnim.set(s.id, a);
       } else if (Math.abs(a.target - target) > 0.5) {
         // target changed (tier up/down): re-ease from the CURRENT radius, no pop
@@ -473,29 +476,30 @@ export class Renderer {
       }
       const r = curR(a);
       if (r < 2) continue; // only when the initial radius is 0 (grows from nothing)
-      blobs.push([s.x, s.y, r, s.id]);
+      // opacity fades from startOp to 1 over `fade` seconds, once, from placement
+      const fp = fade > 0 ? Math.min(1, (this.now - a.born) / fade) : 1;
+      const alpha = startOp + (1 - startOp) * fp;
+      blobs.push([s.x, s.y, r, s.id, alpha]);
     }
     if (!blobs.length) return;
     const rh = CONFIG.FIELD_H;
-    const unionPath = () => {
-      ctx.beginPath();
-      for (const [x, y, r, id] of blobs) this.addBlightBlob(ctx, x, y, r, id);
-    };
+    const img = getBackground2(race);
     ctx.save();
     // clip to this half
     ctx.beginPath();
     ctx.rect(rx, 0, rw, rh);
     ctx.clip();
-
-    // ---- opaque purple pool, clipped to the union of the blobs ----
-    ctx.save();
-    unionPath();
-    ctx.clip();
-    // solid dark-purple base so nothing of the map shows through
-    ctx.fillStyle = '#1c0a2e';
-    ctx.fillRect(rx, 0, rw, rh);
-    // per-building glow patch: a brighter magenta core fading to the dark base
-    for (const [x, y, r] of blobs) {
+    // each building's pool is drawn on its own so it can fade in independently
+    for (const [x, y, r, id, alpha] of blobs) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      this.addBlightBlob(ctx, x, y, r, id);
+      ctx.clip();
+      // solid dark-purple base so nothing of the map shows through
+      ctx.fillStyle = '#1c0a2e';
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      // brighter magenta core fading to the dark base
       const g = ctx.createRadialGradient(x, y, r * 0.05, x, y, r * 1.02);
       g.addColorStop(0, 'rgba(150, 55, 205, 0.9)');
       g.addColorStop(0.4, 'rgba(95, 30, 140, 0.7)');
@@ -503,21 +507,19 @@ export class Renderer {
       g.addColorStop(1, 'rgba(28, 10, 46, 0)');
       ctx.fillStyle = g;
       ctx.fillRect(x - r, y - r, r * 2, r * 2);
-    }
-    // optional uploaded texture, FULLY opaque (custom look over the purple base)
-    const img = getBackground2(race);
-    if (img) {
-      const s = Math.max(rw / img.width, rh / img.height);
-      const dw = img.width * s, dh = img.height * s;
-      if (flip) {
-        ctx.save(); ctx.translate(rx + rw, 0); ctx.scale(-1, 1);
-        ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh); ctx.restore();
-      } else {
-        ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+      // optional uploaded texture, opaque over the purple base (custom look)
+      if (img) {
+        const sc = Math.max(rw / img.width, rh / img.height);
+        const dw = img.width * sc, dh = img.height * sc;
+        if (flip) {
+          ctx.save(); ctx.translate(rx + rw, 0); ctx.scale(-1, 1);
+          ctx.drawImage(img, (rw - dw) / 2, (rh - dh) / 2, dw, dh); ctx.restore();
+        } else {
+          ctx.drawImage(img, rx + (rw - dw) / 2, (rh - dh) / 2, dw, dh);
+        }
       }
+      ctx.restore();
     }
-    ctx.restore();
-
     ctx.restore();
   }
 

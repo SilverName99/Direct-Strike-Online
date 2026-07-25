@@ -77,6 +77,8 @@ export const GENERAL_FIELDS = [
   ['BLIGHT_START_RADIUS', 'Undead: rază inițială a coruperii (crește de aici la raza clădirii)'],
   ['BLIGHT_TIER2_PCT', 'Undead: +% rază corupție la Tier 2 (toate clădirile)'],
   ['BLIGHT_TIER3_PCT', 'Undead: +% rază corupție la Tier 3 (toate clădirile)'],
+  ['BLIGHT_FADE_TIME', 'Undead: secunde de fade opacitate corupție (0 = instant)'],
+  ['BLIGHT_START_OPACITY', 'Undead: opacitate corupție la apariție (%) — crește la 100%'],
 ];
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],
