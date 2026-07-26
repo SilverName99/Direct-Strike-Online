@@ -9,8 +9,8 @@
 
 import { CONFIG } from '../config.js';
 import { resolvedAbility } from '../ui/balance.js';
-import { spawnProjectile, spawnSummon } from './entity.js';
-import { applyDamage } from './combat.js';
+import { spawnProjectile, spawnSummon, spawnCloneShadow } from './entity.js';
+import { applyDamage, effStats } from './combat.js';
 
 const AURA_TICK = 0.35;    // aura effects auto-expire this fast (re-applied while inside)
 export const CAST_PREPARE = 0.45; // "Prepare spell" wind-up before the release frame
@@ -28,7 +28,7 @@ function isCastable(ab) {
 // params below (rankStep 0.5 => rank 2 = 1.5×, rank 3 = 2×; 0 => no scaling).
 // Set per ability in the balance editor. Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankStep
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaGain', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life', 'threshold', 'lifestealPct'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaGain', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life', 'threshold', 'lifestealPct', 'backstabPct', 'clonePct'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   const overrides = ab.rankOverrides;
@@ -98,6 +98,13 @@ export function effectVal(u, kind, time) {
 
 function hasEffect(u, kind, time) {
   return !!u.effects && u.effects.some((e) => e.kind === kind && e.until > time);
+}
+
+// Shadow Assassin stealth: while invisible (Shadow Rush / Vanish) the unit can't
+// be targeted by enemies (combat.js skips it in target acquisition) and renders
+// semi-transparent. Purely time-based off u.stealthUntil.
+export function isStealthed(u, time) {
+  return !!u && (u.stealthUntil || 0) > time;
 }
 
 // Attack-period multiplier for a unit (slow lengthens, haste shortens). The
@@ -311,6 +318,24 @@ export function updateAbilities(game, dt) {
     }
   }
 
+  // Binding Blade (Shadow Assassin ult): when the thrown blade "returns"
+  // (daggerUntil reached), split the absorbed damage + base damage among the
+  // still-living linked enemies, then clear the link/absorb state. Invincibility
+  // ends at the same instant (invincibleUntil == daggerUntil).
+  for (const u of game.entities) {
+    if (!u.daggerUntil) continue;
+    if (u.hp > 0 && time < u.daggerUntil) continue; // still flying (or he died — resolve either way)
+    const links = [];
+    if (u.daggerLinks) for (const id of u.daggerLinks) { const e = game.byId.get(id); if (e && e.hp > 0 && e.team !== u.team) links.push(e); }
+    if (links.length) {
+      const total = (u.daggerBase || 0) + (u.daggerAbsorbed || 0);
+      const each = total / links.length;
+      for (const e of links) applyDamage(game, e, each, 'normal');
+      game.events.push({ type: 'daggerreturn', unitId: u.id, team: u.team, x: u.x, y: u.y });
+    }
+    u.daggerUntil = 0; u.daggerLinks = null; u.daggerAbsorbed = 0; u.daggerBase = 0;
+  }
+
   // regen effects heal their owners
   for (const u of game.entities) {
     const hps = effectVal(u, 'regen', time);
@@ -467,7 +492,11 @@ export function stepCaster(game, caster, stats, dt, engaged) {
 const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield', 'lifedrain', 'risedead',
   // Necromancer raises skeletons from any corpse in reach — like Rise Dead, it
   // shouldn't wait for an enemy to walk into the caster's own attack range.
-  'skeletonmelee', 'skeletonranged', 'skeletonbrothers']);
+  'skeletonmelee', 'skeletonranged', 'skeletonbrothers',
+  // Shadow Assassin: Shadow Rush dives from BEHIND the line (no enemy in his own
+  // range yet) and Vanish reaches far to slip behind a target — both carry their
+  // own target gate, so they don't wait to be engaged in melee.
+  'shadowrush', 'vanish']);
 
 // Abilities that a BACKLINE caster (e.g. the Totemic Shaman) casts once the
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
@@ -588,6 +617,9 @@ function canAutoAttack(game, u) {
 const SELF_MANUAL = new Set([
   'regenaura', 'hasteaura', 'slowaura', 'warstomp', 'bloodlust',
   'divineshield', 'holynova', 'divineregen', 'backlineteleport', 'soullink',
+  // Shadow Assassin self-centred actives (Vanish is enemy-targeted, so it's not
+  // here — it falls through and just needs a valid target).
+  'shadowrush', 'twinshadows', 'daggerthrow',
 ]);
 
 // The target a given ability would act on, or null if there is none. `manual`
@@ -884,6 +916,46 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     for (const a of game.entities) {
       if (a === caster || a.team !== caster.team || a.hp <= 0 || a.isStructure) continue;
       if (inRadius(a, caster, p.radius)) return caster;
+    }
+    return null;
+  }
+  if (aid === 'shadowrush') {
+    // dive forward while still BEHIND our own front line — a friendly (non-summon)
+    // unit is ahead of us. Once he's out front he stays and fights (no re-dive).
+    const front = caster.team === 0 ? 1 : -1;
+    for (const u of game.entities) {
+      if (u.hp <= 0 || u === caster || u.team !== caster.team || u.summon || u.isStructure) continue;
+      if ((u.x - caster.x) * front > 40) return caster; // an ally is ahead -> we're behind
+    }
+    return null;
+  }
+  if (aid === 'vanish') {
+    // slip to the nearest enemy HERO in range; if there's no hero, the enemy
+    // (non-structure) unit with the MOST HP in range. Deterministic tie-breaks.
+    let hero = null, heroD = Infinity;
+    let unit = null, unitHp = -1, unitTie = Infinity;
+    for (const e of game.entities) {
+      if (e.team === caster.team || e.hp <= 0 || e.isStructure) continue;
+      if (!inRadius(e, caster, p.range)) continue;
+      const dx = e.x - caster.x, dy = e.y - caster.y, d = dx * dx + dy * dy;
+      if (e.hero) { if (d < heroD || (d === heroD && (!hero || e.id < hero.id))) { heroD = d; hero = e; } }
+      else if (e.hp > unitHp || (e.hp === unitHp && d < unitTie)) { unitHp = e.hp; unitTie = d; unit = e; }
+    }
+    return hero || unit;
+  }
+  if (aid === 'twinshadows') {
+    // summon clones when there's an enemy nearby to fight (avoid empty-lane casts)
+    for (const e of game.entities) {
+      if (e.team === caster.team || e.hp <= 0 || e.isStructure) continue;
+      if (inRadius(e, caster, 360)) return caster;
+    }
+    return null;
+  }
+  if (aid === 'daggerthrow') {
+    // throw when at least one enemy unit sits inside the link radius
+    for (const e of game.entities) {
+      if (e.team === caster.team || e.hp <= 0 || e.isStructure) continue;
+      if (inRadius(e, caster, p.radius)) return caster;
     }
     return null;
   }
@@ -1190,6 +1262,75 @@ function releaseSpell(game, caster, time) {
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     game.events.push({ type: 'soullink', unitId: caster.id, team: caster.team });
     return hold;
+  }
+
+  if (aid === 'shadowrush') {
+    // phase forward past the enemy line to the backline (a one-way blink; no
+    // collision because it's a teleport), then vanish (invisible + untargetable).
+    const front = caster.team === 0 ? 1 : -1;
+    const fromX = caster.x;
+    caster.x = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (p.distance || 0)));
+    caster.prevX = caster.x; // no interpolated slide — it's a teleport
+    caster.stealthUntil = time + (p.stealth || 0);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'teleport', team: caster.team, x: fromX, y: caster.y, tx: caster.x, ty: caster.y });
+    return hold;
+  }
+
+  if (aid === 'vanish') {
+    // slip behind the target and land ONE critical backstab (% of his damage),
+    // then vanish. The strike is a single hit — no cleave, no follow-up.
+    const dmgBase = effStats(caster, game.ustatOf(caster)).damage || 0;
+    const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks.vanish || 1) : 1;
+    const perRank = p['backstabPct' + rank];
+    const pct = (typeof perRank === 'number' && perRank > 0) ? perRank : (p.backstabPct || 0);
+    // land just behind the target (on the far side from the assassin's own base)
+    const front = caster.team === 0 ? 1 : -1;
+    const fromX = caster.x, fromY = caster.y;
+    caster.x = Math.max(40, Math.min(CONFIG.FIELD_W - 40, target.x + front * 22));
+    caster.y = target.y;
+    caster.prevX = caster.x; caster.prevY = caster.y;
+    caster.stealthUntil = time + (p.stealth || 0);
+    applyDamage(game, target, dmgBase * pct / 100, 'normal');
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'teleport', team: caster.team, x: fromX, y: fromY, tx: caster.x, ty: caster.y });
+    game.events.push({ type: 'execute', x: target.x, y: target.y, team: caster.team });
+    return hold;
+  }
+
+  if (aid === 'twinshadows') {
+    // spawn shadow clones that copy his attacks for a % of his damage. Their
+    // damage snapshots his current effective damage at cast time.
+    const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks.twinshadows || 1) : 1;
+    const nRaw = p['clones' + rank];
+    const n = Math.max(1, Math.round((typeof nRaw === 'number' && nRaw > 0) ? nRaw : (p.clones || 1)));
+    const heroDmg = effStats(caster, game.ustatOf(caster)).damage || 0;
+    const cloneDmg = heroDmg * (p.clonePct || 0) / 100;
+    for (let i = 0; i < n; i++) spawnCloneShadow(game, caster, p, cloneDmg, i, n);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'summon', x: caster.x, y: caster.y, team: caster.team });
+    return hold;
+  }
+
+  if (aid === 'daggerthrow') {
+    // the channel (prepare) just ended: become INVINCIBLE for `duration`, throw
+    // the blade and link every enemy unit in radius. While invincible, incoming
+    // damage is absorbed (0 HP lost) and tallied; when the blade returns
+    // (updateAbilities) the tally + baseDamage is split among the linked enemies.
+    const dur = p.duration || 0;
+    caster.invincibleUntil = time + dur;
+    caster.daggerUntil = time + dur;
+    caster.daggerAbsorbed = 0;
+    caster.daggerBase = p.baseDamage || 0;
+    const links = [];
+    for (const e of game.entities) {
+      if (e.team === caster.team || e.hp <= 0 || e.isStructure) continue;
+      if (inRadius(e, caster, p.radius)) links.push(e.id);
+    }
+    caster.daggerLinks = links;
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
+    game.events.push({ type: 'daggerthrow', unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    return Math.max(hold, dur); // hold the throw frame while the blade is out
   }
 
   if (aid === 'blizzard') {

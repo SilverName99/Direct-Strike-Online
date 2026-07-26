@@ -1325,6 +1325,81 @@ console.log('abilities (casters, auras, status effects)');
     }
     exAb.params = exSaved; rcAb.params = rcSaved; slAb.params = slSaved;
   }
+  // Shadow Assassin (Undead hero 2) kit: stealth, vanish backstab, twin shadow
+  // clones, and the Binding Blade absorb-and-split ultimate.
+  {
+    applyBalance({}); // reset unit stats
+    const saStats = { caster: true, autoAttackBetween: true, abilities: ['shadowrush', 'vanish', 'twinshadows', 'daggerthrow'] };
+    const mkSA = (game, x, y) => {
+      const h = spawnUnit(game, 0, 'grunt', x, y);
+      h.hero = true; h.heroLevel = 6; h.mana = 999; h.maxHp = h.hp = 2000;
+      h.heroRanks = { shadowrush: 1, vanish: 3, twinshadows: 3, daggerthrow: 1 };
+      h.abilityCd = {}; h.castState = undefined;
+      return h;
+    };
+    const vaAb = resolvedAbility('vanish'); const vaSaved = { ...vaAb.params };
+    const tsAb = resolvedAbility('twinshadows'); const tsSaved = { ...tsAb.params };
+    const dtAb = resolvedAbility('daggerthrow'); const dtSaved = { ...dtAb.params };
+    // Vanish seeks the enemy HERO, backstabs it, and turns the assassin invisible
+    {
+      const game = new Game(120, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = mkSA(game, 500, 400);
+      Object.assign(vaAb.params, { range: 480, backstabPct: 300, stealth: 2, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
+      const eHero = spawnUnit(game, 1, 'grunt', 720, 400); eHero.hero = true; eHero.hp = eHero.maxHp = 100000;
+      const eHp0 = eHero.hp;
+      for (let i = 0; i < 6; i++) { game.time += DT; stepCaster(game, h, saStats, DT, true); game.update(DT); game.drainEvents(); }
+      check('shadow assassin: vanish backstabs the enemy hero', eHero.hp < eHp0, `took ${(eHp0 - eHero.hp).toFixed(0)}`);
+      check('shadow assassin: vanish turns him invisible', (h.stealthUntil || 0) > game.time);
+    }
+    // A stealthed assassin cannot be targeted or hit by enemies
+    {
+      const game = new Game(121, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = spawnUnit(game, 0, 'grunt', 500, 400); h.maxHp = h.hp = 500;
+      h.stealthUntil = game.time + 5;
+      const foe = spawnUnit(game, 1, 'grunt', 512, 400); foe.hp = foe.maxHp = 100000;
+      const hp0 = h.hp;
+      run(game, 3);
+      check('shadow assassin: invisible -> enemies deal no damage', h.hp === hp0);
+      check('shadow assassin: invisible -> enemies do not target him', foe.targetId !== h.id);
+    }
+    // Twin Shadows summons rank-many clones that use the hero's sprites
+    {
+      const game = new Game(122, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = mkSA(game, 500, 400);
+      const tsOnly = { caster: true, autoAttackBetween: true, abilities: ['twinshadows'] };
+      Object.assign(tsAb.params, { manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0, clonePct: 50, cloneHp: 60, life: 12 });
+      spawnUnit(game, 1, 'grunt', 560, 400); // an enemy nearby so it will cast
+      for (let i = 0; i < 2; i++) { game.time += DT; stepCaster(game, h, tsOnly, DT, true); game.update(DT); game.drainEvents(); }
+      const clones = game.entities.filter((e) => e.clone && e.summonOf === h.id && e.hp > 0);
+      check('shadow assassin: twin shadows spawns rank-3 clones', clones.length === 3, `spawned ${clones.length}`);
+      check('shadow assassin: clones reuse the hero sprite (no summonKind)', clones.every((c) => c.type === h.type && !c.summonKind));
+    }
+    // Binding Blade: invincible while the blade flies, absorbs damage, then splits
+    // (base + absorbed) among the linked enemies when it returns
+    {
+      const game = new Game(123, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = mkSA(game, 500, 400);
+      const dtOnly = { caster: true, autoAttackBetween: true, abilities: ['daggerthrow'] };
+      Object.assign(dtAb.params, { duration: 1, radius: 300, baseDamage: 100, manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0 });
+      const e1 = spawnUnit(game, 1, 'grunt', 560, 400); e1.hp = e1.maxHp = 100000;
+      const e2 = spawnUnit(game, 1, 'grunt', 560, 440); e2.hp = e2.maxHp = 100000;
+      game.time += DT; stepCaster(game, h, dtOnly, DT, true); // throws the blade
+      check('shadow assassin: ult links the enemies in radius', h.daggerLinks && h.daggerLinks.length === 2, `links ${h.daggerLinks ? h.daggerLinks.length : 0}`);
+      check('shadow assassin: ult makes him invincible', (h.invincibleUntil || 0) > game.time);
+      const hp0 = h.hp;
+      applyDamage(game, h, 500, 'normal');
+      check('shadow assassin: invincible -> absorbs damage (no HP lost)', h.hp === hp0 && h.daggerAbsorbed === 500);
+      const e1hp0 = e1.hp, e2hp0 = e2.hp;
+      for (let i = 0; i < 45; i++) { game.time += DT; game.update(DT); game.drainEvents(); }
+      // (100 base + 500 absorbed) / 2 links = 300 each
+      check('shadow assassin: returning blade splits base+absorbed to links',
+        Math.abs((e1hp0 - e1.hp) - 300) < 30 && Math.abs((e2hp0 - e2.hp) - 300) < 30,
+        `e1 -${(e1hp0 - e1.hp).toFixed(0)} e2 -${(e2hp0 - e2.hp).toFixed(0)}`);
+      check('shadow assassin: invincibility ends with the blade', (h.invincibleUntil || 0) <= game.time && !h.daggerUntil);
+    }
+    vaAb.params = vaSaved; tsAb.params = tsSaved; dtAb.params = dtSaved;
+    applyBalance({});
+  }
   // Blight: per-building blightRadius must survive a balance save/reload (the
   // apply guard only writes fields already defined on the base template).
   {

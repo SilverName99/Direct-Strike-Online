@@ -266,6 +266,7 @@ export class Renderer {
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
     this.drawSoulLinks(ctx, game, alpha); // Soul Link: glowing tethers hero -> allies
+    this.drawDaggerLinks(ctx, game, alpha); // Binding Blade: purple tethers to linked enemies
     this.drawDrainBeams(ctx, game, alpha); // Life Drain: a wavy beam over the fighters
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
@@ -776,6 +777,36 @@ export class Renderer {
         const [x1, y1] = this._lerpXY(a, alpha);
         this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(150,90,220,0.7)', '#cbaaff', '#6a3fb0', 2.4);
       }
+    }
+  }
+
+  // Binding Blade (Shadow Assassin ult): while the thrown dagger is out, a purple
+  // "sfoară" tethers the assassin to every enemy his blade linked, and a faint
+  // dome marks that he's invincible. Both vanish when the blade returns.
+  drawDaggerLinks(ctx, game, alpha) {
+    for (const u of game.entities) {
+      if (u.hp <= 0 || !u.daggerUntil || game.time >= u.daggerUntil) continue;
+      const [x0, y0] = this._lerpXY(u, alpha);
+      if (u.daggerLinks) {
+        for (const id of u.daggerLinks) {
+          const e = game.byId.get(id);
+          if (!e || e.hp <= 0 || e.team === u.team) continue;
+          const [x1, y1] = this._lerpXY(e, alpha);
+          this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(160,70,220,0.75)', '#e0b0ff', '#7a2fc0', 2.6);
+        }
+      }
+      // invincibility dome (subtle purple pulse)
+      const fade = Math.max(0, Math.min(1, (u.daggerUntil - game.time) / 0.5));
+      ctx.save();
+      ctx.translate(x0, y0);
+      const r = (u.baseRadius || u.radius || 16) * 1.5;
+      ctx.globalAlpha = 0.18 * fade * (0.7 + 0.3 * Math.sin(this.now * 6));
+      const g = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, r);
+      g.addColorStop(0, 'rgba(200,150,255,0.6)');
+      g.addColorStop(1, 'rgba(120,40,180,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -1512,6 +1543,10 @@ export class Renderer {
       }
       ctx.save();
       ctx.translate(x, y);
+      // Shadow Assassin: an invisible (stealthed) hero and his shadow clones both
+      // render faint/ghostly. Stealth is deeper than the clone tint.
+      if ((u.stealthUntil || 0) > game.time) ctx.globalAlpha *= 0.32;
+      else if (u.clone) ctx.globalAlpha *= 0.5;
       if (hasCharacter(u.type, u.team)) {
         // character path: side-view sprite/puppet, mirrored to face where it is
         // GOING (or its target) — a unit walking back toward its own base flips

@@ -154,6 +154,60 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
   return e;
 }
 
+// Twin Shadows (Shadow Assassin skill): spawn a shadow clone that copies the
+// hero's attack for `cloneDmg` damage. It's a fragile, timed illusion drawn with
+// the HERO's own sprites (summonKind left null so the renderer falls back to the
+// hero frames), shadow-tinted via the `clone` flag. It fights like any summon.
+export function spawnCloneShadow(game, caster, p, cloneDmg, index = 0, count = 1) {
+  const host = game.ustatOf(caster); // the hero's own combat stats (range/period/speed/size)
+  const radius = caster.baseRadius || caster.radius || 14;
+  const stats = {
+    name: 'Umbră',
+    hp: Math.max(1, p.cloneHp || 1),
+    damage: Math.max(0, cloneDmg || 0),
+    range: host.range || 28, period: host.period || 1,
+    dmgType: host.dmgType || 'normal', armor: 'light',
+    speed: host.speed || 110, radius, shape: 'circle',
+    isAir: !!host.isAir,
+    targetsAir: host.targetsAir != null ? !!host.targetsAir : !!host.isAir,
+    targetsGround: host.targetsGround !== false,
+    projectile: !!host.projectile, ranged: !!host.projectile,
+    projectileSpeed: host.projectileSpeed || CONFIG.PROJECTILE_SPEED,
+    splash: 0,
+    size: (host.size != null ? host.size : 1), animSpeed: host.animSpeed || 5,
+    caster: false, heal: false, cw: 1, ch: 1, tier: 1, cost: 0,
+  };
+  // fan the clones out around the hero so they don't stack on one point
+  const ang = count > 1 ? (index / count) * Math.PI * 2 : 0.6;
+  const ox = Math.cos(ang) * 26, oy = Math.sin(ang) * 16;
+  const life = p.life != null ? p.life : (p.duration || 0);
+  const e = {
+    id: game.nextId++,
+    team: caster.team, type: caster.type, // hero sprites; stats overridden
+    x: caster.x + ox, y: caster.y + oy, prevX: caster.x, prevY: caster.y,
+    hp: stats.hp, maxHp: stats.hp,
+    cooldown: 0, windup: 0, windupMax: 0,
+    effects: [], abilityCd: {}, auraUntil: {},
+    castState: null, castAbility: null, castTargetId: null, castManual: false, castPhaseEnd: 0, spellHold: false,
+    dashing: false, dashCharge: false, dashReadyAt: 0, dashVel: 0,
+    mountTargetId: null, splitTargetId: null, dismounted: false, beast: false,
+    ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovRanged: null,
+    ovSize: stats.size,
+    mana: 0, manaMax: 0,
+    targetId: null, state: 'march',
+    radius, baseRadius: radius, footprint: false, hw: radius, hh: radius,
+    armor: stats.armor, isAir: stats.isAir,
+    summon: true, summonKind: null, summonOf: caster.id, summonStats: stats,
+    clone: true, // renderer: draw the hero sprite, shadow-tinted + semi-transparent
+    totem: false, totemAura: null,
+    maxLife: life > 0 ? life : 0,
+    despawnAt: life > 0 ? game.time + life : null,
+  };
+  game.entities.push(e);
+  game.byId.set(e.id, e);
+  return e;
+}
+
 // Half-extents (hw, hh) of a structure, plus a bounding radius, from that
 // kind's resolved (per-race) stats. Buildings occupy a rectangle of cw x ch
 // grid cells; main/turret stay square (their `radius` is the half-extent).

@@ -655,6 +655,79 @@ export const ABILITIES = {
       castPrepare: 0,
     },
   },
+  // ---- Shadow Assassin (Undead hero 2) kit — a half-rotten dagger assassin ----
+  // Shadow Rush: cheaply become invisible + phase THROUGH the enemy line (no
+  // collision) to reach the backline. One-way — he can't blink back (that's what
+  // sets it apart from Backline Teleport). Untargetable while invisible.
+  shadowrush: {
+    name: 'Shadow Rush',
+    kind: 'active',
+    color: '#7a4fd0',
+    castTwoPhase: true, // cast 1 = vanish/wind-up, cast 2 = arrive
+    desc: 'Se face invizibil și se năpustește prin inamici (fără coliziune) până în spatele liniei — un singur sens, nu se poate întoarce. Cât e invizibil nu poate fi țintit.',
+    params: {
+      tier: 1, cooldown: 12, manaCost: 40,
+      distance: 260,     // how far forward he phases past the line
+      stealth: 2.5,      // seconds invisible + untargetable after arriving
+      castPrepare: 0.3, castHold: 0.3,
+    },
+  },
+  // Vanish: become invisible and slip to the nearest enemy HERO (or, if there's
+  // no hero, the enemy unit with the most HP), landing a single critical
+  // backstab. One hit, then done.
+  vanish: {
+    name: 'Vanish',
+    kind: 'active',
+    color: '#5a3fa0',
+    castTwoPhase: true, // cast 1 = vanish/wind-up, cast 2 = backstab
+    desc: 'Se face invizibil și se strecoară la cel mai apropiat erou inamic (dacă nu există erou, la unitatea cu cea mai multă viață) unde dă un backstab critic — o singură lovitură. Cât e invizibil nu poate fi țintit.',
+    params: {
+      tier: 1, cooldown: 10, manaCost: 45,
+      range: 480,        // how far he can seek a target to slip behind
+      backstabPct: 300,  // backstab damage = X% of his attack damage (crește pe rang)
+      backstabPct1: 0, backstabPct2: 0, backstabPct3: 0, // explicit per-rank (0 = auto)
+      stealth: 1.5,      // seconds invisible after the strike
+      castPrepare: 0.3, castHold: 0.3,
+    },
+  },
+  // Umbre Gemene / Twin Shadows: summon 1/2/3 shadow clones (by rank) that copy
+  // his attacks for a % of his damage. Timed illusions with low HP; they attack
+  // the nearest enemy. (Drawn as shadowy copies of the hero — no new frames.)
+  twinshadows: {
+    name: 'Umbre Gemene',
+    kind: 'active', // spawns clones (uses the hero's own sprites, shadow-tinted)
+    color: '#6a4fb0',
+    desc: 'Invocă clone de umbră (1/2/3 după rang) care îi copiază atacurile (% din damage-ul lui). Au viață puțină și durată limitată; atacă cel mai apropiat inamic.',
+    params: {
+      tier: 1, cooldown: 16, manaCost: 50,
+      clones: 1, clones1: 1, clones2: 2, clones3: 3, // number of clones by rank
+      clonePct: 50,      // % of the hero's damage each clone deals (crește pe rang)
+      clonePct1: 0, clonePct2: 0, clonePct3: 0,
+      cloneHp: 60,       // clone HP (a fragile illusion)
+      life: 12,          // seconds the clones live before fading
+      castPrepare: 0, castHold: 0.4,
+    },
+  },
+  // Ultimate — Lama Legăturilor / Binding Blade: channel X seconds, then become
+  // INVINCIBLE for the rest of the duration and throw the dagger. It flies
+  // through every enemy in radius, linking each with a purple tether. All the
+  // damage he "absorbs" while invincible is tallied and — plus a settable base
+  // damage — split among the linked enemies when the blade returns.
+  daggerthrow: {
+    name: 'Lama Legăturilor',
+    kind: 'active', // ultimate
+    color: '#9a5fd0',
+    castTwoPhase: true, // cast 1 = channel, cast 2 = throw + hold while flying
+    desc: 'Ultima: canalizează X secunde, apoi devine invincibil restul duratei și aruncă pumnalul. Într-o rază, lama trece prin TOȚI inamicii și îi leagă cu o sfoară mov. Tot damage-ul pe care l-ar fi luat cât e invincibil se adună și, împreună cu un base damage setabil, se împarte inamicilor legați când lama se întoarce.',
+    params: {
+      tier: 1, cooldown: 50, manaCost: 100,
+      duration: 3,       // seconds the blade is out (he's invincible this whole time)
+      radius: 240,       // link radius — every enemy inside is tethered
+      baseDamage: 120,   // base damage split among the linked enemies (settable)
+      castPrepare: 1,    // channel time (cast) before he throws & turns invincible
+      castHold: 0.4,
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -809,4 +882,21 @@ export const ABILITY_PARAM_LABELS = {
   lifestealPct: 'Lifesteal: % din damage-ul dat, întors ca viață (pe rang)',
   maxLinks: 'Soul Link: câți aliați leagă',
   heroPct: 'Soul Link: % damage ținut de erou (restul la aliați)',
+  // Shadow Assassin (Undead hero 2)
+  distance: 'Distanță (teleport/năpustire)',
+  stealth: 'Invizibilitate (s)',
+  backstabPct: 'Vanish: backstab (% din damage) — crește pe rang',
+  backstabPct1: 'Vanish: backstab rang 1 (%, 0 = auto)',
+  backstabPct2: 'Vanish: backstab rang 2 (%, 0 = auto)',
+  backstabPct3: 'Vanish: backstab rang 3 (%, 0 = auto)',
+  clones: 'Umbre Gemene: nr. clone (fallback/auto)',
+  clones1: 'Umbre Gemene: nr. clone rang 1',
+  clones2: 'Umbre Gemene: nr. clone rang 2',
+  clones3: 'Umbre Gemene: nr. clone rang 3',
+  clonePct: 'Umbre Gemene: % din damage-ul eroului (pe clonă)',
+  clonePct1: 'Umbre Gemene: % damage rang 1 (0 = auto)',
+  clonePct2: 'Umbre Gemene: % damage rang 2 (0 = auto)',
+  clonePct3: 'Umbre Gemene: % damage rang 3 (0 = auto)',
+  cloneHp: 'Umbre Gemene: HP clonă',
+  baseDamage: 'Lama Legăturilor: base damage (împărțit la legați)',
 };

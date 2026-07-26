@@ -96,6 +96,14 @@ const ABILITY_INFO = [
   'reapcleave' => ['Reap Cleave', false, false],
   'vampiricaura' => ['Vampiric Aura', false, false],
   'soullink' => ['Soul Link', true, false],
+  // Shadow Assassin (Undead hero 2) kit: Shadow Rush / Vanish are 2-frame casts
+  // (wind-up + arrive/strike); Umbre Gemene has one cast frame; Lama Legăturilor
+  // (ultimate) channels then throws — 2 cast frames (channel + throw) + a thrown
+  // dagger projectile sprite. Clones/tethers/stealth are drawn procedurally.
+  'shadowrush' => ['Shadow Rush', true, false, 2],
+  'vanish' => ['Vanish', true, false, 2],
+  'twinshadows' => ['Umbre Gemene', true, false, 1],
+  'daggerthrow' => ['Lama Legăturilor', true, false, 2],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];

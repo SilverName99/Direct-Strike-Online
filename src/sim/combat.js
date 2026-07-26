@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile, spawnUnit } from './entity.js';
-import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster, learnedAbilityParams, isStunned } from './abilities.js';
+import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster, learnedAbilityParams, isStunned, isStealthed } from './abilities.js';
 import { resolvedUpgrade, towerStatForTier } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
@@ -256,6 +256,7 @@ function nearestEnemies(game, turret, stats, canTarget, n) {
   const cands = [];
   for (const e of game.entities) {
     if (e.team === turret.team || e.hp <= 0 || !canTarget(e)) continue;
+    if (isStealthed(e, game.time)) continue; // invisible assassin can't be shot
     const d = effDist(turret, e);
     if (d <= stats.range) cands.push({ e, d });
   }
@@ -326,7 +327,7 @@ function stepCasterHold(game, u, stats, dt) {
   // a caster only casts while ENGAGED (an enemy in its attack range); the FSM
   // enforces it (Regeneration Aura is the lone exception, handled in the FSM).
   let target = game.byId.get(u.targetId) || null;
-  if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS)) {
+  if (target && !isValidTarget(u, stats, target, stats.range + CONFIG.AGGRO_BONUS, game.time)) {
     target = null;
     u.targetId = null;
   }
@@ -372,7 +373,7 @@ function updateFighter(game, u, stats, dt) {
   }
 
   let target = game.byId.get(u.targetId) || null;
-  if (target && !isValidTarget(u, stats, target, aggroRange(stats))) {
+  if (target && !isValidTarget(u, stats, target, aggroRange(stats), game.time)) {
     target = null;
     u.targetId = null;
   }
@@ -1055,6 +1056,7 @@ function acquireTarget(game, u, stats) {
   if (!stats.buildingsOnly) {
     for (const e of game.entities) {
       if (e.team === u.team) continue;
+      if (isStealthed(e, game.time)) continue; // invisible assassin can't be targeted
       if (!canHit(stats, e)) continue;
       const d = effDist(u, e);
       if (d < bestD) {
@@ -1073,8 +1075,9 @@ function acquireTarget(game, u, stats) {
   return bestD <= aggro ? best : null;
 }
 
-function isValidTarget(u, stats, target, maxDist) {
+function isValidTarget(u, stats, target, maxDist, time = 0) {
   if (stats.buildingsOnly && !target.isStructure) return false; // Focus building
+  if (isStealthed(target, time)) return false; // dropped the instant it goes invisible
   return target.hp > 0 && canHit(stats, target) && effDist(u, target) <= maxDist;
 }
 
@@ -1109,6 +1112,14 @@ function effDist(a, b) {
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {
+  // Binding Blade (Shadow Assassin ult): while the blade is out he's INVINCIBLE —
+  // he takes no HP damage, but every raw hit is tallied and later split among the
+  // enemies his blade linked (see updateAbilities). Absorb happens before armor,
+  // so "all the damage he took" is the full incoming amount.
+  if (target.invincibleUntil && game.time < target.invincibleUntil) {
+    if (target.daggerUntil && game.time < target.daggerUntil) target.daggerAbsorbed = (target.daggerAbsorbed || 0) + damage;
+    return;
+  }
   // Soul Link (Death Knight ult): the hero bleeds most incoming damage into his
   // linked allies — he keeps only heroPct%. Unidirectional (only he is spared).
   // Links to dead allies are pruned; when none survive he takes the full hit.
