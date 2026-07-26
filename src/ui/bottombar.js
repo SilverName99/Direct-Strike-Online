@@ -270,6 +270,7 @@ export class BottomBar {
     // race tag so a per-race design can nudge details/status for its own frame
     this.bar.classList.toggle('race-orcs', raceOf(this.team) === 'orcs');
     this.bar.classList.toggle('race-humans', raceOf(this.team) === 'humans');
+    this.bar.classList.toggle('race-undead', raceOf(this.team) === 'undead');
   }
 
 
