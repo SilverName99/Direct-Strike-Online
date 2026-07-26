@@ -228,6 +228,7 @@ export class Menu {
       ['MENU_OPTIONS_FRAME', 'has-optframe-skin', '--menu-optframe'],
       ['MENU_RACE_HUMANS', 'has-racehum-skin', '--menu-racehum'],
       ['MENU_RACE_ORCS', 'has-raceorc-skin', '--menu-raceorc'],
+      ['MENU_RACE_UNDEAD', 'has-raceund-skin', '--menu-raceund'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
