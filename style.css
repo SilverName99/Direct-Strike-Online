@@ -809,8 +809,12 @@ html, body {
 /* ---- frame around the race/difficulty picker (admin "Chenar rase / dificultate") ---- */
 .has-setup-skin .m-screen[data-screen="setup"] .m-setup {
   background: var(--menu-setup) center / 100% 100% no-repeat;
-  padding: 60px 74px; border-radius: 14px; max-width: 600px; gap: 16px;
+  padding: 60px 74px; border-radius: 14px; max-width: 720px; gap: 16px;
 }
+/* the framed setup panel wants to be wider than the default screen cap, so the
+   whole "Chenar rase / dificultate" has more room for the pills + labels */
+.has-setup-skin #menu-root .m-screen[data-screen="setup"],
+#menu-root .m-screen[data-screen="setup"] { max-width: min(760px, 94vw); }
 
 /* ---- race pill frame skins (separate per race: "Chenar Humans" / "Chenar Orcs" / "Chenar Undead") ---- */
 .has-racehum-skin .m-pill[data-race="humans"],
