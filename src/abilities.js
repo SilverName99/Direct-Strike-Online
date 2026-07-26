@@ -614,7 +614,8 @@ export const ABILITIES = {
     desc: 'Secera un inamic NORMAL (nu erou, nu clădire) sub un prag de viață: dacă ținta e sub X% HP, o execută instant. Pragul, cooldown-ul și raza sunt setabile; pragul crește pe rang.',
     params: {
       tier: 1, manaCost: 40, cooldown: 8, range: 70,
-      threshold: 15, // % HP: țintele sub acest prag pot fi executate (crește pe rang)
+      threshold: 15, // % HP: țintele sub acest prag pot fi executate (fallback/auto)
+      threshold1: 0, threshold2: 0, threshold3: 0, // prag explicit pe rang (0 = auto)
       castPrepare: 0,
     },
   },
@@ -625,7 +626,9 @@ export const ABILITIES = {
     desc: 'Pasiv: loviturile eroului taie în jur (splash %, ca la Cleave) ȘI îi dau viață înapoi — se vindecă cu X% din tot damage-ul dat. Splash-ul și X% cresc pe rang (setabile).',
     params: {
       cleavePct: 40, radius: 90,
+      cleavePct1: 0, cleavePct2: 0, cleavePct3: 0, // splash explicit pe rang (0 = auto)
       lifestealPct: 15, // % din damage-ul dat, întors ca viață (crește pe rang)
+      lifestealPct1: 0, lifestealPct2: 0, lifestealPct3: 0, // lifesteal explicit pe rang (0 = auto)
     },
   },
   vampiricaura: {
@@ -635,7 +638,8 @@ export const ABILITIES = {
     desc: 'Aură: eroul ȘI aliații din jurul lui se vindecă cu X% din damage-ul pe care îl dau (la orice lovitură). Rază setabilă; X% crește pe rang. Se adună cu Reap Cleave.',
     params: {
       radius: 220,
-      lifestealPct: 12, // % din damage-ul dat de fiecare aliat din rază
+      lifestealPct: 12, // % din damage-ul dat de fiecare aliat din rază (crește pe rang)
+      lifestealPct1: 0, lifestealPct2: 0, lifestealPct3: 0, // lifesteal explicit pe rang (0 = auto)
     },
   },
   soullink: {
@@ -792,7 +796,16 @@ export const ABILITY_PARAM_LABELS = {
   pasteDuration: 'Pastă: durată baltă (s)',
   ampPct: 'Pastă: +damage pe cine stă (%)',
   // Death Knight (Undead hero)
-  threshold: 'Execute: prag HP (%) — sub el, execută (crește pe rang)',
+  threshold: 'Execute: prag HP (%) — de bază/auto (crește pe rang)',
+  threshold1: 'Execute: prag HP rang 1 (%, 0 = auto)',
+  threshold2: 'Execute: prag HP rang 2 (%, 0 = auto)',
+  threshold3: 'Execute: prag HP rang 3 (%, 0 = auto)',
+  cleavePct1: 'Cleave rang 1 (% din damage, 0 = auto)',
+  cleavePct2: 'Cleave rang 2 (% din damage, 0 = auto)',
+  cleavePct3: 'Cleave rang 3 (% din damage, 0 = auto)',
+  lifestealPct1: 'Lifesteal rang 1 (%, 0 = auto)',
+  lifestealPct2: 'Lifesteal rang 2 (%, 0 = auto)',
+  lifestealPct3: 'Lifesteal rang 3 (%, 0 = auto)',
   lifestealPct: 'Lifesteal: % din damage-ul dat, întors ca viață (pe rang)',
   maxLinks: 'Soul Link: câți aliați leagă',
   heroPct: 'Soul Link: % damage ținut de erou (restul la aliați)',
