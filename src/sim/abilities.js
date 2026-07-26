@@ -949,12 +949,13 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     return best;
   }
   if (aid === 'execute') {
-    // nearest enemy NORMAL unit (no hero, no structure) already below the HP
-    // threshold — those it can reap instantly
+    // nearest enemy unit already below the HP threshold — reaped instantly.
+    // Reaps normal units, hero-summoned creatures (summons/clones/skeletons)
+    // AND enemy heroes; only structures are immune.
     const th = (p.threshold || 0) / 100;
     let best = null, bestD = Infinity;
     for (const u of game.entities) {
-      if (u.team === caster.team || u.hp <= 0 || u.isStructure || u.hero) continue;
+      if (u.team === caster.team || u.hp <= 0 || u.isStructure) continue;
       if (u.hp > u.maxHp * th) continue; // still too healthy to execute
       if (!inRadius(u, caster, p.range)) continue;
       const dx = u.x - caster.x, dy = u.y - caster.y, d = dx * dx + dy * dy;

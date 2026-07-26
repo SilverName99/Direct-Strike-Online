@@ -611,7 +611,7 @@ export const ABILITIES = {
     name: 'Execute',
     kind: 'active',
     color: '#c0303a',
-    desc: 'Secera un inamic NORMAL (nu erou, nu clădire) sub un prag de viață: dacă ținta e sub X% HP, o execută instant. Pragul, cooldown-ul și raza sunt setabile; pragul crește pe rang.',
+    desc: 'Secera un inamic sub un prag de viață: dacă ținta e sub X% HP, o execută instant. Merge pe unități normale, pe creaturile invocate de eroi (invocări/clone/schelete) ȘI pe eroii inamici — doar clădirile sunt imune. Pragul, cooldown-ul și raza sunt setabile; pragul crește pe rang.',
     params: {
       tier: 1, manaCost: 40, cooldown: 8, range: 70,
       threshold: 15, // % HP: țintele sub acest prag pot fi executate (fallback/auto)

@@ -1288,16 +1288,19 @@ console.log('abilities (casters, auras, status effects)');
     const exAb = resolvedAbility('execute'); const exSaved = { ...exAb.params };
     const rcAb = resolvedAbility('reapcleave'); const rcSaved = { ...rcAb.params };
     const slAb = resolvedAbility('soullink'); const slSaved = { ...slAb.params };
-    // Execute reaps a below-threshold NORMAL unit, but never the enemy hero
+    // Execute reaps below-threshold enemies: normal units, hero SUMMONS, and
+    // enemy heroes — but never structures.
     {
       const game = new Game(90, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
       const h = mkDK(game, 500, 400);
-      Object.assign(exAb.params, { threshold: 30, range: 200, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
+      Object.assign(exAb.params, { threshold: 30, range: 260, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
       const weak = spawnUnit(game, 1, 'grunt', 560, 400); weak.hp = weak.maxHp * 0.2;
-      const eHero = spawnUnit(game, 1, 'grunt', 580, 400); eHero.hero = true; eHero.hp = eHero.maxHp * 0.1;
-      for (let i = 0; i < 20; i++) { game.time += DT; stepCaster(game, h, dkStats, DT, true); game.update(DT); game.drainEvents(); }
+      const summon = spawnUnit(game, 1, 'grunt', 600, 400); summon.summon = true; summon.summonOf = 999; summon.hp = summon.maxHp * 0.2;
+      const eHero = spawnUnit(game, 1, 'grunt', 640, 400); eHero.hero = true; eHero.hp = eHero.maxHp * 0.1;
+      for (let i = 0; i < 40; i++) { game.time += DT; stepCaster(game, h, dkStats, DT, true); game.update(DT); game.drainEvents(); }
       check('death knight: execute reaps a low-HP normal unit', weak.hp <= 0);
-      check('death knight: execute never touches the enemy hero', eHero.hp > 0);
+      check('death knight: execute reaps a hero-summoned creature', summon.hp <= 0);
+      check('death knight: execute reaps an enemy hero below threshold', eHero.hp <= 0);
     }
     // Reap Cleave lifesteal heals the hero from the damage it deals
     {
