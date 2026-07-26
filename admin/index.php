@@ -100,10 +100,12 @@ const ABILITY_INFO = [
   // (wind-up + arrive/strike); Umbre Gemene has one cast frame; Lama Legăturilor
   // (ultimate) channels then throws — 2 cast frames (channel + throw) + a thrown
   // dagger projectile sprite. Clones/tethers/stealth are drawn procedurally.
-  'shadowrush' => ['Shadow Rush', true, false, 2],
-  'vanish' => ['Vanish', true, false, 2],
+  'shadowrush' => ['Shadow Rush', true, false, 1],
+  'vanish' => ['Vanish', true, false, 1],
   'twinshadows' => ['Shadow clones', true, false, 1],
-  'daggerthrow' => ['Loves dagger', true, false, 2],
+  // Loves dagger: 2 cast frames (channel + throw) + the thrown-dagger projectile
+  // sprite, which sweeps through the linked enemies and boomerangs back.
+  'daggerthrow' => ['Loves dagger', true, true, 2],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];

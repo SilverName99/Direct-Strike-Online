@@ -787,13 +787,49 @@ export class Renderer {
     for (const u of game.entities) {
       if (u.hp <= 0 || !u.daggerUntil || game.time >= u.daggerUntil) continue;
       const [x0, y0] = this._lerpXY(u, alpha);
+      const linkPts = [];
       if (u.daggerLinks) {
         for (const id of u.daggerLinks) {
           const e = game.byId.get(id);
           if (!e || e.hp <= 0 || e.team === u.team) continue;
           const [x1, y1] = this._lerpXY(e, alpha);
+          linkPts.push([x1, y1]);
           this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(160,70,220,0.75)', '#e0b0ff', '#7a2fc0', 2.6);
         }
+      }
+      // the thrown blade sweeps through the linked enemies and boomerangs back:
+      // hero -> each linked enemy -> hero, over the whole flight window. Uses the
+      // uploaded "Proiectil Loves dagger" sprite (falls back to a purple blade).
+      const span = (u.daggerUntil || 0) - (u.daggerFrom || 0);
+      if (span > 0 && linkPts.length) {
+        const t = Math.max(0, Math.min(1, (game.time - (u.daggerFrom || 0)) / span));
+        const pts = [[x0, y0], ...linkPts, [x0, y0]];
+        let total = 0; const segLen = [];
+        for (let i = 0; i < pts.length - 1; i++) {
+          const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+          segLen.push(l); total += l;
+        }
+        let dpos = total * t, bx = x0, by = y0, ang = 0;
+        for (let i = 0; i < segLen.length; i++) {
+          if (dpos <= segLen[i] || i === segLen.length - 1) {
+            const f = segLen[i] > 0 ? dpos / segLen[i] : 0;
+            bx = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f;
+            by = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f;
+            ang = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
+            break;
+          }
+          dpos -= segLen[i];
+        }
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(ang + this.now * 12); // spin as it flies
+        if (!drawAbilityProjectileSprite(ctx, 'daggerthrow', u.type, u.team, 26)) {
+          ctx.fillStyle = '#e0b0ff'; ctx.strokeStyle = '#7a2fc0'; ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(11, 0); ctx.lineTo(0, 3.5); ctx.lineTo(-9, 0); ctx.lineTo(0, -3.5);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+        ctx.restore();
       }
       // invincibility dome (subtle purple pulse)
       const fade = Math.max(0, Math.min(1, (u.daggerUntil - game.time) / 0.5));

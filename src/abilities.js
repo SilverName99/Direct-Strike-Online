@@ -663,7 +663,7 @@ export const ABILITIES = {
     name: 'Shadow Rush',
     kind: 'active',
     color: '#7a4fd0',
-    castTwoPhase: true, // cast 1 = vanish/wind-up, cast 2 = arrive
+    // a single cast frame (the wind-up reuses the hero's shared "prepare" pose)
     desc: 'Se face invizibil și se năpustește prin inamici (fără coliziune) până în spatele liniei — un singur sens, nu se poate întoarce. Cât e invizibil nu poate fi țintit.',
     params: {
       tier: 1, cooldown: 12, manaCost: 40,
@@ -679,7 +679,7 @@ export const ABILITIES = {
     name: 'Vanish',
     kind: 'active',
     color: '#5a3fa0',
-    castTwoPhase: true, // cast 1 = vanish/wind-up, cast 2 = backstab
+    // a single cast frame (the wind-up reuses the hero's shared "prepare" pose)
     desc: 'Se face invizibil și se strecoară la cel mai apropiat erou inamic (dacă nu există erou, la unitatea cu cea mai multă viață) unde dă un backstab critic — o singură lovitură. Cât e invizibil nu poate fi țintit.',
     params: {
       tier: 1, cooldown: 10, manaCost: 45,

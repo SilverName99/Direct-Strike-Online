@@ -1320,6 +1320,7 @@ function releaseSpell(game, caster, time) {
     const dur = p.duration || 0;
     caster.invincibleUntil = time + dur;
     caster.daggerUntil = time + dur;
+    caster.daggerFrom = time; // flight start (renderer sweeps the blade over [from, until])
     caster.daggerAbsorbed = 0;
     caster.daggerBase = p.baseDamage || 0;
     const links = [];
