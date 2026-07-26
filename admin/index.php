@@ -102,8 +102,8 @@ const ABILITY_INFO = [
   // dagger projectile sprite. Clones/tethers/stealth are drawn procedurally.
   'shadowrush' => ['Shadow Rush', true, false, 2],
   'vanish' => ['Vanish', true, false, 2],
-  'twinshadows' => ['Umbre Gemene', true, false, 1],
-  'daggerthrow' => ['Lama Legăturilor', true, false, 2],
+  'twinshadows' => ['Shadow clones', true, false, 1],
+  'daggerthrow' => ['Loves dagger', true, false, 2],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];

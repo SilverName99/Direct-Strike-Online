@@ -694,7 +694,7 @@ export const ABILITIES = {
   // his attacks for a % of his damage. Timed illusions with low HP; they attack
   // the nearest enemy. (Drawn as shadowy copies of the hero — no new frames.)
   twinshadows: {
-    name: 'Umbre Gemene',
+    name: 'Shadow clones',
     kind: 'active', // spawns clones (uses the hero's own sprites, shadow-tinted)
     color: '#6a4fb0',
     desc: 'Invocă clone de umbră (1/2/3 după rang) care îi copiază atacurile (% din damage-ul lui). Au viață puțină și durată limitată; atacă cel mai apropiat inamic.',
@@ -714,7 +714,7 @@ export const ABILITIES = {
   // damage he "absorbs" while invincible is tallied and — plus a settable base
   // damage — split among the linked enemies when the blade returns.
   daggerthrow: {
-    name: 'Lama Legăturilor',
+    name: 'Loves dagger',
     kind: 'active', // ultimate
     color: '#9a5fd0',
     castTwoPhase: true, // cast 1 = channel, cast 2 = throw + hold while flying
@@ -889,14 +889,14 @@ export const ABILITY_PARAM_LABELS = {
   backstabPct1: 'Vanish: backstab rang 1 (%, 0 = auto)',
   backstabPct2: 'Vanish: backstab rang 2 (%, 0 = auto)',
   backstabPct3: 'Vanish: backstab rang 3 (%, 0 = auto)',
-  clones: 'Umbre Gemene: nr. clone (fallback/auto)',
-  clones1: 'Umbre Gemene: nr. clone rang 1',
-  clones2: 'Umbre Gemene: nr. clone rang 2',
-  clones3: 'Umbre Gemene: nr. clone rang 3',
-  clonePct: 'Umbre Gemene: % din damage-ul eroului (pe clonă)',
-  clonePct1: 'Umbre Gemene: % damage rang 1 (0 = auto)',
-  clonePct2: 'Umbre Gemene: % damage rang 2 (0 = auto)',
-  clonePct3: 'Umbre Gemene: % damage rang 3 (0 = auto)',
-  cloneHp: 'Umbre Gemene: HP clonă',
-  baseDamage: 'Lama Legăturilor: base damage (împărțit la legați)',
+  clones: 'Shadow clones: nr. clone (fallback/auto)',
+  clones1: 'Shadow clones: nr. clone rang 1',
+  clones2: 'Shadow clones: nr. clone rang 2',
+  clones3: 'Shadow clones: nr. clone rang 3',
+  clonePct: 'Shadow clones: % din damage-ul eroului (pe clonă)',
+  clonePct1: 'Shadow clones: % damage rang 1 (0 = auto)',
+  clonePct2: 'Shadow clones: % damage rang 2 (0 = auto)',
+  clonePct3: 'Shadow clones: % damage rang 3 (0 = auto)',
+  cloneHp: 'Shadow clones: HP clonă',
+  baseDamage: 'Loves dagger: base damage (împărțit la legați)',
 };
