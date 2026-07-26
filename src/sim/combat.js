@@ -463,9 +463,10 @@ function updateFighter(game, u, stats, dt) {
         } else {
           const dmg = dmgVsTarget(stats.damage, stats.buildingDamage, target);
           applyDamage(game, target, dmg, stats.dmgType);
-          // Cleave (hero passive): splash a % of the melee hit to other ground
-          // enemies around the struck target
-          const cl = learnedAbilityParams(u, 'cleave');
+          let dealt = dmg; // total damage this swing deals (for lifesteal)
+          // Cleave (Orc Chieftain) OR Reap Cleave (Death Knight): splash a % of
+          // the melee hit to other ground enemies around the struck target
+          const cl = learnedAbilityParams(u, 'cleave') || learnedAbilityParams(u, 'reapcleave');
           if (cl) {
             const r = cl.radius || 0;
             const cd = dmg * (cl.cleavePct || 0) / 100;
@@ -474,10 +475,13 @@ function updateFighter(game, u, stats, dt) {
                 if (e === target || e.team === u.team || e.hp <= 0 || e.isAir || e.isStructure) continue;
                 const dx = e.x - target.x;
                 const dy = e.y - target.y;
-                if (dx * dx + dy * dy <= r * r) applyDamage(game, e, cd, stats.dmgType);
+                if (dx * dx + dy * dy <= r * r) { applyDamage(game, e, cd, stats.dmgType); dealt += cd; }
               }
             }
           }
+          // Lifesteal (Reap Cleave self + Vampiric Aura): heal the attacker a %
+          // of the damage it just dealt.
+          lifestealHeal(game, u, dealt);
           // Elemental Form: the giant beast's melee hit splashes nearby enemies
           if (stats.morphSplash > 0 && stats.morphSplashPct > 0) {
             const r = stats.morphSplash;
@@ -1105,6 +1109,21 @@ function effDist(a, b) {
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {
+  // Soul Link (Death Knight ult): the hero bleeds most incoming damage into his
+  // linked allies — he keeps only heroPct%. Unidirectional (only he is spared).
+  // Links to dead allies are pruned; when none survive he takes the full hit.
+  if (target.soulLinks && target.soulLinks.length) {
+    const links = [];
+    for (const id of target.soulLinks) { const a = game.byId.get(id); if (a && a.hp > 0) links.push(a); }
+    target.soulLinks = links.map((a) => a.id);
+    if (links.length) {
+      const p = learnedAbilityParams(target, 'soullink') || {};
+      const heroPct = p.heroPct != null ? p.heroPct : 20;
+      const each = damage * (100 - heroPct) / 100 / links.length;
+      for (const a of links) applyDamage(game, a, each, dmgType, true); // allies absorb their share
+      damage = damage * heroPct / 100; // ...the hero keeps only his cut
+    }
+  }
   // "Scut de lumină" upgrade: a shielded unit takes no damage at all — but only
   // once the activation pose has finished (game.time in [shieldFrom, shieldUntil]).
   if (target.shieldUntil && game.time >= (target.shieldFrom || 0) && game.time < target.shieldUntil) return;
@@ -1137,6 +1156,17 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
   }
 }
 
+// Heal an attacker a % of the damage it just dealt: the Vampiric Aura 'lifesteal'
+// buff (aura on the Death Knight + nearby allies) plus, for the Death Knight, its
+// own Reap Cleave lifesteal on top. Structures never lifesteal.
+function lifestealHeal(game, u, dmgDealt) {
+  if (!u || u.hp <= 0 || u.isStructure || dmgDealt <= 0) return;
+  let pct = effectVal(u, 'lifesteal', game.time);
+  const rc = learnedAbilityParams(u, 'reapcleave');
+  if (rc) pct += rc.lifestealPct || 0;
+  if (pct > 0) u.hp = Math.min(u.maxHp, u.hp + dmgDealt * pct / 100);
+}
+
 export function updateProjectiles(game, dt) {
   const alive = [];
   for (const p of game.projectiles) {
@@ -1165,6 +1195,11 @@ export function updateProjectiles(game, dt) {
 }
 
 function impact(game, p, target) {
+  // Vampiric Aura: a ranged ally in the aura lifesteals a % of its shot damage
+  if (p.sourceId != null && (p.damage || 0) > 0) {
+    const src = game.byId.get(p.sourceId);
+    if (src) lifestealHeal(game, src, p.damage);
+  }
   // Fireball: drop a burning-ground zone where it lands (damages enemies over
   // time). The direct/splash hit below still applies normally.
   if (p.fire) {

@@ -606,6 +606,51 @@ export const ABILITIES = {
       castPrepare: 0,
     },
   },
+  // ---- Death Knight (Undead hero) kit ----
+  execute: {
+    name: 'Execute',
+    kind: 'active',
+    color: '#c0303a',
+    desc: 'Secera un inamic NORMAL (nu erou, nu clădire) sub un prag de viață: dacă ținta e sub X% HP, o execută instant. Pragul, cooldown-ul și raza sunt setabile; pragul crește pe rang.',
+    params: {
+      tier: 1, manaCost: 40, cooldown: 8, range: 70,
+      threshold: 15, // % HP: țintele sub acest prag pot fi executate (crește pe rang)
+      castPrepare: 0,
+    },
+  },
+  reapcleave: {
+    name: 'Reap Cleave',
+    kind: 'passive',
+    color: '#9b2d3a',
+    desc: 'Pasiv: loviturile eroului taie în jur (splash %, ca la Cleave) ȘI îi dau viață înapoi — se vindecă cu X% din tot damage-ul dat. Splash-ul și X% cresc pe rang (setabile).',
+    params: {
+      cleavePct: 40, radius: 90,
+      lifestealPct: 15, // % din damage-ul dat, întors ca viață (crește pe rang)
+    },
+  },
+  vampiricaura: {
+    name: 'Vampiric Aura',
+    kind: 'passive',
+    color: '#8a2e5a',
+    desc: 'Aură: eroul ȘI aliații din jurul lui se vindecă cu X% din damage-ul pe care îl dau (la orice lovitură). Rază setabilă; X% crește pe rang. Se adună cu Reap Cleave.',
+    params: {
+      radius: 220,
+      lifestealPct: 12, // % din damage-ul dat de fiecare aliat din rază
+    },
+  },
+  soullink: {
+    name: 'Soul Link',
+    kind: 'active', // ultimate
+    color: '#6a3fb0',
+    desc: 'Ultima: leagă până la N aliați aleatori din jur de erou (legături PERMANENTE, până moare aliatul). Cât e legat, damage-ul primit de erou se împarte: eroul ține doar X%, restul se împarte egal la aliații legați. Doar eroul e protejat. Re-cast alege alți N.',
+    params: {
+      tier: 1, cooldown: 45, manaCost: 100,
+      radius: 260,   // zona din care alege aliați
+      maxLinks: 5,   // câți aliați leagă
+      heroPct: 20,   // % din damage pe care îl ține eroul (restul se împarte la aliați)
+      castPrepare: 0,
+    },
+  },
 };
 
 // Every castable ability shares two animation-timing params, defaulted here so
@@ -746,4 +791,9 @@ export const ABILITY_PARAM_LABELS = {
   pasteRadius: 'Pastă: rază baltă',
   pasteDuration: 'Pastă: durată baltă (s)',
   ampPct: 'Pastă: +damage pe cine stă (%)',
+  // Death Knight (Undead hero)
+  threshold: 'Execute: prag HP (%) — sub el, execută (crește pe rang)',
+  lifestealPct: 'Lifesteal: % din damage-ul dat, întors ca viață (pe rang)',
+  maxLinks: 'Soul Link: câți aliați leagă',
+  heroPct: 'Soul Link: % damage ținut de erou (restul la aliați)',
 };

@@ -193,7 +193,7 @@ export function setMusicVolume(race, v) {
 const HERO_DEFAULT_KITS = {
   orcs: { skills: ['warstomp', 'cleave', 'charge'], ult: 'bloodlust' },
   humans: { skills: ['holylight', 'divineshield', 'devotionaura'], ult: 'holynova' },
-  undead: { skills: ['warstomp', 'cleave', 'lifedrain'], ult: 'bloodlust' },
+  undead: { skills: ['execute', 'reapcleave', 'vampiricaura'], ult: 'soullink' },
 };
 
 function baseUnits(race) {

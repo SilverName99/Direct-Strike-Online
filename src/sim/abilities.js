@@ -28,7 +28,7 @@ function isCastable(ab) {
 // params below (rankStep 0.5 => rank 2 = 1.5×, rank 3 = 2×; 0 => no scaling).
 // Set per ability in the balance editor. Non-hero casters always use base params.
 const HERO_RANK_STEP = 0.5; // default when an ability doesn't set its own rankStep
-const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaGain', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life'];
+const RANK_SCALED = ['damage', 'amount', 'hps', 'haste', 'atkSlow', 'moveSlow', 'duration', 'cap', 'hp', 'cleavePct', 'healPct', 'dmgReduce', 'damageBonus', 'dps', 'manaGain', 'drainPerSec', 'healPerSec', 'drainDps', 'healHps', 'life', 'threshold', 'lifestealPct'];
 function abParams(caster, aid, ab) {
   const rank = (caster && caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
   const overrides = ab.rankOverrides;
@@ -126,7 +126,7 @@ export function isStunned(u, time) {
 }
 
 const DEBUFFS = ['atkslow', 'moveslow', 'stun', 'vulnerable'];
-const BUFFS = ['haste', 'movehaste', 'regen', 'dmgReduce'];
+const BUFFS = ['haste', 'movehaste', 'regen', 'dmgReduce', 'lifesteal'];
 
 // Apply an effect, honoring dispell's immunity (allies) / buff-block (enemies).
 export function applyEffect(u, kind, val, until, time) {
@@ -195,6 +195,20 @@ export function updateAbilities(game, dt) {
     for (const a of game.entities) {
       if (a.hp <= 0 || a.team !== u.team) continue;
       if (inRadius(a, u, dev.radius)) applyEffect(a, 'dmgReduce', dev.dmgReduce, until, time);
+    }
+  }
+
+  // Vampiric Aura (Death Knight passive): the hero + nearby allies lifesteal a %
+  // of the damage they deal. Marks them with a short 'lifesteal' buff; the attack
+  // code (combat.js) reads it and heals the attacker.
+  for (const u of game.entities) {
+    if (u.hp <= 0) continue;
+    const va = learnedAbilityParams(u, 'vampiricaura');
+    if (!va) continue;
+    const until = time + AURA_TICK;
+    for (const a of game.entities) {
+      if (a.hp <= 0 || a.team !== u.team) continue;
+      if (inRadius(a, u, va.radius)) applyEffect(a, 'lifesteal', va.lifestealPct || 0, until, time);
     }
   }
 
@@ -573,7 +587,7 @@ function canAutoAttack(game, u) {
 // is dropped — the player fires them on demand, targeting the caster.
 const SELF_MANUAL = new Set([
   'regenaura', 'hasteaura', 'slowaura', 'warstomp', 'bloodlust',
-  'divineshield', 'holynova', 'divineregen', 'backlineteleport',
+  'divineshield', 'holynova', 'divineregen', 'backlineteleport', 'soullink',
 ]);
 
 // The target a given ability would act on, or null if there is none. `manual`
@@ -850,6 +864,28 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
       if (d < bestD) { bestD = d; best = u; }
     }
     return best;
+  }
+  if (aid === 'execute') {
+    // nearest enemy NORMAL unit (no hero, no structure) already below the HP
+    // threshold — those it can reap instantly
+    const th = (p.threshold || 0) / 100;
+    let best = null, bestD = Infinity;
+    for (const u of game.entities) {
+      if (u.team === caster.team || u.hp <= 0 || u.isStructure || u.hero) continue;
+      if (u.hp > u.maxHp * th) continue; // still too healthy to execute
+      if (!inRadius(u, caster, p.range)) continue;
+      const dx = u.x - caster.x, dy = u.y - caster.y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = u; }
+    }
+    return best;
+  }
+  if (aid === 'soullink') {
+    // cast when there's at least one ally nearby to bind
+    for (const a of game.entities) {
+      if (a === caster || a.team !== caster.team || a.hp <= 0 || a.isStructure) continue;
+      if (inRadius(a, caster, p.radius)) return caster;
+    }
+    return null;
   }
   return null;
 }
@@ -1128,6 +1164,32 @@ function releaseSpell(game, caster, time) {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     return Math.max(hold, speed > 0 ? dist / speed : 0);
+  }
+
+  if (aid === 'execute') {
+    // reaped: only reached when the target is a below-threshold normal unit, so
+    // a lethal blow finishes it (huge damage -> death event + corpse + hero XP)
+    applyDamage(game, target, (target.maxHp || 1) * 100, 'normal');
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'execute', x: target.x, y: target.y, team: caster.team });
+    return hold;
+  }
+
+  if (aid === 'soullink') {
+    // bind up to maxLinks nearby allies. "Random" but lockstep-safe: order by a
+    // deterministic hash of id + cast tick, so re-casts pick different allies.
+    const stamp = Math.floor(time / CONFIG.FIXED_DT);
+    const cands = [];
+    for (const a of game.entities) {
+      if (a === caster || a.team !== caster.team || a.hp <= 0 || a.isStructure) continue;
+      if (inRadius(a, caster, p.radius)) cands.push(a);
+    }
+    const key = (id) => ((id * 2654435761 + stamp * 40503) >>> 0);
+    cands.sort((x, y) => key(x.id) - key(y.id));
+    caster.soulLinks = cands.slice(0, Math.max(1, p.maxLinks || 5)).map((a) => a.id);
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+    game.events.push({ type: 'soullink', unitId: caster.id, team: caster.team });
+    return hold;
   }
 
   if (aid === 'blizzard') {

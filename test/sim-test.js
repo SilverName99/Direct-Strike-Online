@@ -1274,6 +1274,57 @@ console.log('abilities (casters, auras, status effects)');
     check('bomber: runs (charges) when an enemy enters run range',
       b4.running && b4.state === 'run' && (b4.x - bx1) / (2 * DT) > 200, `state=${b4.state}`);
   }
+  // Death Knight (Undead hero) kit: execute, reap cleave lifesteal, soul link
+  {
+    applyBalance({}); // reset unit stats (a prior test made 'grunt' a bomber)
+    const mkDK = (game, x, y) => {
+      const h = spawnUnit(game, 0, 'grunt', x, y);
+      h.hero = true; h.heroLevel = 6; h.mana = 999; h.maxHp = h.hp = 2000;
+      h.heroRanks = { execute: 3, reapcleave: 3, vampiricaura: 3, soullink: 1 };
+      h.abilityCd = {}; h.castState = undefined;
+      return h;
+    };
+    const dkStats = { caster: true, autoAttackBetween: true, abilities: ['execute', 'reapcleave', 'vampiricaura', 'soullink'] };
+    const exAb = resolvedAbility('execute'); const exSaved = { ...exAb.params };
+    const rcAb = resolvedAbility('reapcleave'); const rcSaved = { ...rcAb.params };
+    const slAb = resolvedAbility('soullink'); const slSaved = { ...slAb.params };
+    // Execute reaps a below-threshold NORMAL unit, but never the enemy hero
+    {
+      const game = new Game(90, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = mkDK(game, 500, 400);
+      Object.assign(exAb.params, { threshold: 30, range: 200, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
+      const weak = spawnUnit(game, 1, 'grunt', 560, 400); weak.hp = weak.maxHp * 0.2;
+      const eHero = spawnUnit(game, 1, 'grunt', 580, 400); eHero.hero = true; eHero.hp = eHero.maxHp * 0.1;
+      for (let i = 0; i < 20; i++) { game.time += DT; stepCaster(game, h, dkStats, DT, true); game.update(DT); game.drainEvents(); }
+      check('death knight: execute reaps a low-HP normal unit', weak.hp <= 0);
+      check('death knight: execute never touches the enemy hero', eHero.hp > 0);
+    }
+    // Reap Cleave lifesteal heals the hero from the damage it deals
+    {
+      const game = new Game(91, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = mkDK(game, 500, 400); h.hp = 1000;
+      Object.assign(rcAb.params, { lifestealPct: 50, cleavePct: 0, radius: 0 });
+      const foe = spawnUnit(game, 1, 'grunt', 512, 400); foe.hp = foe.maxHp = 100000;
+      const hp0 = h.hp;
+      run(game, 4);
+      check('death knight: lifesteal heals him as he fights', h.hp > hp0, `${hp0}->${h.hp.toFixed(0)}`);
+    }
+    // Soul Link splits the hero's incoming damage into linked allies
+    {
+      const game = new Game(92, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const h = mkDK(game, 500, 400); h.hp = 2000;
+      Object.assign(slAb.params, { radius: 300, maxLinks: 4, heroPct: 20, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
+      const allies = [];
+      for (let i = 0; i < 4; i++) { const a = spawnUnit(game, 0, 'grunt', 520 + i * 10, 420); a.hp = a.maxHp = 5000; allies.push(a); }
+      for (let i = 0; i < 10; i++) { game.time += DT; stepCaster(game, h, dkStats, DT, true); game.update(DT); game.drainEvents(); }
+      check('death knight: soul link binds up to N allies', h.soulLinks && h.soulLinks.length === 4);
+      const hHp0 = h.hp, aHp0 = allies[0].hp;
+      applyDamage(game, h, 1000, 'normal');
+      check('death knight: hero keeps only heroPct% of the hit', Math.abs((hHp0 - h.hp) - 200) < 30, `took ${(hHp0 - h.hp).toFixed(0)}`);
+      check('death knight: linked allies absorb the rest', allies.every((a) => a.hp < aHp0 + 1) && allies[0].hp < aHp0);
+    }
+    exAb.params = exSaved; rcAb.params = rcSaved; slAb.params = slSaved;
+  }
   // Blight: per-building blightRadius must survive a balance save/reload (the
   // apply guard only writes fields already defined on the base template).
   {

@@ -265,6 +265,7 @@ export class Renderer {
     this.drawWorkers(ctx, game); // little miners shuttling gold to the base
     effects.drawCorpses(ctx); // fallen puppets lie under the living
     this.drawUnits(ctx, game, alpha);
+    this.drawSoulLinks(ctx, game, alpha); // Soul Link: glowing tethers hero -> allies
     this.drawDrainBeams(ctx, game, alpha); // Life Drain: a wavy beam over the fighters
     this.drawProjectiles(ctx, game, alpha);
     effects.draw(ctx);
@@ -759,6 +760,21 @@ export class Renderer {
             if (hr2 > 0 && dd <= hr2) this.drawTendril(ctx, ex, ey, x0, y0, 'rgba(120,230,150,0.75)', '#c6ffd6', '#78e696', W);
           }
         }
+      }
+    }
+  }
+
+  // Soul Link (Death Knight ult): a glowing purple tether from the hero to each
+  // living linked ally, for as long as the bond holds.
+  drawSoulLinks(ctx, game, alpha) {
+    for (const u of game.entities) {
+      if (u.hp <= 0 || !u.soulLinks || !u.soulLinks.length) continue;
+      const [x0, y0] = this._lerpXY(u, alpha);
+      for (const id of u.soulLinks) {
+        const a = game.byId.get(id);
+        if (!a || a.hp <= 0) continue;
+        const [x1, y1] = this._lerpXY(a, alpha);
+        this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(150,90,220,0.7)', '#cbaaff', '#6a3fb0', 2.4);
       }
     }
   }

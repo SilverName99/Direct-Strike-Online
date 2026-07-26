@@ -90,6 +90,12 @@ const ABILITY_INFO = [
   // Acid Paste: a cast frame + its own green-spit projectile (the puddle itself
   // is drawn procedurally by the game).
   'acidpaste' => ['Acid Paste', true, true],
+  // Death Knight (Undead hero) kit: Execute + Soul Link get a cast frame; Reap
+  // Cleave and Vampiric Aura are passives (no cast frame). No projectiles.
+  'execute' => ['Execute', true, false],
+  'reapcleave' => ['Reap Cleave', false, false],
+  'vampiricaura' => ['Vampiric Aura', false, false],
+  'soullink' => ['Soul Link', true, false],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
 const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];
@@ -102,7 +108,7 @@ const TOTEM_ABILITIES = ['slowingtotem'];
 const ATTACK_REPLACING_ABILITIES = ['empower'];
 // per-race hero default kit (kept in sync with src/ui/balance.js) — used until
 // the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
-const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova'], 'undead' => ['warstomp', 'cleave', 'lifedrain', 'bloodlust']];
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova'], 'undead' => ['execute', 'reapcleave', 'vampiricaura', 'soullink']];
 // upgrade catalog (mirrors src/upgrades.js): id => name
 const UPGRADE_INFO = [
   'dashmount' => 'Dashing & Fleeing mount',
