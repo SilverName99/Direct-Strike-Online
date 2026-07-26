@@ -25,6 +25,7 @@ const uiState = {
   myTeam: 0, // the team this player commands (0 in single player; assigned online)
   selected: null,
   drag: null,
+  movingBuilding: null, // {id} while relocating a placed building (next click = new spot)
   pendingMove: null, // just-dropped template move held at target until it lands online
   inspect: null, // selection-panel target: {kind:'template'|'entity'|'structure', ...}
   gridOn: true,

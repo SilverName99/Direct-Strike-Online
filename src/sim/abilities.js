@@ -366,7 +366,10 @@ export function updateAbilities(game, dt) {
     for (let i = 0; i < pts.length - 1; i++) L += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
     u.daggerPrevDist = u.daggerDist || 0;
     u.daggerDist = (u.daggerDist || 0) + (u.daggerSpeed || 420) * dt;
-    if (u.hp <= 0 || u.daggerDist >= L || u.daggerElapsed > 6) {
+    // hard safety cap (in addition to distance): he is invincible + held only
+    // while flying, so this bounds the freeze even if the path can't be covered
+    // (enemies fleeing, a pathological speed) — he can never get stuck.
+    if (u.hp <= 0 || u.daggerDist >= L || u.daggerElapsed > 3) {
       const links = [];
       if (u.daggerChain) for (const id of u.daggerChain) { const e = game.byId.get(id); if (e && e.hp > 0 && e.team !== u.team) links.push(e); }
       if (links.length) {
@@ -968,12 +971,13 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     return null;
   }
   if (aid === 'shadowrush') {
-    // dive forward while still BEHIND our own front line — a friendly (non-summon)
-    // unit is ahead of us. Once he's out front he stays and fights (no re-dive).
+    // dive forward only when there ARE enemies in front of him (a line to slip
+    // past). Requires at least one enemy unit ahead (toward the enemy side)
+    // within reach — he won't blow it on an empty lane.
     const front = caster.team === 0 ? 1 : -1;
-    for (const u of game.entities) {
-      if (u.hp <= 0 || u === caster || u.team !== caster.team || u.summon || u.isStructure) continue;
-      if ((u.x - caster.x) * front > 40) return caster; // an ally is ahead -> we're behind
+    for (const e of game.entities) {
+      if (e.hp <= 0 || e.team === caster.team || e.isStructure) continue;
+      if ((e.x - caster.x) * front > 20 && inRadius(e, caster, 700)) return caster;
     }
     return null;
   }
@@ -1387,7 +1391,9 @@ function releaseSpell(game, caster, time) {
     caster.daggerChain = chain;
     caster.daggerFlying = chain.length > 0;
     caster.daggerDist = 0; caster.daggerPrevDist = 0; caster.daggerElapsed = 0;
-    caster.daggerSpeed = p.daggerSpeed || 420;
+    // clamp the blade speed so a 0/tiny value in balance can't leave him frozen
+    // and invincible: the blade must always visibly advance and finish.
+    caster.daggerSpeed = Math.max(120, p.daggerSpeed || 420);
     caster.daggerSize = (p.daggerSize || 100) / 100;
     caster.daggerBase = p.baseDamage || 0;
     caster.daggerAbsorbed = 0;

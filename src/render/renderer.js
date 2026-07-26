@@ -1886,7 +1886,14 @@ export class Renderer {
   }
 
   drawGhost(ctx, game, uiState) {
-    const sel = uiState.selected;
+    let sel = uiState.selected;
+    let ignoreId = null;
+    // Move-building mode: ghost the building being relocated (ignore its own old
+    // footprint when validating the new spot).
+    if ((!sel || sel === 'upgrade') && uiState.movingBuilding) {
+      const s = game.structures.find((st) => st.id === uiState.movingBuilding.id);
+      if (s) { sel = s.kind; ignoreId = s.id; }
+    }
     if (!sel || sel === 'upgrade') return;
     if (uiState.mouseX == null) return;
 

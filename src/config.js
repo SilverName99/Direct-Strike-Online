@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v14.7';
+export const VERSION = 'v14.8';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -209,6 +209,7 @@ export const CONFIG = {
     herohall: { cost: 150, buildTime: 0, hp: 600, cw: 2, ch: 2, cap: 1, tier: 1, idleSpeed: 2, name: 'Hero Hall' },
   },
   SELL_BUILDING_REFUND: 0.6,
+  MOVE_REBUILD_TIME: 30, // seconds a moved building is inert while it rebuilds in the new spot
   BUILD_GAP: 0, // min clearance between structure edges (0 = tile flush)
 
   // Economy — income amounts are expressed in GOLD PER 20 SECONDS (one wave

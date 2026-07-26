@@ -955,8 +955,32 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  gap: 6px;
   padding: 6px 0;
 }
+/* Mută: sits ABOVE the Vinde button (same column), neutral blue so it reads
+   distinct from the red sell action. */
+#bb-move {
+  width: 96px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: rgba(31, 74, 122, 0.42);
+  border: 1px solid #3a5a7a;
+  border-radius: 8px;
+  color: #d0e6ff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+}
+#bb-move #bb-move-ico { font-size: 16px; }
+#bb-move:hover { background: rgba(40, 110, 170, 0.55); border-color: #55a0c0; }
+#bb-move.hidden { display: none; }
+#bb-move.armed { background: rgba(60, 150, 90, 0.6); border-color: #6ada9a; color: #eaffea; }
 #bb-sell {
   width: 96px;
   padding: 10px 8px;

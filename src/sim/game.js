@@ -540,7 +540,7 @@ export class Game {
   // Buildings go in the construction zone, without overlapping structures.
   // Footprint is a cw x ch cell rectangle; the whole box must fit the zone
   // and stay clear of existing structures (both treated as boxes).
-  isValidBuildPlacement(team, kind, x, y) {
+  isValidBuildPlacement(team, kind, x, y, ignoreId = null) {
     if (!CONFIG.BUILDINGS[kind]) return false;
     const ext = structureExtents(kind, this.bstat(team, kind));
     // buildings may go in the base construction zone OR the small forward
@@ -553,6 +553,7 @@ export class Game {
     const gap = CONFIG.BUILD_GAP;
     for (const s of this.structures) {
       if (s.hp <= 0) continue;
+      if (ignoreId != null && s.id === ignoreId) continue; // a moving building ignores its own old spot
       const sw = s.hw || s.radius;
       const sh = s.hh || s.radius;
       if (Math.abs(s.x - x) < ext.hw + sw + gap &&
@@ -688,6 +689,34 @@ export class Game {
         this.bstat(s.team, s.kind).cost * CONFIG.SELL_BUILDING_REFUND
       );
       this.removeStructure(s, false);
+      return { ok: true };
+    }
+
+    if (cmd.type === 'moveBuilding') {
+      const s = this.byId.get(cmd.id);
+      if (!s || !s.isStructure || s.team !== cmd.team || s.hp <= 0)
+        return { ok: false, reason: 'unknown-building' };
+      if (s.kind === 'main' || s.kind === 'turret')
+        return { ok: false, reason: 'not-movable' }; // the base + starting turret stay put
+      let bx = cmd.x, by = cmd.y;
+      // mines can only move onto a free predefined plot (their own current plot
+      // frees up as they leave it)
+      if (s.kind === 'generator') {
+        const spot = this.nearestFreeMineSpot(cmd.team, cmd.x, cmd.y);
+        if (!spot) return { ok: false, reason: 'no-spot' };
+        bx = spot.x; by = spot.y;
+      }
+      // validate the new spot, ignoring this building's OWN footprint (it's moving)
+      if (!this.isValidBuildPlacement(cmd.team, s.kind, bx, by, s.id))
+        return { ok: false, reason: 'zone' };
+      // relocate and restart construction: it's inert while it rebuilds (30s)
+      s.x = bx; s.y = by; s.prevX = bx; s.prevY = by;
+      const rebuild = CONFIG.MOVE_REBUILD_TIME != null ? CONFIG.MOVE_REBUILD_TIME : 30;
+      s.building = true;
+      s.buildStart = this.time;
+      s.buildDone = this.time + rebuild;
+      s.hp = Math.max(1, Math.round(s.maxHp * 0.15)); // like a fresh construction site
+      this.events.push({ type: 'moveBuilding', team: cmd.team, kind: s.kind, x: bx, y: by });
       return { ok: true };
     }
 

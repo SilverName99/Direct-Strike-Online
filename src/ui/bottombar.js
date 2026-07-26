@@ -311,6 +311,7 @@ export class BottomBar {
 
     this.refreshPanel(game, info);
     this.updateSellButton(game, info);
+    this.updateMoveButton(game, info);
 
     const sig = this.buildSig(game, info);
     if (sig !== this.sig) {
@@ -411,6 +412,48 @@ export class BottomBar {
       btn.title = sell.what === 'unit'
         ? `Vinde acest șablon de unitate — primești ◆ ${sell.cost}${sell.full ? ' (100%, nespawnat)' : ''}`
         : `Vinde această clădire — primești ◆ ${sell.cost}`;
+    }
+  }
+
+  // Mută: the button ABOVE Vinde. Visible only while the selection is one of the
+  // player's own MOVABLE buildings (everything except the base + starting
+  // turret). Clicking it ARMS move-mode; the next valid ground click relocates
+  // the building (input.js), which then rebuilds for 30s in its new spot.
+  updateMoveButton(game, info) {
+    const btn = document.getElementById('bb-move');
+    if (!btn) return;
+    if (!this.moveWired) {
+      this.moveWired = true;
+      btn.addEventListener('click', () => {
+        const sel = this.uiState.inspect;
+        if (!sel || sel.kind !== 'structure') return;
+        // toggle: arm if not already moving THIS building, else cancel
+        const cur = this.uiState.movingBuilding;
+        if (cur && cur.id === sel.id) { this.uiState.movingBuilding = null; }
+        else { this.uiState.movingBuilding = { id: sel.id }; this.uiState.selected = null; }
+      });
+    }
+    let movable = false;
+    if (game && info && info.team === this.team && this.mode === 'inspect' &&
+        info.kind === 'structure' && CONFIG.BUILDINGS[info.type] &&
+        info.type !== 'main' && info.type !== 'turret') {
+      movable = true;
+    }
+    // drop a stale arm if the selection changed / is no longer valid
+    const arming = this.uiState.movingBuilding;
+    const curId = info && info.s ? info.s.id : null;
+    if (arming && (!info || info.kind !== 'structure' || curId !== arming.id)) {
+      this.uiState.movingBuilding = null;
+    }
+    const armed = !!(this.uiState.movingBuilding && curId != null && this.uiState.movingBuilding.id === curId);
+    btn.classList.toggle('hidden', !movable);
+    btn.classList.toggle('armed', armed);
+    if (movable) {
+      const label = btn.querySelector('span:last-child');
+      if (label) label.textContent = armed ? 'Alege loc…' : 'Mută';
+      btn.title = armed
+        ? 'Click pe teren ca să muți clădirea (se reconstruiește 30s). Click din nou aici sau ESC = anulează.'
+        : 'Mută clădirea în alt loc (se reconstruiește 30s).';
     }
   }
 

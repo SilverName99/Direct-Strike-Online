@@ -75,6 +75,21 @@ export class Input {
       if (e.button !== 0) return;
       const game = this.getGame();
       if (!game || game.winner !== null) return;
+      // Move-building mode: the next ground click relocates the armed building
+      // to the clicked spot (snapped like placing that kind), then rebuilds 30s.
+      const moving = this.uiState.movingBuilding;
+      if (moving) {
+        const s = game.structures.find((st) => st.id === moving.id);
+        if (s) {
+          const mp = this.placePoint(this.renderer.toSim(e), s.kind);
+          const res = game.issueCommand({ type: 'moveBuilding', team: this.team, id: moving.id, x: mp.x, y: mp.y });
+          if (res.ok) this.uiState.movingBuilding = null;
+        } else {
+          this.uiState.movingBuilding = null;
+        }
+        return;
+      }
+
       const sel = this.uiState.selected;
       const p = this.placePoint(this.renderer.toSim(e), sel);
 
@@ -169,6 +184,7 @@ export class Input {
         this.uiState.selected = null;
         this.uiState.drag = null;
         this.uiState.inspect = null;
+        this.uiState.movingBuilding = null;
         return;
       }
       // hotkeys: 1-9 units, Z/X/C buildings, 0 base upgrade
@@ -203,6 +219,7 @@ export class Input {
   // mouse"); otherwise sell a placed template or an own building under the
   // cursor. Called from mousedown so it works under pointer lock too.
   handleRightClick(e) {
+    if (this.uiState.movingBuilding) { this.uiState.movingBuilding = null; return; }
     if (this.uiState.selected) { this.uiState.selected = null; return; }
     if (this.uiState.drag) { this.uiState.drag = null; return; }
     const game = this.getGame();

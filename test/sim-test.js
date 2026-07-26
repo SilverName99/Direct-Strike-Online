@@ -1417,7 +1417,7 @@ console.log('abilities (casters, auras, status effects)');
       const h = mkSA(game, 400, 400);
       const srAb = resolvedAbility('shadowrush'); const srSaved = { ...srAb.params };
       Object.assign(srAb.params, { distance: 200, rushSpeed: 360, stealth: 2, manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0 });
-      spawnUnit(game, 0, 'grunt', 460, 400); // an ally ahead so he wants to dive past the line
+      spawnUnit(game, 1, 'grunt', 560, 400); // an ENEMY in front -> he wants to slip past the line
       const x0 = h.x;
       game.time += DT; stepCaster(game, h, srOnly, DT, true); game.update(DT); game.drainEvents();
       check('shadow assassin: shadow rush -> invisible + slipping (no teleport)',
@@ -2750,6 +2750,37 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     runG(game, 5);
     check('bat takes off again once the ground is clear',
       landedMid === true && bat.landed === false && bat.isAir === true);
+  }
+
+  // Move building: relocate + 30s rebuild; base/turret can't be moved
+  console.log('move building (relocate + 30s rebuild)');
+  {
+    const { applyBalance } = await import('../src/ui/balance.js');
+    applyBalance({});
+    const g = new Game(300, { races: ['undead', 'humans'] });
+    const z = CONFIG.CONSTRUCTION_ZONE[0];
+    const ax = Math.round((z.x0 + z.x1) / 2), ay = Math.round((z.y0 + z.y1) / 2);
+    const tower = makeStructure(g, 0, 'tower', ax, ay);
+    tower.building = false; tower.hp = tower.maxHp; // pretend it finished building
+    // find a different VALID spot in the zone (ignoring the tower's own footprint)
+    let bx = null, by = null;
+    for (let x = z.x0 + 40; x <= z.x1 - 40 && bx == null; x += 20)
+      for (let y = z.y0 + 40; y <= z.y1 - 40; y += 20)
+        if ((Math.abs(x - ax) > 60 || Math.abs(y - ay) > 60) && g.isValidBuildPlacement(0, 'tower', x, y, tower.id)) { bx = x; by = y; break; }
+    check('move: found a second valid spot', bx != null);
+    const r = g.issueCommand({ type: 'moveBuilding', team: 0, id: tower.id, x: bx, y: by });
+    check('move: command succeeds', r.ok, r.reason);
+    check('move: building relocated', Math.abs(tower.x - bx) < 1 && Math.abs(tower.y - by) < 1);
+    check('move: it rebuilds (~30s, inert)', tower.building === true && Math.abs((tower.buildDone - g.time) - 30) < 0.05);
+    check('move: hp dropped to a fresh-site ~15%', tower.hp <= tower.maxHp * 0.2);
+    // after 30s it finishes and works again
+    for (let i = 0; i < 31 / CONFIG.FIXED_DT; i++) { g.update(CONFIG.FIXED_DT); g.drainEvents(); }
+    check('move: finished rebuilding after 30s', tower.building === false && tower.hp > tower.maxHp * 0.9);
+    // the base can never be moved
+    const base = g.structures.find((s) => s.kind === 'main' && s.team === 0);
+    const rb = g.issueCommand({ type: 'moveBuilding', team: 0, id: base.id, x: bx, y: by });
+    check('move: base is not movable', !rb.ok);
+    applyBalance({});
   }
 }
 
