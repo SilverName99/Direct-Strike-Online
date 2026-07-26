@@ -467,6 +467,9 @@ function snapshot() {
     tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
     menuMusic: CONFIG.MENU_MUSIC || '',
+    menuMusics: (Array.isArray(CONFIG.MENU_MUSICS) ? CONFIG.MENU_MUSICS : []).slice(0, 8).map((s) => s || ''),
+    menuMusicPrev: CONFIG.MENU_MUSIC_PREV || '',
+    menuMusicNext: CONFIG.MENU_MUSIC_NEXT || '',
     menuMusicVol: CONFIG.MENU_MUSIC_VOL,
     loadingTips: Array.isArray(CONFIG.LOADING_TIPS) ? [...CONFIG.LOADING_TIPS] : [],
     pushMode: CONFIG.PUSH_MODE,
@@ -551,6 +554,15 @@ export function applyBalance(data) {
   }
   CONFIG.LOADING_BG = typeof data.loadingBg === 'string' ? data.loadingBg : '';
   CONFIG.MENU_MUSIC = typeof data.menuMusic === 'string' ? data.menuMusic : '';
+  // menu-music playlist (new). Migrate a legacy single track into slot 0 so old
+  // configs keep playing; keep only non-empty entries.
+  {
+    const list = Array.isArray(data.menuMusics) ? data.menuMusics.filter((s) => typeof s === 'string' && s) : [];
+    if (!list.length && CONFIG.MENU_MUSIC) list.push(CONFIG.MENU_MUSIC);
+    CONFIG.MENU_MUSICS = list;
+  }
+  CONFIG.MENU_MUSIC_PREV = typeof data.menuMusicPrev === 'string' ? data.menuMusicPrev : '';
+  CONFIG.MENU_MUSIC_NEXT = typeof data.menuMusicNext === 'string' ? data.menuMusicNext : '';
   CONFIG.MENU_MUSIC_VOL = num(data.menuMusicVol) !== undefined ? clamp(data.menuMusicVol, 0, 100) : 50;
   CONFIG.LOADING_TIPS = Array.isArray(data.loadingTips)
     ? data.loadingTips.filter((t) => typeof t === 'string' && t.trim()).map((t) => t.slice(0, 200)).slice(0, 40)
@@ -800,6 +812,7 @@ export function importBalance(data) {
   const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRaceHumans = CONFIG.MENU_RACE_HUMANS, keepMenuRaceOrcs = CONFIG.MENU_RACE_ORCS, keepMenuRaceUndead = CONFIG.MENU_RACE_UNDEAD;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepMenuMusicVol = CONFIG.MENU_MUSIC_VOL, keepTips = CONFIG.LOADING_TIPS;
+  const keepMenuMusics = CONFIG.MENU_MUSICS, keepMenuMusicPrev = CONFIG.MENU_MUSIC_PREV, keepMenuMusicNext = CONFIG.MENU_MUSIC_NEXT;
   const keepTutorials = CONFIG.TUTORIALS;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
@@ -820,6 +833,11 @@ export function importBalance(data) {
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) { CONFIG.MENU_MUSIC = keepMenuMusic; CONFIG.MENU_MUSIC_VOL = keepMenuMusicVol; }
+  if (!Array.isArray(data.menuMusics) || !data.menuMusics.some((s) => typeof s === 'string' && s)) {
+    if (Array.isArray(keepMenuMusics) && keepMenuMusics.length) CONFIG.MENU_MUSICS = keepMenuMusics;
+  }
+  if (typeof data.menuMusicPrev !== 'string' || !data.menuMusicPrev) CONFIG.MENU_MUSIC_PREV = keepMenuMusicPrev;
+  if (typeof data.menuMusicNext !== 'string' || !data.menuMusicNext) CONFIG.MENU_MUSIC_NEXT = keepMenuMusicNext;
   if (!Array.isArray(data.loadingTips) || !data.loadingTips.length) CONFIG.LOADING_TIPS = keepTips;
   if (!Array.isArray(data.tutorials) || !data.tutorials.length) CONFIG.TUTORIALS = keepTutorials;
   // restore them over whatever the imported file said

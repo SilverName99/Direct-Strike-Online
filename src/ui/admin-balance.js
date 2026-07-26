@@ -122,7 +122,13 @@ function render() {
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
-    ${uploaderRow('menumusic', 'Muzică meniu', 'audio (mp3/ogg), se repetă', 'audio')}
+    ${uploaderRow('menumusic0', 'Muzică meniu 1', 'audio (mp3/ogg), se repetă', 'audio')}
+    ${uploaderRow('menumusic1', 'Muzică meniu 2', 'audio (mp3/ogg) — schimbi din meniu cu săgețile', 'audio')}
+    ${uploaderRow('menumusic2', 'Muzică meniu 3', 'audio (mp3/ogg) — opțional', 'audio')}
+    ${uploaderRow('menumusic3', 'Muzică meniu 4', 'audio (mp3/ogg) — opțional', 'audio')}
+    ${uploaderRow('menumusic4', 'Muzică meniu 5', 'audio (mp3/ogg) — opțional', 'audio')}
+    ${uploaderRow('menumusicprev', 'Design săgeată „‹” (melodia anterioară)', 'PNG pătrat — apare în meniu la 2+ melodii')}
+    ${uploaderRow('menumusicnext', 'Design săgeată „›” (melodia următoare)', 'PNG pătrat — apare în meniu la 2+ melodii')}
     <div class="fields" style="margin:-4px 0 8px"><label class="fld"><span>Volum start muzică meniu (0-100)</span>
       <input type="number" min="0" max="100" step="1" data-scope="menumusicvol" value="${CONFIG.MENU_MUSIC_VOL}" style="width:auto;flex:1;max-width:120px"></label></div>
     <div style="margin-top:8px">
@@ -156,7 +162,9 @@ function render() {
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);
-  wireAsset('MENU_MUSIC', 'menumusic', 'audio', 6 * 1024 * 1024);
+  for (let i = 0; i < 5; i++) wireAsset('MENU_MUSICS', `menumusic${i}`, 'audio', 6 * 1024 * 1024, i);
+  wireAsset('MENU_MUSIC_PREV', 'menumusicprev', 'image', 1 * 1024 * 1024);
+  wireAsset('MENU_MUSIC_NEXT', 'menumusicnext', 'image', 1 * 1024 * 1024);
   wireTips();
   renderTutorials();
 }

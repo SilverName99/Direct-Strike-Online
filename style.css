@@ -793,6 +793,13 @@ html, body {
 .has-fs-skin .fs-btn:hover { filter: brightness(1.13); background: var(--menu-fs) center / 100% 100% no-repeat; }
 .has-sound-skin .snd-btn { background: var(--menu-sound) center / 100% 100% no-repeat; border: none; }
 .has-sound-skin .snd-btn:hover { filter: brightness(1.13); background: var(--menu-sound) center / 100% 100% no-repeat; }
+/* menu-music prev/next arrows: a bit smaller than the sound button; skinnable */
+.music-arrow { width: 48px; height: 48px; font-size: 26px; }
+.music-arrow.hidden { display: none; }
+.has-musicprev-skin #music-prev { background: var(--menu-musicprev) center / 100% 100% no-repeat; border: none; }
+.has-musicprev-skin #music-prev:hover { filter: brightness(1.13); background: var(--menu-musicprev) center / 100% 100% no-repeat; }
+.has-musicnext-skin #music-next { background: var(--menu-musicnext) center / 100% 100% no-repeat; border: none; }
+.has-musicnext-skin #music-next:hover { filter: brightness(1.13); background: var(--menu-musicnext) center / 100% 100% no-repeat; }
 
 #menu-fs-corner { position: absolute; top: 18px; right: 18px; z-index: 3; }
 #menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; align-items: center; gap: 10px; }

@@ -23,6 +23,7 @@ export class Menu {
     this.timers = [];
     this.musicVol = 0.5;   // menu-music volume (0..1), driven by the Options slider
     this.musicStarted = false;
+    this.musicIndex = 0;   // which track of the menu-music playlist is playing
     this.build();
   }
 
@@ -52,8 +53,9 @@ export class Menu {
     this.ensureMusic(); // first click unlocks + starts the menu music
     const gal = e.target.closest('[data-gallery]');
     if (gal) { this.cycleGallery(Number(gal.dataset.gallery)); return; }
-    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp]');
+    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp],[data-music]');
     if (!t || t.disabled) return;
+    if (t.dataset.music) { this.changeTrack(Number(t.dataset.music)); return; }
     if (t.dataset.mp) { this.onMp(t.dataset.mp); return; }
     if (t.hasAttribute('data-opt-fs')) {
       if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
@@ -229,6 +231,8 @@ export class Menu {
       ['MENU_RACE_HUMANS', 'has-racehum-skin', '--menu-racehum'],
       ['MENU_RACE_ORCS', 'has-raceorc-skin', '--menu-raceorc'],
       ['MENU_RACE_UNDEAD', 'has-raceund-skin', '--menu-raceund'],
+      ['MENU_MUSIC_PREV', 'has-musicprev-skin', '--menu-musicprev'],
+      ['MENU_MUSIC_NEXT', 'has-musicnext-skin', '--menu-musicnext'],
     ];
     for (const [key, cls, varName] of skins) {
       const url = CONFIG[key] || '';
@@ -245,6 +249,12 @@ export class Menu {
     for (const b of this.el.querySelectorAll('.fs-btn')) if (b !== fsBtn) b.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
     const sndBtn = this.el.querySelector('#snd-btn');
     if (sndBtn) sndBtn.textContent = CONFIG.MENU_SOUND_BTN ? '' : (this.musicVol === 0 ? '🔇' : '🔊');
+    // menu-music prev/next arrows: shown only with 2+ tracks; glyph unless skinned
+    const multi = this.menuTracks().length >= 2;
+    const prevBtn = this.el.querySelector('#music-prev');
+    const nextBtn = this.el.querySelector('#music-next');
+    if (prevBtn) { prevBtn.classList.toggle('hidden', !multi); prevBtn.textContent = CONFIG.MENU_MUSIC_PREV ? '' : '‹'; }
+    if (nextBtn) { nextBtn.classList.toggle('hidden', !multi); nextBtn.textContent = CONFIG.MENU_MUSIC_NEXT ? '' : '›'; }
   }
 
   // logo + admin-uploaded backgrounds (menu / loading). Called once balance loads.
@@ -348,11 +358,36 @@ export class Menu {
     }
   }
 
+  // The menu-music playlist: every non-empty track in MENU_MUSICS, with the
+  // legacy single MENU_MUSIC as a fallback so old configs still play.
+  menuTracks() {
+    const list = (Array.isArray(CONFIG.MENU_MUSICS) ? CONFIG.MENU_MUSICS : []).filter((s) => typeof s === 'string' && s);
+    if (list.length) return list;
+    return CONFIG.MENU_MUSIC ? [CONFIG.MENU_MUSIC] : [];
+  }
+  currentTrack() {
+    const tracks = this.menuTracks();
+    if (!tracks.length) return '';
+    if (this.musicIndex >= tracks.length || this.musicIndex < 0) this.musicIndex = 0;
+    return tracks[this.musicIndex];
+  }
+  // Prev/next arrows: cycle the playlist and start the newly-picked track.
+  changeTrack(dir) {
+    const tracks = this.menuTracks();
+    if (tracks.length < 2) return;
+    this.musicIndex = (this.musicIndex + dir + tracks.length) % tracks.length;
+    this._musicOff = false;
+    if (this.music) { try { this.music.pause(); } catch { /* ignore */ } this.music = null; }
+    this.musicStarted = false;
+    this.ensureMusic();
+  }
+
   // Preload the menu music during boot (buffer it, don't play yet — autoplay
   // needs a user gesture). Resolves once enough is loaded, or on timeout so the
   // boot loader never hangs.
   preloadMusic(timeoutMs = 3500) {
-    if (!CONFIG.MENU_MUSIC) return Promise.resolve();
+    const track = this.currentTrack();
+    if (!track) return Promise.resolve();
     try {
       this.music = new Audio();
       this.music.loop = true;
@@ -367,17 +402,21 @@ export class Menu {
       el.addEventListener('loadeddata', fin, { once: true });
       el.addEventListener('error', fin, { once: true });
       setTimeout(fin, timeoutMs);
-      el.src = CONFIG.MENU_MUSIC;
+      el.src = track;
     });
   }
   ensureMusic() {
-    if (!CONFIG.MENU_MUSIC) return;
+    const track = this.currentTrack();
+    if (!track) return;
     // once Play is pressed the menu music is off for good (the match has its own);
     // without this, a click on the countdown/loading overlay would restart it.
     if (this._musicOff) return;
-    if (!this.music) { // no preload ran (e.g. music set after boot)
-      try { this.music = new Audio(CONFIG.MENU_MUSIC); this.music.loop = true; this.music.volume = this.musicVol; }
+    if (!this.music) { // no preload ran (e.g. music set after boot, or a track switch)
+      try { this.music = new Audio(track); this.music.loop = true; this.music.volume = this.musicVol; }
       catch { this.music = null; return; }
+    } else if (this.music.src !== track && !this.music.src.endsWith(track)) {
+      // a different track was selected -> point the player at it
+      try { this.music.src = track; } catch { /* ignore */ }
     }
     if (this.musicStarted && !this.music.paused) return;
     this.music.play()
@@ -389,7 +428,7 @@ export class Menu {
   // blocked we start on the FIRST gesture anywhere on the page (not just a menu
   // button) — and once the browser trusts the site the eager attempt succeeds.
   armMusic() {
-    if (!CONFIG.MENU_MUSIC) return;
+    if (!this.currentTrack()) return;
     this.ensureMusic(); // plays now if the browser allows it
     if (this._disarmMusic) return; // already armed
     const evs = ['pointerdown', 'keydown', 'touchstart', 'click'];
@@ -513,7 +552,9 @@ const TEMPLATE = `
 
   <button id="menu-fs-corner" class="corner-btn fs-btn" title="Ecran complet" data-opt-fs>⛶</button>
   <div id="menu-sound">
+    <button id="music-prev" class="corner-btn music-arrow hidden" title="Melodia anterioară" data-music="-1">‹</button>
     <button id="snd-btn" class="corner-btn snd-btn" title="Volum muzică (click = mute)" data-snd>🔊</button>
+    <button id="music-next" class="corner-btn music-arrow hidden" title="Melodia următoare" data-music="1">›</button>
     <input type="range" id="snd-range" class="m-range snd-range" min="0" max="100" value="50">
   </div>
 
