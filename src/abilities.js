@@ -667,7 +667,8 @@ export const ABILITIES = {
     desc: 'Se face invizibil și se năpustește prin inamici (fără coliziune) până în spatele liniei — un singur sens, nu se poate întoarce. Cât e invizibil nu poate fi țintit.',
     params: {
       tier: 1, cooldown: 12, manaCost: 40,
-      distance: 260,     // how far forward he phases past the line
+      distance: 260,     // how far forward he slips (past the line, into the backline)
+      rushSpeed: 360,    // px/s he moves while invisible (settable) — NOT a teleport
       stealth: 2.5,      // seconds invisible + untargetable after arriving
       castPrepare: 0.3, castHold: 0.3,
     },
@@ -721,12 +722,13 @@ export const ABILITIES = {
     kind: 'active', // ultimate
     color: '#9a5fd0',
     castTwoPhase: true, // cast 1 = channel, cast 2 = throw + hold while flying
-    desc: 'Ultima: canalizează X secunde, apoi devine invincibil restul duratei și aruncă pumnalul. Într-o rază, lama trece prin TOȚI inamicii și îi leagă cu o sfoară mov. Tot damage-ul pe care l-ar fi luat cât e invincibil se adună și, împreună cu un base damage setabil, se împarte inamicilor legați când lama se întoarce.',
+    desc: 'Ultima: canalizează, apoi devine invincibil și aruncă pumnalul. Lama pleacă de la erou și sare din inamic în inamic (cel mai apropiat pe rând) prin toți cei din rază, lăsând o sfoară mov din unitate în unitate; apoi se întoarce la erou. Tot damage-ul absorbit cât e invincibil se adună și, plus un base damage setabil, se împarte inamicilor loviți când lama se întoarce.',
     params: {
       tier: 1, cooldown: 50, manaCost: 100,
-      duration: 3,       // seconds the blade is out (he's invincible this whole time)
-      radius: 240,       // link radius — every enemy inside is tethered
-      baseDamage: 120,   // base damage split among the linked enemies (settable)
+      radius: 240,       // enemies inside are chained by the blade
+      daggerSpeed: 420,  // px/s the blade travels along the chain (settable)
+      daggerSize: 100,   // % visual size of the thrown blade (settable)
+      baseDamage: 120,   // base damage split among the hit enemies (settable)
       castPrepare: 1,    // channel time (cast) before he throws & turns invincible
       castHold: 0.4,
     },
@@ -906,5 +908,8 @@ export const ABILITY_PARAM_LABELS = {
   cloneHp3: 'Shadow clones: HP clonă rang 3 (0 = auto)',
   approachSpeed: 'Vanish: viteză de apropiere (invizibil)',
   strikeRange: 'Vanish: rază de lovire (backstab)',
-  baseDamage: 'Loves dagger: base damage (împărțit la legați)',
+  rushSpeed: 'Shadow Rush: viteză de deplasare (invizibil)',
+  daggerSpeed: 'Loves dagger: viteză pumnal (px/s)',
+  daggerSize: 'Loves dagger: dimensiune pumnal (%)',
+  baseDamage: 'Loves dagger: base damage (împărțit la loviți)',
 };

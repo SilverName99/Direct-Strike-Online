@@ -318,50 +318,66 @@ export function updateAbilities(game, dt) {
     }
   }
 
-  // Vanish (Shadow Assassin): while slipping toward the marked target, walk on
-  // foot (invisible, phasing through everything) until in strike range, then land
-  // ONE critical backstab and end. A safety timeout stops a hopeless chase. The
-  // cast frame must finish first (castState set) before he slips off.
+  // Shadow Assassin phase-walk (Shadow Rush / Vanish): while slipping, move on
+  // foot (invisible, phasing through everything) toward the destination — an
+  // enemy (Vanish, strike on arrival) or a point in the backline (Shadow Rush).
+  // A safety timeout stops a hopeless chase. The cast frame must finish first.
   for (const u of game.entities) {
-    if (!u.vanishUntil) continue;
+    if (!u.phaseUntil) continue;
     if (u.castState) continue; // hold on the cast frame until the cast FSM ends
-    const target = game.byId.get(u.vanishTargetId);
-    if (u.hp <= 0 || !target || target.hp <= 0 || target.team === u.team || time >= u.vanishUntil) {
-      u.vanishUntil = 0; u.vanishTargetId = null; continue;
-    }
-    const dx = target.x - u.x, dy = target.y - u.y;
+    if (u.hp <= 0 || time >= u.phaseUntil) { u.phaseUntil = 0; u.phaseTargetId = null; continue; }
+    let gx, gy, target = null;
+    if (u.phaseTargetId != null) {
+      target = game.byId.get(u.phaseTargetId);
+      if (!target || target.hp <= 0 || target.team === u.team) { u.phaseUntil = 0; u.phaseTargetId = null; continue; }
+      gx = target.x; gy = target.y;
+    } else { gx = u.phaseToX; gy = u.phaseToY; }
+    const dx = gx - u.x, dy = gy - u.y;
     const d = Math.sqrt(dx * dx + dy * dy);
-    if (d <= (u.vanishReach || 30)) {
-      const dmgBase = effStats(u, game.ustatOf(u)).damage || 0;
-      applyDamage(game, target, dmgBase * (u.vanishPct || 0) / 100, 'normal');
-      game.events.push({ type: 'execute', x: target.x, y: target.y, team: u.team });
-      u.stealthUntil = time + (u.vanishAfter || 0); // brief stealth after the strike
-      u.vanishUntil = 0; u.vanishTargetId = null;
+    if (d <= (u.phaseReach || 20)) {
+      if (target && (u.phasePct || 0) > 0) { // Vanish: single critical backstab
+        const dmgBase = effStats(u, game.ustatOf(u)).damage || 0;
+        applyDamage(game, target, dmgBase * u.phasePct / 100, 'normal');
+        game.events.push({ type: 'execute', x: target.x, y: target.y, team: u.team });
+      }
+      u.stealthUntil = time + (u.phaseAfter || 0); // brief stealth after arriving
+      u.phaseUntil = 0; u.phaseTargetId = null;
       continue;
     }
-    const step = Math.min((u.vanishSpeed || 300) * dt, d);
+    const step = Math.min((u.phaseSpeed || 300) * dt, d);
     u.x += (dx / d) * step;
     u.y += (dy / d) * step;
     u.mvx = dx / d; u.mvy = dy / d;
     u.state = 'march';
   }
 
-  // Binding Blade (Shadow Assassin ult): when the thrown blade "returns"
-  // (daggerUntil reached), split the absorbed damage + base damage among the
-  // still-living linked enemies, then clear the link/absorb state. Invincibility
-  // ends at the same instant (invincibleUntil == daggerUntil).
+  // Binding Blade (Loves dagger, ult): the thrown blade flies along its chain
+  // (hero -> e1 -> e2 -> ... -> eN -> hero) at daggerSpeed. daggerDist tracks how
+  // far it has travelled along the CURRENT-position polyline; when it has covered
+  // the whole path (or a safety timeout hits) the blade has "returned" — split
+  // the base + absorbed damage among the still-living hit enemies and land.
   for (const u of game.entities) {
-    if (!u.daggerUntil) continue;
-    if (u.hp > 0 && time < u.daggerUntil) continue; // still flying (or he died — resolve either way)
-    const links = [];
-    if (u.daggerLinks) for (const id of u.daggerLinks) { const e = game.byId.get(id); if (e && e.hp > 0 && e.team !== u.team) links.push(e); }
-    if (links.length) {
-      const total = (u.daggerBase || 0) + (u.daggerAbsorbed || 0);
-      const each = total / links.length;
-      for (const e of links) applyDamage(game, e, each, 'normal');
-      game.events.push({ type: 'daggerreturn', unitId: u.id, team: u.team, x: u.x, y: u.y });
+    if (!u.daggerFlying) continue;
+    u.daggerElapsed = (u.daggerElapsed || 0) + dt;
+    const pts = [[u.x, u.y]];
+    if (u.daggerChain) for (const id of u.daggerChain) { const e = game.byId.get(id); if (e && e.hp > 0 && e.team !== u.team) pts.push([e.x, e.y]); }
+    pts.push([u.x, u.y]); // and back to the hero
+    let L = 0;
+    for (let i = 0; i < pts.length - 1; i++) L += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    u.daggerPrevDist = u.daggerDist || 0;
+    u.daggerDist = (u.daggerDist || 0) + (u.daggerSpeed || 420) * dt;
+    if (u.hp <= 0 || u.daggerDist >= L || u.daggerElapsed > 6) {
+      const links = [];
+      if (u.daggerChain) for (const id of u.daggerChain) { const e = game.byId.get(id); if (e && e.hp > 0 && e.team !== u.team) links.push(e); }
+      if (links.length) {
+        const total = (u.daggerBase || 0) + (u.daggerAbsorbed || 0);
+        const each = total / links.length;
+        for (const e of links) applyDamage(game, e, each, 'normal');
+        game.events.push({ type: 'daggerreturn', unitId: u.id, team: u.team, x: u.x, y: u.y });
+      }
+      u.daggerFlying = false; u.daggerChain = null; u.daggerAbsorbed = 0; u.daggerBase = 0;
+      u.daggerDist = 0; u.daggerPrevDist = 0;
     }
-    u.daggerUntil = 0; u.daggerLinks = null; u.daggerAbsorbed = 0; u.daggerBase = 0;
   }
 
   // regen effects heal their owners
@@ -462,9 +478,9 @@ export function stepCaster(game, caster, stats, dt, engaged) {
   const time = game.time;
   if (!caster.abilityCd) caster.abilityCd = {};
 
-  // Vanish: once the cast is done he's slipping toward his target (moved by
-  // updateAbilities) — don't start a new cast until that approach resolves.
-  if (!caster.castState && (caster.vanishUntil || 0) > time) return false;
+  // Shadow Rush / Vanish: once the cast is done he's slipping (moved by
+  // updateAbilities) — don't start a new cast until that phase-walk resolves.
+  if (!caster.castState && (caster.phaseUntil || 0) > time) return false;
 
   // advance an in-progress cast (always finish what was started)
   if (caster.castState === 'prepare') {
@@ -1297,15 +1313,18 @@ function releaseSpell(game, caster, time) {
   }
 
   if (aid === 'shadowrush') {
-    // phase forward past the enemy line to the backline (a one-way blink; no
-    // collision because it's a teleport), then vanish (invisible + untargetable).
+    // become invisible and SLIP forward on foot (phasing through enemies) to a
+    // point in the backline — one-way, no teleport. updateAbilities walks him.
     const front = caster.team === 0 ? 1 : -1;
-    const fromX = caster.x;
-    caster.x = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (p.distance || 0)));
-    caster.prevX = caster.x; // no interpolated slide — it's a teleport
-    caster.stealthUntil = time + (p.stealth || 0);
+    caster.phaseTargetId = null; caster.phasePct = 0;
+    caster.phaseToX = Math.max(40, Math.min(CONFIG.FIELD_W - 40, caster.x + front * (p.distance || 0)));
+    caster.phaseToY = caster.y;
+    caster.phaseSpeed = p.rushSpeed || 360;
+    caster.phaseReach = 8;
+    caster.phaseAfter = p.stealth || 0;
+    caster.phaseUntil = time + 6;                       // safety timeout
+    caster.stealthUntil = time + 6 + (p.stealth || 0);  // invisible for the whole slip
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
-    game.events.push({ type: 'teleport', team: caster.team, x: fromX, y: caster.y, tx: caster.x, ty: caster.y });
     return hold;
   }
 
@@ -1316,12 +1335,13 @@ function releaseSpell(game, caster, time) {
     const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks.vanish || 1) : 1;
     const perRank = p['backstabPct' + rank];
     const pct = (typeof perRank === 'number' && perRank > 0) ? perRank : (p.backstabPct || 0);
-    caster.vanishTargetId = target.id;
-    caster.vanishUntil = time + 5;              // safety timeout if the target flees
-    caster.vanishPct = pct;
-    caster.vanishSpeed = p.approachSpeed || 300;
-    caster.vanishReach = p.strikeRange || 30;
-    caster.vanishAfter = p.stealth || 0;        // stealth kept briefly after the hit
+    caster.phaseTargetId = target.id;
+    caster.phaseToX = null; caster.phaseToY = null;
+    caster.phaseUntil = time + 5;               // safety timeout if the target flees
+    caster.phasePct = pct;
+    caster.phaseSpeed = p.approachSpeed || 300;
+    caster.phaseReach = p.strikeRange || 30;
+    caster.phaseAfter = p.stealth || 0;         // stealth kept briefly after the hit
     caster.stealthUntil = time + 5 + (p.stealth || 0); // invisible for the whole approach
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
     return hold;
@@ -1342,25 +1362,38 @@ function releaseSpell(game, caster, time) {
   }
 
   if (aid === 'daggerthrow') {
-    // the channel (prepare) just ended: become INVINCIBLE for `duration`, throw
-    // the blade and link every enemy unit in radius. While invincible, incoming
-    // damage is absorbed (0 HP lost) and tallied; when the blade returns
-    // (updateAbilities) the tally + baseDamage is split among the linked enemies.
-    const dur = p.duration || 0;
-    caster.invincibleUntil = time + dur;
-    caster.daggerUntil = time + dur;
-    caster.daggerFrom = time; // flight start (renderer sweeps the blade over [from, until])
-    caster.daggerAbsorbed = 0;
-    caster.daggerBase = p.baseDamage || 0;
-    const links = [];
+    // the channel (prepare) just ended: become INVINCIBLE and throw the blade.
+    // Build the hit order as a nearest-neighbour chain — hero -> nearest enemy,
+    // then from there to the next nearest not-yet-hit, ... through every enemy in
+    // radius. The blade flies that chain (at daggerSpeed) then back to the hero;
+    // while it flies, incoming damage is absorbed (0 HP lost) and tallied, and
+    // the tally + baseDamage is split among the hit enemies when it returns.
+    const pool = [];
     for (const e of game.entities) {
       if (e.team === caster.team || e.hp <= 0 || e.isStructure) continue;
-      if (inRadius(e, caster, p.radius)) links.push(e.id);
+      if (inRadius(e, caster, p.radius)) pool.push(e);
     }
-    caster.daggerLinks = links;
+    const chain = [];
+    let cx = caster.x, cy = caster.y;
+    while (pool.length) {
+      let bi = 0, bd = Infinity;
+      for (let i = 0; i < pool.length; i++) {
+        const dx = pool[i].x - cx, dy = pool[i].y - cy, d = dx * dx + dy * dy;
+        if (d < bd || (d === bd && pool[i].id < pool[bi].id)) { bd = d; bi = i; }
+      }
+      const e = pool.splice(bi, 1)[0];
+      chain.push(e.id); cx = e.x; cy = e.y;
+    }
+    caster.daggerChain = chain;
+    caster.daggerFlying = chain.length > 0;
+    caster.daggerDist = 0; caster.daggerPrevDist = 0; caster.daggerElapsed = 0;
+    caster.daggerSpeed = p.daggerSpeed || 420;
+    caster.daggerSize = (p.daggerSize || 100) / 100;
+    caster.daggerBase = p.baseDamage || 0;
+    caster.daggerAbsorbed = 0;
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y, radius: p.radius });
     game.events.push({ type: 'daggerthrow', unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
-    return Math.max(hold, dur); // hold the throw frame while the blade is out
+    return hold; // the flight itself is driven in updateAbilities
   }
 
   if (aid === 'blizzard') {

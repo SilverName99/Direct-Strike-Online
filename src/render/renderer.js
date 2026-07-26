@@ -780,63 +780,76 @@ export class Renderer {
     }
   }
 
-  // Binding Blade (Shadow Assassin ult): while the thrown dagger is out, a purple
-  // "sfoară" tethers the assassin to every enemy his blade linked, and a faint
-  // dome marks that he's invincible. Both vanish when the blade returns.
+  // Binding Blade (Loves dagger, ult): the thrown dagger flies the chain
+  // hero -> e1 -> e2 -> ... -> eN -> hero, laying a purple "sfoară" from unit to
+  // unit behind it as it goes. A faint dome marks that he's invincible.
   drawDaggerLinks(ctx, game, alpha) {
     for (const u of game.entities) {
-      if (u.hp <= 0 || !u.daggerUntil || game.time >= u.daggerUntil) continue;
+      if (u.hp <= 0 || !u.daggerFlying) continue;
       const [x0, y0] = this._lerpXY(u, alpha);
-      const linkPts = [];
-      if (u.daggerLinks) {
-        for (const id of u.daggerLinks) {
-          const e = game.byId.get(id);
-          if (!e || e.hp <= 0 || e.team === u.team) continue;
-          const [x1, y1] = this._lerpXY(e, alpha);
-          linkPts.push([x1, y1]);
-          this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(160,70,220,0.75)', '#e0b0ff', '#7a2fc0', 2.6);
-        }
+      // rebuild the same polyline the sim uses: hero, each living hit enemy, hero
+      const pts = [[x0, y0]];
+      if (u.daggerChain) for (const id of u.daggerChain) {
+        const e = game.byId.get(id);
+        if (!e || e.hp <= 0 || e.team === u.team) continue;
+        pts.push(this._lerpXY(e, alpha));
       }
-      // the thrown blade sweeps through the linked enemies and boomerangs back:
-      // hero -> each linked enemy -> hero, over the whole flight window. Uses the
-      // uploaded "Proiectil Loves dagger" sprite (falls back to a purple blade).
-      const span = (u.daggerUntil || 0) - (u.daggerFrom || 0);
-      if (span > 0 && linkPts.length) {
-        const t = Math.max(0, Math.min(1, (game.time - (u.daggerFrom || 0)) / span));
-        const pts = [[x0, y0], ...linkPts, [x0, y0]];
-        let total = 0; const segLen = [];
-        for (let i = 0; i < pts.length - 1; i++) {
-          const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
-          segLen.push(l); total += l;
+      pts.push([x0, y0]); // and back to the hero
+      const nEnemies = pts.length - 2; // pts[1..nEnemies] are the enemies
+
+      // cumulative distances along the polyline, and where the blade is now
+      const cum = [0];
+      for (let i = 0; i < pts.length - 1; i++) cum.push(cum[i] + Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]));
+      const total = cum[cum.length - 1];
+      const prev = u.daggerPrevDist || 0, cur = u.daggerDist || 0;
+      const bladeDist = Math.min(total, prev + (cur - prev) * alpha);
+
+      // tethers UNIT-TO-UNIT: each enemy->enemy segment is laid down behind the
+      // blade (full once passed, partial up to the blade while it's on it).
+      for (let k = 1; k < nEnemies; k++) {
+        const a = pts[k], b = pts[k + 1];
+        const start = cum[k], end = cum[k + 1];
+        if (bladeDist <= start) break; // blade hasn't reached this segment yet
+        let bx = b[0], by = b[1];
+        if (bladeDist < end) { // partial: draw only up to the blade
+          const f = (bladeDist - start) / Math.max(1e-6, end - start);
+          bx = a[0] + (b[0] - a[0]) * f; by = a[1] + (b[1] - a[1]) * f;
         }
-        let dpos = total * t, bx = x0, by = y0, ang = 0;
-        for (let i = 0; i < segLen.length; i++) {
-          if (dpos <= segLen[i] || i === segLen.length - 1) {
-            const f = segLen[i] > 0 ? dpos / segLen[i] : 0;
-            bx = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f;
-            by = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f;
-            ang = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
-            break;
-          }
-          dpos -= segLen[i];
-        }
-        ctx.save();
-        ctx.translate(bx, by);
-        ctx.rotate(ang + this.now * 12); // spin as it flies
-        if (!drawAbilityProjectileSprite(ctx, 'daggerthrow', u.type, u.team, 26)) {
-          ctx.fillStyle = '#e0b0ff'; ctx.strokeStyle = '#7a2fc0'; ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(11, 0); ctx.lineTo(0, 3.5); ctx.lineTo(-9, 0); ctx.lineTo(0, -3.5);
-          ctx.closePath(); ctx.fill(); ctx.stroke();
-        }
-        ctx.restore();
+        this.drawTendril(ctx, a[0], a[1], bx, by, 'rgba(160,70,220,0.75)', '#e0b0ff', '#7a2fc0', 2.6);
       }
+
+      // the blade itself, at bladeDist along the full path (rotated to heading),
+      // scaled by daggerSize. Uses the uploaded sprite, else a procedural blade.
+      let bx = x0, by = y0, ang = 0, dd = bladeDist;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const l = cum[i + 1] - cum[i];
+        if (dd <= l || i === pts.length - 2) {
+          const f = l > 0 ? dd / l : 0;
+          bx = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f;
+          by = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f;
+          ang = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
+          break;
+        }
+        dd -= l;
+      }
+      const size = 26 * (u.daggerSize || 1);
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(ang + this.now * 12); // spin as it flies
+      if (!drawAbilityProjectileSprite(ctx, 'daggerthrow', u.type, u.team, size)) {
+        const s = size / 26;
+        ctx.fillStyle = '#e0b0ff'; ctx.strokeStyle = '#7a2fc0'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(11 * s, 0); ctx.lineTo(0, 3.5 * s); ctx.lineTo(-9 * s, 0); ctx.lineTo(0, -3.5 * s);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+
       // invincibility dome (subtle purple pulse)
-      const fade = Math.max(0, Math.min(1, (u.daggerUntil - game.time) / 0.5));
       ctx.save();
       ctx.translate(x0, y0);
       const r = (u.baseRadius || u.radius || 16) * 1.5;
-      ctx.globalAlpha = 0.18 * fade * (0.7 + 0.3 * Math.sin(this.now * 6));
+      ctx.globalAlpha = 0.18 * (0.7 + 0.3 * Math.sin(this.now * 6));
       const g = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, r);
       g.addColorStop(0, 'rgba(200,150,255,0.6)');
       g.addColorStop(1, 'rgba(120,40,180,0)');
@@ -1717,6 +1730,11 @@ export class Renderer {
         if (u.vortexUntil > game.time) {
           const va = castAnimOf(u.type, u.team, 'vortexoflight');
           if (va) { anim = va; frame = 0; }
+        }
+        // Loves dagger (ult): hold the "throw" cast frame while the blade flies
+        if (u.daggerFlying) {
+          const da = castAnimOf(u.type, u.team, 'daggerthrow');
+          if (da) { anim = da; frame = 1; }
         }
         drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
       } else {

@@ -5,9 +5,11 @@ import { moveSpeedMult } from './abilities.js';
 export function updateMovement(game, dt) {
   for (const u of game.entities) {
     if (u.state !== 'march') continue;
-    // Vanish: the assassin's slip toward the target is driven by updateAbilities,
-    // not the normal march — skip him here so he isn't double-moved.
-    if ((u.vanishUntil || 0) > game.time) continue;
+    // Shadow Assassin: his slip (Shadow Rush / Vanish) is driven by
+    // updateAbilities, not the normal march — skip him here so he isn't
+    // double-moved. (While the ult blade flies he isn't in 'march', so no skip
+    // needed for that.)
+    if ((u.phaseUntil || 0) > game.time) continue;
     const stats = game.ustatOf(u);
     if (stats.gravedig || stats.bomber) continue; // these drive their own movement (combat.js)
     // dashing units close the gap at their charge speed (basic dash or mount);
@@ -94,7 +96,7 @@ export function updateMovement(game, dt) {
 function collideStructures(game) {
   for (const u of game.entities) {
     if (u.isAir) continue;
-    if ((u.vanishUntil || 0) > game.time) continue; // Vanish: phases through walls/base
+    if ((u.phaseUntil || 0) > game.time) continue; // slipping assassin phases through walls/base
     for (const s of game.structures) {
       if (s.hp <= 0) continue;
       // units pass THROUGH their own structures — the army now spawns behind
@@ -150,10 +152,10 @@ function separate(game) {
   const ents = game.entities;
   for (let i = 0; i < ents.length; i++) {
     const a = ents[i];
-    if ((a.vanishUntil || 0) > game.time) continue; // Vanish: phases through everyone
+    if ((a.phaseUntil || 0) > game.time) continue; // slipping assassin phases through everyone
     for (let j = i + 1; j < ents.length; j++) {
       const b = ents[j];
-      if ((b.vanishUntil || 0) > game.time) continue; // Vanish: phases through everyone
+      if ((b.phaseUntil || 0) > game.time) continue; // slipping assassin phases through everyone
       if (a.isAir !== b.isAir) continue; // air passes over ground
       // enemies only collide when cross-team pushing is enabled; otherwise a
       // unit passes right through enemy units (armies interpenetrate and fight)

@@ -1351,7 +1351,7 @@ console.log('abilities (casters, auras, status effects)');
       const eHp0 = eHero.hp;
       // first tick: cast -> he starts slipping (invisible), but hasn't struck yet
       game.time += DT; stepCaster(game, h, vaOnly, DT, true); game.update(DT); game.drainEvents();
-      check('shadow assassin: vanish makes him invisible while approaching', (h.stealthUntil || 0) > game.time && (h.vanishUntil || 0) > game.time);
+      check('shadow assassin: vanish makes him invisible while approaching', (h.stealthUntil || 0) > game.time && (h.phaseUntil || 0) > game.time);
       check('shadow assassin: vanish does NOT teleport (still near his start)', Math.abs(h.x - 500) < 60, `x=${h.x.toFixed(0)}`);
       // let him walk the ~260px in and strike
       for (let i = 0; i < 60 && eHero.hp >= eHp0; i++) { game.time += DT; stepCaster(game, h, vaOnly, DT, true); game.update(DT); game.drainEvents(); }
@@ -1384,28 +1384,47 @@ console.log('abilities (casters, auras, status effects)');
       check('shadow assassin: clones reuse the hero sprite (no summonKind)', clones.every((c) => c.type === h.type && !c.summonKind));
       check('shadow assassin: per-rank clone HP applies (rank 3 -> 150)', clones.every((c) => c.maxHp === 150), `hp=${clones.map((c) => c.maxHp).join(',')}`);
     }
-    // Binding Blade: invincible while the blade flies, absorbs damage, then splits
-    // (base + absorbed) among the linked enemies when it returns
+    // Binding Blade: the blade chains through the enemies (nearest-first), the
+    // hero is invincible + absorbs while it flies, then it splits (base+absorbed)
+    // among the hit enemies when it returns
     {
       const game = new Game(123, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
       const h = mkSA(game, 500, 400);
       const dtOnly = { caster: true, autoAttackBetween: true, abilities: ['daggerthrow'] };
-      Object.assign(dtAb.params, { duration: 1, radius: 300, baseDamage: 100, manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0 });
+      Object.assign(dtAb.params, { radius: 300, daggerSpeed: 2000, daggerSize: 100, baseDamage: 100, manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0 });
       const e1 = spawnUnit(game, 1, 'grunt', 560, 400); e1.hp = e1.maxHp = 100000;
-      const e2 = spawnUnit(game, 1, 'grunt', 560, 440); e2.hp = e2.maxHp = 100000;
+      const e2 = spawnUnit(game, 1, 'grunt', 640, 440); e2.hp = e2.maxHp = 100000;
       game.time += DT; stepCaster(game, h, dtOnly, DT, true); // throws the blade
-      check('shadow assassin: ult links the enemies in radius', h.daggerLinks && h.daggerLinks.length === 2, `links ${h.daggerLinks ? h.daggerLinks.length : 0}`);
-      check('shadow assassin: ult makes him invincible', (h.invincibleUntil || 0) > game.time);
+      check('shadow assassin: ult chains the enemies (nearest first)',
+        h.daggerChain && h.daggerChain.length === 2 && h.daggerChain[0] === e1.id && h.daggerChain[1] === e2.id,
+        `chain ${JSON.stringify(h.daggerChain)}`);
+      check('shadow assassin: ult -> blade flying (invincible)', !!h.daggerFlying);
       const hp0 = h.hp;
       applyDamage(game, h, 500, 'normal');
       check('shadow assassin: invincible -> absorbs damage (no HP lost)', h.hp === hp0 && h.daggerAbsorbed === 500);
       const e1hp0 = e1.hp, e2hp0 = e2.hp;
-      for (let i = 0; i < 45; i++) { game.time += DT; game.update(DT); game.drainEvents(); }
-      // (100 base + 500 absorbed) / 2 links = 300 each
-      check('shadow assassin: returning blade splits base+absorbed to links',
+      for (let i = 0; i < 30 && h.daggerFlying; i++) { game.time += DT; stepCaster(game, h, dtOnly, DT, true); game.update(DT); game.drainEvents(); }
+      // (100 base + 500 absorbed) / 2 hit = 300 each
+      check('shadow assassin: returning blade splits base+absorbed to the hit enemies',
         Math.abs((e1hp0 - e1.hp) - 300) < 30 && Math.abs((e2hp0 - e2.hp) - 300) < 30,
         `e1 -${(e1hp0 - e1.hp).toFixed(0)} e2 -${(e2hp0 - e2.hp).toFixed(0)}`);
-      check('shadow assassin: invincibility ends with the blade', (h.invincibleUntil || 0) <= game.time && !h.daggerUntil);
+      check('shadow assassin: blade flight ends', !h.daggerFlying);
+    }
+    // Shadow Rush: invisible + slips FORWARD on foot (no teleport)
+    {
+      const game = new Game(124, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const srOnly = { caster: true, autoAttackBetween: true, abilities: ['shadowrush'] };
+      const h = mkSA(game, 400, 400);
+      const srAb = resolvedAbility('shadowrush'); const srSaved = { ...srAb.params };
+      Object.assign(srAb.params, { distance: 200, rushSpeed: 360, stealth: 2, manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0 });
+      spawnUnit(game, 0, 'grunt', 460, 400); // an ally ahead so he wants to dive past the line
+      const x0 = h.x;
+      game.time += DT; stepCaster(game, h, srOnly, DT, true); game.update(DT); game.drainEvents();
+      check('shadow assassin: shadow rush -> invisible + slipping (no teleport)',
+        (h.stealthUntil || 0) > game.time && (h.phaseUntil || 0) > game.time && Math.abs(h.x - x0) < 40, `x=${h.x.toFixed(0)}`);
+      for (let i = 0; i < 40 && (h.phaseUntil || 0) > game.time; i++) { game.time += DT; stepCaster(game, h, srOnly, DT, true); game.update(DT); game.drainEvents(); }
+      check('shadow assassin: shadow rush moved him forward to the backline', h.x > x0 + 150, `moved ${(h.x - x0).toFixed(0)}`);
+      srAb.params = srSaved;
     }
     vaAb.params = vaSaved; tsAb.params = tsSaved; dtAb.params = dtSaved;
     applyBalance({});

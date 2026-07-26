@@ -164,12 +164,13 @@ export function updateCombat(game, dt) {
     const batUp = batLandUpgradeFor(game, u);
     if (batUp) updateBatLand(game, u, batUp);
     else if (u.landed) setBatLanded(game, u, false); // upgrade gone -> back to flying
-    // Vanish (Shadow Assassin): once the cast frame is done, he's slipping toward
-    // the target under updateAbilities' control — hold off normal combat / a new
-    // cast until the approach resolves (the guard skips while a cast is still in
-    // flight so the cast FSM can finish first).
-    if (!u.castState && (u.vanishUntil || 0) > game.time) {
-      u.windup = 0; u.dashing = false; u.dashCharge = false; u.state = 'march';
+    // Shadow Assassin: while slipping (Shadow Rush / Vanish) updateAbilities moves
+    // him; while the ult blade is flying he stands invincible. Either way hold off
+    // normal combat / a new cast until it resolves (skip only once the cast frame
+    // is done, so the cast FSM can finish first).
+    if (!u.castState && ((u.phaseUntil || 0) > game.time || u.daggerFlying)) {
+      u.windup = 0; u.dashing = false; u.dashCharge = false;
+      u.state = (u.phaseUntil || 0) > game.time ? 'march' : 'idle'; // stand still while the blade flies
       continue;
     }
     // A caster is defined by its active abilities and runs the prepare ->
@@ -1120,12 +1121,12 @@ function effDist(a, b) {
 }
 
 export function applyDamage(game, target, damage, dmgType, silent = false) {
-  // Binding Blade (Shadow Assassin ult): while the blade is out he's INVINCIBLE —
+  // Binding Blade (Loves dagger, ult): while the blade is out he's INVINCIBLE —
   // he takes no HP damage, but every raw hit is tallied and later split among the
-  // enemies his blade linked (see updateAbilities). Absorb happens before armor,
-  // so "all the damage he took" is the full incoming amount.
-  if (target.invincibleUntil && game.time < target.invincibleUntil) {
-    if (target.daggerUntil && game.time < target.daggerUntil) target.daggerAbsorbed = (target.daggerAbsorbed || 0) + damage;
+  // enemies his blade hit (see updateAbilities). Absorb happens before armor, so
+  // "all the damage he took" is the full incoming amount.
+  if (target.daggerFlying) {
+    target.daggerAbsorbed = (target.daggerAbsorbed || 0) + damage;
     return;
   }
   // Soul Link (Death Knight ult): the hero bleeds most incoming damage into his
