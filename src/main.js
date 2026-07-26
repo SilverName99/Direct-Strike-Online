@@ -413,6 +413,13 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+// Run one frame phase, isolated: if it throws, the OTHER phases (crucially the
+// RENDER) still run, so a bug in the sim or the selection panel can never freeze
+// the whole picture. The error is logged (with its phase) so it's diagnosable.
+function safe(phase, fn) {
+  try { fn(); } catch (err) { console.error(`frame phase "${phase}" error (isolated):`, err); }
+}
+
 function frameBody(now) {
   const delta = Math.min((now - last) / 1000, 0.25);
   last = now;
@@ -429,47 +436,57 @@ function frameBody(now) {
     if (state === 'playing' && uiState.drag) input.dragTo(w.x, w.y);
   }
 
-  // the online sim advances even while the countdown/loading screens still
-  // cover it, so neither player's sim can fall behind the server clock
-  if (netmatch && !netmatch.done && game) {
-    netmatch.update();
-    if (state !== 'playing') game.drainEvents(); // discard pre-reveal events
-  }
+  // --- SIM phase (isolated) ---------------------------------------------------
+  safe('sim', () => {
+    // the online sim advances even while the countdown/loading screens still
+    // cover it, so neither player's sim can fall behind the server clock
+    if (netmatch && !netmatch.done && game) {
+      netmatch.update();
+      if (state !== 'playing') game.drainEvents(); // discard pre-reveal events
+    }
 
-  if (state === 'playing' && game) {
-    if (!netmatch) {
-      accumulator += delta;
-      while (accumulator >= CONFIG.FIXED_DT) {
-        accumulator -= CONFIG.FIXED_DT;
-        ai.update(game, CONFIG.FIXED_DT);
-        game.update(CONFIG.FIXED_DT);
+    if (state === 'playing' && game) {
+      if (!netmatch) {
+        accumulator += delta;
+        while (accumulator >= CONFIG.FIXED_DT) {
+          accumulator -= CONFIG.FIXED_DT;
+          ai.update(game, CONFIG.FIXED_DT);
+          game.update(CONFIG.FIXED_DT);
+        }
       }
-    }
-    const events = game.drainEvents();
-    effects.spawnFromEvents(events);
-    effects.update(delta);
-    hud.update(game, delta);
-    updateAiDebug();
+      const events = game.drainEvents();
+      effects.spawnFromEvents(events);
+      effects.update(delta);
+      hud.update(game, delta);
+      updateAiDebug();
 
-    if (game.winner !== null) {
-      state = 'over';
-      stopMusic();
-      const won = game.winner === uiState.myTeam;
-      const wasNet = !!netmatch;
-      if (wasNet) endNetMatch();
-      setTimeout(() => menu.showGameOver(game, won, uiState.myTeam, wasNet), 900);
+      if (game.winner !== null) {
+        state = 'over';
+        stopMusic();
+        const won = game.winner === uiState.myTeam;
+        const wasNet = !!netmatch;
+        if (wasNet) endNetMatch();
+        setTimeout(() => menu.showGameOver(game, won, uiState.myTeam, wasNet), 900);
+      }
+    } else if (state === 'over' && game) {
+      // keep drawing the frozen battlefield behind the overlay
+      effects.update(delta);
     }
-  } else if (state === 'over' && game) {
-    // keep drawing the frozen battlefield behind the overlay
-    effects.update(delta);
-  }
+  });
 
-  bottombar.update(state === 'playing' ? game : null); // grid + panel follow the selection
-  if (game) {
-    const alpha = state === 'playing' ? (netmatch ? netmatch.alpha() : accumulator / CONFIG.FIXED_DT) : 1;
-    renderer.draw(game, alpha, uiState, effects);
-  }
-  minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null, uiState.myTeam);
+  // --- SELECTION PANEL phase (isolated) --------------------------------------
+  safe('panel', () => {
+    bottombar.update(state === 'playing' ? game : null); // grid + panel follow the selection
+  });
+
+  // --- RENDER phase (isolated) — must run even if sim/panel threw ------------
+  safe('render', () => {
+    if (game) {
+      const alpha = state === 'playing' ? (netmatch ? netmatch.alpha() : accumulator / CONFIG.FIXED_DT) : 1;
+      renderer.draw(game, alpha, uiState, effects);
+    }
+    minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null, uiState.myTeam);
+  });
 }
 
 requestAnimationFrame(frame);

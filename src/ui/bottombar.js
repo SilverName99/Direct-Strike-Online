@@ -491,7 +491,7 @@ export class BottomBar {
     // fall back to the sprite/vector portrait drawn on the canvas. A split
     // rider (on foot) / beast plays its OWN clip when one was uploaded. The
     // gold mine plays its map clip (mineidle) in the portrait too.
-    const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
+    const form = info.kind === 'entity' && info.u.summon && info.u.summonKind ? info.u.summonKind
       : info.kind === 'entity' && info.u.morph && info.u.morphUntil > game.time ? 'morph'
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
@@ -637,7 +637,7 @@ export class BottomBar {
     const frame = Math.floor(performance.now() / 500) % 2;
     // a split beast / rider on foot shows its own art: form idle sprite, then
     // form thumbnail, then the whole unit's idle sprite / thumb, then vectors
-    const form = info.kind === 'entity' && info.u.summon ? info.u.summonKind
+    const form = info.kind === 'entity' && info.u.summon && info.u.summonKind ? info.u.summonKind
       : info.kind === 'entity' && info.u.morph && info.u.morphUntil > game.time ? 'morph'
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
