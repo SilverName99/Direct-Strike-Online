@@ -822,6 +822,9 @@ html, body {
 .has-racehum-skin .m-pill[data-race="humans"] { background: var(--menu-racehum) center / 100% 100% no-repeat; }
 .has-raceorc-skin .m-pill[data-race="orcs"] { background: var(--menu-raceorc) center / 100% 100% no-repeat; }
 .has-raceund-skin .m-pill[data-race="undead"] { background: var(--menu-raceund) center / 100% 100% no-repeat; }
+/* the Undead frame art has a thicker inner border, so its text needs more
+   horizontal breathing room (else "💀 Undead" touches / pokes out of the frame) */
+.has-raceund-skin .m-pill[data-race="undead"] { padding-left: 40px; padding-right: 40px; }
 .has-racehum-skin .m-pill[data-race="humans"]:hover,
 .has-raceorc-skin .m-pill[data-race="orcs"]:hover,
 .has-raceund-skin .m-pill[data-race="undead"]:hover { border: none; filter: brightness(1.12); }
