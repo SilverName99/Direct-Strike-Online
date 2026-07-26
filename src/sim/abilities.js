@@ -318,6 +318,34 @@ export function updateAbilities(game, dt) {
     }
   }
 
+  // Vanish (Shadow Assassin): while slipping toward the marked target, walk on
+  // foot (invisible, phasing through everything) until in strike range, then land
+  // ONE critical backstab and end. A safety timeout stops a hopeless chase. The
+  // cast frame must finish first (castState set) before he slips off.
+  for (const u of game.entities) {
+    if (!u.vanishUntil) continue;
+    if (u.castState) continue; // hold on the cast frame until the cast FSM ends
+    const target = game.byId.get(u.vanishTargetId);
+    if (u.hp <= 0 || !target || target.hp <= 0 || target.team === u.team || time >= u.vanishUntil) {
+      u.vanishUntil = 0; u.vanishTargetId = null; continue;
+    }
+    const dx = target.x - u.x, dy = target.y - u.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d <= (u.vanishReach || 30)) {
+      const dmgBase = effStats(u, game.ustatOf(u)).damage || 0;
+      applyDamage(game, target, dmgBase * (u.vanishPct || 0) / 100, 'normal');
+      game.events.push({ type: 'execute', x: target.x, y: target.y, team: u.team });
+      u.stealthUntil = time + (u.vanishAfter || 0); // brief stealth after the strike
+      u.vanishUntil = 0; u.vanishTargetId = null;
+      continue;
+    }
+    const step = Math.min((u.vanishSpeed || 300) * dt, d);
+    u.x += (dx / d) * step;
+    u.y += (dy / d) * step;
+    u.mvx = dx / d; u.mvy = dy / d;
+    u.state = 'march';
+  }
+
   // Binding Blade (Shadow Assassin ult): when the thrown blade "returns"
   // (daggerUntil reached), split the absorbed damage + base damage among the
   // still-living linked enemies, then clear the link/absorb state. Invincibility
@@ -433,6 +461,10 @@ function endCast(caster) {
 export function stepCaster(game, caster, stats, dt, engaged) {
   const time = game.time;
   if (!caster.abilityCd) caster.abilityCd = {};
+
+  // Vanish: once the cast is done he's slipping toward his target (moved by
+  // updateAbilities) — don't start a new cast until that approach resolves.
+  if (!caster.castState && (caster.vanishUntil || 0) > time) return false;
 
   // advance an in-progress cast (always finish what was started)
   if (caster.castState === 'prepare') {
@@ -1278,23 +1310,20 @@ function releaseSpell(game, caster, time) {
   }
 
   if (aid === 'vanish') {
-    // slip behind the target and land ONE critical backstab (% of his damage),
-    // then vanish. The strike is a single hit — no cleave, no follow-up.
-    const dmgBase = effStats(caster, game.ustatOf(caster)).damage || 0;
+    // become invisible and start slipping toward the target ON FOOT — no
+    // teleport. updateAbilities walks him in (phasing through enemies) and lands
+    // the single critical backstab once he reaches strike range.
     const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks.vanish || 1) : 1;
     const perRank = p['backstabPct' + rank];
     const pct = (typeof perRank === 'number' && perRank > 0) ? perRank : (p.backstabPct || 0);
-    // land just behind the target (on the far side from the assassin's own base)
-    const front = caster.team === 0 ? 1 : -1;
-    const fromX = caster.x, fromY = caster.y;
-    caster.x = Math.max(40, Math.min(CONFIG.FIELD_W - 40, target.x + front * 22));
-    caster.y = target.y;
-    caster.prevX = caster.x; caster.prevY = caster.y;
-    caster.stealthUntil = time + (p.stealth || 0);
-    applyDamage(game, target, dmgBase * pct / 100, 'normal');
+    caster.vanishTargetId = target.id;
+    caster.vanishUntil = time + 5;              // safety timeout if the target flees
+    caster.vanishPct = pct;
+    caster.vanishSpeed = p.approachSpeed || 300;
+    caster.vanishReach = p.strikeRange || 30;
+    caster.vanishAfter = p.stealth || 0;        // stealth kept briefly after the hit
+    caster.stealthUntil = time + 5 + (p.stealth || 0); // invisible for the whole approach
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
-    game.events.push({ type: 'teleport', team: caster.team, x: fromX, y: fromY, tx: caster.x, ty: caster.y });
-    game.events.push({ type: 'execute', x: target.x, y: target.y, team: caster.team });
     return hold;
   }
 

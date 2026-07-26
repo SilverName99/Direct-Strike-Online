@@ -680,13 +680,15 @@ export const ABILITIES = {
     kind: 'active',
     color: '#5a3fa0',
     // a single cast frame (the wind-up reuses the hero's shared "prepare" pose)
-    desc: 'Se face invizibil și se strecoară la cel mai apropiat erou inamic (dacă nu există erou, la unitatea cu cea mai multă viață) unde dă un backstab critic — o singură lovitură. Cât e invizibil nu poate fi țintit.',
+    desc: 'Se face invizibil și se strecoară (mergând) spre cel mai apropiat erou inamic (dacă nu există erou, spre unitatea cu cea mai multă viață); când ajunge, dă un backstab critic — o singură lovitură. Cât e invizibil nu poate fi țintit și trece prin inamici.',
     params: {
       tier: 1, cooldown: 10, manaCost: 45,
-      range: 480,        // how far he can seek a target to slip behind
-      backstabPct: 300,  // backstab damage = X% of his attack damage (crește pe rang)
+      range: 480,          // how far he can seek a target to slip toward
+      approachSpeed: 300,  // move speed while slipping toward the target (invisible)
+      strikeRange: 30,     // how close he gets before landing the backstab
+      backstabPct: 300,    // backstab damage = X% of his attack damage (crește pe rang)
       backstabPct1: 0, backstabPct2: 0, backstabPct3: 0, // explicit per-rank (0 = auto)
-      stealth: 1.5,      // seconds invisible after the strike
+      stealth: 1.5,        // seconds invisible after the strike
       castPrepare: 0.3, castHold: 0.3,
     },
   },
@@ -703,7 +705,8 @@ export const ABILITIES = {
       clones: 1, clones1: 1, clones2: 2, clones3: 3, // number of clones by rank
       clonePct: 50,      // % of the hero's damage each clone deals (crește pe rang)
       clonePct1: 0, clonePct2: 0, clonePct3: 0,
-      cloneHp: 60,       // clone HP (a fragile illusion)
+      cloneHp: 60,       // clone HP (a fragile illusion; auto/fallback)
+      cloneHp1: 0, cloneHp2: 0, cloneHp3: 0, // explicit per-rank clone HP (0 = auto)
       life: 12,          // seconds the clones live before fading
       castPrepare: 0, castHold: 0.4,
     },
@@ -897,6 +900,11 @@ export const ABILITY_PARAM_LABELS = {
   clonePct1: 'Shadow clones: % damage rang 1 (0 = auto)',
   clonePct2: 'Shadow clones: % damage rang 2 (0 = auto)',
   clonePct3: 'Shadow clones: % damage rang 3 (0 = auto)',
-  cloneHp: 'Shadow clones: HP clonă',
+  cloneHp: 'Shadow clones: HP clonă (fallback/auto)',
+  cloneHp1: 'Shadow clones: HP clonă rang 1 (0 = auto)',
+  cloneHp2: 'Shadow clones: HP clonă rang 2 (0 = auto)',
+  cloneHp3: 'Shadow clones: HP clonă rang 3 (0 = auto)',
+  approachSpeed: 'Vanish: viteză de apropiere (invizibil)',
+  strikeRange: 'Vanish: rază de lovire (backstab)',
   baseDamage: 'Loves dagger: base damage (împărțit la legați)',
 };

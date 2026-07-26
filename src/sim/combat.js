@@ -164,6 +164,14 @@ export function updateCombat(game, dt) {
     const batUp = batLandUpgradeFor(game, u);
     if (batUp) updateBatLand(game, u, batUp);
     else if (u.landed) setBatLanded(game, u, false); // upgrade gone -> back to flying
+    // Vanish (Shadow Assassin): once the cast frame is done, he's slipping toward
+    // the target under updateAbilities' control — hold off normal combat / a new
+    // cast until the approach resolves (the guard skips while a cast is still in
+    // flight so the cast FSM can finish first).
+    if (!u.castState && (u.vanishUntil || 0) > game.time) {
+      u.windup = 0; u.dashing = false; u.dashCharge = false; u.state = 'march';
+      continue;
+    }
     // A caster is defined by its active abilities and runs the prepare ->
     // release FSM before (and instead of) its basic action, whether it is a
     // healer or a fighter. It only falls through to the basic attack/heal

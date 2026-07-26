@@ -1340,16 +1340,24 @@ console.log('abilities (casters, auras, status effects)');
     const vaAb = resolvedAbility('vanish'); const vaSaved = { ...vaAb.params };
     const tsAb = resolvedAbility('twinshadows'); const tsSaved = { ...tsAb.params };
     const dtAb = resolvedAbility('daggerthrow'); const dtSaved = { ...dtAb.params };
-    // Vanish seeks the enemy HERO, backstabs it, and turns the assassin invisible
+    // Vanish seeks the enemy HERO, goes invisible, WALKS in (no teleport) and
+    // backstabs it on arrival
     {
       const game = new Game(120, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
+      const vaOnly = { caster: true, autoAttackBetween: true, abilities: ['vanish'] };
       const h = mkSA(game, 500, 400);
-      Object.assign(vaAb.params, { range: 480, backstabPct: 300, stealth: 2, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
-      const eHero = spawnUnit(game, 1, 'grunt', 720, 400); eHero.hero = true; eHero.hp = eHero.maxHp = 100000;
+      Object.assign(vaAb.params, { range: 480, approachSpeed: 300, strikeRange: 30, backstabPct: 300, stealth: 2, manaCost: 0, cooldown: 0.1, castPrepare: 0, castHold: 0 });
+      const eHero = spawnUnit(game, 1, 'grunt', 760, 400); eHero.hero = true; eHero.hp = eHero.maxHp = 100000;
       const eHp0 = eHero.hp;
-      for (let i = 0; i < 6; i++) { game.time += DT; stepCaster(game, h, saStats, DT, true); game.update(DT); game.drainEvents(); }
-      check('shadow assassin: vanish backstabs the enemy hero', eHero.hp < eHp0, `took ${(eHp0 - eHero.hp).toFixed(0)}`);
-      check('shadow assassin: vanish turns him invisible', (h.stealthUntil || 0) > game.time);
+      // first tick: cast -> he starts slipping (invisible), but hasn't struck yet
+      game.time += DT; stepCaster(game, h, vaOnly, DT, true); game.update(DT); game.drainEvents();
+      check('shadow assassin: vanish makes him invisible while approaching', (h.stealthUntil || 0) > game.time && (h.vanishUntil || 0) > game.time);
+      check('shadow assassin: vanish does NOT teleport (still near his start)', Math.abs(h.x - 500) < 60, `x=${h.x.toFixed(0)}`);
+      // let him walk the ~260px in and strike
+      for (let i = 0; i < 60 && eHero.hp >= eHp0; i++) { game.time += DT; stepCaster(game, h, vaOnly, DT, true); game.update(DT); game.drainEvents(); }
+      check('shadow assassin: vanish backstabs the hero on arrival', eHero.hp < eHp0, `took ${(eHp0 - eHero.hp).toFixed(0)}`);
+      check('shadow assassin: he actually moved to the target', Math.abs(h.x - eHero.x) < 60, `x=${h.x.toFixed(0)} tx=${eHero.x.toFixed(0)}`);
+      check('shadow assassin: still invisible right after the strike', (h.stealthUntil || 0) > game.time);
     }
     // A stealthed assassin cannot be targeted or hit by enemies
     {
@@ -1367,12 +1375,14 @@ console.log('abilities (casters, auras, status effects)');
       const game = new Game(122, { races: ['undead', 'humans'] }); game.abilityUsable = () => true;
       const h = mkSA(game, 500, 400);
       const tsOnly = { caster: true, autoAttackBetween: true, abilities: ['twinshadows'] };
-      Object.assign(tsAb.params, { manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0, clonePct: 50, cloneHp: 60, life: 12 });
+      // per-rank clone HP: rank 3 -> cloneHp3 = 150 (explicit override wins)
+      Object.assign(tsAb.params, { manaCost: 0, cooldown: 99, castPrepare: 0, castHold: 0, clonePct: 50, cloneHp: 60, cloneHp3: 150, life: 12 });
       spawnUnit(game, 1, 'grunt', 560, 400); // an enemy nearby so it will cast
       for (let i = 0; i < 2; i++) { game.time += DT; stepCaster(game, h, tsOnly, DT, true); game.update(DT); game.drainEvents(); }
       const clones = game.entities.filter((e) => e.clone && e.summonOf === h.id && e.hp > 0);
       check('shadow assassin: twin shadows spawns rank-3 clones', clones.length === 3, `spawned ${clones.length}`);
       check('shadow assassin: clones reuse the hero sprite (no summonKind)', clones.every((c) => c.type === h.type && !c.summonKind));
+      check('shadow assassin: per-rank clone HP applies (rank 3 -> 150)', clones.every((c) => c.maxHp === 150), `hp=${clones.map((c) => c.maxHp).join(',')}`);
     }
     // Binding Blade: invincible while the blade flies, absorbs damage, then splits
     // (base + absorbed) among the linked enemies when it returns
