@@ -261,19 +261,35 @@ export class Renderer {
     this.drawTemplates(ctx, game, uiState);
     this.drawMineSpots(ctx, game); // ghost plots where the player's mines can rise
     this.drawStructures(ctx, game);
-    effects.drawStructureCorpses(ctx); // toppled towers crumble where they stood
-    this.drawWorkers(ctx, game); // little miners shuttling gold to the base
-    effects.drawCorpses(ctx); // fallen puppets lie under the living
-    this.drawUnits(ctx, game, alpha);
-    this.drawSoulLinks(ctx, game, alpha); // Soul Link: glowing tethers hero -> allies
-    this.drawDaggerLinks(ctx, game, alpha); // Binding Blade: purple tethers to linked enemies
-    this.drawDrainBeams(ctx, game, alpha); // Life Drain: a wavy beam over the fighters
-    this.drawProjectiles(ctx, game, alpha);
-    effects.draw(ctx);
-    if (this._fogOn) this.fog.draw(ctx, CONFIG.FIELD_W, CONFIG.FIELD_H); // fog over the battlefield
-    if (uiState.showRanges) this.drawRanges(ctx, game); // 🎯 debug overlay
-    this.drawInspect(ctx, game, uiState, alpha);
-    this.drawGhost(ctx, game, uiState);
+    // Each scene layer is drawn in isolation: a throw in ONE layer (e.g. a
+    // transient overlay like the Binding Blade or a single odd entity) must not
+    // abort the whole scene render for that frame — otherwise the picture drops
+    // frames and looks like it "stutters" until the state clears. The wrapping
+    // save/restore keeps the camera transform balanced even if a layer throws
+    // mid-way, and the first failure of each layer is logged (once) so it's
+    // diagnosable.
+    const layer = (name, fn) => {
+      const tf = ctx.getTransform();
+      const ga = ctx.globalAlpha;
+      try { fn(); }
+      catch (e) {
+        if (!this._layerErr) this._layerErr = new Set();
+        if (!this._layerErr.has(name)) { this._layerErr.add(name); console.error(`render layer "${name}" error (isolated):`, e); }
+      } finally { ctx.setTransform(tf); ctx.globalAlpha = ga; }
+    };
+    layer('structureCorpses', () => effects.drawStructureCorpses(ctx)); // toppled towers crumble where they stood
+    layer('workers', () => this.drawWorkers(ctx, game)); // little miners shuttling gold to the base
+    layer('corpses', () => effects.drawCorpses(ctx)); // fallen puppets lie under the living
+    layer('units', () => this.drawUnits(ctx, game, alpha));
+    layer('soulLinks', () => this.drawSoulLinks(ctx, game, alpha)); // Soul Link tethers
+    layer('daggerLinks', () => this.drawDaggerLinks(ctx, game, alpha)); // Binding Blade tethers + blade
+    layer('drainBeams', () => this.drawDrainBeams(ctx, game, alpha)); // Life Drain beam
+    layer('projectiles', () => this.drawProjectiles(ctx, game, alpha));
+    layer('effects', () => effects.draw(ctx));
+    if (this._fogOn) layer('fog', () => this.fog.draw(ctx, CONFIG.FIELD_W, CONFIG.FIELD_H)); // fog over the battlefield
+    if (uiState.showRanges) layer('ranges', () => this.drawRanges(ctx, game)); // 🎯 debug overlay
+    layer('inspect', () => this.drawInspect(ctx, game, uiState, alpha));
+    layer('ghost', () => this.drawGhost(ctx, game, uiState));
 
     ctx.restore();
   }
@@ -1549,6 +1565,13 @@ export class Renderer {
 
   drawUnits(ctx, game, alpha) {
     for (const u of game.entities) {
+      // per-unit isolation: a single entity that throws while drawing is skipped
+      // (with a one-time log) instead of blanking every unit after it this frame.
+      // Restore the transform + alpha explicitly (not via the save stack) so a
+      // throw mid save/restore can't leave the canvas state corrupted.
+      const _tf = ctx.getTransform();
+      const _ga = ctx.globalAlpha;
+      try {
       const stats = UNITS[u.type];
       const x = u.prevX + (u.x - u.prevX) * alpha;
       const y = u.prevY + (u.y - u.prevY) * alpha;
@@ -1797,6 +1820,9 @@ export class Renderer {
         drawLightShield(ctx, this.now, drawR * (u.shieldScale || 1), fade);
         ctx.restore();
       }
+      } catch (e) {
+        if (!this._unitErr) { this._unitErr = true; console.error('drawUnits: a unit threw (skipped):', u && u.type, e); }
+      } finally { ctx.setTransform(_tf); ctx.globalAlpha = _ga; }
     }
   }
 
