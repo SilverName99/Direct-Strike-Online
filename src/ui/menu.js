@@ -46,7 +46,8 @@ export class Menu {
   constructor(overlayEl, hooks) {
     this.el = overlayEl;
     this.hooks = hooks || {};
-    this.sel = { mode: 'ai', format: '1v1', player: 'humans', enemy: 'orcs', difficulty: 'normal' };
+    // what the room defaults to: your race, the first bot's race, bot difficulty
+    this.sel = { mode: 'ai', player: 'humans', enemy: 'orcs', difficulty: 'normal' };
     this.timers = [];
     this.musicVol = 0.5;   // menu-music volume (0..1), driven by the Options slider
     this.musicStarted = false;
@@ -70,7 +71,6 @@ export class Menu {
     this.el.addEventListener('click', (e) => this.onClick(e));
     this.el.addEventListener('input', (e) => this.onInput(e));
     this.applyTheme();
-    this.reflect();
     this.go('main');
   }
 
@@ -83,7 +83,7 @@ export class Menu {
     this.ensureMusic(); // first click unlocks + starts the menu music
     const gal = e.target.closest('[data-gallery]');
     if (gal) { this.cycleGallery(Number(gal.dataset.gallery)); return; }
-    const t = e.target.closest('[data-go],[data-fmt],[data-race],[data-diff],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp],[data-music],[data-lb]');
+    const t = e.target.closest('[data-go],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp],[data-music],[data-lb]');
     if (!t || t.disabled) return;
     if (t.dataset.lb) { this.onLobbyClick(t); return; }
     if (t.dataset.music) { this.changeTrack(Number(t.dataset.music)); return; }
@@ -106,15 +106,6 @@ export class Menu {
       this.go(t.dataset.go);
       return;
     }
-    if (t.dataset.fmt) { this.sel.format = t.dataset.fmt; this.go('setup'); return; }
-    if (t.dataset.race) {
-      const opt = t.closest('[data-opt]').dataset.opt; // 'player' | 'enemy'
-      this.sel[opt] = t.dataset.race;
-      this.reflect();
-      if (this.hooks.onRaceChange) this.hooks.onRaceChange({ player: this.sel.player, enemy: this.sel.enemy });
-      return;
-    }
-    if (t.dataset.diff) { this.sel.difficulty = t.dataset.diff; this.reflect(); return; }
     if (t.hasAttribute('data-play')) { this.play(); return; }
   }
 
@@ -128,11 +119,10 @@ export class Menu {
     this.root.classList.remove('hidden');
     // leaving for another entry point drops the offline roster (so "Rematch"
     // only replays the room while you're still on that path)
-    if (name === 'main' || name === 'setup' || name === 'format-ai' || name === 'format-mp') this.soloRoster = null;
+    if (name === 'main' || name === 'format-ai' || name === 'format-mp') this.soloRoster = null;
     if (name === 'mp-join') this.requestRooms(); // fresh list every time you enter
     if (name === 'help') this.renderHelp();
     if (name === 'options') this.syncOptions();
-    if (name === 'setup') this.renderSetup();
     // Back on the main menu: re-show the background gallery arrows. play() hides
     // them for the countdown/loading, and returning after a match goes through
     // go('main') (the "Meniu" button) — without this the arrows stay hidden and
@@ -306,7 +296,12 @@ export class Menu {
       case 'copy': this.copyCode(); return;
       case 'ready': send({ action: 'ready', ready: !this.myReady() }); return;
       case 'start': send({ action: 'start' }); return;
-      case 'race': this.sel.player = d.r; send({ action: 'race', race: d.r }); return;
+      case 'race':
+        this.sel.player = d.r;
+        // the menu preview (shop art + cursor) follows the race you just picked
+        if (this.hooks.onRaceChange) this.hooks.onRaceChange({ player: d.r, enemy: this.sel.enemy });
+        send({ action: 'race', race: d.r });
+        return;
       case 'slot': send({ action: 'slot', side: +d.s, depth: +d.d, kind: d.k, race: d.r }); return;
       case 'diff': send({ action: 'slot', side: +d.s, depth: +d.d, kind: 'bot', difficulty: d.df, race: d.r }); return;
       case 'move': send({ action: 'move', fromSide: +d.s, fromDepth: +d.d, toSide: +d.ts, toDepth: +d.td }); return;
@@ -421,6 +416,14 @@ export class Menu {
     }
   }
 
+  // A race choice inside a slot. It reuses the admin "Chenar Humans / Orcs /
+  // Undead" frame skins, so the pills here look exactly like the menu ones —
+  // `attrs` carries whatever click routing that slot needs (own race vs a bot's).
+  racePill(race, on, attrs = '') {
+    const tag = attrs ? 'button' : 'span';
+    return `<${tag} class="m-pill lb-pill${on ? ' on' : ''}" data-race="${race}" ${attrs}>${RACE_RO[race] || race}</${tag}>`;
+  }
+
   slotHtml(sl, host, mine) {
     const DEPTHS = ['Spate', 'Mijloc', 'Față'];
     const pos = `${DEPTHS[sl.depth] || `#${sl.depth + 1}`}`;
@@ -436,8 +439,8 @@ export class Menu {
         <span class="lb-ready ${sl.ready ? 'on' : ''}">${sl.ready ? '✔ gata' : '… așteaptă'}</span>`;
       // your own race is yours to pick; everyone else's is just shown
       body += isMe
-        ? `<div class="lb-races">${RACES.map((rc) => `<button class="lb-race ${sl.race === rc ? 'sel' : ''}" data-lb="race" data-r="${rc}">${RACE_RO[rc] || rc}</button>`).join('')}</div>`
-        : `<div class="lb-races"><span class="lb-race sel ro">${RACE_RO[sl.race] || sl.race}</span></div>`;
+        ? `<div class="lb-races">${RACES.map((rc) => this.racePill(rc, sl.race === rc, `data-lb="race" data-r="${rc}"`)).join('')}</div>`
+        : `<div class="lb-races">${this.racePill(sl.race, true)}</div>`;
       // offline you shuffle your own seat freely; online you must ASK the other
       if (isMe && this.lobby.local) ctl += this.moveBtns(sl);
       if (!isMe) ctl += `<button class="lb-mini" title="Cere schimb de poziție" data-lb="swap" data-id="${sl.id}">⇄</button>`;
@@ -445,8 +448,8 @@ export class Menu {
     } else if (sl.kind === 'bot') {
       // the host owns a bot completely: its race AND its difficulty
       const botRaces = host
-        ? RACES.map((rc) => `<button class="lb-race ${sl.race === rc ? 'sel' : ''}" data-lb="slot" data-s="${s}" data-d="${d}" data-k="bot" data-r="${rc}">${RACE_RO[rc] || rc}</button>`).join('')
-        : `<span class="lb-race sel ro">${RACE_RO[sl.race] || sl.race}</span>`;
+        ? RACES.map((rc) => this.racePill(rc, sl.race === rc, `data-lb="slot" data-s="${s}" data-d="${d}" data-k="bot" data-r="${rc}"`)).join('')
+        : this.racePill(sl.race, true);
       const botDiffs = host
         ? ['easy', 'normal', 'hard'].map((df) => `<button class="lb-diff ${sl.difficulty === df ? 'sel' : ''}" data-lb="diff" data-s="${s}" data-d="${d}" data-df="${df}" data-r="${sl.race}">${df[0].toUpperCase()}</button>`).join('')
         : `<span class="lb-diff sel">${(sl.difficulty || 'normal')[0].toUpperCase()}</span>`;
@@ -552,16 +555,6 @@ export class Menu {
     if (nav) nav.classList.toggle('single', list.length < 2); // hide arrows for a lone slide
     if (dots) dots.innerHTML = list.map((_, i) =>
       `<button class="tut-dot${i === this.tutIdx ? ' on' : ''}" data-tutgo="${i}"></button>`).join('');
-  }
-
-  // highlight the currently selected race/difficulty pills
-  reflect() {
-    for (const p of this.el.querySelectorAll('.m-opts [data-race]')) {
-      const opt = p.closest('[data-opt]').dataset.opt;
-      p.classList.toggle('on', p.dataset.race === this.sel[opt]);
-    }
-    for (const p of this.el.querySelectorAll('.m-opts [data-diff]'))
-      p.classList.toggle('on', p.dataset.diff === this.sel.difficulty);
   }
 
   applyLogo() {
@@ -678,23 +671,6 @@ export class Menu {
       this.root.style.removeProperty(wVar);
       this.root.style.removeProperty(hVar);
     }
-  }
-
-  // Setup header: show the format card the player clicked (its art + the format
-  // label) instead of the plain "1v1 · vs AI" text. Falls back to text when no
-  // card art is uploaded.
-  renderSetup() {
-    const head = this.el.querySelector('#setup-head');
-    if (!head) return;
-    const fmt = (this.sel.format || '1v1').toUpperCase();
-    const hasCard = !!CONFIG.MENU_CARD;
-    head.classList.toggle('as-card', hasCard);
-    const img = head.querySelector('.setup-card-img');
-    const label = head.querySelector('.setup-card-t');
-    const title = head.querySelector('.setup-title');
-    if (img) { img.classList.toggle('hidden', !hasCard); if (hasCard) img.src = CONFIG.MENU_CARD; }
-    if (label) label.textContent = fmt.toLowerCase();
-    if (title) { title.classList.toggle('hidden', hasCard); title.textContent = fmt; }
   }
 
   // Prefer the CHOSEN race's uploaded loading screens (up to 5); if that race
@@ -911,13 +887,6 @@ export class Menu {
   }
 }
 
-const races = (opt) => `
-  <div class="m-opts" data-opt="${opt}">
-    <button class="m-pill" data-race="humans">⚔ Humans</button>
-    <button class="m-pill" data-race="orcs">🪓 Orcs</button>
-    <button class="m-pill" data-race="undead">💀 Undead</button>
-  </div>`;
-
 const TEMPLATE = `
 <div id="menu-bg"></div>
 <button id="menu-gallery-prev" class="menu-gallery-arrow left hidden" data-gallery="-1" title="Imaginea anterioară" aria-label="Anterior">‹</button>
@@ -951,21 +920,9 @@ const TEMPLATE = `
 
   <section class="m-screen hidden" data-screen="format-ai">
     <h2 class="m-title">Play vs AI</h2>
-    <div class="m-cards">
-      <button class="m-card" data-fmt="1v1"><span class="m-card-t">1v1</span></button>
-      <button class="m-card" data-fmt="2v2"><span class="m-card-t">2v2</span></button>
-      <button class="m-card" data-fmt="3v3"><span class="m-card-t">3v3</span></button>
-    </div>
-    <p class="m-hint" style="margin:10px 0 4px">Asimetric — tu în tabăra mică (bonus de venit, setabil în admin):</p>
-    <div class="m-cards">
-      <button class="m-card" data-fmt="1v2"><span class="m-card-t">1v2</span></button>
-      <button class="m-card" data-fmt="1v3"><span class="m-card-t">1v3</span></button>
-      <button class="m-card" data-fmt="2v3"><span class="m-card-t">2v3</span></button>
-    </div>
     <div class="m-btns">
-      <button class="m-btn" data-lb="local">🛡&nbsp;&nbsp;Create room</button>
+      <button class="m-btn primary" data-lb="local">🛡&nbsp;&nbsp;Create room</button>
     </div>
-    <p class="m-hint">Îți aranjezi singur tabăra: poziții, rase și boți, în orice format.</p>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
@@ -981,18 +938,12 @@ const TEMPLATE = `
 
   <section class="m-screen hidden" data-screen="mp-setup">
     <h2 class="m-title">1v1 Online</h2>
-    <div class="m-setup">
-      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
-    </div>
     <button class="m-btn primary big play-btn" data-mp="quick"><span class="m-play-txt">⚔&nbsp;&nbsp;Caută meci</span></button>
     <button class="m-back" data-go="format-mp"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="mp-friends">
     <h2 class="m-title">Create a room</h2>
-    <div class="m-setup">
-      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
-    </div>
     <div class="m-btns">
       <button class="m-btn primary" data-mp="create">🌐&nbsp;&nbsp;Cameră publică</button>
       <button class="m-btn" data-mp="create-private">🔒&nbsp;&nbsp;Cameră privată</button>
@@ -1003,9 +954,6 @@ const TEMPLATE = `
 
   <section class="m-screen hidden" data-screen="mp-join">
     <h2 class="m-title">Join a room</h2>
-    <div class="m-setup">
-      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
-    </div>
     <div id="mp-rooms" class="mp-rooms"></div>
     <button class="m-btn ghost mp-refresh" data-mp="refresh">🔄&nbsp;&nbsp;Reîmprospătează</button>
     <p class="m-hint">Ai un cod de la un prieten? Scrie-l aici:</p>
@@ -1020,7 +968,6 @@ const TEMPLATE = `
     <div class="lb-head">
       <span class="lb-head-t">Cod cameră</span>
       <button id="lb-code" class="lb-code" data-lb="copy" title="Click ca să copiezi codul"></button>
-      <span class="lb-head-s">dă-l prietenilor ca să intre</span>
     </div>
     <div id="lb-swap" class="lb-swap hidden"></div>
     <div class="lb-wrap">
@@ -1046,25 +993,6 @@ const TEMPLATE = `
     <p class="m-hint" id="mp-wait-sub"></p>
     <div id="mp-wait-code" class="hidden"></div>
     <button class="m-back" data-mp="cancel"><span class="m-back-txt">✖ Anulează</span></button>
-  </section>
-
-  <section class="m-screen hidden" data-screen="setup">
-    <div id="setup-head" class="setup-head">
-      <div class="setup-card"><img class="setup-card-img hidden" alt=""><span class="setup-card-t">1v1</span></div>
-      <h2 class="m-title setup-title">1V1</h2>
-    </div>
-    <div class="m-setup">
-      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
-      <div class="m-row"><span class="m-label">AI Race</span>${races('enemy')}</div>
-      <div class="m-row"><span class="m-label">Difficulty</span>
-        <div class="m-opts" data-opt="difficulty">
-          <button class="m-pill" data-diff="easy">Easy</button>
-          <button class="m-pill" data-diff="normal">Normal</button>
-          <button class="m-pill" data-diff="hard">Hard</button>
-        </div></div>
-    </div>
-    <button class="m-btn primary big play-btn" data-play><span class="m-play-txt">▶&nbsp;&nbsp;Play</span></button>
-    <button class="m-back" data-go="format-ai"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="options">

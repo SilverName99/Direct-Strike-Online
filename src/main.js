@@ -249,23 +249,10 @@ function applyRandomMenuCursor() {
   applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
 }
 
-// Format ("1v1" | "2v2" | "3v3" | asymmetric "1v2"/"1v3"/"2v3") from the
-// Play-vs-AI cards: the human is PLAYER 0 (side 0 anchor), every side-0 player
-// shares the human's race and side 1 plays the AI race.
-function newGame(playerRace, enemyRace, difficulty, format = '1v1') {
-  const fm = /^([123])v([123])$/.exec(format || '1v1');
-  const nA = fm ? Number(fm[1]) : 1;
-  const nB = fm ? Number(fm[2]) : 1;
-  const roster = [];
-  for (let d = 0; d < nA; d++) roster.push({ side: 0, race: playerRace, bot: d > 0, difficulty });
-  for (let d = 0; d < nB; d++) roster.push({ side: 1, race: enemyRace, bot: true, difficulty });
-  newGameFromRoster(roster);
-}
-
 // Single player from a ROSTER — one entry per commander in layout order (side 0
 // back → front, then side 1): `{side, race, bot, difficulty}`. Exactly the
-// shape the lobby produces, so "Create room" vs the bots and the format cards
-// both land here. The human is whichever entry isn't a bot.
+// shape the lobby produces, so "Create room" against the bots lands here. The
+// human is whichever entry isn't a bot — anywhere in the depth, on either side.
 function newGameFromRoster(roster) {
   if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
   const me = Math.max(0, roster.findIndex((r) => !r.bot));
@@ -471,7 +458,6 @@ const menu = new Menu(document.getElementById('overlay'), {
     bottombar.refresh();
     applyCursor(player);
   },
-  onStart: ({ player, enemy, difficulty, format }) => newGame(player, enemy, difficulty, format),
   onStartRoster: (roster) => newGameFromRoster(roster), // offline room (you + bots)
   onNet: (a) => netAction(a),             // quick / create / join from the menu
   onLobby: (a) => lobbyAction(a),         // every button inside the "cameră"

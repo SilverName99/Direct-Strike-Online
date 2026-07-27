@@ -982,14 +982,27 @@ html, body {
 .lb-tag.me { background: rgba(77, 166, 255, 0.18); color: #9ecbff; }
 .lb-ready { font: 600 11px/1 "Segoe UI", system-ui, sans-serif; color: #7c8ba1; }
 .lb-ready.on { color: #7fd98a; }
-.lb-races { display: flex; flex-wrap: wrap; gap: 4px; flex-basis: 100%; }
-.lb-race, .lb-diff {
+.lb-races { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-basis: 100%; }
+/* the race choices inside a slot ARE the menu race pills (so the admin
+   "Chenar Humans / Orcs / Undead" frames apply), just scaled to the row */
+.lb-slot .m-pill.lb-pill {
+  font: 700 11px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 0.5px;
+  padding: 7px 10px; min-width: 72px; border-radius: 8px;
+}
+.has-racehum-skin .lb-slot .m-pill[data-race="humans"],
+.has-raceorc-skin .lb-slot .m-pill[data-race="orcs"],
+.has-raceund-skin .lb-slot .m-pill[data-race="undead"] { padding: 10px 18px; min-width: 96px; }
+.has-raceund-skin .lb-slot .m-pill[data-race="undead"] { padding-left: 26px; padding-right: 26px; }
+.lb-slot .m-pill.lb-pill:not(.on) { opacity: 0.62; }
+.lb-slot .m-pill.lb-pill:hover { opacity: 1; }
+.lb-slot span.m-pill.lb-pill { cursor: default; }
+.lb-diff {
   font: 700 10px/1 "Segoe UI", system-ui, sans-serif; padding: 4px 7px; border-radius: 6px; cursor: pointer;
   color: #9fb0c6; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.lb-race.ro, .lb-diff:not(button) { cursor: default; }
-.lb-race:hover, .lb-diff:hover { color: var(--text); border-color: rgba(233, 197, 101, 0.4); }
-.lb-race.sel, .lb-diff.sel { color: #1a1206; background: linear-gradient(180deg, #f4dca0, var(--gold)); border-color: var(--gold); }
+.lb-diff:not(button) { cursor: default; }
+.lb-diff:hover { color: var(--text); border-color: rgba(233, 197, 101, 0.4); }
+.lb-diff.sel { color: #1a1206; background: linear-gradient(180deg, #f4dca0, var(--gold)); border-color: var(--gold); }
 .lb-ctl { display: flex; gap: 4px; flex: 0 0 auto; }
 .lb-mini {
   width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 12px;

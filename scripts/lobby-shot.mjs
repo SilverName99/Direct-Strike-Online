@@ -25,17 +25,17 @@ async function openTab(name) {
 const host = await openTab('Gazda');
 const guest = await openTab('Invitatul');
 
-const toRoomScreen = async (p) => {
+const toRoomScreen = async (p, screen) => {
   await p.click('[data-go="format-mp"]');
-  await p.click('.pwf-card');
+  await p.click(`[data-go="${screen}"]`);
 };
-await toRoomScreen(host);
+await toRoomScreen(host, 'mp-friends');
 await host.click('[data-mp="create"]');
 await host.waitForSelector('.m-screen[data-screen="lobby"]:not(.hidden)', { timeout: 8000 });
 const code = (await host.textContent('#lb-code')).trim();
 console.log('room code:', code);
 
-await toRoomScreen(guest);
+await toRoomScreen(guest, 'mp-join');
 await guest.fill('#mp-code', code);
 await guest.click('[data-mp="join"]');
 await guest.waitForSelector('.m-screen[data-screen="lobby"]:not(.hidden)', { timeout: 8000 });
