@@ -571,8 +571,14 @@ const TEMPLATE = `
     <h2 class="m-title">Play vs AI</h2>
     <div class="m-cards">
       <button class="m-card" data-fmt="1v1"><span class="m-card-t">1v1</span></button>
-      <button class="m-card locked" disabled><span class="m-card-t">2v2</span><span class="soon">Coming soon</span></button>
-      <button class="m-card locked" disabled><span class="m-card-t">3v3</span><span class="soon">Coming soon</span></button>
+      <button class="m-card" data-fmt="2v2"><span class="m-card-t">2v2</span></button>
+      <button class="m-card" data-fmt="3v3"><span class="m-card-t">3v3</span></button>
+    </div>
+    <p class="m-hint" style="margin:10px 0 4px">Asimetric — tu în tabăra mică (bonus de venit, setabil în admin):</p>
+    <div class="m-cards">
+      <button class="m-card" data-fmt="1v2"><span class="m-card-t">1v2</span></button>
+      <button class="m-card" data-fmt="1v3"><span class="m-card-t">1v3</span></button>
+      <button class="m-card" data-fmt="2v3"><span class="m-card-t">2v3</span></button>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>

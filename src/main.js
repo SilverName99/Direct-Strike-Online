@@ -14,6 +14,8 @@ import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getCursorUrl, av
 import { NetClient } from './net/netclient.js';
 import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
+import { teamLayout, applyModeLayout } from './sim/layout.js';
+import { setExtraBuildZones } from './ui/grid.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -40,7 +42,8 @@ const uiState = {
 const hud = new Hud(uiState);
 
 let game = null;
-let ai = null;
+let ai = null;   // debug-overlay handle: the first ENEMY bot
+let ais = [];    // every bot commander this match (allies + enemies)
 let state = 'menu'; // 'menu' | 'playing' | 'over'
 let net = null;      // NetClient — one connection, reused across lobby visits
 let netmatch = null; // NetMatch while an online game is live
@@ -159,7 +162,7 @@ document.body.appendChild(aiDebugEl);
 
 function updateAiDebug() {
   if (!aiDebugOn || !ai || !game || state !== 'playing') return;
-  const t = 1;
+  const t = ai.team;
   const gold = Math.floor(game.money[t]);
   const inc = game.incomePerSecond(t).toFixed(1).replace(/\.0$/, '');
   const army = game.templates[t].length;
@@ -246,7 +249,7 @@ function applyRandomMenuCursor() {
   applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
 }
 
-function newGame(playerRace, enemyRace, difficulty) {
+function newGame(playerRace, enemyRace, difficulty, format = '1v1') {
   if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
   uiState.myTeam = 0;
   setViewerTeam(0);
@@ -260,16 +263,40 @@ function newGame(playerRace, enemyRace, difficulty) {
   // one at random (seeded) and applies its effect
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
   for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
-  game = new Game(seed, { races: [playerRace, enemyRace], incomeMult: [1, diff.incomeMult], middles });
+
+  // Format ("1v1" | "2v2" | "3v3" | asymmetric "1v2"/"1v3"/"2v3"): the human is
+  // always PLAYER 0 (side 0 anchor); every side-0 player shares the human's
+  // race, side 1 plays the AI race (the renderer resolves art per SIDE).
+  const fm = /^([123])v([123])$/.exec(format || '1v1');
+  const nA = fm ? Number(fm[1]) : 1;
+  const nB = fm ? Number(fm[2]) : 1;
+  applyModeLayout(nA, nB);       // battlefield geometry for the mode (1v1 = classic)
+  minimap.resize();              // the minimap keeps the new field's aspect
+  const teamMode = nA > 1 || nB > 1;
+  const lay = teamMode ? teamLayout(nA, nB) : null;
+  const races = lay ? lay.perPlayer.map((pp) => (pp.side === 0 ? playerRace : enemyRace)) : [playerRace, enemyRace];
+  const incomeMult = lay ? lay.perPlayer.map((pp) => (pp.side === 0 ? 1 : diff.incomeMult)) : [1, diff.incomeMult];
+  game = new Game(seed, { races, incomeMult, middles, ...(lay ? { layout: lay } : {}) });
   window.__game = game; // debug/test handle (render side only; sim never reads it)
   window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)
   window.__bb = bottombar; // debug/test handle (inspect the command grid state)
-  ai = new AIController(1, difficulty, seed ^ 0x9e3779b9, resolvedAIGenome());
+  // bots: every player except the human. Player 1 keeps the historical seed so
+  // classic 1v1 behaves exactly as before; extra bots get their own streams.
+  ais = [];
+  for (let p = 1; p < game.players.length; p++) {
+    ais.push(new AIController(p, difficulty, (seed ^ (0x9e3779b9 + (p - 1) * 0x85ebca6b)) >>> 0, resolvedAIGenome()));
+  }
+  ai = ais.find((b) => game.sideOf(b.team) === 1) || ais[0] || null; // debug overlay: first enemy bot
+  // ally-zone snapping: the human may invest inside allied zones (X% allowance)
+  // and — once baseless — park army in the allied strips (the sim validates)
+  const allies = teamMode ? game.playersOnSide(0).filter((p) => p !== 0) : [];
+  setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
   effects.reset();
   uiState.selected = null;
   uiState.drag = null;
   uiState.inspect = null;
-  camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
+  const myMain = game.mainOfPlayer(0);
+  camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[0], CONFIG.MAIN.y);
   state = 'playing';
   startMusic(playerRace);
   applyCursor(playerRace);
@@ -313,6 +340,11 @@ async function netAction({ action, race, code }) {
 // the lockstep loop immediately (it runs behind the countdown/loading screens,
 // so a player whose loading ends earlier can't get ahead).
 function startNetMatch(m) {
+  // online is 1v1-only: restore the classic geometry (a prior offline team
+  // match may have left the longer field applied) — both clients must agree
+  applyModeLayout(1, 1);
+  minimap.resize();
+  setExtraBuildZones([]);
   setTeamRaces(m.races);
   uiState.myTeam = m.youAre;
   setViewerTeam(m.youAre);
@@ -325,7 +357,7 @@ function startNetMatch(m) {
   window.__game = game;
   window.__ui = uiState;
   window.__bb = bottombar;
-  ai = null; // the opponent is a human — their commands arrive over the wire
+  ai = null; ais = []; // the opponent is a human — their commands arrive over the wire
   netmatch = new NetMatch(net, m, game);
   window.__netmatch = netmatch; // debug/test handle
   netmatch.onEnd = (kind) => {
@@ -364,7 +396,7 @@ const menu = new Menu(document.getElementById('overlay'), {
     bottombar.refresh();
     applyCursor(player);
   },
-  onStart: ({ player, enemy, difficulty }) => newGame(player, enemy, difficulty),
+  onStart: ({ player, enemy, difficulty, format }) => newGame(player, enemy, difficulty, format),
   onNet: (a) => netAction(a),             // quick / create / join from the lobby
   onNetCancel: () => { if (net) net.leave(); },
   onNetReveal: () => {                    // loading done — show the live net match
@@ -450,7 +482,7 @@ function frameBody(now) {
         accumulator += delta;
         while (accumulator >= CONFIG.FIXED_DT) {
           accumulator -= CONFIG.FIXED_DT;
-          ai.update(game, CONFIG.FIXED_DT);
+          for (const b of ais) b.update(game, CONFIG.FIXED_DT);
           game.update(CONFIG.FIXED_DT);
         }
       }

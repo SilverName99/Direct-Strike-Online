@@ -9,17 +9,11 @@ export class Minimap {
     this.canvas = canvas;
     this.camera = camera;
     this.ctx = canvas.getContext('2d');
+    this._sizedForW = 0; // FIELD_W the canvas was last sized for
 
     // Fixed CSS size; internal resolution matches for crispness.
     // Sized to fill the bottom-bar map panel (#bb-map), aspect preserved.
-    const dpr = window.devicePixelRatio || 1;
-    const w = 350; // 350×(FIELD_H/FIELD_W) ≈ 117 tall — fits the 124px panel
-    const h = Math.round((w * CONFIG.FIELD_H) / CONFIG.FIELD_W);
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    this.scale = canvas.width / CONFIG.FIELD_W;
+    this.resize();
 
     let panning = false;
     const jump = (e) => {
@@ -46,6 +40,22 @@ export class Minimap {
     });
   }
 
+  // Size the canvas for the CURRENT field (team modes lengthen the map, so the
+  // aspect changes per match). Safe to call every newGame — no-ops if unchanged.
+  resize() {
+    const canvas = this.canvas;
+    if (this._sizedForW === CONFIG.FIELD_W) return;
+    this._sizedForW = CONFIG.FIELD_W;
+    const dpr = window.devicePixelRatio || 1;
+    const w = 350; // 350×(FIELD_H/FIELD_W) — fits the bottom-bar map panel
+    const h = Math.round((w * CONFIG.FIELD_H) / CONFIG.FIELD_W);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    this.scale = canvas.width / CONFIG.FIELD_W;
+  }
+
   draw(game, fog = null, myTeam = 0) {
     const { ctx } = this;
     const s = this.scale;
@@ -56,12 +66,30 @@ export class Minimap {
 
     // base quadrants (construction + army zones)
     const tints = ['rgba(77, 166, 255, 0.18)', 'rgba(255, 85, 102, 0.18)'];
-    for (const team of [0, 1]) {
-      const zonesMM = [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]];
-      if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zonesMM.push(CONFIG.MID_BUILD_ZONE[team]);
-      for (const z of zonesMM) {
-        ctx.fillStyle = tints[team === getViewerTeam() ? 0 : 1]; // my side always blue
-        ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
+    if (game && game.zones && game.players && game.players.length > 2) {
+      // team modes: every player's zone pair, tinted by side; dead zones vanish
+      for (let p = 0; p < game.players.length; p++) {
+        const zp = game.zones[p];
+        if (!zp.alive) continue;
+        ctx.fillStyle = tints[game.players[p].side === getViewerTeam() ? 0 : 1];
+        for (const z of [zp.build, zp.army]) {
+          ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
+        }
+      }
+      for (const side of [0, 1]) {
+        const mz = game.midBuild && game.midBuild[side];
+        if (!mz) continue;
+        ctx.fillStyle = tints[side === getViewerTeam() ? 0 : 1];
+        ctx.fillRect(mz.x0 * s, mz.y0 * s, (mz.x1 - mz.x0) * s, (mz.y1 - mz.y0) * s);
+      }
+    } else {
+      for (const team of [0, 1]) {
+        const zonesMM = [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]];
+        if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zonesMM.push(CONFIG.MID_BUILD_ZONE[team]);
+        for (const z of zonesMM) {
+          ctx.fillStyle = tints[team === getViewerTeam() ? 0 : 1]; // my side always blue
+          ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
+        }
       }
     }
 

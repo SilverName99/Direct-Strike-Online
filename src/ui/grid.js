@@ -20,11 +20,23 @@ export function snapToZone(zone, x, y, cw = 1, ch = 1) {
   };
 }
 
+// Team modes: extra rects the LOCAL player may also snap into — their allies'
+// construction zones (the sim enforces the X% allowance on the click) and the
+// allies' army strips (valid only once the player is baseless; the sim decides,
+// the ghost just goes red otherwise). Set from main.js; empty in classic 1v1.
+let extraBuildZones = [];
+let extraArmyZones = [];
+export function setExtraBuildZones(zones, armyZones = []) {
+  extraBuildZones = Array.isArray(zones) ? zones : [];
+  extraArmyZones = Array.isArray(armyZones) ? armyZones : [];
+}
+
 // All construction rectangles for a team: the base zone plus the small
-// forward pocket around the mid turret.
+// forward pocket around the mid turret (+ any allied zones in team modes).
 export function buildZonesFor(team) {
   const zones = [CONFIG.CONSTRUCTION_ZONE[team]];
   if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zones.push(CONFIG.MID_BUILD_ZONE[team]);
+  for (const z of extraBuildZones) zones.push(z);
   return zones;
 }
 
@@ -47,6 +59,11 @@ export function zoneFor(selected, x = null, y = null, team = 0) {
       if (d < bd) { bd = d; best = z; }
     }
     return best;
+  }
+  // units: the own army strip — or an ALLIED strip when the cursor is inside
+  // one (team modes; the sim validates whether parking there is allowed)
+  for (const z of extraArmyZones) {
+    if (x != null && y != null && x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1) return z;
   }
   return CONFIG.ARMY_ZONE[team];
 }

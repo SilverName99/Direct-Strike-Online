@@ -319,14 +319,30 @@ export class Renderer {
     // per-team base quadrant: army zone (back) + construction zone (front)
     const tints0 = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
     const tints = [tints0[getViewerTeam() === 0 ? 0 : 1], tints0[getViewerTeam() === 0 ? 1 : 0]]; // my side always blue
-    for (const team of [0, 1]) {
-      const cz = CONFIG.CONSTRUCTION_ZONE[team];
-      const az = CONFIG.ARMY_ZONE[team];
-      this.drawZonePlate(ctx, az, tints[team], 'ARMY', '⚔️', 0.05);
-      this.drawZonePlate(ctx, cz, tints[team], 'CONSTRUCTION', '🔨', 0.10);
-      // forward build pocket around the mid turret (same styling, no label)
-      const mz = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team];
-      if (mz) this.drawZonePlate(ctx, mz, tints[team], null, null, 0.08);
+    if (game.zones && game.players && game.players.length > 2) {
+      // TEAM MODES: one [army][build] zone pair per PLAYER, tinted by side;
+      // a collapsed zone vanishes from the map (its ground is lost)
+      for (let p = 0; p < game.players.length; p++) {
+        const z = game.zones[p];
+        if (!z.alive) continue;
+        const side = game.players[p].side;
+        this.drawZonePlate(ctx, z.army, tints[side], 'ARMY', '⚔️', 0.05);
+        this.drawZonePlate(ctx, z.build, tints[side], 'CONSTRUCTION', '🔨', 0.10);
+      }
+      for (const side of [0, 1]) {
+        const mz = game.midBuild && game.midBuild[side];
+        if (mz) this.drawZonePlate(ctx, mz, tints[side], null, null, 0.08);
+      }
+    } else {
+      for (const team of [0, 1]) {
+        const cz = CONFIG.CONSTRUCTION_ZONE[team];
+        const az = CONFIG.ARMY_ZONE[team];
+        this.drawZonePlate(ctx, az, tints[team], 'ARMY', '⚔️', 0.05);
+        this.drawZonePlate(ctx, cz, tints[team], 'CONSTRUCTION', '🔨', 0.10);
+        // forward build pocket around the mid turret (same styling, no label)
+        const mz = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team];
+        if (mz) this.drawZonePlate(ctx, mz, tints[team], null, null, 0.08);
+      }
     }
 
     // midline
