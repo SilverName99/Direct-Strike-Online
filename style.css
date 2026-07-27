@@ -901,6 +901,22 @@ html, body {
 .mp-code-input:focus { outline: none; border-color: var(--gold); }
 .mp-code-input::placeholder { color: #7c8ba1; letter-spacing: 4px; }
 
+/* ---- lista de camere ("Join a room") ---- */
+.mp-rooms {
+  width: min(560px, 92vw); display: flex; flex-direction: column; gap: 6px;
+  max-height: 240px; overflow-y: auto;
+}
+.mp-rooms-empty { margin: 6px 0; color: #8d9bb0; font: 400 13px/1.5 "Segoe UI", system-ui, sans-serif; }
+.mp-room {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px;
+  background: rgba(10, 14, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.mp-room:hover { border-color: rgba(233, 197, 101, 0.45); background: rgba(20, 28, 42, 0.7); }
+.mp-room-host { flex: 1 1 auto; text-align: left; font: 700 14px/1.2 "Segoe UI", system-ui, sans-serif; color: var(--text); }
+.mp-room-fill { font: 600 12px/1 "Segoe UI", system-ui, sans-serif; color: #9fb0c6; }
+.mp-room-fill small { color: #7c8ba1; }
+.mp-refresh { padding: 8px 14px; }
+
 /* ---- camera (lobby): sloturi pe două tabere + chat ---- */
 /* the lobby is the tallest screen in the menu: no giant logo above it, and it
    sits near the top instead of being vertically centered */
@@ -924,6 +940,12 @@ html, body {
 .lb-code:hover { transform: translateY(-1px); color: #fff2c9; }
 .lb-code.copied { font-size: 24px; letter-spacing: 3px; color: #7fd98a; }
 .lb-hint { margin: 6px 0 0; font-size: 12.5px; color: #9fb0c6; }
+/* offline room (Play vs AI → Create room): no code, no chat, no ready */
+.lobby-screen.solo .lb-chat,
+.lobby-screen.solo .lb-ready-btn,
+.lobby-screen.solo .lb-head-s { display: none; }
+.lobby-screen.solo .lb-code { display: none; }
+.lobby-screen.solo .lb-head-t { font-size: 15px; letter-spacing: 2px; color: #f0d492; }
 .lb-wrap { display: flex; flex-direction: column; gap: 10px; }
 .lb-sides { display: flex; align-items: stretch; justify-content: center; gap: 10px; }
 .lb-col {

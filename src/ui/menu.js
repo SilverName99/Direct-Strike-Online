@@ -87,6 +87,10 @@ export class Menu {
     if (!t || t.disabled) return;
     if (t.dataset.lb) { this.onLobbyClick(t); return; }
     if (t.dataset.music) { this.changeTrack(Number(t.dataset.music)); return; }
+    if (t.dataset.mp === 'join-code') { // a row in the room browser
+      if (this.hooks.onNet) this.hooks.onNet({ action: 'join', code: t.dataset.code, race: this.sel.player });
+      return;
+    }
     if (t.dataset.mp) { this.onMp(t.dataset.mp); return; }
     if (t.hasAttribute('data-opt-fs')) {
       if (document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
@@ -122,6 +126,10 @@ export class Menu {
     this.cd.classList.add('hidden');
     this.load.classList.add('hidden');
     this.root.classList.remove('hidden');
+    // leaving for another entry point drops the offline roster (so "Rematch"
+    // only replays the room while you're still on that path)
+    if (name === 'main' || name === 'setup' || name === 'format-ai' || name === 'format-mp') this.soloRoster = null;
+    if (name === 'mp-join') this.requestRooms(); // fresh list every time you enter
     if (name === 'help') this.renderHelp();
     if (name === 'options') this.syncOptions();
     if (name === 'setup') this.renderSetup();
@@ -136,6 +144,7 @@ export class Menu {
   // ---- multiplayer lobby (the network itself lives in main.js hooks) ----
   onMp(action) {
     if (action === 'cancel') {
+      if (this.local) { this.local = false; this.lobby = null; this.go('format-ai'); return; }
       if (this.hooks.onNetCancel) this.hooks.onNetCancel();
       this.go('format-mp');
       return;
@@ -148,7 +157,35 @@ export class Menu {
       if (this.hooks.onNet) this.hooks.onNet({ action: 'join', code, race });
       return;
     }
+    if (action === 'refresh') { this.requestRooms(); return; }
+    if (action === 'create-private') {
+      if (this.hooks.onNet) this.hooks.onNet({ action: 'create', race, private: true });
+      return;
+    }
     if (this.hooks.onNet) this.hooks.onNet({ action, race }); // 'quick' | 'create'
+  }
+
+  // ---- room browser ("Join a room") ----
+  requestRooms() {
+    const box = this.el.querySelector('#mp-rooms');
+    if (box && !box.children.length) box.innerHTML = '<p class="mp-rooms-empty">Se caută camere…</p>';
+    if (this.hooks.onNet) this.hooks.onNet({ action: 'rooms' });
+  }
+  // main.js pushes the server's list here; every row is one joinable room
+  showRooms(list) {
+    const box = this.el.querySelector('#mp-rooms');
+    if (!box) return;
+    const rooms = Array.isArray(list) ? list : [];
+    if (!rooms.length) {
+      box.innerHTML = '<p class="mp-rooms-empty">Nicio cameră publică deschisă. Creează tu una!</p>';
+      return;
+    }
+    box.innerHTML = rooms.map((r) => `
+      <div class="mp-room">
+        <span class="mp-room-host">${esc(r.host)}</span>
+        <span class="mp-room-fill">${(r.players | 0) + (r.bots | 0)}/${r.max | 0} jucători${r.bots ? ` <small>(${r.bots} 🤖)</small>` : ''}</span>
+        <button class="m-btn small" data-mp="join-code" data-code="${esc(r.code)}">Intră</button>
+      </div>`).join('');
   }
   // waiting screen: matchmaking / room code / connection errors
   netWaiting(title, sub = '', code = '') {
@@ -191,9 +228,79 @@ export class Menu {
     if (input) input.value = '';
     if (this.hooks.onLobby) this.hooks.onLobby({ action: 'say', text });
   }
+  // The SAME lobby, offline: you + bots, no server involved. Every action is
+  // applied to a room object we keep locally, so the screen behaves identically.
+  showLocalLobby() {
+    this.local = true;
+    this.myId = 'me';
+    const mk = (side, depth) => ({
+      side, depth, kind: 'open', id: null, name: null,
+      bot: false, difficulty: this.sel.difficulty || 'normal', race: 'humans', ready: true,
+    });
+    this.lobby = {
+      code: '', hostId: 'me', maxPerSide: 3, local: true,
+      slots: [0, 1].map((s) => [0, 1, 2].map((d) => mk(s, d))), chat: [],
+    };
+    const mine = this.lobby.slots[0][0];
+    mine.kind = 'player'; mine.id = 'me'; mine.name = this.playerName;
+    mine.race = this.sel.player; mine.ready = true;
+    const foe = this.lobby.slots[1][0]; // one enemy bot so it's playable at once
+    foe.kind = 'bot'; foe.bot = true; foe.race = this.sel.enemy || 'orcs';
+    this.go('lobby');
+    this.renderLobby();
+  }
+  // offline equivalent of the server's lobby handlers
+  applyLocal(a) {
+    const r = this.lobby;
+    if (!r) return;
+    const at = (s, d) => r.slots[s ? 1 : 0][Math.max(0, Math.min(2, d | 0))];
+    if (a.action === 'start') {
+      // same countdown + loading as any other match; runLoading() hands the
+      // roster to main.js at the end
+      this.local = false;
+      this.soloRoster = this.localRoster();
+      this.play();
+      return;
+    }
+    if (a.action === 'race') { const m = this.mySlot(); if (m) { m.race = a.race; this.sel.player = a.race; } }
+    else if (a.action === 'slot') {
+      const sl = at(a.side, a.depth);
+      if (sl.kind === 'player') return;
+      if (a.kind === 'bot') {
+        sl.kind = 'bot'; sl.bot = true; sl.name = null;
+        if (a.race) sl.race = a.race;
+        if (a.difficulty) sl.difficulty = a.difficulty;
+      } else { sl.kind = a.kind === 'closed' ? 'closed' : 'open'; sl.bot = false; }
+    } else if (a.action === 'move') {
+      // offline you also move YOURSELF (there's nobody to ask)
+      const A = at(a.fromSide, a.fromDepth); const B = at(a.toSide, a.toDepth);
+      if (A === B) return;
+      const keep = { kind: A.kind, bot: A.bot, difficulty: A.difficulty, race: A.race, id: A.id, name: A.name, ready: A.ready };
+      Object.assign(A, { kind: B.kind, bot: B.bot, difficulty: B.difficulty, race: B.race, id: B.id, name: B.name, ready: B.ready });
+      Object.assign(B, keep);
+    }
+    this.renderLobby();
+  }
+  // the seated commanders in layout order — the shape main.js starts a match from
+  localRoster() {
+    const out = [];
+    for (const side of [0, 1]) {
+      for (const sl of this.lobby.slots[side]) {
+        if (sl.kind === 'player') out.push({ side, race: sl.race, bot: false, difficulty: 'normal', name: sl.name });
+        else if (sl.kind === 'bot') out.push({ side, race: sl.race, bot: true, difficulty: sl.difficulty || 'normal' });
+      }
+    }
+    return out;
+  }
+
   onLobbyClick(t) {
     const d = t.dataset;
-    const send = (o) => { if (this.hooks.onLobby) this.hooks.onLobby(o); };
+    if (d.lb === 'local') { this.showLocalLobby(); return; }
+    // offline rooms never touch the network
+    const send = (o) => {
+      if (this.local) { this.applyLocal(o); return; }
+      if (this.hooks.onLobby) this.hooks.onLobby(o);
+    };
     switch (d.lb) {
       case 'say': this.lobbySay(); return;
       case 'copy': this.copyCode(); return;
@@ -253,8 +360,13 @@ export class Menu {
   renderLobby() {
     const r = this.lobby;
     if (!r) return;
+    const solo = !!r.local;
+    const screen = this.el.querySelector('.m-screen[data-screen="lobby"]');
+    if (screen) screen.classList.toggle('solo', solo); // hides chat/code/ready
     const code = this.el.querySelector('#lb-code');
     if (code) code.textContent = r.code || '';
+    const headT = this.el.querySelector('.lb-head-t');
+    if (headT) headT.textContent = solo ? 'Cameră de antrenament' : 'Cod cameră';
     const host = this.isHost();
     const mine = this.mySlot();
     const seated = [];
@@ -300,7 +412,8 @@ export class Menu {
     const hint = this.el.querySelector('#lb-hint');
     if (hint) {
       let msg = '';
-      if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot sau așteaptă un jucător.`;
+      if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot${solo ? '.' : ' sau așteaptă un jucător.'}`;
+      else if (solo) msg = `Meci de antrenament ${n[0]}v${n[1]}${n[0] !== n[1] ? ' (asimetric: tabăra mică primește bonus de venit)' : ''}.`;
       else if (waiting.length) msg = `Se așteaptă: ${waiting.map((sl) => esc(sl.name || 'Player')).join(', ')}`;
       else if (!host) msg = 'Gazda pornește meciul.';
       else msg = `Sloturile goale dispar — pornești ${n[0]}v${n[1]}${n[0] !== n[1] ? ' (asimetric: tabăra mică primește bonus de venit)' : ''}.`;
@@ -325,6 +438,8 @@ export class Menu {
       body += isMe
         ? `<div class="lb-races">${RACES.map((rc) => `<button class="lb-race ${sl.race === rc ? 'sel' : ''}" data-lb="race" data-r="${rc}">${RACE_RO[rc] || rc}</button>`).join('')}</div>`
         : `<div class="lb-races"><span class="lb-race sel ro">${RACE_RO[sl.race] || sl.race}</span></div>`;
+      // offline you shuffle your own seat freely; online you must ASK the other
+      if (isMe && this.lobby.local) ctl += this.moveBtns(sl);
       if (!isMe) ctl += `<button class="lb-mini" title="Cere schimb de poziție" data-lb="swap" data-id="${sl.id}">⇄</button>`;
       if (host && !isMe) ctl += `<button class="lb-mini bad" title="Dă afară" data-lb="kick" data-id="${sl.id}">✖</button>`;
     } else if (sl.kind === 'bot') {
@@ -753,6 +868,8 @@ export class Menu {
       fill.style.transition = 'width 0.2s ease'; fill.style.width = '100%';
       this.later(() => {
         if (this.netPending) { this.netPending = false; if (this.hooks.onNetReveal) this.hooks.onNetReveal(); }
+        // the roster is kept so "Rematch" replays the same room
+        else if (this.soloRoster && this.hooks.onStartRoster) this.hooks.onStartRoster(this.soloRoster);
         else if (this.hooks.onStart) this.hooks.onStart({ ...this.sel });
         this.hide();
       }, 200);
@@ -845,17 +962,20 @@ const TEMPLATE = `
       <button class="m-card" data-fmt="1v3"><span class="m-card-t">1v3</span></button>
       <button class="m-card" data-fmt="2v3"><span class="m-card-t">2v3</span></button>
     </div>
+    <div class="m-btns">
+      <button class="m-btn" data-lb="local">🛡&nbsp;&nbsp;Create room</button>
+    </div>
+    <p class="m-hint">Îți aranjezi singur tabăra: poziții, rase și boți, în orice format.</p>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
   <section class="m-screen hidden" data-screen="format-mp">
     <h2 class="m-title">Multiplayer</h2>
-    <div class="m-cards">
-      <button class="m-card" data-go="mp-setup"><span class="m-card-t">1v1</span></button>
-      <button class="m-card" data-go="mp-friends"><span class="m-card-t">2v2</span></button>
-      <button class="m-card" data-go="mp-friends"><span class="m-card-t">3v3</span></button>
-      <button class="m-card wide pwf-card" data-go="mp-friends"><span class="m-card-t">👥 Play with friends</span></button>
+    <div class="m-btns">
+      <button class="m-btn primary" data-go="mp-friends">➕&nbsp;&nbsp;Create a room</button>
+      <button class="m-btn" data-go="mp-join">🔎&nbsp;&nbsp;Join a room</button>
     </div>
+    <button class="m-btn ghost" data-go="mp-setup">⚔ Meci rapid 1v1</button>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
@@ -869,11 +989,26 @@ const TEMPLATE = `
   </section>
 
   <section class="m-screen hidden" data-screen="mp-friends">
-    <h2 class="m-title">Play with friends</h2>
+    <h2 class="m-title">Create a room</h2>
     <div class="m-setup">
       <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
     </div>
-    <button class="m-btn primary big play-btn" data-mp="create"><span class="m-play-txt">➕&nbsp;&nbsp;Creează cameră</span></button>
+    <div class="m-btns">
+      <button class="m-btn primary" data-mp="create">🌐&nbsp;&nbsp;Cameră publică</button>
+      <button class="m-btn" data-mp="create-private">🔒&nbsp;&nbsp;Cameră privată</button>
+    </div>
+    <p class="m-hint">Publică apare în lista tuturor · Privată se intră doar cu codul.</p>
+    <button class="m-back" data-go="format-mp"><span class="m-back-txt">◄ Înapoi</span></button>
+  </section>
+
+  <section class="m-screen hidden" data-screen="mp-join">
+    <h2 class="m-title">Join a room</h2>
+    <div class="m-setup">
+      <div class="m-row"><span class="m-label">Your Race</span>${races('player')}</div>
+    </div>
+    <div id="mp-rooms" class="mp-rooms"></div>
+    <button class="m-btn ghost mp-refresh" data-mp="refresh">🔄&nbsp;&nbsp;Reîmprospătează</button>
+    <p class="m-hint">Ai un cod de la un prieten? Scrie-l aici:</p>
     <div class="m-row mp-join-row">
       <input id="mp-code" class="mp-code-input" maxlength="4" placeholder="COD" autocomplete="off" spellcheck="false">
       <button class="m-btn" data-mp="join">Intră</button>

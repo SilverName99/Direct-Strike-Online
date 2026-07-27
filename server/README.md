@@ -85,13 +85,14 @@ sudo systemctl restart fh-server
 
 ## Protocol (v3)
 
-Client → server: `hello{name}`, `quickmatch{race}`, `create{race}`,
-`join{code,race}`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`,
+Client → server: `hello{name}`, `quickmatch{race}`, `create{race,private}`,
+`join{code,race}`, `rooms`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`,
 plus the lobby: `lobby_race{race}`, `lobby_ready{ready}`, `lobby_chat{text}`,
 `lobby_slot{side,depth,kind,difficulty,race}`, `lobby_kick{id}`,
 `lobby_move{fromSide,fromDepth,toSide,toDepth}`, `lobby_swap_req{id}`,
 `lobby_swap_reply{id,accept}`, `lobby_start`.
 Server → client: `welcome{id}`, `queued`, `room{code}`, `lobby{room}`,
+`roomlist{rooms}` (public rooms with a free seat: code, host, players, bots, max),
 `swap_req{from,name}`, `swap_declined{name}`, `kicked`, `start{seed,youAre,
 roster,races,sides,inputDelay,tickHz}`, `cmd{tick,team,cmd}`, `clock{tick}`,
 `desync{tick}`, `player_left{index,name,reason}`, `opp_left`, `error{reason}`,

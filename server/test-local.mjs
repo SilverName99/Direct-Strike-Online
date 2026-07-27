@@ -134,6 +134,32 @@ ok(hs && hs.sides.filter((x) => x === 0).length === 2 && hs.sides.filter((x) => 
    'asymmetric 2v1 falls out of who was seated');
 ok(hs && hs.roster.some((r) => r.bot && r.difficulty === 'hard'), 'the bot travels with its difficulty');
 
+// ---- 4b) the room browser: public rooms are listed, private ones are not ----
+const pub = await connect('Publicu');
+const priv = await connect('Secretos');
+say(pub, { t: 'create', race: 'humans' });
+const pubRoom = await waitFor(pub, 'room');
+say(priv, { t: 'create', race: 'orcs', private: true });
+const privRoom = await waitFor(priv, 'room');
+const browser = await connect('Cautatorul');
+say(browser, { t: 'rooms' });
+const list = await waitFor(browser, 'roomlist');
+const codes = (list.rooms || []).map((r) => r.code);
+ok(codes.includes(pubRoom.code), 'a public room shows up in the browser');
+ok(!codes.includes(privRoom.code), 'a private room stays hidden');
+const row = (list.rooms || []).find((r) => r.code === pubRoom.code);
+ok(row && row.host === 'Publicu' && row.players === 1 && row.max === 6,
+  `the row carries host + occupancy (${row && row.host} ${row && row.players}/${row && row.max})`);
+// a private room is still reachable BY CODE
+say(browser, { t: 'join', code: privRoom.code });
+const privLob = await waitFor(browser, 'lobby');
+ok(privLob && privLob.room.code === privRoom.code, 'a private room is joinable with its code');
+ok(privLob && privLob.room.public === false, 'the room reports itself as private');
+// ...and once it has someone, a FULL room drops off the list
+say(browser, { t: 'rooms' });
+const list2 = await waitFor(browser, 'roomlist');
+ok((list2.rooms || []).every((r) => r.code !== privRoom.code), 'still hidden after the join');
+
 // ---- 5) bad room code ----
 const x = await connect('Lost');
 x.byType.error = [];

@@ -249,57 +249,80 @@ function applyRandomMenuCursor() {
   applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
 }
 
+// Format ("1v1" | "2v2" | "3v3" | asymmetric "1v2"/"1v3"/"2v3") from the
+// Play-vs-AI cards: the human is PLAYER 0 (side 0 anchor), every side-0 player
+// shares the human's race and side 1 plays the AI race.
 function newGame(playerRace, enemyRace, difficulty, format = '1v1') {
+  const fm = /^([123])v([123])$/.exec(format || '1v1');
+  const nA = fm ? Number(fm[1]) : 1;
+  const nB = fm ? Number(fm[2]) : 1;
+  const roster = [];
+  for (let d = 0; d < nA; d++) roster.push({ side: 0, race: playerRace, bot: d > 0, difficulty });
+  for (let d = 0; d < nB; d++) roster.push({ side: 1, race: enemyRace, bot: true, difficulty });
+  newGameFromRoster(roster);
+}
+
+// Single player from a ROSTER — one entry per commander in layout order (side 0
+// back → front, then side 1): `{side, race, bot, difficulty}`. Exactly the
+// shape the lobby produces, so "Create room" vs the bots and the format cards
+// both land here. The human is whichever entry isn't a bot.
+function newGameFromRoster(roster) {
   if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
-  uiState.myTeam = 0;
-  setViewerTeam(0);
+  const me = Math.max(0, roster.findIndex((r) => !r.bot));
+  const mySide = roster[me] ? roster[me].side : 0;
+  const playerRace = roster[me] ? roster[me].race : 'humans';
+  uiState.myTeam = me;
+  setViewerTeam(me);
   renderer.resetFog(); // fresh fog of war for the new match
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-  const diff = CONFIG.DIFFICULTY[difficulty] || CONFIG.DIFFICULTY.normal;
-  setTeamRaces([playerRace, enemyRace]);
-  bottombar.refresh(); // shop reflects the player race at match start
   // middle-of-map terrain: the available uploaded variants + their effects,
   // plus N "empty" entries so some matches roll a plain middle; the sim picks
   // one at random (seeded) and applies its effect
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
   for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
 
-  // Format ("1v1" | "2v2" | "3v3" | asymmetric "1v2"/"1v3"/"2v3"): the human is
-  // always PLAYER 0 (side 0 anchor); every side-0 player shares the human's
-  // race, side 1 plays the AI race (the renderer resolves art per SIDE).
-  const fm = /^([123])v([123])$/.exec(format || '1v1');
-  const nA = fm ? Number(fm[1]) : 1;
-  const nB = fm ? Number(fm[2]) : 1;
+  const sides = roster.map((r) => (r.side ? 1 : 0));
+  const races = roster.map((r) => r.race || 'humans');
+  const nA = sides.filter((s) => s === 0).length;
+  const nB = sides.filter((s) => s === 1).length;
   applyModeLayout(nA, nB);       // battlefield geometry for the mode (1v1 = classic)
   minimap.resize();              // the minimap keeps the new field's aspect
   const teamMode = nA > 1 || nB > 1;
   const lay = teamMode ? teamLayout(nA, nB) : null;
-  const races = lay ? lay.perPlayer.map((pp) => (pp.side === 0 ? playerRace : enemyRace)) : [playerRace, enemyRace];
-  const incomeMult = lay ? lay.perPlayer.map((pp) => (pp.side === 0 ? 1 : diff.incomeMult)) : [1, diff.incomeMult];
+  // only the ENEMY bots get their difficulty's income edge; allied bots play
+  // on the same economy you do
+  const incomeMult = roster.map((r, i) => {
+    if (sides[i] === mySide) return 1;
+    const d = CONFIG.DIFFICULTY[r.difficulty] || CONFIG.DIFFICULTY.normal;
+    return d.incomeMult;
+  });
   // art identity is per COMMANDER: races indexed by player + each player's side
-  setTeamRaces(races, lay ? lay.perPlayer.map((pp) => pp.side) : [0, 1]);
-  bottombar.refresh();
+  setTeamRaces(races, sides);
+  bottombar.refresh(); // shop reflects the player race at match start
   game = new Game(seed, { races, incomeMult, middles, ...(lay ? { layout: lay } : {}) });
   window.__game = game; // debug/test handle (render side only; sim never reads it)
   window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)
   window.__bb = bottombar; // debug/test handle (inspect the command grid state)
-  // bots: every player except the human. Player 1 keeps the historical seed so
-  // classic 1v1 behaves exactly as before; extra bots get their own streams.
+  // bots: every player except the human. The first one keeps the historical
+  // seed so classic 1v1 behaves exactly as before.
   ais = [];
-  for (let p = 1; p < game.players.length; p++) {
-    ais.push(new AIController(p, difficulty, (seed ^ (0x9e3779b9 + (p - 1) * 0x85ebca6b)) >>> 0, resolvedAIGenome()));
+  for (let p = 0; p < game.players.length; p++) {
+    if (p === me) continue;
+    const r = roster[p] || {};
+    const n = ais.length;
+    ais.push(new AIController(p, r.difficulty || 'normal', (seed ^ (0x9e3779b9 + n * 0x85ebca6b)) >>> 0, resolvedAIGenome()));
   }
-  ai = ais.find((b) => game.sideOf(b.team) === 1) || ais[0] || null; // debug overlay: first enemy bot
+  ai = ais.find((b) => game.sideOf(b.team) !== mySide) || ais[0] || null; // debug overlay: first enemy bot
   // ally-zone snapping: the human may invest inside allied zones (X% allowance)
   // and — once baseless — park army in the allied strips (the sim validates)
-  const allies = teamMode ? game.playersOnSide(0).filter((p) => p !== 0) : [];
+  const allies = teamMode ? game.playersOnSide(mySide).filter((p) => p !== me) : [];
   setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
   effects.reset();
   uiState.selected = null;
   uiState.drag = null;
   uiState.inspect = null;
-  const myMain = game.mainOfPlayer(0);
-  camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[0], CONFIG.MAIN.y);
+  const myMain = game.mainOfPlayer(me);
+  camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[mySide], CONFIG.MAIN.y);
   state = 'playing';
   startMusic(playerRace);
   applyCursor(playerRace);
@@ -327,6 +350,7 @@ async function ensureNet() {
   net.on('start', (m) => startNetMatch(m));
   // ---- the lobby ("cameră") ----
   net.on('lobby', (m) => menu.showLobby(m.room, net.id));
+  net.on('roomlist', (m) => menu.showRooms(m.rooms));
   net.on('swap_req', (m) => menu.showSwapAsk(m.from, m.name));
   net.on('swap_declined', (m) => toast(`${m.name} nu vrea să schimbe poziția`));
   net.on('kicked', () => { menu.hideSwapAsk(); menu.netError('Ai fost dat afară din cameră.'); });
@@ -351,15 +375,18 @@ function lobbyAction(a) {
     default: break;
   }
 }
-async function netAction({ action, race, code }) {
-  menu.netWaiting('Mă conectez…');
+async function netAction({ action, race, code, private: isPrivate }) {
+  // the room browser refreshes in place — no "connecting…" screen for it
+  if (action !== 'rooms') menu.netWaiting('Mă conectez…');
   try {
     const n = await ensureNet();
     if (action === 'quick') n.quickmatch(race);
-    else if (action === 'create') n.createRoom(race);
+    else if (action === 'create') n.createRoom(race, isPrivate);
     else if (action === 'join') n.joinRoom(code, race);
+    else if (action === 'rooms') n.listRooms();
   } catch {
-    menu.netError('Nu mă pot conecta la serverul de joc. Încearcă din nou.');
+    if (action === 'rooms') menu.showRooms([]);
+    else menu.netError('Nu mă pot conecta la serverul de joc. Încearcă din nou.');
   }
 }
 // Opponent found: build the SAME deterministic Game on both clients and start
@@ -445,6 +472,7 @@ const menu = new Menu(document.getElementById('overlay'), {
     applyCursor(player);
   },
   onStart: ({ player, enemy, difficulty, format }) => newGame(player, enemy, difficulty, format),
+  onStartRoster: (roster) => newGameFromRoster(roster), // offline room (you + bots)
   onNet: (a) => netAction(a),             // quick / create / join from the menu
   onLobby: (a) => lobbyAction(a),         // every button inside the "cameră"
   onNameChange: (name) => { if (net) net.setName(name); }, // carries into the room

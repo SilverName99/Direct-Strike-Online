@@ -185,9 +185,12 @@ const SLOT_OPEN = 'open';
 const SLOT_CLOSED = 'closed';
 
 class Room {
-  constructor(code, host) {
+  constructor(code, host, isPublic = true) {
     this.code = code;
     this.hostId = host.id;
+    // PUBLIC rooms show up in the browser's room list; PRIVATE ones are
+    // reachable only by their code. Chosen when the room is created.
+    this.public = !!isPublic;
     this.chat = [];
     // slots[side][depth] — depth 0 = anchor (back), last = vanguard (front)
     this.slots = [0, 1].map((side) => Array.from({ length: MAX_PER_SIDE }, (_, depth) => ({
@@ -235,9 +238,23 @@ class Room {
     return out;
   }
 
+  // one line for the room browser: who hosts it, how full it is
+  listing() {
+    const seated = this.roster();
+    const host = clients.get(this.hostId);
+    return {
+      code: this.code,
+      host: host ? host.name : 'Player',
+      players: seated.filter((s) => !s.bot).length,
+      bots: seated.filter((s) => s.bot).length,
+      max: MAX_PER_SIDE * 2,
+      sides: [0, 1].map((side) => seated.filter((s) => s.side === side).length),
+    };
+  }
+
   state() {
     return {
-      code: this.code, hostId: this.hostId, maxPerSide: MAX_PER_SIDE,
+      code: this.code, hostId: this.hostId, maxPerSide: MAX_PER_SIDE, public: this.public,
       slots: this.slots.map((side) => side.map((sl) => {
         const c = sl.connId ? clients.get(sl.connId) : null;
         return {
@@ -347,11 +364,22 @@ function onMessage(conn, raw) {
       leaveQueueAndRooms(conn);
       conn.race = raceOf(msg.race);
       let c; do { c = code4(); } while (rooms.has(c));
-      const room = new Room(c, conn);
+      const room = new Room(c, conn, !msg.private);
       rooms.set(c, room);
       room.say(`${conn.name} a creat camera`);
       send(conn, { t: 'room', code: c });
       room.broadcast();
+      return;
+    }
+
+    // the room browser: every PUBLIC room that still has a free seat
+    case 'rooms': {
+      const list = [];
+      for (const room of rooms.values()) {
+        if (!room.public || !room.firstOpen()) continue;
+        list.push(room.listing());
+      }
+      send(conn, { t: 'roomlist', rooms: list });
       return;
     }
 

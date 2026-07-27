@@ -53,7 +53,9 @@ export class NetClient {
   // ---- matchmaking ---- (race = the race you picked; the server puts every
   // player's race in `start.races`, indexed by player)
   quickmatch(race) { this.send({ t: 'quickmatch', race }); }
-  createRoom(race) { this.send({ t: 'create', race }); }
+  // isPrivate: the room stays out of the browser's list (code-only)
+  createRoom(race, isPrivate = false) { this.send({ t: 'create', race, private: !!isPrivate }); }
+  listRooms() { this.send({ t: 'rooms' }); }
   joinRoom(code, race) { this.send({ t: 'join', code: String(code || '').toUpperCase().trim(), race }); }
   leave() { this.send({ t: 'leave' }); }
 
