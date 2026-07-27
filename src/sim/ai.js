@@ -107,9 +107,88 @@ export class AIController {
     }
   }
 
+  // ---- player/side helpers (team modes) ---------------------------------
+  // The AI controls one PLAYER; its battlefield SIDE drives direction/mirroring
+  // (1v1: side === player, so everything below matches the historical behavior).
+  side(game) {
+    return game.sideOf ? game.sideOf(this.team) : this.team;
+  }
+
+  // The construction strip this AI builds in: its OWN living zone, else (fallen)
+  // the first allied living zone — the fallen bot keeps helping its team.
+  buildZone(game) {
+    const zs = game.zones;
+    if (zs && zs[this.team] && zs[this.team].alive) return zs[this.team].build;
+    if (zs && game.playersOnSide) {
+      for (const q of game.playersOnSide(this.side(game))) {
+        if (q !== this.team && zs[q].alive) return zs[q].build;
+      }
+    }
+    return CONFIG.CONSTRUCTION_ZONE[this.team]; // classic fallback
+  }
+
+  // Same idea for the army strip.
+  armyZone(game) {
+    const zs = game.zones;
+    if (zs && zs[this.team] && zs[this.team].alive) return zs[this.team].army;
+    if (zs && game.playersOnSide) {
+      for (const q of game.playersOnSide(this.side(game))) {
+        if (q !== this.team && zs[q].alive) return zs[q].army;
+      }
+    }
+    return CONFIG.ARMY_ZONE[this.team]; // classic fallback
+  }
+
+  // The side's forward pocket by the mid turret.
+  midZone(game) {
+    if (game.midBuild) return game.midBuild[this.side(game)];
+    return CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+  }
+
+  // Every ENEMY player's parked templates, with their owner (for per-race stats).
+  enemyTemplates(game) {
+    const es = 1 - this.side(game);
+    const out = [];
+    const players = game.playersOnSide ? game.playersOnSide(es) : [es];
+    for (const q of players) for (const tpl of game.templates[q]) out.push({ owner: q, tpl });
+    return out;
+  }
+
+  // Fallen bot: raise a NEW main inside an allied living zone (grid sweep).
+  tryRebuildBase(game) {
+    const zs = game.zones;
+    if (!zs || !game.playersOnSide) return false;
+    for (const q of game.playersOnSide(this.side(game))) {
+      if (q === this.team || !zs[q].alive) continue;
+      const z = zs[q].build;
+      for (let i = 0; i < 16; i++) {
+        const x = z.x0 + 60 + this.rng() * (z.x1 - z.x0 - 120);
+        const y = z.y0 + 60 + this.rng() * (z.y1 - z.y0 - 120);
+        if (game.issueCommand({ type: 'build', team: this.team, kind: 'main', x, y }).ok) return true;
+      }
+    }
+    return false;
+  }
+
   think(game) {
     const t = this.team;
     const money = game.money[t];
+
+    // 0.2 FALLEN (team modes): the zone is gone and no main stands — rebuilding
+    // the base is the top priority (it restores tier-ups and the win anchor).
+    if (game.zones && game.zones[t] && !game.zones[t].alive) {
+      const live = game.mainOfPlayer ? game.mainOfPlayer(t) : null;
+      if (!live || live.hp <= 0) {
+        const price = CONFIG.TEAM_MAIN_REBUILD_COST != null ? CONFIG.TEAM_MAIN_REBUILD_COST : 400;
+        if (money >= price) {
+          this.intent = '🏰 reconstruiește baza (la aliat)';
+          if (this.tryRebuildBase(game)) return;
+        } else {
+          this.intent = `💰 economisește ${Math.ceil(price)} → bază nouă`;
+          return;
+        }
+      }
+    }
 
     // Occasionally adopt a "push the middle" posture: muster the whole army on
     // the front rows so it reaches (and holds) midfield sooner. Worth chasing
@@ -262,7 +341,7 @@ export class AIController {
     // forward pocket (saving for it so it actually happens), then thread a wall
     // line across its enemy-facing edge. Paced + capped so it fortifies the mid
     // turret without starving the army.
-    if (game.waveCount >= 2 && CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[t]) {
+    if (game.waveCount >= 2 && this.midZone(game)) {
       const midTowers = this.countMidStructures(game, 'tower');
       const towerCost = game.bstat(t, 'tower').cost;
       if (midTowers < this.g.midTowers && game.waveCount >= this.midNextTowerWave && game.buildCdLeft(t, 'tower') === 0) {
@@ -275,7 +354,7 @@ export class AIController {
         }
       }
       // once a tower stands out there, thread a cheap wall line across its front
-      if (!this.midWallsPlanned && midTowers >= 1) { this.midWallsPlanned = true; this.midWallQueue = this.midWallLine(); }
+      if (!this.midWallsPlanned && midTowers >= 1) { this.midWallsPlanned = true; this.midWallQueue = this.midWallLine(game); }
       if (this.midWallQueue && this.midWallQueue.length > 0 && money >= game.bstat(t, 'wall').cost + 60) {
         const p = this.midWallQueue.shift(); // taken-or-not, drop it
         if (game.issueCommand({ type: 'build', team: t, kind: 'wall', x: p.x, y: p.y }).ok) return;
@@ -284,11 +363,11 @@ export class AIController {
 
     // 3. Defensive reaction: our base took damage -> towers, then (at T2+)
     // a one-time wall arc in front of the main base.
-    const main = game.mainOf(t);
+    const main = game.mainOfPlayer ? game.mainOfPlayer(t) : game.mainOf(t);
     const threatened =
-      (main && main.hp < main.maxHp * 0.995) ||
+      (main && main.hp > 0 && main.hp < main.maxHp * 0.995) ||
       game.structures.some(
-        (s) => s.team === t && s.kind === 'generator' && s.hp > 0 && s.hp < s.maxHp
+        (s) => (s.owner != null ? s.owner : s.team) === t && s.kind === 'generator' && s.hp > 0 && s.hp < s.maxHp
       );
     if (threatened && game.countKind(t, 'tower') < 3) {
       if (money >= game.bstat(t, 'tower').cost) {
@@ -426,15 +505,14 @@ export class AIController {
   // most out-of-position unit back into its role band. Returns true if acted.
   manageArmy(game) {
     const t = this.team;
-    const et = 1 - t;
     const tpls = game.templates[t];
     if (tpls.length === 0) return false;
 
-    // enemy air share (by cost)
+    // enemy air share (by cost) — across EVERY enemy commander's army
     let etotal = 0;
     let eair = 0;
-    for (const tpl of game.templates[et]) {
-      const s = game.ustat(et, tpl.type);
+    for (const { owner, tpl } of this.enemyTemplates(game)) {
+      const s = game.ustat(owner, tpl.type);
       etotal += s.cost;
       if (s.isAir) eair += s.cost;
     }
@@ -479,13 +557,14 @@ export class AIController {
     }
 
     // C) Rearrange: move the unit farthest outside its role band back into it.
-    const zone = CONFIG.ARMY_ZONE[t];
+    const zone = this.armyZone(game);
+    const side = this.side(game);
     const depth = zone.x1 - zone.x0;
     let worst = -1;
     let worstErr = 30; // ignore small offsets
     for (let i = 0; i < tpls.length; i++) {
       const band = ROLE_BANDS[roleOf(game.ustat(t, tpls[i].type))];
-      const frac = t === 1 ? (tpls[i].x - zone.x0) / depth : (zone.x1 - tpls[i].x) / depth;
+      const frac = side === 1 ? (tpls[i].x - zone.x0) / depth : (zone.x1 - tpls[i].x) / depth;
       const target = clamp(frac, band[0], band[1]);
       const err = Math.abs(frac - target) * depth;
       if (err > worstErr) { worstErr = err; worst = i; }
@@ -494,7 +573,7 @@ export class AIController {
       const band = ROLE_BANDS[roleOf(game.ustat(t, tpls[worst].type))];
       for (let attempt = 0; attempt < 6; attempt++) {
         const frac = band[0] + this.rng() * (band[1] - band[0]);
-        const x = t === 1 ? zone.x0 + frac * depth : zone.x1 - frac * depth;
+        const x = side === 1 ? zone.x0 + frac * depth : zone.x1 - frac * depth;
         const y = clamp(tpls[worst].y + (this.rng() * 2 - 1) * 40, zone.y0 + 16, zone.y1 - 16);
         if (game.issueCommand({ type: 'moveUnit', team: t, index: worst, x, y }).ok) return true;
       }
@@ -510,14 +589,17 @@ export class AIController {
 
   // Try a handful of candidate spots; the sim validates zone/overlap.
   tryBuild(game, kind) {
-    // mines go only on their predefined plots — aim straight at a free one
-    if (kind === 'generator' && game.mineSpots) {
+    // classic 1v1: mines go only on their predefined plots — aim straight at a
+    // free one. Team modes have NO plots (empty list): fall through and place
+    // the mine freely like any other building.
+    if (kind === 'generator' && game.mineSpots && game.mineSpots[this.team].length) {
       for (const p of game.mineSpots[this.team]) {
         if (game.issueCommand({ type: 'build', team: this.team, kind, x: p.x, y: p.y }).ok) return true;
       }
       return false;
     }
-    const zone = CONFIG.CONSTRUCTION_ZONE[this.team];
+    const zone = this.buildZone(game);
+    const side = this.side(game);
     const w = zone.x1 - zone.x0;
     for (let i = 0; i < 12; i++) {
       let x;
@@ -525,12 +607,12 @@ export class AIController {
       if (kind === 'generator' || kind === 'farm' || TECH_BUILDINGS.includes(kind)) {
         // tucked toward the back edge, spread vertically
         const off = 30 + this.rng() * w * 0.4;
-        x = this.team === 1 ? zone.x1 - off : zone.x0 + off;
+        x = side === 1 ? zone.x1 - off : zone.x0 + off;
         y = zone.y0 + 60 + this.rng() * (zone.y1 - zone.y0 - 120);
       } else {
         // towers guard the front edge of the construction zone
         const off = 30 + this.rng() * 90;
-        x = this.team === 1 ? zone.x0 + off : zone.x1 - off;
+        x = side === 1 ? zone.x0 + off : zone.x1 - off;
         y = CONFIG.MAIN.y + (this.rng() * 2 - 1) * 420;
       }
       if (game.issueCommand({ type: 'build', team: this.team, kind, x, y }).ok) return true;
@@ -541,15 +623,15 @@ export class AIController {
   // How many living structures of `kind` we have inside the forward build
   // pocket (around the front turret).
   countMidStructures(game, kind) {
-    const z = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+    const z = this.midZone(game);
     if (!z) return 0;
-    return game.structures.filter((s) => s.team === this.team && s.kind === kind && s.hp > 0
+    return game.structures.filter((s) => (s.owner != null ? s.owner : s.team) === this.team && s.kind === kind && s.hp > 0
       && s.x >= z.x0 && s.x <= z.x1 && s.y >= z.y0 && s.y <= z.y1).length;
   }
 
   // Place a building somewhere free inside the forward pocket (a few tries).
   tryBuildMid(game, kind) {
-    const z = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+    const z = this.midZone(game);
     if (!z) return false;
     for (let i = 0; i < 14; i++) {
       const x = z.x0 + 20 + this.rng() * (z.x1 - z.x0 - 40);
@@ -560,10 +642,10 @@ export class AIController {
   }
 
   // A vertical wall line along the ENEMY-facing edge of the forward pocket.
-  midWallLine() {
-    const z = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[this.team];
+  midWallLine(game) {
+    const z = this.midZone(game);
     if (!z) return [];
-    const frontX = this.team === 0 ? z.x1 - 20 : z.x0 + 20; // toward the enemy
+    const frontX = this.side(game) === 0 ? z.x1 - 20 : z.x0 + 20; // toward the enemy
     const pts = [];
     for (let y = z.y0 + 40; y <= z.y1 - 40; y += 40) pts.push({ x: frontX, y });
     return pts;
@@ -571,9 +653,9 @@ export class AIController {
 
   // Arc of wall spots shielding the main base from the enemy side.
   wallArc(game) {
-    const main = game.mainOf(this.team);
-    if (!main) return [];
-    const dir = this.team === 0 ? 1 : -1;
+    const main = game.mainOfPlayer ? game.mainOfPlayer(this.team) : game.mainOf(this.team);
+    if (!main || main.hp <= 0) return [];
+    const dir = this.side(game) === 0 ? 1 : -1;
     const pts = [];
     for (let deg = -70; deg <= 70; deg += 28) {
       const rad = (deg * Math.PI) / 180;
@@ -590,16 +672,15 @@ export class AIController {
   // splash vs cheap swarms — whatever units happen to carry those traits.
   pickCounter(game) {
     const t = this.team;
-    const et = 1 - t;
-    const enemy = game.templates[et];
+    const enemy = this.enemyTemplates(game);
     if (enemy.length === 0) return null;
 
     let total = 0;
     let air = 0;
     let armored = 0;
     let swarm = 0;
-    for (const tpl of enemy) {
-      const s = game.ustat(et, tpl.type);
+    for (const { owner, tpl } of enemy) {
+      const s = game.ustat(owner, tpl.type);
       total += s.cost;
       if (s.isAir) air += s.cost;
       if (s.armor === 'armored') armored += s.cost;
@@ -684,22 +765,23 @@ export class AIController {
   }
 
   pickPlacement(game, unitId) {
-    const zone = CONFIG.ARMY_ZONE[this.team];
+    const zone = this.armyZone(game);
+    const side = this.side(game);
     // aggressive posture: muster EVERYTHING on the front rows (nearest the
     // middle) so the army pushes for the mid income sooner; otherwise place by
     // role (melee front, ranged mid, artillery/support back)
     const band = this.aggro ? ROLE_BANDS.front : ROLE_BANDS[roleOf(game.ustat(this.team, unitId))];
     const frac = band[0] + this.rng() * (band[1] - band[0]);
     const depth = zone.x1 - zone.x0;
-    // The edge facing the enemy: x0 for the right team, x1 for the left.
+    // The edge facing the enemy: x0 for the right side, x1 for the left.
     const x =
-      this.team === 1 ? zone.x0 + frac * depth : zone.x1 - frac * depth;
+      side === 1 ? zone.x0 + frac * depth : zone.x1 - frac * depth;
 
-    // Bias y toward the enemy army's center of mass.
-    const enemy = game.templates[1 - this.team];
+    // Bias y toward the enemy army's center of mass (every enemy commander).
+    const enemy = this.enemyTemplates(game);
     let avgY = CONFIG.MAIN.y; // lane center (the field extends lower as scenery)
     if (enemy.length > 0) {
-      avgY = enemy.reduce((s, tpl) => s + tpl.y, 0) / enemy.length;
+      avgY = enemy.reduce((s, e) => s + e.tpl.y, 0) / enemy.length;
     }
     const y = clamp(
       avgY + (this.rng() * 2 - 1) * 220,

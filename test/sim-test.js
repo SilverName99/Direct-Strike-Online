@@ -2915,6 +2915,60 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
       const rup = g2.issueCommand({ type: 'upgradeBase', team: 1 });
       check('p2: baseless p1 cannot tier up (no base)', !rup.ok && rup.reason === 'no-base');
     }
+    // ---- Phase 3: base rebuild + multi-commander AI
+    console.log('team-modes phase 3 (base rebuild, allied/enemy bots)');
+    {
+      const g3 = new Game(350, { layout: lay, races: ['humans', 'humans', 'orcs', 'orcs'] });
+      for (let p = 0; p < 4; p++) g3.money[p] = 10000;
+      const m1 = g3.structures.find((s) => s.kind === 'main' && s.owner === 1);
+      g3.removeStructure(m1, true); g3.drainEvents(); // p1 falls, zone collapses
+      // rebuilding inside the DEAD own zone is refused; at the ally it works
+      const z1b = g3.zones[1].build, z0b = g3.zones[0].build;
+      check('p3: rebuild refused in your own dead zone',
+        !g3.issueCommand({ type: 'build', team: 1, kind: 'main', x: (z1b.x0 + z1b.x1) / 2, y: 400 }).ok);
+      const rr = g3.issueCommand({ type: 'build', team: 1, kind: 'main', x: z0b.x0 + 140, y: 240 });
+      check('p3: fallen player rebuilds the base at an ally', rr.ok, rr.reason);
+      const nm = g3.structures.find((s) => s.kind === 'main' && s.owner === 1 && s.hp > 0);
+      check('p3: the new main rises as a construction site', !!nm && nm.building === true);
+      check('p3: no second base while one stands', !g3.issueCommand({ type: 'build', team: 1, kind: 'main', x: z0b.x0 + 140, y: 700 }).ok);
+      for (let i = 0; i < 31 / CONFIG.FIXED_DT; i++) { g3.update(CONFIG.FIXED_DT); g3.drainEvents(); }
+      check('p3: rebuilt base finishes (~30s)', nm.building === false && nm.hp > nm.maxHp * 0.9);
+      check('p3: tier-up works again with the rebuilt base', g3.issueCommand({ type: 'upgradeBase', team: 1 }).ok);
+      // the rebuilt main counts for the win condition: enemy must break it too
+      const m0 = g3.structures.find((s) => s.kind === 'main' && s.owner === 0);
+      g3.removeStructure(m0, true);
+      check('p3: side lives on the REBUILT base alone', g3.winner === null);
+      g3.removeStructure(nm, true);
+      check('p3: breaking the rebuilt base fells the side', g3.winner === 1);
+    }
+    // allied + enemy bots run their own zones/economies in a 2v2
+    {
+      const g4 = new Game(360, { layout: lay, races: ['humans', 'humans', 'orcs', 'orcs'] });
+      const bots = [1, 2, 3].map((p) => new AIController(p, 'normal', 500 + p)); // p0 = idle human
+      const DTF = CONFIG.FIXED_DT;
+      for (let i = 0; i < Math.round(50 / DTF); i++) {
+        for (const b of bots) b.update(g4, DTF);
+        g4.update(DTF); g4.drainEvents();
+      }
+      const inZone = (s, z) => s.x >= z.x0 && s.x <= z.x1 && s.y >= z.y0 && s.y <= z.y1;
+      check('p3: every bot grows its own economy', [1, 2, 3].every((p) => g4.countKind(p, 'generator') >= 1),
+        `gens ${[1, 2, 3].map((p) => g4.countKind(p, 'generator')).join(',')}`);
+      check('p3: bot mines stand inside THEIR own zones',
+        [1, 2, 3].every((p) => g4.structures.some((s) => s.kind === 'generator' && s.owner === p && inZone(s, g4.zones[p].build))));
+      check('p3: every bot fields an army', [1, 2, 3].every((p) => g4.templates[p].length > 0),
+        `tpl ${[1, 2, 3].map((p) => g4.templates[p].length).join(',')}`);
+      check('p3: the match stays undecided while all mains stand', g4.winner === null);
+      // fell the ALLIED bot's main: it must rebuild at the human anchor's zone
+      const mb = g4.structures.find((s) => s.kind === 'main' && s.owner === 1 && s.hp > 0);
+      g4.removeStructure(mb, true); g4.drainEvents();
+      g4.money[1] = 2000;
+      for (let i = 0; i < Math.round(8 / DTF); i++) {
+        for (const b of bots) b.update(g4, DTF);
+        g4.update(DTF); g4.drainEvents();
+      }
+      check('p3: the fallen allied bot rebuilds its base on its own',
+        g4.structures.some((s) => s.kind === 'main' && s.owner === 1 && s.hp > 0));
+    }
     // asymmetric 1v2: the lone player gets the settable income bonus
     {
       const layA = teamLayout(1, 2);

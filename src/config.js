@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v16.0';
+export const VERSION = 'v16.1';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -68,6 +68,8 @@ export const CONFIG = {
   TEAM_ALLY_PCT_CENTER: 20,  // ... inside an ally's center zone
   TEAM_ALLY_PCT_VANGUARD: 20,// ... inside an ally's vanguard zone
   TEAM_FALLEN_PCT: 50,       // Y% allowance once YOUR zone fell (replaces the X% above; mines allowed too)
+  TEAM_MAIN_REBUILD_COST: 400, // gold a fallen player pays to rebuild their main base at an ally's zone
+  TEAM_MAIN_REBUILD_TIME: 30,  // seconds the rebuilt base takes to raise (construction site; 0 = instant)
   TEAM_ASYM_1V2: 50,         // % income bonus for the smaller side in a 1v2
   TEAM_ASYM_1V3: 100,        // ... in a 1v3
   TEAM_ASYM_2V3: 30,         // ... in a 2v3

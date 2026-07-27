@@ -573,9 +573,12 @@ export class Game {
   // Actually advance the base to the next tier and apply all its effects
   // (base max HP + heal, tower scaling). Called immediately for an instant
   // upgrade, or from update() when the upgrade timer finishes.
-  // The player's OWN main base (team modes: one main per player).
+  // The player's OWN main base (team modes: one main per player). Prefers a
+  // LIVING one — a fallen player's ruined main stays as scenery, and a REBUILT
+  // main (at an ally's zone) must win over the ruin.
   mainOfPlayer(player) {
-    return this.structures.find((s) => s.kind === 'main' && (s.owner != null ? s.owner : s.team) === player) || null;
+    const own = (s) => s.kind === 'main' && (s.owner != null ? s.owner : s.team) === player;
+    return this.structures.find((s) => own(s) && s.hp > 0) || this.structures.find(own) || null;
   }
 
   applyTierUp(player) {
@@ -654,7 +657,9 @@ export class Game {
   // Footprint is a cw x ch cell rectangle; the whole box must fit the zone
   // and stay clear of existing structures (both treated as boxes).
   isValidBuildPlacement(team, kind, x, y, ignoreId = null) {
-    if (!CONFIG.BUILDINGS[kind]) return false;
+    // 'main' is only buildable through the REBUILD path (a fallen player raises
+    // a new base inside an ally's zone) — it's not in the regular catalog
+    if (kind !== 'main' && !CONFIG.BUILDINGS[kind]) return false;
     const ext = structureExtents(kind, this.bstat(team, kind));
     const boxFits = (z) => z && x - ext.hw >= z.x0 && x + ext.hw <= z.x1 && y - ext.hh >= z.y0 && y + ext.hh <= z.y1;
     // A building may go in: the player's OWN (living) construction zone, the
@@ -663,7 +668,7 @@ export class Game {
     // the player is baseless, which also unlocks mines there).
     const side = this.sideOf(team);
     let hosted = (this.zones[team].alive && boxFits(this.zones[team].build)) ||
-      (this.midBuild && boxFits(this.midBuild[side]));
+      (kind !== 'main' && this.midBuild && boxFits(this.midBuild[side]));
     if (!hosted) {
       let host = -1;
       for (const q of this.playersOnSide(side)) {
@@ -671,22 +676,26 @@ export class Game {
         if (boxFits(this.zones[q].build)) { host = q; break; }
       }
       if (host < 0) return false;
-      // mines stay personal: they're allowed in an ally's zone ONLY once your
-      // own zone fell (the fallen player rebuilds their economy at the allies')
-      if (kind === 'generator' && !this.isBaseless(team)) return false;
-      const pct = this.allyBuildPct(team, this.players[host].role);
-      const cap = Math.floor((this.bstat(team, kind).cap || 0) * pct / 100);
-      if (cap <= 0) return false;
-      // count what THIS player already has inside THAT ally zone
-      const hz = this.zones[host].build;
-      let mine = 0;
-      for (const s of this.structures) {
-        if (s.hp <= 0 || s.kind !== kind) continue;
-        if ((s.owner != null ? s.owner : s.team) !== team) continue;
-        if (ignoreId != null && s.id === ignoreId) continue;
-        if (s.x >= hz.x0 && s.x <= hz.x1 && s.y >= hz.y0 && s.y <= hz.y1) mine++;
+      // the rebuilt main bypasses the % cap — it's the comeback mechanic; it
+      // only needs a hosting ally zone and clear ground
+      if (kind !== 'main') {
+        // mines stay personal: they're allowed in an ally's zone ONLY once your
+        // own zone fell (the fallen player rebuilds their economy at the allies')
+        if (kind === 'generator' && !this.isBaseless(team)) return false;
+        const pct = this.allyBuildPct(team, this.players[host].role);
+        const cap = Math.floor((this.bstat(team, kind).cap || 0) * pct / 100);
+        if (cap <= 0) return false;
+        // count what THIS player already has inside THAT ally zone
+        const hz = this.zones[host].build;
+        let mine = 0;
+        for (const s of this.structures) {
+          if (s.hp <= 0 || s.kind !== kind) continue;
+          if ((s.owner != null ? s.owner : s.team) !== team) continue;
+          if (ignoreId != null && s.id === ignoreId) continue;
+          if (s.x >= hz.x0 && s.x <= hz.x1 && s.y >= hz.y0 && s.y <= hz.y1) mine++;
+        }
+        if (mine >= cap) return false;
       }
-      if (mine >= cap) return false;
     }
     const gap = CONFIG.BUILD_GAP;
     for (const s of this.structures) {
@@ -781,6 +790,32 @@ export class Game {
       // sold before it ever hit the field); the usual partial refund otherwise
       const refund = tpl.spawned ? CONFIG.SELL_REFUND : 1;
       this.money[cmd.team] += Math.round(this.ustat(cmd.team, tpl.type).cost * refund);
+      return { ok: true };
+    }
+
+    if (cmd.type === 'build' && cmd.kind === 'main') {
+      // REBUILD THE BASE: a fallen player (zone collapsed, no living main) may
+      // raise a NEW main inside an ally's living zone. It rises as a normal
+      // construction site, counts toward the win condition again (the enemy
+      // must break it too), and re-enables tier-ups. Repeatable if it falls.
+      const live = this.mainOfPlayer(cmd.team);
+      if (live && live.hp > 0) return { ok: false, reason: 'has-base' };
+      if (this.zones[cmd.team] && this.zones[cmd.team].alive) return { ok: false, reason: 'zone-alive' };
+      const price = CONFIG.TEAM_MAIN_REBUILD_COST != null ? CONFIG.TEAM_MAIN_REBUILD_COST : 400;
+      if (this.money[cmd.team] < price) return { ok: false, reason: 'money' };
+      if (!this.isValidBuildPlacement(cmd.team, 'main', cmd.x, cmd.y)) return { ok: false, reason: 'zone' };
+      this.money[cmd.team] -= price;
+      this.spent[cmd.team] += price;
+      const s = makeStructure(this, this.sideOf(cmd.team), 'main', cmd.x, cmd.y, cmd.team);
+      s.maxHp = this.bstat(cmd.team, 'main').hp[this.tier[cmd.team] - 1]; // HP at the player's tier
+      const wait = CONFIG.TEAM_MAIN_REBUILD_TIME != null ? CONFIG.TEAM_MAIN_REBUILD_TIME : 30;
+      if (wait > 0) {
+        s.building = true;
+        s.buildStart = this.time;
+        s.buildDone = this.time + wait;
+        s.hp = Math.max(1, Math.round(s.maxHp * 0.15));
+      } else s.hp = s.maxHp;
+      this.events.push({ type: 'mainRebuilt', team: this.sideOf(cmd.team), owner: cmd.team, x: cmd.x, y: cmd.y });
       return { ok: true };
     }
 
