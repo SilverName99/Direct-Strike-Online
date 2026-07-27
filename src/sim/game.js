@@ -120,7 +120,23 @@ export class Game {
     // zones (the per-race cap still applies), so a fallen player can rebuild
     // their economy wherever their team still stands.
     this.mineSpots = this.players.map(() => []);
-    if (this.layout.playersPerSide === 1) for (let p = 0; p < N; p++) this.generateMineSpots(p);
+    if (this.players.length === 2) for (let p = 0; p < N; p++) this.generateMineSpots(p); // classic 1v1 only
+  }
+
+  // A player is BASELESS once their main fell (their zone collapsed): they can
+  // no longer rebuild a main, but keep playing through their allies' zones —
+  // building at the raised Y% allowance, mines included.
+  isBaseless(player) {
+    return this.zones[player] ? !this.zones[player].alive : false;
+  }
+
+  // The % of their normal caps a player may use inside an ALLY's zone of the
+  // given role. Baseless players use the raised Y% everywhere.
+  allyBuildPct(player, role) {
+    if (this.isBaseless(player)) return CONFIG.TEAM_FALLEN_PCT || 0;
+    if (role === 'vanguard') return CONFIG.TEAM_ALLY_PCT_VANGUARD || 0;
+    if (role === 'center') return CONFIG.TEAM_ALLY_PCT_CENTER || 0;
+    return CONFIG.TEAM_ALLY_PCT_ANCHOR || 0;
   }
 
   generateMineSpots(player) {
@@ -414,9 +430,25 @@ export class Game {
 
   // Income amounts are configured per INCOME_WINDOW (20s); each INCOME_TICK
   // pays the proportional slice so gold still flows in smoothly.
+  // Asymmetric modes (1v2 / 1v3 / 2v3): the side with FEWER players gets a
+  // settable % income bonus to compensate. 0 in symmetric matchups.
+  asymBonusPct(player) {
+    const n0 = this.playersOnSide(0).length;
+    const n1 = this.playersOnSide(1).length;
+    if (n0 === n1) return 0;
+    const mine = this.playersOnSide(this.sideOf(player)).length;
+    if (mine !== Math.min(n0, n1)) return 0; // only the smaller side is boosted
+    const key = `${Math.min(n0, n1)}v${Math.max(n0, n1)}`;
+    if (key === '1v2') return CONFIG.TEAM_ASYM_1V2 || 0;
+    if (key === '1v3') return CONFIG.TEAM_ASYM_1V3 || 0;
+    if (key === '2v3') return CONFIG.TEAM_ASYM_2V3 || 0;
+    return 0;
+  }
+
   incomePer20s(team) {
     const gens = this.countBuilt(team, 'generator'); // sites don't pay yet
-    return (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team];
+    const asym = 1 + this.asymBonusPct(team) / 100;
+    return (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team] * asym;
   }
 
   incomePerTick(team) {
@@ -582,23 +614,37 @@ export class Game {
   }
 
   isValidPlacement(team, x, y, ignoreIndex = -1, unitId = null) {
-    const zone = this.zones[team].army; // the player's OWN army strip (1v1: the classic rect)
     const { hw, hh } = this.footprintHalf(team, unitId);
-    // the footprint (a point for 1x1 units) must sit inside the army zone
-    if (x - hw < zone.x0 || x + hw > zone.x1 || y - hh < zone.y0 || y + hh > zone.y1) return false;
+    const fits = (zone) => zone && !(x - hw < zone.x0 || x + hw > zone.x1 || y - hh < zone.y0 || y + hh > zone.y1);
+    // the footprint (a point for 1x1 units) must sit inside an army strip: the
+    // player's OWN while their zone lives; a BASELESS player parks their army
+    // in any allied living zone instead ("contribuie la zonele aliaților")
+    if (this.zones[team].alive) {
+      if (!fits(this.zones[team].army)) return false;
+    } else {
+      let ok = false;
+      for (const q of this.playersOnSide(this.sideOf(team))) {
+        if (q !== team && this.zones[q].alive && fits(this.zones[q].army)) { ok = true; break; }
+      }
+      if (!ok) return false;
+    }
     const min = CONFIG.TEMPLATE_MIN_DIST;
-    for (let i = 0; i < this.templates[team].length; i++) {
-      if (i === ignoreIndex) continue;
-      const tpl = this.templates[team][i];
-      const t = this.footprintHalf(team, tpl.type);
-      if (hw || hh || t.hw || t.hh) {
-        // box separation when either unit has a real footprint (1x1 uses a
-        // half-min-dist box so it can't sit on top of a big unit)
-        const ahw = hw || min / 2, ahh = hh || min / 2;
-        const bhw = t.hw || min / 2, bhh = t.hh || min / 2;
-        if (Math.abs(tpl.x - x) < ahw + bhw && Math.abs(tpl.y - y) < ahh + bhh) return false;
-      } else if ((tpl.x - x) ** 2 + (tpl.y - y) ** 2 < min * min) {
-        return false; // both plain 1x1: original tight circle packing
+    // overlap runs against EVERY same-side player's parked templates (allies can
+    // share a strip); 1v1 has one player per side, so this is the historical check
+    for (const q of this.playersOnSide(this.sideOf(team))) {
+      for (let i = 0; i < this.templates[q].length; i++) {
+        if (q === team && i === ignoreIndex) continue;
+        const tpl = this.templates[q][i];
+        const t = this.footprintHalf(q, tpl.type);
+        if (hw || hh || t.hw || t.hh) {
+          // box separation when either unit has a real footprint (1x1 uses a
+          // half-min-dist box so it can't sit on top of a big unit)
+          const ahw = hw || min / 2, ahh = hh || min / 2;
+          const bhw = t.hw || min / 2, bhh = t.hh || min / 2;
+          if (Math.abs(tpl.x - x) < ahw + bhw && Math.abs(tpl.y - y) < ahh + bhh) return false;
+        } else if ((tpl.x - x) ** 2 + (tpl.y - y) ** 2 < min * min) {
+          return false; // both plain 1x1: original tight circle packing
+        }
       }
     }
     return true;
@@ -610,15 +656,38 @@ export class Game {
   isValidBuildPlacement(team, kind, x, y, ignoreId = null) {
     if (!CONFIG.BUILDINGS[kind]) return false;
     const ext = structureExtents(kind, this.bstat(team, kind));
-    // buildings may go in the player's OWN construction zone OR the side's
-    // small forward pocket by the mid turret; the box must fit inside one.
-    // (Building in an ALLY's zone — with the X% allowance — is phase 2.)
+    const boxFits = (z) => z && x - ext.hw >= z.x0 && x + ext.hw <= z.x1 && y - ext.hh >= z.y0 && y + ext.hh <= z.y1;
+    // A building may go in: the player's OWN (living) construction zone, the
+    // side's forward pocket by the mid turret, or an ALLY's living zone — the
+    // latter capped at X% of the player's normal caps for that kind (Y% once
+    // the player is baseless, which also unlocks mines there).
     const side = this.sideOf(team);
-    const zones = [this.zones[team].build];
-    if (this.midBuild && this.midBuild[side]) zones.push(this.midBuild[side]);
-    const fits = zones.some((z) =>
-      x - ext.hw >= z.x0 && x + ext.hw <= z.x1 && y - ext.hh >= z.y0 && y + ext.hh <= z.y1);
-    if (!fits) return false;
+    let hosted = (this.zones[team].alive && boxFits(this.zones[team].build)) ||
+      (this.midBuild && boxFits(this.midBuild[side]));
+    if (!hosted) {
+      let host = -1;
+      for (const q of this.playersOnSide(side)) {
+        if (q === team || !this.zones[q].alive) continue;
+        if (boxFits(this.zones[q].build)) { host = q; break; }
+      }
+      if (host < 0) return false;
+      // mines stay personal: they're allowed in an ally's zone ONLY once your
+      // own zone fell (the fallen player rebuilds their economy at the allies')
+      if (kind === 'generator' && !this.isBaseless(team)) return false;
+      const pct = this.allyBuildPct(team, this.players[host].role);
+      const cap = Math.floor((this.bstat(team, kind).cap || 0) * pct / 100);
+      if (cap <= 0) return false;
+      // count what THIS player already has inside THAT ally zone
+      const hz = this.zones[host].build;
+      let mine = 0;
+      for (const s of this.structures) {
+        if (s.hp <= 0 || s.kind !== kind) continue;
+        if ((s.owner != null ? s.owner : s.team) !== team) continue;
+        if (ignoreId != null && s.id === ignoreId) continue;
+        if (s.x >= hz.x0 && s.x <= hz.x1 && s.y >= hz.y0 && s.y <= hz.y1) mine++;
+      }
+      if (mine >= cap) return false;
+    }
     const gap = CONFIG.BUILD_GAP;
     for (const s of this.structures) {
       if (s.hp <= 0) continue;
@@ -793,6 +862,9 @@ export class Game {
     }
 
     if (cmd.type === 'upgradeBase') {
+      // a baseless player has no main to upgrade (the base can't be rebuilt)
+      const myMain = this.mainOfPlayer(cmd.team);
+      if (!myMain || myMain.hp <= 0) return { ok: false, reason: 'no-base' };
       if (this.baseUpgrade[cmd.team]) return { ok: false, reason: 'busy' };
       if (this.tier[cmd.team] >= CONFIG.TIER_MAX) return { ok: false, reason: 'max-tier' };
       const cost = this.tierUpCost(cmd.team);
@@ -1022,12 +1094,48 @@ export class Game {
           this.events.push({ type: 'gameover', winner: this.winner });
         } else {
           this.events.push({ type: 'mainDown', team: s.team, owner: s.owner, x: s.x, y: s.y });
+          // defense in depth: the fallen player's WHOLE zone collapses —
+          // buildings + parked army are destroyed, every investor refunded X%
+          this.collapseZone(s.owner != null ? s.owner : s.team);
         }
         return; // keep the ruined main for the end-screen render
       }
     }
     this.byId.delete(s.id);
     this.structures = this.structures.filter((x) => x !== s);
+  }
+
+  // Defense in depth: a player's main fell (and their side survives) — their
+  // WHOLE zone collapses. Every structure inside the build strip and every
+  // parked army template inside the army strip is destroyed, and each INVESTOR
+  // gets TEAM_REFUND_PCT% of what THEY paid back (allies who built there too).
+  // Units already deployed on the battlefield keep fighting. The player becomes
+  // baseless: no new main, but they keep playing through the allies' zones.
+  collapseZone(owner) {
+    const z = this.zones[owner];
+    if (!z || !z.alive) return;
+    z.alive = false;
+    const pct = (CONFIG.TEAM_REFUND_PCT != null ? CONFIG.TEAM_REFUND_PCT : 50) / 100;
+    // structures inside the fallen BUILD strip (any allied owner) — the ruined
+    // main itself stays as scenery
+    for (const s of [...this.structures]) {
+      if (s.hp <= 0 || s.kind === 'main' || s.kind === 'turret') continue;
+      if (s.x < z.build.x0 || s.x > z.build.x1 || s.y < z.build.y0 || s.y > z.build.y1) continue;
+      const o = s.owner != null ? s.owner : s.team;
+      this.money[o] += Math.round((this.bstat(o, s.kind).cost || 0) * pct);
+      this.removeStructure(s, true);
+    }
+    // parked army templates inside the fallen ARMY strip (any allied player)
+    for (const q of this.playersOnSide(this.sideOf(owner))) {
+      const keep = [];
+      for (const tpl of this.templates[q]) {
+        if (tpl.x >= z.army.x0 && tpl.x <= z.army.x1 && tpl.y >= z.army.y0 && tpl.y <= z.army.y1) {
+          this.money[q] += Math.round((this.ustat(q, tpl.type).cost || 0) * pct);
+        } else keep.push(tpl);
+      }
+      this.templates[q] = keep;
+    }
+    this.events.push({ type: 'zoneCollapse', owner, team: this.sideOf(owner), x: (z.build.x0 + z.build.x1) / 2, y: (z.build.y0 + z.build.y1) / 2 });
   }
 
   // Drop a raisable corpse (game.corpses) the Spirit Huntress / Necromancer can

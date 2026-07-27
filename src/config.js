@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v15.9';
+export const VERSION = 'v16.0';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -61,6 +61,16 @@ export const CONFIG = {
   BLIGHT_START_OPACITY: 0, // % opacity the pool appears at (then fades to 100% over BLIGHT_FADE_TIME)
   BLIGHT_WOBBLE_MIN: 14, // fewest undulations (edge vertices) a corruption pool's outline can have
   BLIGHT_WOBBLE_MAX: 24, // most undulations — each pool picks a count in [min,max] from its own seed
+
+  // ---- Team modes (2v2 / 3v3 / asymmetric) — "defense in depth" ------------
+  TEAM_REFUND_PCT: 50,       // X% refunded to each investor when a zone collapses (buildings + parked army)
+  TEAM_ALLY_PCT_ANCHOR: 20,  // % of your normal caps you may build inside an ALLY's anchor zone
+  TEAM_ALLY_PCT_CENTER: 20,  // ... inside an ally's center zone
+  TEAM_ALLY_PCT_VANGUARD: 20,// ... inside an ally's vanguard zone
+  TEAM_FALLEN_PCT: 50,       // Y% allowance once YOUR zone fell (replaces the X% above; mines allowed too)
+  TEAM_ASYM_1V2: 50,         // % income bonus for the smaller side in a 1v2
+  TEAM_ASYM_1V3: 100,        // ... in a 1v3
+  TEAM_ASYM_2V3: 30,         // ... in a 2v3
 
   GOLD_ICON: '',        // custom HUD gold icon (data URL, set in admin); '' = ◆ glyph
   MENU_LOGO: '',        // main-menu logo image (data URL, set in admin); '' = text fallback

@@ -34,11 +34,10 @@ function rolesFor(n) {
   return n === 1 ? ['anchor'] : n === 2 ? ['anchor', 'vanguard'] : ['anchor', 'center', 'vanguard'];
 }
 
-export function teamLayout(playersPerSide) {
-  const n = Math.max(1, Math.min(3, Math.round(playersPerSide || 1)));
+// Depth-zone strips for ONE side, built back -> front from the field edge.
+// Returns the zone rects (left-side coordinates) and the front-most build edge.
+function sideStrips(n) {
   const roles = rolesFor(n);
-
-  // build the LEFT side back -> front; the right side is a mirror
   let x = EDGE;
   const zones = [];
   for (let d = 0; d < n; d++) {
@@ -50,20 +49,33 @@ export function teamLayout(playersPerSide) {
     zones.push({ role: roles[d], army, build });
     if (d < n - 1) x += GAP_ZONE;
   }
-  const mid = x + OPEN_FIELD;
+  return { zones, front: x };
+}
+
+// teamLayout(a) = symmetric a-v-a; teamLayout(a, b) = ASYMMETRIC (side 0 has a
+// players, side 1 has b). The midfield stays the field's exact center (movement
+// and the mid-control bonus rely on FIELD_W / 2), so the shallower side simply
+// faces a longer open field.
+export function teamLayout(playersPerSide, playersRight = null) {
+  const a = Math.max(1, Math.min(3, Math.round(playersPerSide || 1)));
+  const b = Math.max(1, Math.min(3, Math.round(playersRight != null ? playersRight : a)));
+  const left = sideStrips(a);
+  const right = sideStrips(b);
+  const mid = Math.max(left.front, right.front) + OPEN_FIELD;
   const fieldW = mid * 2;
   const mirror = (r) => ({ x0: fieldW - r.x1, x1: fieldW - r.x0, y0: r.y0, y1: r.y1 });
 
   // player order: side 0 back->front, then side 1 back->front (1v1: [left, right])
   const perPlayer = [];
-  for (const side of [0, 1]) {
-    for (let d = 0; d < n; d++) {
-      const z = zones[d];
-      const army = side === 0 ? z.army : mirror(z.army);
-      const build = side === 0 ? z.build : mirror(z.build);
-      const mainX = side === 0 ? build.x0 + MAIN_INSET : build.x1 - MAIN_INSET;
-      perPlayer.push({ side, depth: d, role: z.role, army, build, main: { x: mainX, y: CONFIG.MAIN.y } });
-    }
+  for (let d = 0; d < a; d++) {
+    const z = left.zones[d];
+    perPlayer.push({ side: 0, depth: d, role: z.role, army: z.army, build: z.build, main: { x: z.build.x0 + MAIN_INSET, y: CONFIG.MAIN.y } });
+  }
+  for (let d = 0; d < b; d++) {
+    const z = right.zones[d];
+    const army = mirror(z.army);
+    const build = mirror(z.build);
+    perPlayer.push({ side: 1, depth: d, role: z.role, army, build, main: { x: build.x1 - MAIN_INSET, y: CONFIG.MAIN.y } });
   }
 
   const turretX = [mid - TURRET_FROM_MID, mid + TURRET_FROM_MID];
@@ -71,7 +83,7 @@ export function teamLayout(playersPerSide) {
     { x0: turretX[0] - 100, x1: turretX[0] + 100, y0: 280, y1: 680 },
     { x0: turretX[1] - 100, x1: turretX[1] + 100, y0: 280, y1: 680 },
   ];
-  return { playersPerSide: n, fieldW, perPlayer, turretX, midBuild };
+  return { playersPerSide: Math.max(a, b), sides: [a, b], fieldW, perPlayer, turretX, midBuild };
 }
 
 // Point the GLOBAL config (renderer / camera / minimap / UI / AI read these) at
@@ -79,8 +91,8 @@ export function teamLayout(playersPerSide) {
 // CONSTRUCTION/ARMY zones are set to each side's ANCHOR zone — old consumers
 // (AI, zone plates) keep a sensible rect until they learn multi-zone (later
 // phases). Call before `new Game(...)` when starting a match.
-export function applyModeLayout(playersPerSide) {
-  const lay = teamLayout(playersPerSide);
+export function applyModeLayout(playersPerSide, playersRight = null) {
+  const lay = teamLayout(playersPerSide, playersRight);
   CONFIG.FIELD_W = lay.fieldW;
   CONFIG.TURRET_X = [...lay.turretX];
   CONFIG.MID_BUILD_ZONE = lay.midBuild.map((z) => ({ ...z }));

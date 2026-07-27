@@ -2837,14 +2837,19 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     const z1 = g.zones[1].army, z0 = g.zones[0].army;
     check('2v2: army placement ok in your own zone', g.isValidPlacement(1, (z1.x0 + z1.x1) / 2, 400, -1, 'grunt'));
     check('2v2: army placement rejected in the ally zone', !g.isValidPlacement(1, (z0.x0 + z0.x1) / 2, 400, -1, 'grunt'));
-    // build: tower in own zone ok; in ally zone rejected (X% allowance = phase 2)
+    // build: tower in own zone ok; in the ALLY zone only up to the X% allowance
+    // (tower cap 6 × 20% -> exactly 1 allowed per ally zone)
     for (let p = 0; p < 4; p++) g.money[p] = 99999;
     const b1 = g.zones[1].build;
     const r1 = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b1.x0 + 60, y: 400 });
     check('2v2: tower builds in your own zone', r1.ok, r1.reason);
     const b0 = g.zones[0].build;
     const r2 = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b0.x0 + 60, y: 400 });
-    check('2v2: tower rejected in the ally zone (phase 2 adds the X% allowance)', !r2.ok);
+    check('2v2: ONE ally-zone tower fits the X% allowance', r2.ok, r2.reason);
+    const r2b = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b0.x0 + 60, y: 240 });
+    check('2v2: a SECOND ally-zone tower exceeds the allowance', !r2b.ok);
+    const r2c = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b0.x0 + 60, y: 700 });
+    check('2v2: mines stay personal — rejected in the ally zone while your base stands', !r2c.ok);
     // free mines: a generator builds anywhere valid in YOUR zone (no plots)
     const r3 = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b1.x0 + 60, y: 600 });
     check('2v2: mine builds freely in your own zone (no predefined plots)', r3.ok, r3.reason);
@@ -2865,6 +2870,65 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     check('2v2: side 1 survives while player 3 still stands', g.winner === null);
     g.removeStructure(m3, true);
     check('2v2: last main of side 1 falls -> side 0 wins', g.winner === 0);
+
+    // ---- Phase 2: zone collapse + refunds + baseless play + asymmetric bonus
+    console.log('team-modes phase 2 (collapse, refunds, baseless, asym)');
+    {
+      const g2 = new Game(330, { layout: lay, races: ['humans', 'humans', 'orcs', 'orcs'] });
+      for (let p = 0; p < 4; p++) g2.money[p] = 10000;
+      const z1 = g2.zones[1];
+      // player 1 builds a tower + a mine in THEIR (vanguard) zone; ally player 0
+      // invests a tower there too (within the X% allowance)
+      check('p2: p1 tower in own zone', g2.issueCommand({ type: 'build', team: 1, kind: 'tower', x: z1.build.x0 + 60, y: 240 }).ok);
+      check('p2: p1 mine in own zone', g2.issueCommand({ type: 'build', team: 1, kind: 'generator', x: z1.build.x0 + 60, y: 700 }).ok);
+      check('p2: ally p0 invests a tower in p1 zone', g2.issueCommand({ type: 'build', team: 0, kind: 'tower', x: z1.build.x0 + 100, y: 400 }).ok);
+      // p1 parks a template and deploys a wave (the DEPLOYED unit must survive)
+      g2.templates[1].push({ type: 'grunt', x: (z1.army.x0 + z1.army.x1) / 2, y: 400 });
+      g2.waveTimer = 0.01; g2.update(CONFIG.FIXED_DT); g2.drainEvents();
+      const deployed = g2.entities.find((e) => e.owner === 1 && e.type === 'grunt');
+      check('p2: p1 deployed a unit', !!deployed);
+      const gold0 = g2.money[0], gold1 = g2.money[1];
+      const towerCost = g2.bstat(1, 'tower').cost, genCost = g2.bstat(1, 'generator').cost;
+      const gruntCost = g2.ustat(1, 'grunt').cost;
+      // kill p1's main -> zone collapse (side 0 still has p0's main)
+      const m1 = g2.structures.find((s) => s.kind === 'main' && s.owner === 1);
+      g2.removeStructure(m1, true);
+      const evs2 = g2.drainEvents();
+      check('p2: zoneCollapse event fired', evs2.some((e) => e.type === 'zoneCollapse' && e.owner === 1));
+      check('p2: side survives (ally main stands)', g2.winner === null);
+      check('p2: p1 zone marked dead', g2.zones[1].alive === false && g2.isBaseless(1));
+      check('p2: buildings inside the fallen zone are gone',
+        !g2.structures.some((s) => s.hp > 0 && s.kind !== 'main' && s.x >= z1.build.x0 && s.x <= z1.build.x1));
+      check('p2: p1 refunded 50% for tower + mine + parked grunt',
+        g2.money[1] - gold1 === Math.round(towerCost * 0.5) + Math.round(genCost * 0.5) + Math.round(gruntCost * 0.5),
+        `delta ${g2.money[1] - gold1}`);
+      check('p2: ally p0 refunded 50% for THEIR tower in the fallen zone',
+        g2.money[0] - gold0 === Math.round(towerCost * 0.5), `delta ${g2.money[0] - gold0}`);
+      check('p2: p1 parked template removed', g2.templates[1].length === 0);
+      check('p2: the DEPLOYED unit keeps fighting', deployed.hp > 0 && g2.entities.includes(deployed));
+      // baseless play: p1 builds in p0's zone at the raised Y% (50% of cap 6 -> 3)
+      // and mines become allowed there; army parks in the ally strip
+      const b0z = g2.zones[0];
+      check('p2: baseless p1 builds a tower at the ally (Y%)', g2.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b0z.build.x0 + 60, y: 240 }).ok);
+      check('p2: baseless p1 may now build a MINE at the ally', g2.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b0z.build.x0 + 60, y: 700 }).ok);
+      check('p2: baseless p1 parks army in the ally strip', g2.isValidPlacement(1, (b0z.army.x0 + b0z.army.x1) / 2, 300, -1, 'grunt'));
+      const rup = g2.issueCommand({ type: 'upgradeBase', team: 1 });
+      check('p2: baseless p1 cannot tier up (no base)', !rup.ok && rup.reason === 'no-base');
+    }
+    // asymmetric 1v2: the lone player gets the settable income bonus
+    {
+      const layA = teamLayout(1, 2);
+      const gA = new Game(340, { layout: layA, races: ['humans', 'orcs', 'orcs'] });
+      check('asym: 1v2 -> three players on sides [0,1,1]',
+        gA.players.length === 3 && gA.sideOf(0) === 0 && gA.sideOf(1) === 1 && gA.sideOf(2) === 1);
+      const saved = CONFIG.TEAM_ASYM_1V2;
+      CONFIG.TEAM_ASYM_1V2 = 77;
+      check('asym: the lone side gets the 1v2 bonus', gA.asymBonusPct(0) === 77);
+      check('asym: the bigger side gets none', gA.asymBonusPct(1) === 0 && gA.asymBonusPct(2) === 0);
+      const base = (CONFIG.INCOME_BASE) * 1.77;
+      check('asym: income reflects the bonus', Math.abs(gA.incomePer20s(0) - base) < 0.001, `${gA.incomePer20s(0)} vs ${base}`);
+      CONFIG.TEAM_ASYM_1V2 = saved;
+    }
     applyModeLayout(1); // restore the classic 1v1 geometry for anything after
     applyBalance({});
   }
