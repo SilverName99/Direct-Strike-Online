@@ -905,8 +905,10 @@ export class Renderer {
       if (!this.visible(s.x, s.y, 400)) continue;
       // fog: hide an enemy mine's live workers unless it's currently in sight
       if (this._fogOn && s.team !== this._fogTeam && !this.fog.visibleAt(s.x, s.y)) continue;
-      const base = game.mainOf(s.team);
-      if (!base) continue;
+      // workers shuttle to their OWNER's own base (team modes: an ally's mine
+      // must not send its miners marching across the map to MY anchor base)
+      const base = (game.mainOfPlayer && s.owner != null) ? game.mainOfPlayer(s.owner) : game.mainOf(s.team);
+      if (!base || base.hp <= 0) continue;
       const race = raceOf(s.team);
       // opt-in: only if the mine has walking worker art uploaded
       const hasEmpty = !!getSprite(race, 'generator', 'worker-empty', 0);
@@ -1532,21 +1534,26 @@ export class Renderer {
       : hitTestTemplate(game, getViewerTeam(), uiState.mouseX, uiState.mouseY);
 
     ctx.save();
-    for (const team of [0, 1]) {
-      ctx.strokeStyle = teamColor(team);
+    // one parked formation per PLAYER: art, mirroring and tint resolve by the
+    // player's SIDE (team modes: an ally's templates must render in the ALLY's
+    // race facing the enemy — not as if index 1 were the enemy side)
+    for (let p = 0; p < game.templates.length; p++) {
+      const side = game.sideOf ? game.sideOf(p) : p;
+      const own = p === getViewerTeam(); // the human's own formation (drag/hover)
+      ctx.strokeStyle = teamColor(side);
       ctx.lineWidth = 1.5;
-      const rot = team === 0 ? 0 : Math.PI;
-      game.templates[team].forEach((tpl, i) => {
-        const pos = this.templateDrawPos(uiState, team, i, tpl);
+      const rot = side === 0 ? 0 : Math.PI;
+      game.templates[p].forEach((tpl, i) => {
+        const pos = this.templateDrawPos(uiState, p, i, tpl);
         if (!this.visible(pos.x, pos.y)) return;
         const stats = UNITS[tpl.type];
-        const hot = team === getViewerTeam() && i === hoverIdx && !uiState.selected;
-        const dragging = team === getViewerTeam() && uiState.drag && i === uiState.drag.index;
+        const hot = own && i === hoverIdx && !uiState.selected;
+        const dragging = own && uiState.drag && i === uiState.drag.index;
         ctx.save();
         ctx.translate(pos.x, pos.y);
         if (dragging && uiState.gridOn) {
           // moving a placed unit: highlight the grid cells it will occupy
-          const us = game.ustat(team, tpl.type);
+          const us = game.ustat(p, tpl.type);
           const cw = us && us.cw > 1 ? us.cw : 1;
           const ch = us && us.ch > 1 ? us.ch : 1;
           const g = CONFIG.GRID;
@@ -1557,16 +1564,16 @@ export class Renderer {
           ctx.strokeStyle = '#58d68d';
           ctx.lineWidth = 2;
           ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
-          ctx.strokeStyle = teamColor(team);
+          ctx.strokeStyle = teamColor(side);
           ctx.lineWidth = 1.5;
         }
         // (no white hover ring — hovering only brightens the unit below; the
         // only ring shown is the green dashed selection ring in drawInspect)
-        if (hasCharacter(tpl.type, team)) {
+        if (hasCharacter(tpl.type, side)) {
           // ghost character breathing in the build zone
           ctx.globalAlpha = hot ? 0.95 : 0.5;
-          if (team === 1) ctx.scale(-1, 1);
-          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, team, sizeOf(raceOf(team), tpl.type));
+          if (side === 1) ctx.scale(-1, 1);
+          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, side, sizeOf(raceOf(side), tpl.type));
         } else {
           ctx.globalAlpha = hot ? 0.9 : 0.35;
           ctx.rotate(rot);

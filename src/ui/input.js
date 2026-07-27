@@ -119,12 +119,15 @@ export class Input {
       // click a LIVE unit (either team) -> inspect it
       const ent = hitTestEntity(game, raw.x, raw.y);
       if (ent) { this.uiState.inspect = { kind: 'entity', id: ent.id }; return; }
-      // click an ENEMY formation unit (template) -> inspect it read-only
-      // (no drag — you can't move the opponent's army)
-      const eidx = hitTestTemplate(game, 1 - this.team, raw.x, raw.y);
-      if (eidx !== -1) {
-        this.uiState.inspect = { kind: 'template', team: 1 - this.team, index: eidx };
-        return;
+      // click ANOTHER player's formation unit (template) -> inspect it
+      // read-only (no drag — allies and enemies alike keep their own army)
+      for (let q = 0; q < game.templates.length; q++) {
+        if (q === this.team) continue;
+        const eidx = hitTestTemplate(game, q, raw.x, raw.y);
+        if (eidx !== -1) {
+          this.uiState.inspect = { kind: 'template', team: q, index: eidx };
+          return;
+        }
       }
       // click a structure (either team) -> inspect it; your own Main Base
       // shows its upgrades in the command grid

@@ -21,6 +21,9 @@ const GROUPS = [
   ['💥 Prăbușirea zonei & reconstrucția bazei', [
     'TEAM_REFUND_PCT', 'TEAM_MAIN_REBUILD_COST', 'TEAM_MAIN_REBUILD_TIME',
   ], 'Când baza unui jucător cade, toată zona lui (clădiri + armata parcată) se distruge și fiecare investitor primește refund-ul setat din ce a plătit EL. Jucătorul căzut își poate reconstrui baza într-o zonă vie a unui aliat — costul și durata șantierului se setează aici.'],
+  ['🗺 Hartă', [
+    'TEAM_ZONE_GAP',
+  ], 'Teren liber între două zone aliate consecutive (vanguard / centru / ancoră). Se aplică la începutul următorului meci.'],
   ['⚖ Moduri asimetrice (1v2 / 1v3 / 2v3)', [
     'TEAM_ASYM_1V2', 'TEAM_ASYM_1V3', 'TEAM_ASYM_2V3',
   ], 'Compensația taberei cu mai puțini jucători: +% la venitul fiecărui jucător din tabăra mică, per matchup.'],

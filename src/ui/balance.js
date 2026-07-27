@@ -92,6 +92,7 @@ export const TEAM_FIELDS = [
   ['TEAM_REFUND_PCT', 'Refund la prăbușirea zonei (% din ce a plătit fiecare)'],
   ['TEAM_MAIN_REBUILD_COST', 'Reconstruire bază: cost (aur)'],
   ['TEAM_MAIN_REBUILD_TIME', 'Reconstruire bază: durată șantier (s, 0 = instant)'],
+  ['TEAM_ZONE_GAP', 'Distanța dintre zonele aliate (px, la start de meci)'],
   ['TEAM_ASYM_1V2', 'Asimetric 1v2: +% venit pentru tabăra mică'],
   ['TEAM_ASYM_1V3', 'Asimetric 1v3: +% venit pentru tabăra mică'],
   ['TEAM_ASYM_2V3', 'Asimetric 2v3: +% venit pentru tabăra mică'],

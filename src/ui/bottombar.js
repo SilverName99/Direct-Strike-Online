@@ -504,6 +504,12 @@ export class BottomBar {
     if (!vid) this.drawPortrait(ctx, game, info);
 
     const own = info.team === this.team;
+    // hostile only when on the OTHER side — an ally's stuff isn't "INAMIC".
+    // info.team is a SIDE for entities/structures/workers but a PLAYER for
+    // templates, so normalize both to sides before comparing.
+    const mySide = game.sideOf ? game.sideOf(this.team) : this.team;
+    const infoSide = info.kind === 'template' && game.sideOf ? game.sideOf(info.team) : info.team;
+    const foe = infoSide !== mySide;
     const isStruct = info.kind === 'structure';
     // a summoned animal shows its OWN stats (its type only hosts sprites)
     const stats = isStruct ? game.bstat(info.team, info.type)
@@ -604,8 +610,8 @@ export class BottomBar {
       }
     }
     this.details.innerHTML = `
-      <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">${name}</span><span class="d-sub">${sub}${own ? '' : ' · INAMIC'}</span></div>
-      <div class="d-bar"><div class="hp ${own ? '' : 'enemy'}" style="width:${Math.max(0, (hp / maxHp) * 100)}%"></div><span>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</span></div>
+      <div class="d-title"><span class="d-name ${foe ? 'enemy' : ''}">${name}</span><span class="d-sub">${sub}${foe ? ' · INAMIC' : (own ? '' : ' · ALIAT')}</span></div>
+      <div class="d-bar"><div class="hp ${foe ? 'enemy' : ''}" style="width:${Math.max(0, (hp / maxHp) * 100)}%"></div><span>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</span></div>
       ${lifeBar}
       ${manaBar}
       ${heroBar}

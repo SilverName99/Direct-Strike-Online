@@ -23,7 +23,12 @@ const ROLES = {
 };
 const EDGE = 100;        // field edge -> first army strip (1v1: army x0 = 100)
 const GAP_AB = 60;       // army -> build gap inside a zone (1v1: 500 -> 560)
-const GAP_ZONE = 80;     // gap between consecutive depth zones
+// gap between consecutive ALLIED depth zones — admin-settable ("⚔ Moduri
+// echipă"); read at layout time, so it applies from the next match. Irrelevant
+// in 1v1 (a single zone has no neighbors).
+function gapZone() {
+  return CONFIG.TEAM_ZONE_GAP != null ? CONFIG.TEAM_ZONE_GAP : 240;
+}
 const OPEN_FIELD = 1080; // front-most build edge -> midfield (1v1: 920 -> 2000)
 const LANE_Y0 = 80, LANE_Y1 = 880; // the playable lane band (same as 1v1 zones)
 const TURRET_FROM_MID = 680;       // 1v1: mid 2000, turret 1320
@@ -47,7 +52,7 @@ function sideStrips(n) {
     const build = { x0: x, x1: x + r.buildW, y0: LANE_Y0, y1: LANE_Y1 };
     x += r.buildW;
     zones.push({ role: roles[d], army, build });
-    if (d < n - 1) x += GAP_ZONE;
+    if (d < n - 1) x += gapZone();
   }
   return { zones, front: x };
 }
