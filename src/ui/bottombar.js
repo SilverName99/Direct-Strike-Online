@@ -323,30 +323,36 @@ export class BottomBar {
     this.refreshGridLive(game, info);
   }
 
+  // `team` is always the owning PLAYER (per-player stats: tier, upgrades,
+  // ability toggles, hero templates, ownership) and `side` the battlefield
+  // SIDE (art/race/tint). In 1v1 they coincide; in team modes an ally's
+  // building is side 0 like mine but a DIFFERENT player, so the two must not
+  // be conflated (that made ally buildings look like my own).
   resolveInspect(game) {
     const sel = this.uiState.inspect;
     if (!sel || !game) return null;
+    const sideOf = (p) => (game.sideOf ? game.sideOf(p) : p);
     if (sel.kind === 'template') {
-      // viewer's own formation by default; enemy formations pass their team
+      // viewer's own formation by default; other players pass their index
       const team = sel.team != null ? sel.team : this.team;
-      const tpl = game.templates[team][sel.index];
+      const tpl = game.templates[team] && game.templates[team][sel.index];
       if (!tpl) return null;
-      return { kind: 'template', team, type: tpl.type, tpl };
+      return { kind: 'template', team, side: sideOf(team), type: tpl.type, tpl };
     }
     if (sel.kind === 'entity') {
       const u = game.byId.get(sel.id);
       if (!u || u.hp <= 0) return null;
-      return { kind: 'entity', team: u.team, type: u.type, u };
+      return { kind: 'entity', team: u.owner != null ? u.owner : u.team, side: u.team, type: u.type, u };
     }
     if (sel.kind === 'structure') {
       const s = game.structures.find((st) => st.id === sel.id);
       if (!s || (s.hp <= 0 && s.kind !== 'main')) return null;
-      return { kind: 'structure', team: s.team, type: s.kind, s };
+      return { kind: 'structure', team: s.owner != null ? s.owner : s.team, side: s.team, type: s.kind, s };
     }
     if (sel.kind === 'worker') {
       const s = game.structures.find((st) => st.id === sel.structId);
       if (!s || s.hp <= 0) return null;
-      return { kind: 'worker', team: s.team, type: 'generator', s, w: sel.w };
+      return { kind: 'worker', team: s.owner != null ? s.owner : s.team, side: s.team, type: 'generator', s, w: sel.w };
     }
     return null;
   }
@@ -470,7 +476,7 @@ export class BottomBar {
     // a selected gold-miner: its own idle clip in the portrait, a short blurb
     // in the details (workers are cosmetic — no sim stats to show)
     if (info.kind === 'worker') {
-      const race = raceOf(info.team);
+      const race = raceOf(info.side);
       const vid = getMineVideoUrl(race, 'workeridle');
       this.setPortraitVideo(vid);
       if (!vid) {
@@ -496,20 +502,16 @@ export class BottomBar {
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     const vid = info.kind === 'structure' && info.type === 'generator'
-      ? (getMineVideoUrl(raceOf(info.team), 'mineidle') || getPortraitVideoUrl(raceOf(info.team), info.type, form))
+      ? (getMineVideoUrl(raceOf(info.side), 'mineidle') || getPortraitVideoUrl(raceOf(info.side), info.type, form))
       : info.kind === 'structure' && info.type === 'tower'
-        ? (getTowerVideoUrl(raceOf(info.team), game.tier[info.team]) || getPortraitVideoUrl(raceOf(info.team), info.type, form))
-        : getPortraitVideoUrl(raceOf(info.team), info.type, form);
+        ? (getTowerVideoUrl(raceOf(info.side), game.tier[info.team]) || getPortraitVideoUrl(raceOf(info.side), info.type, form))
+        : getPortraitVideoUrl(raceOf(info.side), info.type, form);
     this.setPortraitVideo(vid);
     if (!vid) this.drawPortrait(ctx, game, info);
 
     const own = info.team === this.team;
-    // hostile only when on the OTHER side — an ally's stuff isn't "INAMIC".
-    // info.team is a SIDE for entities/structures/workers but a PLAYER for
-    // templates, so normalize both to sides before comparing.
-    const mySide = game.sideOf ? game.sideOf(this.team) : this.team;
-    const infoSide = info.kind === 'template' && game.sideOf ? game.sideOf(info.team) : info.team;
-    const foe = infoSide !== mySide;
+    // hostile only when on the OTHER side — an ally's stuff isn't "INAMIC"
+    const foe = info.side !== (game.sideOf ? game.sideOf(this.team) : this.team);
     const isStruct = info.kind === 'structure';
     // a summoned animal shows its OWN stats (its type only hosts sprites)
     const stats = isStruct ? game.bstat(info.team, info.type)
@@ -639,7 +641,7 @@ export class BottomBar {
   }
 
   drawPortrait(ctx, game, info) {
-    const race = raceOf(info.team);
+    const race = raceOf(info.side); // art resolves per SIDE (team modes: ally art != mine)
     const frame = Math.floor(performance.now() / 500) % 2;
     // a split beast / rider on foot shows its own art: form idle sprite, then
     // form thumbnail, then the whole unit's idle sprite / thumb, then vectors
@@ -652,7 +654,7 @@ export class BottomBar {
     if (info.kind === 'structure') {
       ctx.save();
       ctx.translate(56, 58);
-      if (drawThumb(ctx, info.type, info.team, 96, form)) { ctx.restore(); return; }
+      if (drawThumb(ctx, info.type, info.side, 96, form)) { ctx.restore(); return; }
       ctx.restore();
     }
     let entry = null;
@@ -676,12 +678,12 @@ export class BottomBar {
     }
     ctx.save();
     ctx.translate(56, 58);
-    if (drawThumb(ctx, info.type, info.team, 96, form)) { ctx.restore(); return; }
+    if (drawThumb(ctx, info.type, info.side, 96, form)) { ctx.restore(); return; }
     ctx.restore();
     if (info.kind !== 'structure' && hasCharacter(info.type)) {
       ctx.save();
       ctx.translate(56, 60);
-      drawCharacter(ctx, info.type, 'idle', 0, info.team, 2.4);
+      drawCharacter(ctx, info.type, 'idle', 0, info.side, 2.4);
       ctx.restore();
       return;
     }
@@ -690,12 +692,12 @@ export class BottomBar {
     if (info.kind === 'structure') {
       ctx.fillStyle = '#2d3a4f';
       ctx.fillRect(-30, -30, 60, 60);
-      ctx.strokeStyle = TEAM_COLORS[info.team];
+      ctx.strokeStyle = TEAM_COLORS[info.side];
       ctx.lineWidth = 3.5;
       ctx.strokeRect(-30, -30, 60, 60);
     } else {
       const stats = game.ustat(info.team, info.type);
-      ctx.fillStyle = TEAM_COLORS[info.team];
+      ctx.fillStyle = TEAM_COLORS[info.side];
       drawShape(ctx, stats.shape || 'circle', 28);
       ctx.fill();
     }
@@ -868,7 +870,7 @@ export class BottomBar {
     if (!isStruct && !own && stats.isHero) {
       const tpl = game && game.heroTemplateOf(info.team, info.type);
       const ranks = (tpl && tpl.ranks) || {};
-      for (const slot of heroAbilitySlots(raceOf(info.team), info.type)) {
+      for (const slot of heroAbilitySlots(raceOf(info.side), info.type)) {
         if (slot.id && (ranks[slot.id] || 0) > 0) {
           items.push({ kind: 'ability', id: slot.id, team: info.team, unit: info.type, own: false });
         }
@@ -883,7 +885,7 @@ export class BottomBar {
       }
     }
     if (!isStruct) {
-      const race = raceOf(info.team);
+      const race = raceOf(info.side); // upgrades filter by the unit's own race
       // Ability-unlock upgrades are represented on the unit panel by the ability
       // icon itself (locked until bought) — the "buy" card belongs only on the
       // tech building's upgrades page, so skip them here (no duplicate icon).

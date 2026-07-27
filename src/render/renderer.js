@@ -1968,10 +1968,13 @@ export class Renderer {
     // mines build ONLY on their plots: the cursor ghost jumps onto the plot
     // the click would land on (red when no free plot is near the cursor)
     let mineOk = true;
-    if (sel === 'generator') {
-      const spot = game.nearestFreeMineSpot
-        ? game.nearestFreeMineSpot(my, uiState.mouseX, uiState.mouseY)
-        : null;
+    // CLASSIC 1v1 only: mines snap to their predefined plots, so the ghost
+    // jumps onto the plot the click would use (red when none is free). TEAM
+    // MODES have no plots — the mine builds freely, so skip this entirely
+    // (otherwise the missing plot made the ghost permanently red).
+    const hasPlots = !!(game.mineSpots && game.mineSpots[my] && game.mineSpots[my].length);
+    if (sel === 'generator' && hasPlots) {
+      const spot = game.nearestFreeMineSpot(my, uiState.mouseX, uiState.mouseY);
       if (spot) { px = spot.x; py = spot.y; } else mineOk = false;
     }
 
