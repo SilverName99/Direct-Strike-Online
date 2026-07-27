@@ -2,7 +2,7 @@ import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig } from './sprites.js';
-import { snapToZone, zoneFor } from '../ui/grid.js';
+import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
 // Which PLAYER's art an object uses. Races are per-commander (lobby), so the
 // sprite lookup keys off the OWNER; the friendly/enemy tint keys off that
@@ -988,7 +988,7 @@ export class Renderer {
     if (!uiState.gridOn) return;
     let zone = null;
     if (uiState.selected && uiState.selected !== 'upgrade') zone = zoneFor(uiState.selected, uiState.mouseX, uiState.mouseY, uiState.myTeam || 0);
-    else if (uiState.drag) zone = CONFIG.ARMY_ZONE[uiState.myTeam || 0]; // MY army zone (team 1 = right)
+    else if (uiState.drag) zone = armyZoneFor(uiState.myTeam || 0); // MY army strip (team modes: my own depth zone)
     if (!zone) return;
     const step = CONFIG.GRID * (CONFIG.GRID_MAJOR || 4);
     ctx.save();

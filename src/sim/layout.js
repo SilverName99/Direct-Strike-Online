@@ -5,10 +5,12 @@
 // CENTER zone and a VANGUARD zone closer to the middle, each smaller. Every
 // zone is an [army strip][construction strip] pair, exactly like 1v1.
 //
-// teamLayout(1) reproduces the historical 1v1 constants EXACTLY (army 100-500,
-// build 560-920, midfield 2000, turret 1320, mid pocket 1220-1420), so the
-// whole game — 1v1 included — can derive its geometry from one source of
-// truth without any behavior change.
+// teamLayout(1) mirrors the 1v1 constants in src/config.js (army 100-500,
+// build 560-960, midfield 2040, turret 1360, mid pocket 1260-1460), so the
+// whole game — 1v1 included — derives its geometry from one source of truth.
+// Every construction strip carries ONE EXTRA COLUMN (+GRID) over the original
+// widths; the field simply grew by that column per side, so the open field,
+// the turret distance and the base position are all unchanged.
 //
 // Deterministic and DOM-free (lives in src/sim/); safe for lockstep.
 
@@ -16,10 +18,12 @@ import { CONFIG } from '../config.js';
 
 // Strip widths (px) per zone role: [army strip, construction strip].
 // anchor === the classic 1v1 sizes; center/vanguard shrink toward the front.
+// Every CONSTRUCTION strip carries one extra placement column (+GRID px)
+// compared to the historical widths; the army strips are untouched.
 const ROLES = {
-  anchor: { armyW: 400, buildW: 360 },
-  center: { armyW: 240, buildW: 240 },
-  vanguard: { armyW: 160, buildW: 160 },
+  anchor: { armyW: 400, buildW: 400 },
+  center: { armyW: 240, buildW: 280 },
+  vanguard: { armyW: 160, buildW: 200 },
 };
 const EDGE = 100;        // field edge -> first army strip (1v1: army x0 = 100)
 const GAP_AB = 60;       // army -> build gap inside a zone (1v1: 500 -> 560)
@@ -29,9 +33,9 @@ const GAP_AB = 60;       // army -> build gap inside a zone (1v1: 500 -> 560)
 function gapZone() {
   return CONFIG.TEAM_ZONE_GAP != null ? CONFIG.TEAM_ZONE_GAP : 240;
 }
-const OPEN_FIELD = 1080; // front-most build edge -> midfield (1v1: 920 -> 2000)
+const OPEN_FIELD = 1080; // front-most build edge -> midfield (1v1: 960 -> 2040)
 const LANE_Y0 = 80, LANE_Y1 = 880; // the playable lane band (same as 1v1 zones)
-const TURRET_FROM_MID = 680;       // 1v1: mid 2000, turret 1320
+const TURRET_FROM_MID = 680;       // 1v1: mid 2040, turret 1360
 const MAIN_INSET = 80;             // main base sits this far into its build strip (1v1: 560+80=640)
 
 // roles per depth, back -> front, by players-per-side
@@ -92,7 +96,7 @@ export function teamLayout(playersPerSide, playersRight = null) {
 }
 
 // Point the GLOBAL config (renderer / camera / minimap / UI / AI read these) at
-// a mode's geometry. 1v1 restores the exact historical constants. The per-side
+// a mode's geometry. 1v1 restores the classic constants. The per-side
 // CONSTRUCTION/ARMY zones are set to each side's ANCHOR zone — old consumers
 // (AI, zone plates) keep a sensible rect until they learn multi-zone (later
 // phases). Call before `new Game(...)` when starting a match.

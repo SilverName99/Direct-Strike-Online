@@ -2820,7 +2820,7 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     const { applyBalance } = await import('../src/ui/balance.js');
     const { teamLayout, applyModeLayout } = await import('../src/sim/layout.js');
     applyBalance({});
-    check('layout: teamLayout(1) reproduces the classic 1v1 field', teamLayout(1).fieldW === 4000 && teamLayout(1).perPlayer[0].main.x === 640);
+    check('layout: teamLayout(1) matches the 1v1 constants', teamLayout(1).fieldW === CONFIG.FIELD_W && teamLayout(1).perPlayer[0].main.x === CONFIG.MAIN.x[0]);
     applyModeLayout(2); // point the global geometry (FIELD_W etc.) at 2v2
     const lay = teamLayout(2);
     const g = new Game(320, { layout: lay, races: ['humans', 'orcs', 'humans', 'orcs'] });

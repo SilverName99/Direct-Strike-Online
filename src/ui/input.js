@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS, UNIT_IDS } from '../units.js';
 import { hitTestTemplate, visualRadiusOf } from '../render/renderer.js';
-import { snapToZone, zoneFor } from './grid.js';
+import { snapToZone, zoneFor, armyZoneFor } from './grid.js';
 import { toast } from './pointer.js';
 
 const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
@@ -180,7 +180,10 @@ export class Input {
       if (e.key === ' ') {
         e.preventDefault();
         if (document.activeElement) document.activeElement.blur();
-        this.camera.centerOn(CONFIG.MAIN.x[this.team], CONFIG.MAIN.y);
+        // MY base — in team modes the player number isn't a side index
+        const game = this.getGame();
+        const myMain = game && game.mainOfPlayer ? game.mainOfPlayer(this.team) : null;
+        this.camera.centerOn(myMain ? myMain.x : CONFIG.MAIN.x[this.team % 2], CONFIG.MAIN.y);
         return;
       }
       if (e.key === 'Escape') {
@@ -263,7 +266,7 @@ export class Input {
   dragTo(x, y) {
     const game = this.getGame();
     if (!game || !this.uiState.drag) return;
-    const z = CONFIG.ARMY_ZONE[this.team];
+    const z = armyZoneFor(this.team);
     const tpl = game.templates[this.team][this.uiState.drag.index];
     const us = tpl ? game.ustat(this.team, tpl.type) : null;
     const cw = us && us.cw > 1 ? us.cw : 1;

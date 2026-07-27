@@ -15,7 +15,7 @@ import { NetClient } from './net/netclient.js';
 import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
 import { teamLayout, applyModeLayout } from './sim/layout.js';
-import { setExtraBuildZones } from './ui/grid.js';
+import { setExtraBuildZones, setLocalZones } from './ui/grid.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -303,6 +303,7 @@ function newGameFromRoster(roster) {
   // ally-zone snapping: the human may invest inside allied zones (X% allowance)
   // and — once baseless — park army in the allied strips (the sim validates)
   const allies = teamMode ? game.playersOnSide(mySide).filter((p) => p !== me) : [];
+  setLocalZones(game.zones[me].build, game.zones[me].army, mySide); // MY strips, whatever my depth
   setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
   effects.reset();
   uiState.selected = null;
@@ -417,6 +418,7 @@ function startNetMatch(m) {
   ai = null;
   // ally zones: the human may invest inside allied strips (the % allowance)
   const allies = teamMode ? game.playersOnSide(mySide).filter((p) => p !== m.youAre) : [];
+  setLocalZones(game.zones[m.youAre].build, game.zones[m.youAre].army, mySide);
   setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
   netmatch = new NetMatch(net, m, game);
   netmatch.bots = ais; // stepped inside the lockstep loop, not the render loop

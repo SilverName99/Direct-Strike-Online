@@ -31,13 +31,28 @@ export function setExtraBuildZones(zones, armyZones = []) {
   extraArmyZones = Array.isArray(armyZones) ? armyZones : [];
 }
 
+// The LOCAL player's own strips. CONFIG.CONSTRUCTION_ZONE / ARMY_ZONE only hold
+// one rect per SIDE (each side's anchor), so indexing them by the player number
+// breaks the moment you're not commander 0 or 1 — in team modes the right-hand
+// players are 2 and 3 and the lookup came back undefined (no ghost, nothing
+// placeable). main.js sets the real per-player rects here at match start.
+let ownZones = null; // { build, army, side }
+export function setLocalZones(build, army, side = 0) {
+  ownZones = (build && army) ? { build, army, side: side ? 1 : 0 } : null;
+}
+// The local player's army strip (falls back to the per-side constant).
+export function armyZoneFor(team) {
+  return ownZones ? ownZones.army : CONFIG.ARMY_ZONE[team];
+}
+
 // All construction rectangles for a team: the base zone plus the small
 // forward pocket around the mid turret (+ any allied zones in team modes).
 export function buildZonesFor(team) {
-  const zones = [CONFIG.CONSTRUCTION_ZONE[team]];
-  if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zones.push(CONFIG.MID_BUILD_ZONE[team]);
+  const side = ownZones ? ownZones.side : team;
+  const zones = [ownZones ? ownZones.build : CONFIG.CONSTRUCTION_ZONE[team]];
+  if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[side]) zones.push(CONFIG.MID_BUILD_ZONE[side]);
   for (const z of extraBuildZones) zones.push(z);
-  return zones;
+  return zones.filter(Boolean);
 }
 
 // The zone a placement kind belongs to for the given team (the local player). For
@@ -65,7 +80,7 @@ export function zoneFor(selected, x = null, y = null, team = 0) {
   for (const z of extraArmyZones) {
     if (x != null && y != null && x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1) return z;
   }
-  return CONFIG.ARMY_ZONE[team];
+  return armyZoneFor(team);
 }
 
 function clamp(v, lo, hi) {
