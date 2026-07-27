@@ -18,10 +18,12 @@ export function hashGame(game) {
   const mix = (v) => { h = (Math.imul(h ^ (v | 0), 2654435761) + 0x9e3779b9) | 0; };
   const mixf = (v) => mix(Math.round(v * 256));
   mixf(game.time); mix(game.waveCount);
-  mixf(game.money[0]); mixf(game.money[1]);
-  mix(game.tier[0]); mix(game.tier[1]);
-  if (game.skelBought) { mix(game.skelBought[0]); mix(game.skelBought[1]); }
-  mix(game.templates[0].length); mix(game.templates[1].length);
+  // per-PLAYER loops (2 in 1v1 — identical mixing order to the historical
+  // explicit [0]/[1] pairs; team modes hash every commander's state)
+  for (const m of game.money) mixf(m);
+  for (const t of game.tier) mix(t);
+  if (game.skelBought) for (const sk of game.skelBought) mix(sk);
+  for (const tl of game.templates) mix(tl.length);
   for (const u of game.entities) { mixf(u.x); mixf(u.y); mixf(u.hp); }
   for (const s of game.structures) { mixf(s.x); mixf(s.y); mixf(s.hp); }
   return h | 0;

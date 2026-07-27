@@ -538,7 +538,7 @@ function updateGraveDigger(game, u, stats, dt) {
   const nd = Math.sqrt(nd2);
   const digRange = stats.digRange || 0;
   const fleeRange = stats.fleeRange || 0;
-  const fleeOn = game.upgradeActive(u.team, 'gravedigflee');
+  const fleeOn = game.upgradeActive(u.owner != null ? u.owner : u.team, 'gravedigflee');
 
   // 1) FLEE (upgrade only): a threat is dangerously close -> run away, toward home.
   if (fleeOn && nd <= fleeRange) {
@@ -700,10 +700,10 @@ function updateHealer(game, u, stats) {
 // The active mount-kind upgrade this team owns that transforms u's type, else
 // null.
 function mountUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue; // owned but toggled off
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue; // owned but toggled off
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'mount' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'mount' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return up;
   }
   return null;
 }
@@ -711,10 +711,10 @@ function mountUpgradeFor(game, u) {
 // True if this team owns an active "Focus building" (kind 'focusbuild')
 // upgrade for u's type — the unit then attacks only structures.
 function focusBuildUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue; // owned but toggled off
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue; // owned but toggled off
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'focusbuild' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return true;
+    if (up && up.kind === 'focusbuild' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return true;
   }
   return false;
 }
@@ -722,20 +722,20 @@ function focusBuildUpgradeFor(game, u) {
 // True if this team owns an "Attack ground units" (kind 'ground') upgrade that
 // targets u's type — grants ground attack to an otherwise air-only unit.
 function groundUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue; // owned but toggled off
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue; // owned but toggled off
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'ground' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return true;
+    if (up && up.kind === 'ground' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return true;
   }
   return false;
 }
 
 // The active "Aterizare" (kind 'batland') upgrade for u's type, else null.
 function batLandUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue;
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue;
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'batland' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'batland' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return up;
   }
   return null;
 }
@@ -799,10 +799,10 @@ function updateBatLand(game, u, up) {
 
 // The active "Acid Spit" (kind 'acid') upgrade transforming u's type, else null.
 function acidUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue;
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue;
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'acid' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'acid' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return up;
   }
   return null;
 }
@@ -841,7 +841,7 @@ function applyShield(game, u, p, now) {
 // itself; in addition, up to `allies` nearby allies get the same shield —
 // whoever drops below the threshold first claims a slot until it frees up.
 function maybeShield(game, u) {
-  const up = teamShieldUpgrade(game, u.team);
+  const up = teamShieldUpgrade(game, u.owner != null ? u.owner : u.team);
   if (!up) return;
   const now = game.time;
   if ((u.shieldUntil && now < u.shieldUntil) || (u.shieldCd && now < u.shieldCd)) return;
@@ -872,30 +872,30 @@ function maybeShield(game, u) {
 
 // The active "Fireball" (kind 'fire') upgrade transforming u's type, else null.
 function fireUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue;
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue;
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'fire' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'fire' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return up;
   }
   return null;
 }
 
 // The active "AoE Damage" (kind 'aoe') upgrade transforming u's type, else null.
 function aoeUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue;
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue;
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'aoe' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'aoe' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return up;
   }
   return null;
 }
 
 // The active "Landing Split" (kind 'split') upgrade for u's type, else null.
 function splitUpgradeFor(game, u) {
-  for (const id of game.upgrades[u.team]) {
-    if (!game.upgradeActive(u.team, id)) continue;
+  for (const id of game.upgrades[u.owner != null ? u.owner : u.team]) {
+    if (!game.upgradeActive(u.owner != null ? u.owner : u.team, id)) continue;
     const up = resolvedUpgrade(id);
-    if (up && up.kind === 'split' && up.unit === u.type && (!up.race || up.race === game.races[u.team])) return up;
+    if (up && up.kind === 'split' && up.unit === u.type && (!up.race || up.race === game.races[u.owner != null ? u.owner : u.team])) return up;
   }
   return null;
 }

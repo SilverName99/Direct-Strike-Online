@@ -2812,6 +2812,62 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     check('phase0: last main down -> side loses', g.winner === 1);
     applyBalance({});
   }
+
+  // Phase 1 (team modes): 2v2 layout — depth zones per player, free mines,
+  // per-player economy, owner-tagged waves, side falls on its LAST main.
+  console.log('team-modes phase 1 (2v2 layout)');
+  {
+    const { applyBalance } = await import('../src/ui/balance.js');
+    const { teamLayout, applyModeLayout } = await import('../src/sim/layout.js');
+    applyBalance({});
+    check('layout: teamLayout(1) reproduces the classic 1v1 field', teamLayout(1).fieldW === 4000 && teamLayout(1).perPlayer[0].main.x === 640);
+    applyModeLayout(2); // point the global geometry (FIELD_W etc.) at 2v2
+    const lay = teamLayout(2);
+    const g = new Game(320, { layout: lay, races: ['humans', 'orcs', 'humans', 'orcs'] });
+    check('2v2: four players on sides [0,0,1,1]',
+      g.players.length === 4 && g.sideOf(0) === 0 && g.sideOf(1) === 0 && g.sideOf(2) === 1 && g.sideOf(3) === 1);
+    const mains = g.structures.filter((s) => s.kind === 'main');
+    check('2v2: one main per player + one turret per side',
+      mains.length === 4 && g.structures.filter((s) => s.kind === 'turret').length === 2);
+    check('2v2: each main is owned by its player', [0, 1, 2, 3].every((p) => mains.some((m) => m.owner === p)));
+    check('2v2: vanguard zone sits in FRONT of the anchor zone (side 0)',
+      g.zones[1].build.x0 > g.zones[0].build.x1);
+    check('2v2: no predefined mine spots in team modes', g.mineSpots.every((list) => list.length === 0));
+    // per-player zone ownership: player 1 places army in THEIR zone, not the ally's
+    const z1 = g.zones[1].army, z0 = g.zones[0].army;
+    check('2v2: army placement ok in your own zone', g.isValidPlacement(1, (z1.x0 + z1.x1) / 2, 400, -1, 'grunt'));
+    check('2v2: army placement rejected in the ally zone', !g.isValidPlacement(1, (z0.x0 + z0.x1) / 2, 400, -1, 'grunt'));
+    // build: tower in own zone ok; in ally zone rejected (X% allowance = phase 2)
+    for (let p = 0; p < 4; p++) g.money[p] = 99999;
+    const b1 = g.zones[1].build;
+    const r1 = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b1.x0 + 60, y: 400 });
+    check('2v2: tower builds in your own zone', r1.ok, r1.reason);
+    const b0 = g.zones[0].build;
+    const r2 = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b0.x0 + 60, y: 400 });
+    check('2v2: tower rejected in the ally zone (phase 2 adds the X% allowance)', !r2.ok);
+    // free mines: a generator builds anywhere valid in YOUR zone (no plots)
+    const r3 = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b1.x0 + 60, y: 600 });
+    check('2v2: mine builds freely in your own zone (no predefined plots)', r3.ok, r3.reason);
+    check('2v2: the mine belongs to its builder', g.structures.some((s) => s.kind === 'generator' && s.owner === 1));
+    // waves: each player's templates spawn with owner = player, team = side
+    g.templates[3].push({ type: 'grunt', x: (g.zones[3].army.x0 + g.zones[3].army.x1) / 2, y: 400 });
+    g.waveTimer = 0.01;
+    g.update(CONFIG.FIXED_DT); g.drainEvents();
+    const spawned = g.entities.find((e) => e.type === 'grunt' && e.owner === 3);
+    check('2v2: wave unit carries owner 3 on side 1', !!spawned && spawned.team === 1);
+    // income: each player accrues gold independently
+    const gold0 = g.money[0];
+    for (let i = 0; i < 60; i++) { g.update(CONFIG.FIXED_DT); g.drainEvents(); }
+    check('2v2: players accrue income independently', g.money[0] > gold0);
+    // side falls only with its LAST main: kill player 2's main -> side 1 lives
+    const m2 = mains.find((m) => m.owner === 2), m3 = mains.find((m) => m.owner === 3);
+    g.removeStructure(m2, true);
+    check('2v2: side 1 survives while player 3 still stands', g.winner === null);
+    g.removeStructure(m3, true);
+    check('2v2: last main of side 1 falls -> side 0 wins', g.winner === 0);
+    applyModeLayout(1); // restore the classic 1v1 geometry for anything after
+    applyBalance({});
+  }
 }
 
 // ----------------------------------------------------------------- done

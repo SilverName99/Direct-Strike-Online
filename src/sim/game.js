@@ -8,6 +8,7 @@ import { statsUnit, statsBuilding, resolvedUpgrade, resolvedAbility, towerStatFo
 import { UPGRADE_IDS, ABILITY_UNLOCK_UPGRADE } from '../upgrades.js';
 import { ABILITY_IDS } from '../abilities.js';
 import { mulberry32 } from './rng.js';
+import { teamLayout } from './layout.js';
 import { makeStructure, structureExtents } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
 import { updateMovement } from './movement.js';
@@ -21,54 +22,64 @@ export class Game {
     this.time = 0;
     this.winner = null;
 
-    // ---- PLAYERS vs SIDES (team-modes groundwork) ---------------------------
+    // ---- PLAYERS vs SIDES (team modes) --------------------------------------
     // A PLAYER is one commander: their own gold, templates, tier, upgrades and
     // buildings. A SIDE (0 = left, 1 = right) is the battlefield faction that
-    // units fight for. In 1v1 player index === side, so every per-player array
-    // below keeps its historical [0, 1] shape and nothing changes. Team modes
-    // (2v2/3v3) will register more players per side via options.players.
-    // Entities/structures carry BOTH: `team` (side, drives targeting/combat)
-    // and `owner` (player, drives stats/economy/refunds).
-    this.players = Array.isArray(options.players) && options.players.length
-      ? options.players.map((p, i) => ({ side: p.side != null ? p.side : (i < 1 ? 0 : 1), race: p.race || RACES[0] }))
-      : [{ side: 0, race: (options.races || [RACES[0], RACES[0]])[0] }, { side: 1, race: (options.races || [RACES[0], RACES[0]])[1] }];
+    // units fight for. The battlefield geometry comes from options.layout
+    // (teamLayout(n)); the default reproduces the classic 1v1 EXACTLY, so with
+    // no layout passed every per-player array keeps its historical [0, 1]
+    // shape and nothing changes. Entities/structures carry BOTH: `team` (side,
+    // drives targeting/combat) and `owner` (player, drives stats/economy).
+    this.layout = options.layout || teamLayout(1);
+    const optRaces = options.races || [RACES[0], RACES[0]];
+    this.players = this.layout.perPlayer.map((pp, i) => ({
+      side: pp.side, depth: pp.depth, role: pp.role,
+      race: optRaces[i] || optRaces[pp.side] || RACES[0],
+    }));
+    const N = this.players.length;
 
     // each player plays a race; unit stats resolve per race (indexed by PLAYER)
-    this.races = options.races || [RACES[0], RACES[0]];
+    this.races = this.players.map((p) => p.race);
 
-    this.money = [CONFIG.START_MONEY, CONFIG.START_MONEY];
-    this.spent = [0, 0];
-    this.tier = [1, 1];
-    // Base tier upgrade in progress, per team: null when idle, else
+    // per-player depth zones: { army, build } rects + alive flag (a zone dies
+    // with its owner's main base — the "defense in depth" collapse, phase 2)
+    this.zones = this.layout.perPlayer.map((pp) => ({ army: pp.army, build: pp.build, alive: true }));
+    this.midBuild = this.layout.midBuild; // forward pockets by SIDE
+
+    this.money = this.players.map(() => CONFIG.START_MONEY);
+    this.spent = this.players.map(() => 0);
+    this.tier = this.players.map(() => 1);
+    // Base tier upgrade in progress, per player: null when idle, else
     // { start, done, toTier } — the tier only advances (and its effects apply)
     // once game.time reaches `done`. The base stays busy meanwhile.
-    this.baseUpgrade = [null, null];
-    this.upgrades = [new Set(), new Set()]; // bought upgrade ids, per team (permanent)
-    this.skelBought = [0, 0]; // Undead: times the skeleton-cap base upgrade was bought, per team
+    this.baseUpgrade = this.players.map(() => null);
+    this.upgrades = this.players.map(() => new Set()); // bought upgrade ids, per player (permanent)
+    this.skelBought = this.players.map(() => 0); // Undead: skeleton-cap purchases, per player
     // Player-facing toggles (via the selection panel). Both are OFF-lists so
     // everything defaults to ON (the AI never toggles — full behavior).
-    this.abilityOff = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` autocast disabled
+    this.abilityOff = this.players.map(() => new Set()); // per player: `${unitType}/${abilityId}` autocast disabled
     // Hero ability modes (player-facing). Default AUTO = in neither set. MANUAL =
     // in abilityManual (the hero never auto-casts it; the player fires it). OFF =
     // in abilityOff (never used at all, reusing the autocast off-list above).
-    this.abilityManual = [new Set(), new Set()]; // per team: `${unitType}/${abilityId}` on manual
+    this.abilityManual = this.players.map(() => new Set()); // per player: `${unitType}/${abilityId}` on manual
     // One-shot manual fire requests: a `castAbilityNow` adds a key; the sim casts
     // it that tick if ready, then this is cleared at the end of update() (so a
     // press never lingers — nothing happens if it wasn't ready, press again).
-    this.abilityCastReq = [new Set(), new Set()];
-    this.upgradeOff = [new Set(), new Set()]; // per team: upgrade id owned but deactivated
-    this.incomeMult = options.incomeMult || [1, 1];
+    this.abilityCastReq = this.players.map(() => new Set());
+    this.upgradeOff = this.players.map(() => new Set()); // per player: upgrade id owned but deactivated
+    const im = options.incomeMult || [];
+    this.incomeMult = this.players.map((_, i) => (im[i] != null ? im[i] : 1));
 
     // the first round can run on its own timer; every later wave uses WAVE_INTERVAL
     this.waveTimer = CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL;
     this.waveCount = 0;
 
-    this.templates = [[], []]; // per team: {type, x, y}
-    this.buildReadyAt = [{}, {}]; // per team: building kind -> game.time it can be built again
+    this.templates = this.players.map(() => []); // per player: {type, x, y}
+    this.buildReadyAt = this.players.map(() => ({})); // per player: building kind -> game.time it can be built again
     // Wall "charges": you start with 0 buildable walls; the stock refills by 1
     // every chainDelay seconds up to chainMax, and each wall built spends one.
-    this.wallStock = [0, 0];
-    this.wallStockAt = [0, 0];    // game.time of the next +1 (0 = timer not running)
+    this.wallStock = this.players.map(() => 0);
+    this.wallStockAt = this.players.map(() => 0); // game.time of the next +1 (0 = timer not running)
     this.midOwner = null;      // control point: team currently holding the middle
     // Middle-of-map terrain: pick one uploaded variant (with its effect) at
     // random from the seeded RNG so it is deterministic. options.middles is a
@@ -89,30 +100,39 @@ export class Game {
     this.byId = new Map();
     this.events = []; // drained by the render layer
 
-    for (const t of [0, 1]) {
-      makeStructure(this, t, 'main', CONFIG.MAIN.x[t], CONFIG.MAIN.y);
+    // one MAIN per player (in their own depth zone) + one turret per SIDE.
+    // 1v1 keeps the historical creation order: main0, turret0, main1, turret1.
+    for (const side of [0, 1]) {
+      for (const p of this.playersOnSide(side)) {
+        const pp = this.layout.perPlayer[p];
+        makeStructure(this, side, 'main', pp.main.x, pp.main.y, p);
+      }
       // the turret guards the LANE center (MAIN.y), not the field's vertical
-      // middle — the field extends lower as a scenic apron with no gameplay
-      makeStructure(this, t, 'turret', CONFIG.TURRET_X[t], CONFIG.MAIN.y);
+      // middle — the field extends lower as a scenic apron with no gameplay.
+      // Its owner is the side's ANCHOR player (bounty/stats resolve per race).
+      makeStructure(this, side, 'turret', this.layout.turretX[side], CONFIG.MAIN.y, this.playersOnSide(side)[0]);
     }
 
-    // Predefined MINE plots: generators can ONLY be built on these. `cap`
-    // grid-aligned spots are rolled from the seeded RNG in each team's
-    // construction zone, keeping the 3 grid columns nearest the enemy free
-    // (that's where walls and towers go). Mines rise instantly on a plot.
-    this.mineSpots = [[], []];
-    for (const t of [0, 1]) this.generateMineSpots(t);
+    // Predefined MINE plots: in CLASSIC 1v1 generators can ONLY be built on
+    // these `cap` grid-aligned spots, rolled from the seeded RNG in each
+    // player's construction zone (front columns stay free for walls/towers).
+    // TEAM MODES have no predefined plots — mines build freely in your own
+    // zones (the per-race cap still applies), so a fallen player can rebuild
+    // their economy wherever their team still stands.
+    this.mineSpots = this.players.map(() => []);
+    if (this.layout.playersPerSide === 1) for (let p = 0; p < N; p++) this.generateMineSpots(p);
   }
 
-  generateMineSpots(team) {
-    const bs = this.bstat(team, 'generator');
+  generateMineSpots(player) {
+    const bs = this.bstat(player, 'generator');
     const n = Math.max(0, Math.round(bs.cap || 0));
-    const zone = CONFIG.CONSTRUCTION_ZONE[team];
+    const zone = this.zones[player].build;
+    const side = this.sideOf(player);
     const ext = structureExtents('generator', bs);
     const G = CONFIG.GRID;
     const reserve = 3 * G; // front columns stay free for walls/towers
-    const x0 = team === 0 ? zone.x0 : zone.x0 + reserve;
-    const x1 = team === 0 ? zone.x1 - reserve : zone.x1;
+    const x0 = side === 0 ? zone.x0 : zone.x0 + reserve;
+    const x1 = side === 0 ? zone.x1 - reserve : zone.x1;
     // candidate footprint centers, grid-aligned exactly like the build snap
     const cands = [];
     for (let cx = x0 + ext.hw; cx <= x1 - ext.hw + 0.01; cx += G) {
@@ -141,7 +161,7 @@ export class Game {
       }
       if (ok) spots.push({ x: c.x, y: c.y });
     }
-    this.mineSpots[team] = spots;
+    this.mineSpots[player] = spots;
   }
 
   // Is this mine plot free (no living structure standing on it)?
@@ -243,18 +263,19 @@ export class Game {
     return this.structures.filter((s) => s.team !== team && s.hp > 0);
   }
 
-  countKind(team, kind) {
+  // Caps/tech/income count the PLAYER's own buildings (1v1: owner === team).
+  countKind(player, kind) {
     let n = 0;
     for (const s of this.structures) {
-      if (s.team === team && s.kind === kind && s.hp > 0) n++;
+      if ((s.owner != null ? s.owner : s.team) === player && s.kind === kind && s.hp > 0) n++;
     }
     return n;
   }
 
-  // Does this team have a living, FINISHED building of `kind`? (unlock check
+  // Does this player have a living, FINISHED building of `kind`? (unlock check
   // for units — a construction site doesn't unlock anything yet)
-  hasBuilding(team, kind) {
-    return this.structures.some((s) => s.team === team && s.kind === kind && s.hp > 0 && !s.building);
+  hasBuilding(player, kind) {
+    return this.structures.some((s) => (s.owner != null ? s.owner : s.team) === player && s.kind === kind && s.hp > 0 && !s.building);
   }
 
   // Effective build price for a structure: mines (generator) get costStep more
@@ -269,10 +290,10 @@ export class Game {
 
   // Living, finished structures of a kind (income; caps use countKind, which
   // includes construction sites so you can't over-queue past the cap).
-  countBuilt(team, kind) {
+  countBuilt(player, kind) {
     let n = 0;
     for (const s of this.structures) {
-      if (s.team === team && s.kind === kind && s.hp > 0 && !s.building) n++;
+      if ((s.owner != null ? s.owner : s.team) === player && s.kind === kind && s.hp > 0 && !s.building) n++;
     }
     return n;
   }
@@ -302,9 +323,10 @@ export class Game {
     return !!this.heroTemplateOf(team, type);
   }
 
-  // The live hero entity of a given type, or null.
-  heroEntityOf(team, type) {
-    return this.entities.find((e) => e.team === team && e.hero && e.type === type && e.hp > 0) || null;
+  // The live hero entity of a given type, or null. Matched by OWNER so two
+  // allied players may field the same hero type independently (1v1 identical).
+  heroEntityOf(player, type) {
+    return this.entities.find((e) => (e.owner != null ? e.owner : e.team) === player && e.hero && e.type === type && e.hp > 0) || null;
   }
 
   // Push a hero template's learned abilities/ranks onto its LIVE entity so the
@@ -336,27 +358,29 @@ export class Game {
     return f;
   }
 
-  foodCap(team) {
+  foodCap(player) {
     let cap = CONFIG.FOOD_CAP_BASE || 0;
     for (const s of this.structures) {
       // a farm still under construction feeds nobody yet
-      if (s.team === team && s.kind === 'farm' && s.hp > 0 && !s.building) cap += this.bstat(team, 'farm').food || 0;
+      if ((s.owner != null ? s.owner : s.team) === player && s.kind === 'farm' && s.hp > 0 && !s.building) cap += this.bstat(player, 'farm').food || 0;
     }
     return cap;
   }
 
-  // A unit died: the ENEMY team's hero earns its XP — but only while that hero
-  // is alive on the field. Structures/base grant nothing.
+  // A unit died: the ENEMY side's heroes earn its XP — but only while alive on
+  // the field. Structures/base grant nothing. Every player on the scoring side
+  // credits their own heroes (1v1: the one enemy player, as before).
   creditHeroKill(dead) {
     if (!dead || dead.isStructure || dead.isBase) return;
-    const team = 1 - dead.team; // the team whose army scored the kill
+    const side = 1 - dead.team; // the side whose army scored the kill
     const xp = (this.ustatOf(dead).xp) || 0;
     if (xp <= 0) return;
-    // every hero currently ALIVE on the scoring team earns the XP independently
-    for (const tpl of this.heroTemplates(team)) {
-      if (tpl.level >= 10) continue;
-      if (!this.heroEntityOf(team, tpl.type)) continue;
-      this.gainHeroXp(team, tpl, xp);
+    for (const player of this.playersOnSide(side)) {
+      for (const tpl of this.heroTemplates(player)) {
+        if (tpl.level >= 10) continue;
+        if (!this.heroEntityOf(player, tpl.type)) continue;
+        this.gainHeroXp(player, tpl, xp);
+      }
     }
   }
 
@@ -418,8 +442,10 @@ export class Game {
   // once you have captured it, and only LOSE it when the enemy owns the middle
   // outright — i.e. he has a unit past midfield and you have none on his side.
   // Killing off your push isn't enough; he must also cross to take the bonus.
-  midBonusPerTick(team) {
-    if (!CONFIG.MID_INCOME || this.midOwner !== team) return 0;
+  midBonusPerTick(player) {
+    // the mid is held per SIDE; EVERY player on the owning side earns the full
+    // bonus ("toată echipa primește bonus"). 1v1: sideOf(p) === p, unchanged.
+    if (!CONFIG.MID_INCOME || this.midOwner !== this.sideOf(player)) return 0;
     return Math.round(CONFIG.MID_INCOME * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
   }
 
@@ -474,11 +500,12 @@ export class Game {
   skelCapCostOf(team) {
     return (CONFIG.SKEL_CAP_COST || 0) + (this.skelBought[team] || 0) * (CONFIG.SKEL_CAP_COST_STEP || 0);
   }
-  // How many Necromancer skeletons (melee + ranged) this team has alive now.
-  livingSkeletons(team) {
+  // How many Necromancer skeletons (melee + ranged) this PLAYER has alive now
+  // (the cap is per player — each commander runs their own bone economy).
+  livingSkeletons(player) {
     let n = 0;
     for (const e of this.entities) {
-      if (e.hp > 0 && e.team === team && e.summon && (e.summonKind === 'skeleton' || e.summonKind === 'skeletonranged')) n++;
+      if (e.hp > 0 && (e.owner != null ? e.owner : e.team) === player && e.summon && (e.summonKind === 'skeleton' || e.summonKind === 'skeletonranged')) n++;
     }
     return n;
   }
@@ -514,23 +541,28 @@ export class Game {
   // Actually advance the base to the next tier and apply all its effects
   // (base max HP + heal, tower scaling). Called immediately for an instant
   // upgrade, or from update() when the upgrade timer finishes.
-  applyTierUp(team) {
-    this.tier[team]++;
-    const main = this.mainOf(team);
-    if (main) {
-      main.maxHp = this.bstat(team, 'main').hp[this.tier[team] - 1];
+  // The player's OWN main base (team modes: one main per player).
+  mainOfPlayer(player) {
+    return this.structures.find((s) => s.kind === 'main' && (s.owner != null ? s.owner : s.team) === player) || null;
+  }
+
+  applyTierUp(player) {
+    this.tier[player]++;
+    const main = this.mainOfPlayer(player);
+    if (main && main.hp > 0) {
+      main.maxHp = this.bstat(player, 'main').hp[this.tier[player] - 1];
       main.hp = Math.min(main.maxHp, main.hp + 1000);
     }
-    // towers scale with the base tier: raise their max HP and heal by the gain
-    const tbs = this.bstat(team, 'tower');
+    // the player's towers scale with THEIR base tier: raise max HP + heal the gain
+    const tbs = this.bstat(player, 'tower');
     for (const s of this.structures) {
-      if (s.team !== team || s.kind !== 'tower' || s.hp <= 0) continue;
-      const nm = towerStatForTier(tbs, this.tier[team]).hp;
+      if ((s.owner != null ? s.owner : s.team) !== player || s.kind !== 'tower' || s.hp <= 0) continue;
+      const nm = towerStatForTier(tbs, this.tier[player]).hp;
       const gain = nm - s.maxHp;
       s.maxHp = nm;
       if (gain > 0) s.hp = Math.min(nm, s.hp + gain);
     }
-    this.events.push({ type: 'tierUp', team, tier: this.tier[team] });
+    this.events.push({ type: 'tierUp', team: player, tier: this.tier[player] });
   }
 
   inZone(zone, x, y) {
@@ -550,7 +582,7 @@ export class Game {
   }
 
   isValidPlacement(team, x, y, ignoreIndex = -1, unitId = null) {
-    const zone = CONFIG.ARMY_ZONE[team];
+    const zone = this.zones[team].army; // the player's OWN army strip (1v1: the classic rect)
     const { hw, hh } = this.footprintHalf(team, unitId);
     // the footprint (a point for 1x1 units) must sit inside the army zone
     if (x - hw < zone.x0 || x + hw > zone.x1 || y - hh < zone.y0 || y + hh > zone.y1) return false;
@@ -578,10 +610,12 @@ export class Game {
   isValidBuildPlacement(team, kind, x, y, ignoreId = null) {
     if (!CONFIG.BUILDINGS[kind]) return false;
     const ext = structureExtents(kind, this.bstat(team, kind));
-    // buildings may go in the base construction zone OR the small forward
-    // pocket around the mid turret; the whole box must fit inside one of them
-    const zones = [CONFIG.CONSTRUCTION_ZONE[team]];
-    if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zones.push(CONFIG.MID_BUILD_ZONE[team]);
+    // buildings may go in the player's OWN construction zone OR the side's
+    // small forward pocket by the mid turret; the box must fit inside one.
+    // (Building in an ALLY's zone — with the X% allowance — is phase 2.)
+    const side = this.sideOf(team);
+    const zones = [this.zones[team].build];
+    if (this.midBuild && this.midBuild[side]) zones.push(this.midBuild[side]);
     const fits = zones.some((z) =>
       x - ext.hw >= z.x0 && x + ext.hw <= z.x1 && y - ext.hh >= z.y0 && y + ext.hh <= z.y1);
     if (!fits) return false;
@@ -696,9 +730,10 @@ export class Game {
       if (wallCharged && this.wallStock[cmd.team] <= 0) return { ok: false, reason: 'no-charge' };
       let bx = cmd.x;
       let by = cmd.y;
-      // mines rise ONLY on their predefined plots: snap the click to the
-      // nearest free plot (or refuse when none is near / all are taken)
-      if (cmd.kind === 'generator') {
+      // CLASSIC 1v1: mines rise ONLY on their predefined plots — snap the click
+      // to the nearest free plot. TEAM MODES have no plots (empty list): mines
+      // build freely inside the zone like any other building (cap still holds).
+      if (cmd.kind === 'generator' && this.mineSpots[cmd.team].length) {
         const spot = this.nearestFreeMineSpot(cmd.team, cmd.x, cmd.y);
         if (!spot) return { ok: false, reason: 'no-spot' };
         bx = spot.x;
@@ -709,19 +744,20 @@ export class Game {
       this.money[cmd.team] -= price;
       this.spent[cmd.team] += price;
       if (stats.buildCd > 0) this.buildReadyAt[cmd.team][cmd.kind] = this.time + stats.buildCd;
-      makeStructure(this, cmd.team, cmd.kind, bx, by);
+      makeStructure(this, this.sideOf(cmd.team), cmd.kind, bx, by, cmd.team);
       if (wallCharged) this.wallStock[cmd.team]--; // spend a charge
       return { ok: true };
     }
 
     if (cmd.type === 'sellBuilding') {
       const s = this.byId.get(cmd.id);
-      if (!s || !s.isStructure || s.team !== cmd.team || s.hp <= 0)
+      // you may only sell YOUR OWN building (owner check; 1v1: owner === team)
+      if (!s || !s.isStructure || (s.owner != null ? s.owner : s.team) !== cmd.team || s.hp <= 0)
         return { ok: false, reason: 'unknown-building' };
       if (s.kind === 'main' || s.kind === 'turret')
         return { ok: false, reason: 'not-sellable' };
       this.money[cmd.team] += Math.round(
-        this.bstat(s.team, s.kind).cost * CONFIG.SELL_BUILDING_REFUND
+        this.bstat(cmd.team, s.kind).cost * CONFIG.SELL_BUILDING_REFUND
       );
       this.removeStructure(s, false);
       return { ok: true };
@@ -729,14 +765,15 @@ export class Game {
 
     if (cmd.type === 'moveBuilding') {
       const s = this.byId.get(cmd.id);
-      if (!s || !s.isStructure || s.team !== cmd.team || s.hp <= 0)
+      // you may only move YOUR OWN building (owner check; 1v1: owner === team)
+      if (!s || !s.isStructure || (s.owner != null ? s.owner : s.team) !== cmd.team || s.hp <= 0)
         return { ok: false, reason: 'unknown-building' };
       if (s.kind === 'main' || s.kind === 'turret')
         return { ok: false, reason: 'not-movable' }; // the base + starting turret stay put
       let bx = cmd.x, by = cmd.y;
-      // mines can only move onto a free predefined plot (their own current plot
-      // frees up as they leave it)
-      if (s.kind === 'generator') {
+      // classic 1v1: mines only move onto a free predefined plot (their own
+      // current plot frees up as they leave it); team modes move freely
+      if (s.kind === 'generator' && this.mineSpots[cmd.team].length) {
         const spot = this.nearestFreeMineSpot(cmd.team, cmd.x, cmd.y);
         if (!spot) return { ok: false, reason: 'no-spot' };
         bx = spot.x; by = spot.y;
@@ -866,7 +903,7 @@ export class Game {
 
     // Income accrues smoothly EVERY tick (same total rate as the old 2s chunks)
     // so gold climbs continuously instead of jumping and then sitting still.
-    for (const t of [0, 1]) this.money[t] += this.incomePerSecond(t) * dt;
+    for (let t = 0; t < this.players.length; t++) this.money[t] += this.incomePerSecond(t) * dt;
 
     // Structure HP regen (per-race stat; 0 = off). Turret, tower and wall each
     // carry their own `regen` (HP/s); a finished, damaged one heals over time.
@@ -891,7 +928,7 @@ export class Game {
 
     // Base tier upgrades: while busy, the new tier lands only when the timer
     // finishes (deterministic — both lockstep clients apply it on the same tick)
-    for (const t of [0, 1]) {
+    for (let t = 0; t < this.players.length; t++) {
       const u = this.baseUpgrade[t];
       if (u && this.time >= u.done) {
         this.baseUpgrade[t] = null;
@@ -902,7 +939,7 @@ export class Game {
     // Wall charges: the stock of buildable walls refills by 1 every chainDelay
     // seconds, up to chainMax. It idles once full and resumes as soon as you
     // spend one (build a wall). chainMax <= 1 turns the whole system off.
-    for (const t of [0, 1]) {
+    for (let t = 0; t < this.players.length; t++) {
       const wb = this.bstat(t, 'wall');
       const max = Math.round(wb.chainMax || 1);
       if (max <= 1) { this.wallStock[t] = 0; this.wallStockAt[t] = 0; continue; }
@@ -950,8 +987,7 @@ export class Game {
     // Manual hero-cast requests are one-shot: whatever fired (or couldn't) this
     // tick, drop them so a press never lingers — nothing happens if it wasn't
     // ready, the player presses again when it is.
-    this.abilityCastReq[0].clear();
-    this.abilityCastReq[1].clear();
+    for (const req of this.abilityCastReq) req.clear();
 
     // Raisable corpses expire; drop the stale ones (cheap, usually short).
     if (this.corpses.length) {
@@ -962,13 +998,19 @@ export class Game {
   }
 
   removeStructure(s, destroyed) {
+    const owner = s.owner != null ? s.owner : s.team;
     if (destroyed) {
-      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind, tier: this.tier[s.team], hw: s.hw, hh: s.hh });
+      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind, tier: this.tier[owner], hw: s.hw, hh: s.hh });
       // destroying the mid-field turret pays its bounty (the DESTROYED turret's
-      // per-race stat) to the other team
+      // per-race stat) to the enemy SIDE — split evenly among its players
+      // (1v1: the single enemy player takes it all, as before)
       if (s.kind === 'turret') {
-        const bounty = this.bstat(s.team, 'turret').bounty || 0;
-        if (bounty > 0) this.money[1 - s.team] += bounty;
+        const bounty = this.bstat(owner, 'turret').bounty || 0;
+        const foes = this.playersOnSide(1 - s.team);
+        if (bounty > 0 && foes.length) {
+          const share = Math.round(bounty / foes.length);
+          for (const p of foes) this.money[p] += share;
+        }
       }
       if (s.kind === 'main' && this.winner === null) {
         s.hp = 0;

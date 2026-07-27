@@ -66,7 +66,7 @@ export function learnedAbilityParams(u, aid) {
 export function hasActiveAbility(game, u, stats) {
   if (!stats.caster || !stats.abilities) return false;
   return stats.abilities.some((aid) =>
-    isCastable(resolvedAbility(aid)) && game.abilityUsable(u.team, u.type, aid));
+    isCastable(resolvedAbility(aid)) && game.abilityUsable(u.owner != null ? u.owner : u.team, u.type, aid));
 }
 
 // A caster is a spellcaster first: while it can still afford at least one of
@@ -79,7 +79,7 @@ export function casterPrioritizesSpells(game, unit, stats) {
   for (const aid of stats.abilities) {
     const ab = resolvedAbility(aid);
     if (ab && (ab.kind === 'active' || ab.kind === 'summon') && unit.mana >= (ab.params.manaCost || 0) &&
-        game.abilityUsable(unit.team, unit.type, aid)) return true;
+        game.abilityUsable(unit.owner != null ? unit.owner : unit.team, unit.type, aid)) return true;
   }
   return false;
 }
@@ -582,8 +582,8 @@ function pickCastable(game, caster, stats, time, engaged) {
   // Hero ability modes (players only; the AI leaves both sets empty, so heroes
   // it controls stay fully auto). A MANUAL ability never auto-casts; it fires
   // only when the player has queued a one-shot request for it.
-  const manualSet = caster.hero ? game.abilityManual[caster.team] : null;
-  const reqSet = caster.hero ? game.abilityCastReq[caster.team] : null;
+  const manualSet = caster.hero ? game.abilityManual[caster.owner != null ? caster.owner : caster.team] : null;
+  const reqSet = caster.hero ? game.abilityCastReq[caster.owner != null ? caster.owner : caster.team] : null;
   const isManual = (aid) => manualSet != null && manualSet.has(`${caster.type}/${aid}`);
   const wanted = (aid) => reqSet != null && reqSet.has(`${caster.type}/${aid}`);
   // A manual cast the player explicitly asked for fires FIRST and ignores the
@@ -595,7 +595,7 @@ function pickCastable(game, caster, stats, time, engaged) {
       if (!wanted(aid)) continue;
       const ab = resolvedAbility(aid);
       if (!isCastable(ab)) continue;
-      if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // OFF / locked
+      if (!game.abilityUsable(caster.owner != null ? caster.owner : caster.team, caster.type, aid)) continue; // OFF / locked
       if ((caster.abilityCd[aid] || 0) > time) continue;
       if ((ab.params.manaCost || 0) > caster.mana) continue;
       const target = findAbilityTarget(game, caster, aid, ab, time, true);
@@ -625,7 +625,7 @@ function pickCastable(game, caster, stats, time, engaged) {
     const ab = resolvedAbility(aid);
     if (!ab || ab.kind !== 'summon') continue;
     if (isManual(aid)) continue; // manual abilities never auto-cast
-    if (!game.abilityUsable(caster.team, caster.type, aid)) continue;
+    if (!game.abilityUsable(caster.owner != null ? caster.owner : caster.team, caster.type, aid)) continue;
     if ((caster.abilityCd[aid] || 0) > time) continue;
     const cost = ab.params.manaCost || 0;
     if (caster.manaMax < cost) continue;   // pool too small to ever afford -> ignore (no soft-lock)
@@ -637,7 +637,7 @@ function pickCastable(game, caster, stats, time, engaged) {
     const ab = resolvedAbility(aid);
     if (!isCastable(ab)) continue;
     if (isManual(aid)) continue; // manual abilities fire only via the request pass above
-    if (!game.abilityUsable(caster.team, caster.type, aid)) continue; // toggled off / tier-locked
+    if (!game.abilityUsable(caster.owner != null ? caster.owner : caster.team, caster.type, aid)) continue; // toggled off / tier-locked
     if ((caster.abilityCd[aid] || 0) > time) continue;
     if ((ab.params.manaCost || 0) > caster.mana) continue;
     if (!engageOk(aid)) continue;
@@ -703,16 +703,16 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
   // Necromancer skeleton kit: all three share the team-wide skeleton cap.
   if (aid === 'skeletonbrothers') {
     // needs a corpse in reach AND room for TWO under the cap
-    if (game.livingSkeletons(caster.team) + 2 > game.skelCapOf(caster.team)) return null;
+    if (game.livingSkeletons(caster.owner != null ? caster.owner : caster.team) + 2 > game.skelCapOf(caster.owner != null ? caster.owner : caster.team)) return null;
     return nearestCorpse(game, caster, p.corpseRange || 0, time) ? caster : null;
   }
   if (aid === 'skeletonmelee' || aid === 'skeletonranged') {
     // once Brothers is unlocked it supersedes the singles
-    if (game.abilityUsable(caster.team, caster.type, 'skeletonbrothers')) return null;
-    if (game.livingSkeletons(caster.team) + 1 > game.skelCapOf(caster.team)) return null;
+    if (game.abilityUsable(caster.owner != null ? caster.owner : caster.team, caster.type, 'skeletonbrothers')) return null;
+    if (game.livingSkeletons(caster.owner != null ? caster.owner : caster.team) + 1 > game.skelCapOf(caster.owner != null ? caster.owner : caster.team)) return null;
     if (!nearestCorpse(game, caster, p.corpseRange || 0, time)) return null;
-    const meleeOn = game.abilityUsable(caster.team, caster.type, 'skeletonmelee');
-    const rangedOn = game.abilityUsable(caster.team, caster.type, 'skeletonranged');
+    const meleeOn = game.abilityUsable(caster.owner != null ? caster.owner : caster.team, caster.type, 'skeletonmelee');
+    const rangedOn = game.abilityUsable(caster.owner != null ? caster.owner : caster.team, caster.type, 'skeletonranged');
     if (meleeOn && rangedOn) {
       // both unlocked -> alternate toward the type we have FEWER of (ties: melee).
       // Returning null for the "wrong" type also drops it from summon-priority,
