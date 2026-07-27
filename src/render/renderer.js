@@ -921,6 +921,7 @@ export class Renderer {
     this.workerHits = []; // world-space click targets for the inspect panel
     for (const s of game.structures) {
       if (s.kind !== 'generator' || s.hp <= 0) continue;
+      if (s.building) continue; // a mine under construction pays nothing, so nobody hauls yet
       if (!this.visible(s.x, s.y, 400)) continue;
       // fog: hide an enemy mine's live workers unless it's currently in sight
       if (this._fogOn && s.team !== this._fogTeam && !this.fog.visibleAt(s.x, s.y)) continue;

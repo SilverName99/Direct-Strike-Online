@@ -243,10 +243,10 @@ export function makeStructure(game, team, kind, x, y, owner = team) {
   const ext = structureExtents(kind, bs);
   // Player-built structures can take time to raise (buildTime, admin-set;
   // 0 = instant). While `building`, the structure is INERT: towers don't
-  // shoot, farms grant no food, tech unlocks nothing — but it counts toward
-  // caps and can already be attacked. Mines (generator) are exempt: they rise
-  // instantly on their predefined plots.
-  const buildTime = (kind !== 'main' && kind !== 'turret' && kind !== 'generator') ? (bs.buildTime || 0) : 0;
+  // shoot, farms grant no food, tech unlocks nothing, MINES pay no gold and
+  // send no miners — but it counts toward caps and can already be attacked.
+  // Only the starting main + turret are exempt (they're placed by the sim).
+  const buildTime = (kind !== 'main' && kind !== 'turret') ? (bs.buildTime || 0) : 0;
   const s = {
     id: game.nextId++,
     team, owner, kind,

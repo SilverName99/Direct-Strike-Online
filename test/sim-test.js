@@ -216,9 +216,21 @@ console.log('buildings');
   } else {
     check('off-plot click with no near plot refuses', gOff.reason === 'no-spot');
   }
+  // a fresh mine is a construction SITE: it holds its plot but pays nothing
+  const site1 = game.structures.find((s) => s.kind === 'generator');
+  check('mine: it starts as a construction site', !!site1 && site1.building === true);
+  check('mine: a site pays no gold yet', game.incomePerTick(0) === base);
+  check('mine: the plot is taken while it rises', !game.mineSpotFree(s1));
+  // ...and pays once it finishes (like every other building)
+  const bt = CONFIG.BUILDINGS.generator.buildTime || 0;
+  for (let i = 0; i < Math.ceil((bt + 0.2) / CONFIG.FIXED_DT); i++) game.update(CONFIG.FIXED_DT);
+  check('mine: finished after buildTime', site1.building === false && site1.hp >= site1.maxHp * 0.99);
+  check('mine: a finished mine pays', game.incomePerTick(0) > base);
+
   // income amounts are per 20s; each tick pays the proportional slice
   const tickShare = CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW;
   const builtGens = game.countBuilt(0, 'generator');
+  check('mine: every built mine counts', builtGens >= 2);
   check(
     'each generator adds income',
     game.incomePerTick(0) === base + Math.round(builtGens * CONFIG.BUILDINGS.generator.income * tickShare)
