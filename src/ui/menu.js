@@ -408,7 +408,7 @@ export class Menu {
     if (hint) {
       let msg = '';
       if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot${solo ? '.' : ' sau așteaptă un jucător.'}`;
-      else if (solo) msg = `Meci de antrenament ${n[0]}v${n[1]}${n[0] !== n[1] ? ' (asimetric: tabăra mică primește bonus de venit)' : ''}.`;
+      else if (solo) msg = ''; // offline: the START label already says the format
       else if (waiting.length) msg = `Se așteaptă: ${waiting.map((sl) => esc(sl.name || 'Player')).join(', ')}`;
       else if (!host) msg = 'Gazda pornește meciul.';
       else msg = `Sloturile goale dispar — pornești ${n[0]}v${n[1]}${n[0] !== n[1] ? ' (asimetric: tabăra mică primește bonus de venit)' : ''}.`;

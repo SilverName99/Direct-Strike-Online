@@ -1137,10 +1137,11 @@ export class Renderer {
     ctx.restore();
   }
 
-  // The player's free mine plots: the mine's "Construcție 30%" frame, drawn
-  // SOLID — an unfinished dig that marks the spot. Without that art it falls
-  // back to the faded idle mine (or a dashed footprint + pick glyph with no art
-  // at all). Occupied plots draw nothing — the real mine stands there.
+  // The player's free mine plots: the mine's "Construcție 30%" frame — an
+  // unfinished dig marking the spot. Everything here draws FULLY OPAQUE (no
+  // ghosting): the construct frame if it's uploaded, else the finished mine
+  // art, else a dashed footprint + pick glyph. Occupied plots draw nothing —
+  // the real mine stands there.
   drawMineSpots(ctx, game) {
     if (!game.mineSpots) return;
     const my = getViewerTeam();
@@ -1152,10 +1153,7 @@ export class Renderer {
       ctx.translate(p.x, p.y);
       if (getViewerSide() === 1) ctx.scale(-1, 1);
       let drawn = drawConstructSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
-      if (!drawn) {
-        ctx.globalAlpha = 0.35;
-        drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
-      }
+      if (!drawn) drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
       if (!drawn) {
         ctx.strokeStyle = '#ffd35c';
         ctx.setLineDash([6, 5]);
@@ -1207,27 +1205,21 @@ export class Renderer {
       // cw×ch box; main/turret use their radius) and applies the size setting.
       let spriteDrawn = false;
       // Construction site: while `building`, draw the 2 șantier frames instead
-      // of the finished art (frame 1 from 30% progress, frame 2 from 60%);
-      // before 30% the first frame shows faded-in. No uploaded construct art ->
-      // the finished building rises as a ghost. A gold bar tracks progress.
+      // of the finished art (frame 1 up to 60% progress, frame 2 after). It is
+      // drawn FULLY OPAQUE — the gold progress bar is what says "not done yet",
+      // not a fade. No uploaded construct art -> the finished building stands in.
       if (s.building) {
         const p = Math.min(1, Math.max(0, (game.time - s.buildStart) / Math.max(0.01, s.buildDone - s.buildStart)));
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
-        ctx.globalAlpha = p < 0.3 ? 0.45 : 1;
         let cDrawn = drawConstructSprite(ctx, s.kind, artOf(s), hw, hh, p < 0.6 ? 0 : 1);
-        if (!cDrawn) {
-          ctx.globalAlpha = 0.3 + 0.5 * p;
-          cDrawn = drawBuildingSprite(ctx, s.kind, artOf(s), hw, hh, 0);
-        }
+        if (!cDrawn) cDrawn = drawBuildingSprite(ctx, s.kind, artOf(s), hw, hh, 0);
         ctx.restore();
         if (!cDrawn) { // no art at all: dashed outline so the site still reads
           ctx.strokeStyle = color;
           ctx.setLineDash([5, 4]);
-          ctx.globalAlpha = 0.7;
           ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
           ctx.setLineDash([]);
-          ctx.globalAlpha = 1;
         }
         spriteDrawn = true; // skip the normal idle/attack art paths below
         // (the construction progress bar is drawn near the HP bar below, as a
