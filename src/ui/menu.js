@@ -948,7 +948,6 @@ const TEMPLATE = `
       <button class="m-btn primary" data-mp="create">🌐&nbsp;&nbsp;Cameră publică</button>
       <button class="m-btn" data-mp="create-private">🔒&nbsp;&nbsp;Cameră privată</button>
     </div>
-    <p class="m-hint">Publică apare în lista tuturor · Privată se intră doar cu codul.</p>
     <button class="m-back" data-go="format-mp"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
 
