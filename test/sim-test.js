@@ -2983,6 +2983,23 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
       check('asym: income reflects the bonus', Math.abs(gA.incomePer20s(0) - base) < 0.001, `${gA.incomePer20s(0)} vs ${base}`);
       CONFIG.TEAM_ASYM_1V2 = saved;
     }
+    // an online DISCONNECT ("abandon"): the leaver's base stays on the field,
+    // but their side counts as short-handed -> the asymmetric bonus flips over
+    {
+      const layB = teamLayout(2, 2);
+      const gB = new Game(341, { layout: layB, races: ['humans', 'humans', 'orcs', 'orcs'] });
+      const saved = CONFIG.TEAM_ASYM_1V2;
+      CONFIG.TEAM_ASYM_1V2 = 50;
+      check('drop: 2v2 starts symmetric (no bonus)', gB.asymBonusPct(0) === 0 && gB.asymBonusPct(2) === 0);
+      const mainsBefore = gB.structures.filter((s) => s.kind === 'main' && s.hp > 0).length;
+      check('drop: abandon is a normal command', gB.issueCommand({ type: 'abandon', team: 3 }).ok === true);
+      check('drop: it only lands once', gB.issueCommand({ type: 'abandon', team: 3 }).ok === false);
+      check('drop: the leaver keeps their base standing',
+        gB.structures.filter((s) => s.kind === 'main' && s.hp > 0).length === mainsBefore);
+      check('drop: the short-handed side now gets the 1v2 bonus', gB.asymBonusPct(2) === 50);
+      check('drop: the full side still gets none', gB.asymBonusPct(0) === 0 && gB.asymBonusPct(1) === 0);
+      CONFIG.TEAM_ASYM_1V2 = saved;
+    }
     // ---- Phase 4: the TEAM_* knobs persist through balance.json's `general`
     {
       const saved = {};

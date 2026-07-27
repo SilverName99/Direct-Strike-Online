@@ -69,6 +69,8 @@ export class Game {
     this.upgradeOff = this.players.map(() => new Set()); // per player: upgrade id owned but deactivated
     const im = options.incomeMult || [];
     this.incomeMult = this.players.map((_, i) => (im[i] != null ? im[i] : 1));
+    // commanders who left the match (online disconnect) — see activeOnSide()
+    this.abandoned = this.players.map(() => false);
 
     // the first round can run on its own timer; every later wave uses WAVE_INTERVAL
     this.waveTimer = CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL;
@@ -263,6 +265,13 @@ export class Game {
     return out;
   }
 
+  // Same, minus commanders who dropped out (an online disconnect). Their base
+  // and army stay on the field, but nobody spends for them — so their side
+  // counts as SHORT-HANDED for the asymmetric income bonus.
+  activeOnSide(side) {
+    return this.playersOnSide(side).filter((p) => !this.abandoned[p]);
+  }
+
   // First LIVING main base on a side (falls back to a ruined one so the
   // end-screen render and old callers keep an anchor). 1v1: the one main.
   mainOf(team) {
@@ -433,10 +442,10 @@ export class Game {
   // Asymmetric modes (1v2 / 1v3 / 2v3): the side with FEWER players gets a
   // settable % income bonus to compensate. 0 in symmetric matchups.
   asymBonusPct(player) {
-    const n0 = this.playersOnSide(0).length;
-    const n1 = this.playersOnSide(1).length;
+    const n0 = this.activeOnSide(0).length;
+    const n1 = this.activeOnSide(1).length;
     if (n0 === n1) return 0;
-    const mine = this.playersOnSide(this.sideOf(player)).length;
+    const mine = this.activeOnSide(this.sideOf(player)).length;
     if (mine !== Math.min(n0, n1)) return 0; // only the smaller side is boosted
     const key = `${Math.min(n0, n1)}v${Math.max(n0, n1)}`;
     if (key === '1v2') return CONFIG.TEAM_ASYM_1V2 || 0;
@@ -719,6 +728,16 @@ export class Game {
 
   issueCommand(cmd) {
     if (this.winner !== null) return { ok: false, reason: 'game-over' };
+
+    // A commander dropped out (online). Relayed like any other command so every
+    // client applies it on the SAME tick: their base and army fight on, but
+    // their teammates now count as the smaller side (asymmetric income bonus).
+    if (cmd.type === 'abandon') {
+      if (this.abandoned[cmd.team]) return { ok: false, reason: 'already-gone' };
+      this.abandoned[cmd.team] = true;
+      this.events.push({ type: 'abandon', team: cmd.team });
+      return { ok: true };
+    }
 
     if (cmd.type === 'buy') {
       const stats = this.ustat(cmd.team, cmd.unitId);

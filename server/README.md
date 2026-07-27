@@ -83,13 +83,40 @@ cd server && npm install --omit=dev
 sudo systemctl restart fh-server
 ```
 
-## Protocol (v2)
+## Protocol (v3)
 
 Client → server: `hello{name}`, `quickmatch{race}`, `create{race}`,
-`join{code,race}`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`.
-Server → client: `welcome{id}`, `queued`, `room{code}`, `start{seed,youAre,
-races,inputDelay,tickHz}`, `cmd{tick,team,cmd}`, `clock{tick}`, `desync{tick}`,
-`opp_left`, `error{reason}`, `pong`.
+`join{code,race}`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`,
+plus the lobby: `lobby_race{race}`, `lobby_ready{ready}`, `lobby_chat{text}`,
+`lobby_slot{side,depth,kind,difficulty,race}`, `lobby_kick{id}`,
+`lobby_move{fromSide,fromDepth,toSide,toDepth}`, `lobby_swap_req{id}`,
+`lobby_swap_reply{id,accept}`, `lobby_start`.
+Server → client: `welcome{id}`, `queued`, `room{code}`, `lobby{room}`,
+`swap_req{from,name}`, `swap_declined{name}`, `kicked`, `start{seed,youAre,
+roster,races,sides,inputDelay,tickHz}`, `cmd{tick,team,cmd}`, `clock{tick}`,
+`desync{tick}`, `player_left{index,name,reason}`, `opp_left`, `error{reason}`,
+`pong`.
 
-`races` is `[raceOfTeam0, raceOfTeam1]` — the race each player picked in the
-lobby; both clients construct the identical Game from `seed` + `races`.
+### The room ("cameră")
+
+A room is a persistent WC3-style lobby: two sides × 3 slots, each `open`,
+`closed`, a `bot` or a seated player. The host owns the slot layout (open /
+close / seat a bot / move a bot / kick); every player owns their own race and
+ready flag. Two humans trade seats only by asking (`lobby_swap_req` → the other
+answers `lobby_swap_reply`). `lobby_start` is host-only and refused unless every
+seated human is ready and both sides have someone.
+
+### From the roster to the match
+
+`start.roster` is the final list of COMMANDERS in layout order (side 0 back →
+front, then side 1): `{index, side, race, name, bot, difficulty}`. Empty slots
+simply aren't in it, so a 3-vs-2 room starts as an asymmetric 2v3 and the
+smaller side picks up the admin-set income bonus. Every client builds the same
+`Game` from `seed` + the roster, and runs each BOT locally with a seed derived
+from the match seed — bot commands never touch the wire, and all sims stay
+bit-identical (see `server/test-lockstep-team.mjs`).
+
+A player who drops mid-match does NOT end a team game: the server relays a
+deterministic `abandon` command on a stamped tick, so on every client their base
+and army stay on the field while their side counts as short-handed for the
+asymmetric income bonus.

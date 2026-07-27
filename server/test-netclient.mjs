@@ -47,9 +47,24 @@ const roomP = grab(h, 'room');
 h.createRoom();
 const room = await roomP;
 ok(room && room.code, 'createRoom returns a code event');
-const hStart = grab(h, 'start'); const gStart = grab(g, 'start');
+// joining seats you in the LOBBY (protocol v3) — the match starts only once
+// every human is ready and the host presses START
+const gLobby = grab(g, 'lobby');
 g.joinRoom(room.code);
-ok(await hStart && await gStart, 'joinRoom starts the match for both');
+const lob = await gLobby;
+ok(!!lob && lob.room.code === room.code, 'joinRoom lands both in the room state');
+const seated = lob ? lob.room.slots.flat().filter((s) => s.kind === 'player').length : 0;
+ok(seated === 2, `both players are seated (${seated})`);
+// both humans land on side 0, so the host seats a bot opposite them (2v1)
+const hStart = grab(h, 'start'); const gStart = grab(g, 'start');
+h.lobbySlot(1, 0, 'bot', { difficulty: 'hard', race: 'undead' });
+h.lobbyReady(true); g.lobbyReady(true);
+await sleep(80);
+h.lobbyStart();
+const sh = await hStart; const sg = await gStart;
+ok(!!sh && !!sg, 'ready + START launches the match for both');
+ok(!!sh && sh.roster.length === 3 && sh.roster[2].bot && sh.roster[2].race === 'undead',
+  'the roster carries the host-configured bot');
 
 for (const c of [a, b, h, g]) c.close();
 await sleep(100);

@@ -322,11 +322,34 @@ async function ensureNet() {
   if (net && net.ws && net.ws.readyState === 1) return net;
   net = new NetClient(netUrl());
   net.on('queued', () => menu.netWaiting('Se caută adversar…', 'Ține pagina deschisă'));
-  net.on('room', (m) => menu.netWaiting('Așteaptă-ți prietenul', 'Dă-i acest cod să intre:', m.code));
+  net.on('room', (m) => menu.netWaiting('Se deschide camera…', 'Cod:', m.code));
   net.on('error', (m) => menu.netError(NET_ERRORS[m.reason] || `Eroare: ${m.reason}`));
   net.on('start', (m) => startNetMatch(m));
-  await net.connect('Player');
+  // ---- the lobby ("cameră") ----
+  net.on('lobby', (m) => menu.showLobby(m.room, net.id));
+  net.on('swap_req', (m) => menu.showSwapAsk(m.from, m.name));
+  net.on('swap_declined', (m) => toast(`${m.name} nu vrea să schimbe poziția`));
+  net.on('kicked', () => { menu.hideSwapAsk(); menu.netError('Ai fost dat afară din cameră.'); });
+  net.on('player_left', (m) => toast(`${(m.name || `Jucătorul ${m.index + 1}`)} a părăsit meciul — echipa lui primește bonusul asimetric`));
+  await net.connect(menu.playerName);
   return net;
+}
+// Every lobby button is a one-liner on the wire; the server answers with a
+// fresh room state that repaints the screen (menu.showLobby).
+function lobbyAction(a) {
+  if (!net) return;
+  switch (a.action) {
+    case 'race': net.lobbyRace(a.race); break;
+    case 'ready': net.lobbyReady(a.ready); break;
+    case 'say': net.lobbyChat(a.text); break;
+    case 'slot': net.lobbySlot(a.side, a.depth, a.kind, { difficulty: a.difficulty, race: a.race }); break;
+    case 'move': net.lobbyMove(a.fromSide, a.fromDepth, a.toSide, a.toDepth); break;
+    case 'kick': net.lobbyKick(a.id); break;
+    case 'swapReq': net.lobbySwapReq(a.id); break;
+    case 'swapReply': net.lobbySwapReply(a.id, a.accept); break;
+    case 'start': net.lobbyStart(); break;
+    default: break;
+  }
 }
 async function netAction({ action, race, code }) {
   menu.netWaiting('Mă conectez…');
@@ -343,25 +366,46 @@ async function netAction({ action, race, code }) {
 // the lockstep loop immediately (it runs behind the countdown/loading screens,
 // so a player whose loading ends earlier can't get ahead).
 function startNetMatch(m) {
-  // online is 1v1-only: restore the classic geometry (a prior offline team
-  // match may have left the longer field applied) — both clients must agree
-  applyModeLayout(1, 1);
+  // The roster is the source of truth: one entry per COMMANDER (humans and
+  // bots alike), ordered side 0 back->front then side 1 — exactly the order
+  // teamLayout() lays the depth zones out in. Empty lobby slots simply aren't
+  // in it, so a 3-vs-2 room starts as an asymmetric 2v3.
+  const roster = m.roster || m.races.map((race, index) => ({ index, race, side: m.sides ? m.sides[index] : index, bot: false }));
+  const sides = roster.map((r) => r.side);
+  const races = roster.map((r) => r.race);
+  const nA = sides.filter((s) => s === 0).length;
+  const nB = sides.filter((s) => s === 1).length;
+  const mySide = sides[m.youAre] || 0;
+  applyModeLayout(nA, nB);       // both clients derive the SAME geometry
   minimap.resize();
-  setExtraBuildZones([]);
-  setTeamRaces(m.races);
+  const teamMode = nA > 1 || nB > 1;
+  const lay = teamMode ? teamLayout(nA, nB) : null;
+  setTeamRaces(races, sides);
   uiState.myTeam = m.youAre;
   setViewerTeam(m.youAre);
   renderer.resetFog(); // fresh fog of war for the new match
   bottombar.refresh();
-  applyCursor(m.races[m.youAre]);
+  applyCursor(races[m.youAre]);
   const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
   for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
-  game = new Game(m.seed, { races: m.races, incomeMult: [1, 1], middles });
+  game = new Game(m.seed, { races, incomeMult: races.map(() => 1), middles, ...(lay ? { layout: lay } : {}) });
   window.__game = game;
   window.__ui = uiState;
   window.__bb = bottombar;
-  ai = null; ais = []; // the opponent is a human — their commands arrive over the wire
+  // Bot slots are simulated LOCALLY by every client: same seed derivation +
+  // the deterministic AIController = identical decisions on all machines, so
+  // no bot command ever touches the wire.
+  ais = [];
+  for (const r of roster) {
+    if (!r.bot) continue;
+    ais.push(new AIController(r.index, r.difficulty || 'normal', (m.seed ^ (0x9e3779b9 + r.index * 0x85ebca6b)) >>> 0, resolvedAIGenome()));
+  }
+  ai = null;
+  // ally zones: the human may invest inside allied strips (the % allowance)
+  const allies = teamMode ? game.playersOnSide(mySide).filter((p) => p !== m.youAre) : [];
+  setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
   netmatch = new NetMatch(net, m, game);
+  netmatch.bots = ais; // stepped inside the lockstep loop, not the render loop
   window.__netmatch = netmatch; // debug/test handle
   netmatch.onEnd = (kind) => {
     if (kind === 'opp_left' && game && game.winner === null && state !== 'over') {
@@ -383,7 +427,8 @@ function startNetMatch(m) {
   uiState.selected = null;
   uiState.drag = null;
   uiState.inspect = null;
-  camera.reset(CONFIG.MAIN.x[m.youAre], CONFIG.MAIN.y);
+  const myMain = game.mainOfPlayer(m.youAre);
+  camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[mySide], CONFIG.MAIN.y);
   menu.startNetCountdown(); // 5s countdown + loading, then onNetReveal below
 }
 function endNetMatch() {
@@ -400,7 +445,9 @@ const menu = new Menu(document.getElementById('overlay'), {
     applyCursor(player);
   },
   onStart: ({ player, enemy, difficulty, format }) => newGame(player, enemy, difficulty, format),
-  onNet: (a) => netAction(a),             // quick / create / join from the lobby
+  onNet: (a) => netAction(a),             // quick / create / join from the menu
+  onLobby: (a) => lobbyAction(a),         // every button inside the "cameră"
+  onNameChange: (name) => { if (net) net.setName(name); }, // carries into the room
   onNetCancel: () => { if (net) net.leave(); },
   onNetReveal: () => {                    // loading done — show the live net match
     state = 'playing';

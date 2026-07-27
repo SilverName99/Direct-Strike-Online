@@ -44,6 +44,10 @@ export class NetMatch {
     this.lateCmds = 0;        // commands that arrived after their tick (jitter)
     this.desynced = false;
     this.done = false;
+    // Bot commanders in a lobby match. They are NOT on the wire: every client
+    // runs the identical seeded AIController and steps it inside this loop, on
+    // the same ticks, so all sims stay bit-identical.
+    this.bots = [];
     this.onEnd = null;        // (kind: 'opp_left' | 'closed') => void
 
     // route local UI commands through the network (team stripped: the server
@@ -135,10 +139,22 @@ export class NetMatch {
         this.pending.delete(this.localTick);
         for (const c of cmds) this.apply({ ...c.cmd, team: c.team });
       }
+      this._stepBots(1 / this.hz);
       this.game.update(1 / this.hz);
       if (this.localTick % 30 === 0) this.net.sendChecksum(this.localTick, hashGame(this.game));
       if (this.game.winner !== null) break;
     }
+  }
+
+  // Bot commanders think on this exact tick, on every client. Their commands
+  // must NOT travel the wire (that would relay them N times), so the direct
+  // apply path is restored while they run.
+  _stepBots(dt) {
+    if (!this.bots || !this.bots.length) return;
+    const netPath = this.game.issueCommand;
+    this.game.issueCommand = this.apply;
+    try { for (const b of this.bots) b.update(this.game, dt); }
+    finally { this.game.issueCommand = netPath; }
   }
 
   // 0..1 fraction toward the next unsimulated tick (render interpolation).

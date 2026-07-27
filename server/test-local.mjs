@@ -65,17 +65,74 @@ ok(ca && ca.tick > 0, 'execute tick is in the future (tick + inputDelay)');
 const clk = await waitFor(a, 'clock', 2000);
 ok(clk && Number.isFinite(clk.tick), 'authoritative clock ticks');
 
-// ---- 4) private room create/join ----
+// ---- 4) LOBBY: a room is persistent, with slots ----
 const h = await connect('Host');
 const g = await connect('Guest');
-say(h, { t: 'create' });
+say(h, { t: 'create', race: 'undead' });
 const room = await waitFor(h, 'room');
 ok(room && typeof room.code === 'string' && room.code.length === 4, 'room code issued');
+let lob = await waitFor(h, 'lobby');
+ok(lob && lob.room.slots.length === 2 && lob.room.slots[0].length === 3, 'a fresh room opens as 3v3 slots');
+ok(lob && lob.room.slots[0][0].kind === 'player' && lob.room.slots[0][0].name === 'Host', 'host is seated at side 0 anchor');
+ok(lob && lob.room.hostId === lob.room.slots[0][0].id, 'host id matches the seated host');
+
+// guest joins -> takes the next free slot, both see the lobby
+h.byType.lobby = [];
 say(g, { t: 'join', code: room.code });
+const lg = await waitFor(g, 'lobby');
+lob = await waitFor(h, 'lobby');
+ok(lg && lob, 'both host and guest receive the lobby state');
+const seats = lob.room.slots.flat().filter((sl) => sl.kind === 'player');
+ok(seats.length === 2, 'two seated players after the join');
+
+// each player picks their OWN race
+h.byType.lobby = [];
+say(g, { t: 'lobby_race', race: 'orcs' });
+lob = await waitFor(h, 'lobby');
+const guestSeat = lob.room.slots.flat().find((sl) => sl.name === 'Guest');
+ok(guestSeat && guestSeat.race === 'orcs', 'a player picks their own race');
+const hostSeat = lob.room.slots.flat().find((sl) => sl.name === 'Host');
+ok(hostSeat && hostSeat.race === 'undead', 'allies keep DIFFERENT races');
+
+// host adds a BOT on the enemy side
+h.byType.lobby = [];
+say(h, { t: 'lobby_slot', side: 1, depth: 1, kind: 'bot', difficulty: 'hard', race: 'humans' });
+lob = await waitFor(h, 'lobby');
+const bot = lob.room.slots[1][1];
+ok(bot.kind === 'bot' && bot.difficulty === 'hard' && bot.ready === true, 'host seats a bot (always ready)');
+
+// a non-host cannot reshape slots
+h.byType.lobby = [];
+say(g, { t: 'lobby_slot', side: 0, depth: 2, kind: 'closed' });
+await sleep(120);
+ok(!h.byType.lobby.length, 'a non-host cannot change slots');
+
+// chat reaches everyone
+h.byType.lobby = [];
+say(g, { t: 'lobby_chat', text: 'salut!' });
+lob = await waitFor(h, 'lobby');
+ok(lob.room.chat.some((m) => m.text === 'salut!' && m.from === 'Guest'), 'chat is broadcast with the sender');
+
+// start is refused until every human is ready
+h.byType.error = [];
+say(h, { t: 'lobby_start' });
+const ne = await waitFor(h, 'error');
+ok(ne && ne.reason === 'not-ready', 'start blocked while a human is not ready');
+
+// both ready -> the match starts with the seated roster
+say(h, { t: 'lobby_ready', ready: true });
+say(g, { t: 'lobby_ready', ready: true });
+await sleep(80);
+say(h, { t: 'lobby_start' });
 const hs = await waitFor(h, 'start');
 const gs = await waitFor(g, 'start');
-ok(hs && gs, 'room join starts a match for both');
-ok(hs && gs && hs.seed === gs.seed, 'room match shares a seed');
+ok(hs && gs, 'lobby start launches the match for both');
+ok(hs && gs && hs.seed === gs.seed, 'lobby match shares a seed');
+ok(hs && hs.roster && hs.roster.length === 3, 'roster carries 2 humans + 1 bot');
+ok(hs && JSON.stringify(hs.races) === JSON.stringify(gs.races), 'per-player races agree on both clients');
+ok(hs && hs.sides.filter((x) => x === 0).length === 2 && hs.sides.filter((x) => x === 1).length === 1,
+   'asymmetric 2v1 falls out of who was seated');
+ok(hs && hs.roster.some((r) => r.bot && r.difficulty === 'hard'), 'the bot travels with its difficulty');
 
 // ---- 5) bad room code ----
 const x = await connect('Lost');

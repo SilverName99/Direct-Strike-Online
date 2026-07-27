@@ -50,11 +50,26 @@ export class NetClient {
     }
   }
 
-  // ---- lobby ---- (race = the race you picked; the server puts both in `start.races`)
+  // ---- matchmaking ---- (race = the race you picked; the server puts every
+  // player's race in `start.races`, indexed by player)
   quickmatch(race) { this.send({ t: 'quickmatch', race }); }
   createRoom(race) { this.send({ t: 'create', race }); }
   joinRoom(code, race) { this.send({ t: 'join', code: String(code || '').toUpperCase().trim(), race }); }
   leave() { this.send({ t: 'leave' }); }
+
+  // ---- lobby (the "cameră": slots, races, ready, chat, bots, swaps) ----
+  // The server answers every one of these with a fresh `lobby` broadcast, so
+  // the UI is a pure function of the last room state it received.
+  lobbyRace(race) { this.send({ t: 'lobby_race', race }); }
+  lobbyReady(ready) { this.send({ t: 'lobby_ready', ready: !!ready }); }
+  lobbyChat(text) { this.send({ t: 'lobby_chat', text: String(text || '').slice(0, 200) }); }
+  lobbySlot(side, depth, kind, opts = {}) { this.send({ t: 'lobby_slot', side, depth, kind, ...opts }); }
+  lobbyKick(id) { this.send({ t: 'lobby_kick', id }); }
+  lobbyMove(fromSide, fromDepth, toSide, toDepth) { this.send({ t: 'lobby_move', fromSide, fromDepth, toSide, toDepth }); }
+  lobbySwapReq(id) { this.send({ t: 'lobby_swap_req', id }); }
+  lobbySwapReply(id, accept) { this.send({ t: 'lobby_swap_reply', id, accept: !!accept }); }
+  lobbyStart() { this.send({ t: 'lobby_start' }); }
+  setName(name) { this._name = String(name || 'Player').slice(0, 24); this.send({ t: 'hello', name: this._name }); }
 
   // ---- in match ----
   sendCmd(cmd) { this.send({ t: 'cmd', cmd }); }
