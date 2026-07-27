@@ -16,6 +16,9 @@ const A_UNSEEN = 190;   // never seen -> dark but see-through
 // Fraction of the player's OWN half that's always revealed (measured from their
 // back edge), so they're never blind at home.
 const HOME_REVEAL = 2 / 3;
+// ...but never less than this far PAST the side's front-most build strip, so
+// team-mode vanguards aren't standing in the dark at the first whistle.
+const HOME_MARGIN = 160;
 // Softening: blow the tiny vision grid up onto a supersampled buffer and blur it
 // so the fog reads as round, organic patches instead of blocky cells.
 const SUPERSAMPLE = 5;
@@ -68,9 +71,13 @@ export class Fog {
     return this.explored[cy * this.cols + cx] === 1;
   }
 
-  // Recompute `visible` from the viewer team's living units + structures and
+  // Recompute `visible` from the viewer SIDE's living units + structures and
   // accumulate into `explored`. Cheap: a handful of sources, a few cells each.
-  update(game, team) {
+  // `side` is the battlefield faction (0 = left, 1 = right) — NOT the player
+  // number: entities carry their side in `team`, and in team modes allies share
+  // vision, exactly as they share the battlefield.
+  update(game, side) {
+    const team = side ? 1 : 0;
     if (!this.visible) return;
     this.visible.fill(0);
     const light = (x, y, r) => {
@@ -98,10 +105,24 @@ export class Fog {
     for (const s of game.structures) {
       if (s.hp > 0 && s.team === team) light(s.x, s.y, visionOfStructure(game, s));
     }
-    // The player's own back field is always known: reveal the 2/3 of THEIR half
-    // nearest their base (team 0 = left, team 1 = right), so home is never dark.
+    // The side's own back field is always known: reveal the 2/3 of THEIR half
+    // nearest their bases (side 0 = left, side 1 = right), so home is never dark.
+    // In team modes that fraction can stop SHORT of the forward zones (the map
+    // is much longer), so the reveal always reaches past the front-most allied
+    // construction strip — every commander starts seeing their own base.
     const W = this.fieldW || this.cols * CELL;
-    const span = (W / 2) * HOME_REVEAL; // depth revealed from the player's edge
+    let span = (W / 2) * HOME_REVEAL; // depth revealed from the side's edge
+    if (game.zones && game.players) {
+      let front = 0;
+      for (let p = 0; p < game.players.length; p++) {
+        if (game.players[p].side !== team) continue;
+        const b = game.zones[p] && game.zones[p].build;
+        if (!b) continue;
+        const depth = team === 0 ? b.x1 : W - b.x0;
+        if (depth > front) front = depth;
+      }
+      if (front) span = Math.max(span, front + HOME_MARGIN);
+    }
     const cxEdge = team === 0
       ? Math.min(this.cols, Math.ceil(span / CELL))          // columns [0 .. span)
       : Math.max(0, Math.floor((W - span) / CELL));          // columns [(W-span) .. end]

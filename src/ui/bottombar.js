@@ -18,7 +18,7 @@ import {
   statsUnit, statsBuilding, buildingNameOf, resolvedUnitOrder,
   resolvedAbility, resolvedUpgrade, towerStatForTier, TECH_BUILDINGS, resolvedHeroId, resolvedHeroIds, heroAbilitySlots,
 } from './balance.js';
-import { raceOf, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
+import { raceOf, sideOfPlayer, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
 import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 import { effStats } from '../sim/combat.js';
@@ -915,13 +915,14 @@ export class BottomBar {
     if (data.kind === 'unit' || data.kind === 'building') {
       ctx.save();
       ctx.translate(23, 24);
-      if (this.team === 1) ctx.scale(-1, 1); // team 1 faces left, like on the field
+      // mirror by the SIDE I fight on (in team modes my player number is 2/3)
+      if (sideOfPlayer(this.team) === 1) ctx.scale(-1, 1);
       if (drawThumb(ctx, data.id, this.team, 42)) { ctx.restore(); return; }
       ctx.restore();
       if (data.kind === 'unit' && hasCharacter(data.id)) {
         ctx.save();
         ctx.translate(23, 24);
-        if (this.team === 1) ctx.scale(-1, 1);
+        if (sideOfPlayer(this.team) === 1) ctx.scale(-1, 1);
         const u = statsUnit(raceOf(this.team), data.id);
         drawCharacter(ctx, data.id, 'idle', 0, this.team, Math.min(1.6, 38 / (u.radius * 2.8 + 4)));
         ctx.restore();

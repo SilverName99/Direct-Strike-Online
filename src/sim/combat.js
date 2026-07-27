@@ -644,7 +644,7 @@ function updateBomber(game, u, stats, dt) {
 function explodeBomber(game, u, stats) {
   const R = stats.explodeRadius || 0;
   const dmg = stats.explodeDamage || 0;
-  game.events.push({ type: 'explosion', x: u.x, y: u.y, radius: R, blast: true, unitType: u.type, team: u.team });
+  game.events.push({ type: 'explosion', x: u.x, y: u.y, radius: R, blast: true, unitType: u.type, team: u.team, owner: u.owner != null ? u.owner : u.team });
   for (const e of game.entities) {
     if (e === u || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
     if (e.isAir && !stats.explodeAir) continue;
@@ -1165,7 +1165,8 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
     game.events.push({
       type: 'death',
       x: target.x, y: target.y,
-      team: target.team,
+      team: target.team,                                            // SIDE: facing + team colour
+      owner: target.owner != null ? target.owner : target.team,     // COMMANDER: which race's art
       radius: target.radius,
       unitType: target.type || null,
       dismounted: !!target.dismounted, // corpse uses the on-foot "foot-die" sprite

@@ -8,6 +8,14 @@ import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 // sprite lookup keys off the OWNER; the friendly/enemy tint keys off that
 // player's SIDE (resolved inside sprites.js). 1v1: owner === team.
 const artOf = (o) => (o && o.owner != null ? o.owner : (o ? o.team : 0));
+// The commander whose art stands for a whole SIDE (its back-most player).
+// Used where one lookup must cover the side — the terrain halves, the blight
+// texture — since in team modes allies can each play a different race.
+const anchorOf = (game, side) => {
+  const ps = game && game.players;
+  if (ps) for (let p = 0; p < ps.length; p++) if (ps[p].side === side) return p;
+  return side;
+};
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility, statsBuilding } from '../ui/balance.js';
 import { effectVal } from '../sim/abilities.js';
@@ -161,7 +169,7 @@ export class Renderer {
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
     this.fog = new Fog();        // fog of war (client-side, per-viewer)
     this._fogOn = false;         // set each frame: is fog active this draw?
-    this._fogTeam = 0;           // the viewer's team (whose vision we render)
+    this._fogTeam = 0;           // the viewer's SIDE (whose vision we render)
   }
 
   // Start a fresh fog for a new match (forget everything explored).
@@ -248,9 +256,10 @@ export class Renderer {
     ctx.save();
     ctx.setTransform(z, 0, 0, z, -cam.x * z, -cam.y * z);
 
-    // Fog of war: light the viewer team's vision this frame; the draw methods
+    // Fog of war: light the viewer SIDE's vision this frame (units/structures
+    // carry their side in `team`, and allies share sight); the draw methods
     // below cull hidden enemies, and the overlay is painted on top afterwards.
-    this._fogTeam = (uiState && uiState.myTeam) || 0;
+    this._fogTeam = getViewerSide();
     this._fogOn = !!CONFIG.FOG_OF_WAR && !!game && game.winner === null;
     if (this._fogOn) {
       if (this.fog.cols !== Math.ceil(CONFIG.FIELD_W / 40)) this.resetFog();
@@ -307,8 +316,8 @@ export class Renderer {
     // half is MIRRORED so both maps read the same way — base at the outer edge,
     // the neutral seam meeting in the middle
     const mid = CONFIG.FIELD_W / 2;
-    this.drawBackgroundHalf(ctx, getBackground(raceOf(0)), 0, mid, false);
-    this.drawBackgroundHalf(ctx, getBackground(raceOf(1)), mid, mid, true);
+    this.drawBackgroundHalf(ctx, getBackground(raceOf(anchorOf(game, 0))), 0, mid, false);
+    this.drawBackgroundHalf(ctx, getBackground(raceOf(anchorOf(game, 1))), mid, mid, true);
     // "Blight": the corrupt terrain overlay, shown only inside organic blobs
     // around each team's buildings (undead), on top of the normal terrain.
     this.drawBlight(ctx, game, 0, 0, mid, false);
@@ -481,7 +490,9 @@ export class Renderer {
   // (no see-through filter). An uploaded "corrupt" texture, if present, is layered
   // opaquely on top for a custom look.
   drawBlight(ctx, game, team, rx, rw, flip) {
-    const race = raceOf(team);
+    // `team` is the SIDE; each building's blight follows ITS OWNER (races can
+    // differ inside a team), while the corrupt texture is the side's anchor art
+    const race = raceOf(anchorOf(game, team));
     // corruption spreads from each building's placement: its blob radius grows
     // from ~0 to the full blightRadius over BLIGHT_GROW_TIME, with an easing so
     // it blooms out nicely instead of popping in all at once.
@@ -491,9 +502,11 @@ export class Renderer {
     const startOp = Math.max(0, Math.min(1, (CONFIG.BLIGHT_START_OPACITY || 0) / 100));
     // higher tiers spread the corruption wider: every building's radius grows by
     // a settable % at Tier 2 / Tier 3 (so the half is engulfed by late game)
-    const tier = (game.tier && game.tier[team]) || 1;
-    const tierMul = tier >= 3 ? 1 + (CONFIG.BLIGHT_TIER3_PCT || 0) / 100
-      : tier >= 2 ? 1 + (CONFIG.BLIGHT_TIER2_PCT || 0) / 100 : 1;
+    const tierMulOf = (owner) => {
+      const tier = (game.tier && game.tier[owner]) || 1;
+      return tier >= 3 ? 1 + (CONFIG.BLIGHT_TIER3_PCT || 0) / 100
+        : tier >= 2 ? 1 + (CONFIG.BLIGHT_TIER2_PCT || 0) / 100 : 1;
+    };
     // eased radius toward a moving target (grows again, smoothly, on tier-up)
     const curR = (a) => {
       const t = grow > 0 ? Math.max(0, Math.min(1, (this.now - a.t0) / grow)) : 1;
@@ -503,9 +516,10 @@ export class Renderer {
     const blobs = [];
     for (const s of game.structures) {
       if (s.team !== team || s.hp <= 0) continue;
-      const base = (statsBuilding(race, s.kind) || {}).blightRadius || 0;
+      const owner = artOf(s);
+      const base = (statsBuilding(raceOf(owner), s.kind) || {}).blightRadius || 0;
       if (base <= 0) continue;
-      const target = base * tierMul;
+      const target = base * tierMulOf(owner);
       let a = this.blightAnim.get(s.id);
       if (!a) {
         // first seen: appear IMMEDIATELY at the initial radius, then grow from it.
@@ -1134,7 +1148,7 @@ export class Renderer {
       if (!this.visible(p.x, p.y, 160)) continue;
       ctx.save();
       ctx.translate(p.x, p.y);
-      if (my === 1) ctx.scale(-1, 1);
+      if (getViewerSide() === 1) ctx.scale(-1, 1);
       ctx.globalAlpha = 0.35;
       const drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
       if (!drawn) {
@@ -1574,11 +1588,11 @@ export class Renderer {
         }
         // (no white hover ring — hovering only brightens the unit below; the
         // only ring shown is the green dashed selection ring in drawInspect)
-        if (hasCharacter(tpl.type, side)) {
-          // ghost character breathing in the build zone
+        if (hasCharacter(tpl.type, p)) {
+          // ghost character breathing in the build zone (art by OWNER, facing by side)
           ctx.globalAlpha = hot ? 0.95 : 0.5;
           if (side === 1) ctx.scale(-1, 1);
-          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, side, sizeOf(raceOf(side), tpl.type));
+          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, p, sizeOf(raceOf(p), tpl.type));
         } else {
           ctx.globalAlpha = hot ? 0.9 : 0.35;
           ctx.rotate(rot);
@@ -1989,7 +2003,7 @@ export class Renderer {
 
     ctx.save();
     ctx.translate(px, py);
-    if (my === 1) ctx.scale(-1, 1); // team 1 faces left, like the placed unit
+    if (getViewerSide() === 1) ctx.scale(-1, 1); // the right-hand side faces left
     ctx.globalAlpha = 0.6;
     ctx.strokeStyle = valid ? '#58d68d' : '#ff5566';
     ctx.fillStyle = valid ? 'rgba(88, 214, 141, 0.2)' : 'rgba(255, 85, 102, 0.2)';

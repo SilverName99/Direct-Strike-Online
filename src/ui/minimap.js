@@ -56,7 +56,10 @@ export class Minimap {
     this.scale = canvas.width / CONFIG.FIELD_W;
   }
 
-  draw(game, fog = null, myTeam = 0) {
+  // `fog` is the renderer's (already updated for the viewer's SIDE this frame);
+  // hiding compares against that SIDE, since entities carry it in `team`.
+  draw(game, fog = null) {
+    const myTeam = getViewerSide();
     const { ctx } = this;
     const s = this.scale;
     ctx.setTransform(1, 0, 0, 1, 0, 0);

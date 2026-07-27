@@ -479,6 +479,7 @@ const menu = new Menu(document.getElementById('overlay'), {
   onMenuMain: () => applyRandomMenuCursor(), // re-roll the menu cursor each visit
 });
 window.__menu = menu; // debug/test handle (drive the entry menu in tests)
+window.__renderer = renderer; // debug/test handle (fog + layer state)
 // seed the behind-the-menu preview with the default matchup
 setTeamRaces(['humans', 'orcs']);
 bottombar.refresh();
@@ -583,7 +584,7 @@ function frameBody(now) {
       const alpha = state === 'playing' ? (netmatch ? netmatch.alpha() : accumulator / CONFIG.FIXED_DT) : 1;
       renderer.draw(game, alpha, uiState, effects);
     }
-    minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null, uiState.myTeam);
+    minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null);
   });
 }
 

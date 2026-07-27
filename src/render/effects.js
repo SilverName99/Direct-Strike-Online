@@ -41,11 +41,12 @@ export class Effects {
         case 'death': {
           // a summoned animal plays its own "<animal>-die"; otherwise the unit's
           // die frame (on-foot / beast variants for split forms)
+          const art = e.owner != null ? e.owner : e.team; // whose race drew this unit
           const hasDie = e.summonKind
-            ? hasSummonAnim(e.unitType, e.team, e.summonKind, 'die')
-            : hasDeathAnim(e.unitType, e.team);
+            ? hasSummonAnim(e.unitType, art, e.summonKind, 'die')
+            : hasDeathAnim(e.unitType, art);
           if (hasDie) {
-            this.corpses.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, summonKind: e.summonKind || null, footScale: e.footScale });
+            this.corpses.push({ type: e.unitType, team: e.team, art, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, summonKind: e.summonKind || null, footScale: e.footScale });
             this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);
           } else {
             this.burst(e.x, e.y, 8, TEAM_COLORS[e.team], 120, 0.45, 3);
@@ -59,8 +60,8 @@ export class Effects {
           // Kamikaze blast: a bright shockwave ring scaled to the actual radius
           if (e.blast) this.rings.push({ x: e.x, y: e.y, r0: 8, r1: (e.radius || 100), life: 0.4, maxLife: 0.4, color: '#ffd27a' });
           // ...and the unit's own "Explozie" detonation sprite, if uploaded
-          if (e.blast && e.unitType && hasExplosionAnim(e.unitType, e.team)) {
-            this.blasts.push({ type: e.unitType, team: e.team, x: e.x, y: e.y, t: 0 });
+          if (e.blast && e.unitType && hasExplosionAnim(e.unitType, e.owner != null ? e.owner : e.team)) {
+            this.blasts.push({ type: e.unitType, team: e.team, art: e.owner != null ? e.owner : e.team, x: e.x, y: e.y, t: 0 });
           }
           break;
         case 'dash': {
@@ -96,7 +97,7 @@ export class Effects {
           this.burst(e.x, e.y, 12, TEAM_COLORS[e.team], 160, 0.9, 3);
           // a toppled tower leaves its per-tier "die" frame crumbling in place
           if (e.kind === 'tower') {
-            this.structCorpses.push({ team: e.team, tier: e.tier || 1, x: e.x, y: e.y, hw: e.hw || 20, hh: e.hh || 20, t: 0 });
+            this.structCorpses.push({ team: e.team, art: e.owner != null ? e.owner : e.team, tier: e.tier || 1, x: e.x, y: e.y, hw: e.hw || 20, hh: e.hh || 20, t: 0 });
           }
           break;
         case 'heal':
@@ -203,7 +204,7 @@ export class Effects {
       ctx.globalAlpha = c.t < 0.8 ? 1 : Math.max(0, 1 - (c.t - 0.8) / (STRUCT_CORPSE_LIFE - 0.8));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
-      drawTowerDie(ctx, c.team, c.tier, c.hw, c.hh);
+      drawTowerDie(ctx, c.art != null ? c.art : c.team, c.tier, c.hw, c.hh);
       ctx.restore();
     }
     ctx.globalAlpha = 1;
@@ -217,11 +218,12 @@ export class Effects {
       ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
+      const art = c.art != null ? c.art : c.team;
       const anim = c.summonKind ? `${c.summonKind}-die`
-        : c.beast && hasBeastAnim(c.type, c.team, 'die') ? 'beast-die'
-        : c.dismounted && hasFootAnim(c.type, c.team, 'die') ? 'foot-die' : 'die';
-      const scale = (c.dismounted || c.beast) && c.footScale != null ? c.footScale : sizeOf(raceOf(c.team), c.type);
-      drawCharacter(ctx, c.type, anim, frame, c.team, scale);
+        : c.beast && hasBeastAnim(c.type, art, 'die') ? 'beast-die'
+        : c.dismounted && hasFootAnim(c.type, art, 'die') ? 'foot-die' : 'die';
+      const scale = (c.dismounted || c.beast) && c.footScale != null ? c.footScale : sizeOf(raceOf(art), c.type);
+      drawCharacter(ctx, c.type, anim, frame, art, scale);
       ctx.restore();
     }
     ctx.globalAlpha = 1;
@@ -273,7 +275,8 @@ export class Effects {
       ctx.globalAlpha = k < 0.4 ? 1 : Math.max(0, 1 - (k - 0.4) / 0.6);
       ctx.translate(b.x, b.y);
       if (b.team === 1) ctx.scale(-1, 1);
-      drawCharacter(ctx, b.type, 'explosion', 0, b.team, sizeOf(raceOf(b.team), b.type) * (1 + 0.18 * k));
+      const bArt = b.art != null ? b.art : b.team;
+      drawCharacter(ctx, b.type, 'explosion', 0, bArt, sizeOf(raceOf(bArt), b.type) * (1 + 0.18 * k));
       ctx.restore();
     }
     ctx.globalAlpha = 1;

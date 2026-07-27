@@ -1126,7 +1126,7 @@ export class Game {
   removeStructure(s, destroyed) {
     const owner = s.owner != null ? s.owner : s.team;
     if (destroyed) {
-      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, kind: s.kind, tier: this.tier[owner], hw: s.hw, hh: s.hh });
+      this.events.push({ type: 'structureDestroyed', x: s.x, y: s.y, team: s.team, owner, kind: s.kind, tier: this.tier[owner], hw: s.hw, hh: s.hh });
       // destroying the mid-field turret pays its bounty (the DESTROYED turret's
       // per-race stat) to the enemy SIDE — split evenly among its players
       // (1v1: the single enemy player takes it all, as before)
