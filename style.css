@@ -802,6 +802,20 @@ html, body {
 .has-musicnext-skin #music-next:hover { filter: brightness(1.13); background: var(--menu-musicnext) center / 100% 100% no-repeat; }
 
 #menu-fs-corner { position: absolute; top: 18px; right: 18px; z-index: 3; }
+/* player name box (top-left of the menu) — reads as a plaque, edits in place */
+#menu-name {
+  position: absolute; top: 18px; left: 18px; z-index: 3;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 10px;
+  background: rgba(12, 18, 28, 0.72); border: 1px solid rgba(233, 197, 101, 0.4);
+}
+#menu-name .name-ico { font-size: 17px; color: var(--gold, #ffd35c); }
+#menu-name input {
+  width: 150px; padding: 2px 4px; background: transparent; border: none;
+  border-bottom: 1px dashed rgba(233, 197, 101, 0.35);
+  color: var(--gold, #ffd35c); font: 700 15px/1.2 inherit; letter-spacing: 0.5px;
+}
+#menu-name input:focus { outline: none; border-bottom-color: #ffd35c; background: rgba(255, 211, 92, 0.07); }
 #menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; align-items: center; gap: 10px; }
 #menu-sound .snd-range { width: 120px; }
 

@@ -5,6 +5,25 @@
 import { CONFIG, RACES } from '../config.js';
 import { getLoadingScreens, spritesReady } from '../render/sprites.js';
 
+// Player name: shown top-left in the menu, carried into the lobby and matches.
+// Persisted per browser; a themed default is rolled on the very first visit.
+const NAME_KEY = 'fh-player-name';
+const NAME_TITLES = ['Comandant', 'General', 'Warlord', 'Căpitan', 'Mareșal', 'Baron'];
+export function loadPlayerName() {
+  try {
+    const saved = (localStorage.getItem(NAME_KEY) || '').trim();
+    if (saved) return saved.slice(0, 16);
+  } catch { /* private mode */ }
+  const n = `${NAME_TITLES[Math.floor(Math.random() * NAME_TITLES.length)]}${100 + Math.floor(Math.random() * 900)}`;
+  try { localStorage.setItem(NAME_KEY, n); } catch { /* private mode */ }
+  return n;
+}
+export function savePlayerName(name) {
+  const n = String(name || '').trim().slice(0, 16) || loadPlayerName();
+  try { localStorage.setItem(NAME_KEY, n); } catch { /* private mode */ }
+  return n;
+}
+
 const TIPS = [
   'Generatoarele sunt economia ta — protejează-le cu ziduri și turnuri.',
   'Upgrade la Bază deblochează tieruri superioare de unități.',
@@ -24,7 +43,9 @@ export class Menu {
     this.musicVol = 0.5;   // menu-music volume (0..1), driven by the Options slider
     this.musicStarted = false;
     this.musicIndex = 0;   // which track of the menu-music playlist is playing
+    this.playerName = loadPlayerName();
     this.build();
+    this.wireName();
   }
 
   build() {
@@ -358,6 +379,22 @@ export class Menu {
     }
   }
 
+  // Name box (top-left): edit freely; it saves on every change and on blur,
+  // falling back to the stored name if you clear it.
+  wireName() {
+    const input = this.el.querySelector('#menu-name-input');
+    if (!input) return;
+    input.value = this.playerName;
+    const commit = () => {
+      this.playerName = savePlayerName(input.value);
+      input.value = this.playerName;
+      if (this.hooks.onNameChange) this.hooks.onNameChange(this.playerName);
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  }
+
   // The menu-music playlist: every non-empty track in MENU_MUSICS, with the
   // legacy single MENU_MUSIC as a fallback so old configs still play.
   menuTracks() {
@@ -550,6 +587,10 @@ const TEMPLATE = `
     <h1 class="menu-logo-txt">FANGS <span class="amp">&amp;</span> HONOR</h1>
   </div>
 
+  <div id="menu-name" title="Numele tău — apare în cameră și în meciuri">
+    <span class="name-ico">🛡</span>
+    <input id="menu-name-input" maxlength="16" spellcheck="false" autocomplete="off">
+  </div>
   <button id="menu-fs-corner" class="corner-btn fs-btn" title="Ecran complet" data-opt-fs>⛶</button>
   <div id="menu-sound">
     <button id="music-prev" class="corner-btn music-arrow hidden" title="Melodia anterioară" data-music="-1">‹</button>
