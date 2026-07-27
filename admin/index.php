@@ -409,9 +409,10 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       return $slots;
     }
     $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
-    // no construction frames for: mines (rise instantly on predefined plots)
-    // and the mid turret (pre-placed, standing from the first second)
-    if ($ent !== 'generator' && $ent !== 'turret') {
+    // no construction frames for the mid turret only (pre-placed, standing from
+    // the first second). Mines DO rise over time now — and their 30% frame also
+    // marks the free plots on the map.
+    if ($ent !== 'turret') {
       $slots['construct_0'] = 'Construcție 30%';
       $slots['construct_1'] = 'Construcție 60%';
     }

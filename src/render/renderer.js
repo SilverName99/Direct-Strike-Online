@@ -1137,9 +1137,10 @@ export class Renderer {
     ctx.restore();
   }
 
-  // The player's free mine plots: the mine art drawn as a faded ghost (or a
-  // dashed footprint + pick glyph with no art), so you always see where your
-  // mines can rise. Occupied plots draw nothing — the real mine stands there.
+  // The player's free mine plots: the mine's "Construcție 30%" frame, drawn
+  // SOLID — an unfinished dig that marks the spot. Without that art it falls
+  // back to the faded idle mine (or a dashed footprint + pick glyph with no art
+  // at all). Occupied plots draw nothing — the real mine stands there.
   drawMineSpots(ctx, game) {
     if (!game.mineSpots) return;
     const my = getViewerTeam();
@@ -1150,8 +1151,11 @@ export class Renderer {
       ctx.save();
       ctx.translate(p.x, p.y);
       if (getViewerSide() === 1) ctx.scale(-1, 1);
-      ctx.globalAlpha = 0.35;
-      const drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
+      let drawn = drawConstructSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
+      if (!drawn) {
+        ctx.globalAlpha = 0.35;
+        drawn = drawBuildingSprite(ctx, 'generator', my, ext.hw, ext.hh, 0);
+      }
       if (!drawn) {
         ctx.strokeStyle = '#ffd35c';
         ctx.setLineDash([6, 5]);
