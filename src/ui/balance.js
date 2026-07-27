@@ -82,6 +82,20 @@ export const GENERAL_FIELDS = [
   ['BLIGHT_WOBBLE_MIN', 'Undead: onduleuri margine corupție — minim'],
   ['BLIGHT_WOBBLE_MAX', 'Undead: onduleuri margine corupție — maxim'],
 ];
+// Team-mode (2v2/3v3/asimetric) knobs — edited in their own admin tab
+// ("⚔ Moduri echipă"), persisted in balance.json alongside the general rules.
+export const TEAM_FIELDS = [
+  ['TEAM_ALLY_PCT_ANCHOR', 'Construit la aliat: % din plafoane în zona ANCORĂ'],
+  ['TEAM_ALLY_PCT_CENTER', 'Construit la aliat: % din plafoane în zona CENTRU'],
+  ['TEAM_ALLY_PCT_VANGUARD', 'Construit la aliat: % din plafoane în zona VANGUARD'],
+  ['TEAM_FALLEN_PCT', 'Fără bază: % din plafoane la aliați (înlocuiește X%)'],
+  ['TEAM_REFUND_PCT', 'Refund la prăbușirea zonei (% din ce a plătit fiecare)'],
+  ['TEAM_MAIN_REBUILD_COST', 'Reconstruire bază: cost (aur)'],
+  ['TEAM_MAIN_REBUILD_TIME', 'Reconstruire bază: durată șantier (s, 0 = instant)'],
+  ['TEAM_ASYM_1V2', 'Asimetric 1v2: +% venit pentru tabăra mică'],
+  ['TEAM_ASYM_1V3', 'Asimetric 1v3: +% venit pentru tabăra mică'],
+  ['TEAM_ASYM_2V3', 'Asimetric 2v3: +% venit pentru tabăra mică'],
+];
 export const TURRET_FIELDS = [
   ['hp', 'HP'], ['range', 'Range'], ['damage', 'Damage'], ['period', 'Attack period (s)'],
   ['regen', 'Regen viață (HP/s)'], ['bounty', 'Gold pentru inamic la distrugere'],
@@ -435,6 +449,7 @@ function raceBuildingsSnapshot(race) {
 function snapshot() {
   const general = {};
   for (const [f] of GENERAL_FIELDS) general[f] = CONFIG[f];
+  for (const [f] of TEAM_FIELDS) general[f] = CONFIG[f]; // team-mode knobs ride in `general`
   const races = {};
   for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r), buildings: raceBuildingsSnapshot(r) };
   const abilities = {};
@@ -509,6 +524,9 @@ export function applyBalance(data) {
 
   // ---- global rules (truly shared: economy, waves, tint, tier costs) ----
   for (const [f] of GENERAL_FIELDS) {
+    if (data.general && num(data.general[f]) !== undefined) CONFIG[f] = data.general[f];
+  }
+  for (const [f] of TEAM_FIELDS) { // team-mode knobs (own admin tab, same store)
     if (data.general && num(data.general[f]) !== undefined) CONFIG[f] = data.general[f];
   }
   if (data.tierCosts && typeof data.tierCosts === 'object') {

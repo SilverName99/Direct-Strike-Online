@@ -2983,6 +2983,20 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
       check('asym: income reflects the bonus', Math.abs(gA.incomePer20s(0) - base) < 0.001, `${gA.incomePer20s(0)} vs ${base}`);
       CONFIG.TEAM_ASYM_1V2 = saved;
     }
+    // ---- Phase 4: the TEAM_* knobs persist through balance.json's `general`
+    {
+      const saved = {};
+      for (const k of ['TEAM_REFUND_PCT', 'TEAM_ALLY_PCT_VANGUARD', 'TEAM_MAIN_REBUILD_COST', 'TEAM_ASYM_1V3']) saved[k] = CONFIG[k];
+      applyBalance({ general: { TEAM_REFUND_PCT: 65, TEAM_ALLY_PCT_VANGUARD: 35, TEAM_MAIN_REBUILD_COST: 777, TEAM_ASYM_1V3: 150 } });
+      check('p4: team knobs load from the general block',
+        CONFIG.TEAM_REFUND_PCT === 65 && CONFIG.TEAM_ALLY_PCT_VANGUARD === 35 &&
+        CONFIG.TEAM_MAIN_REBUILD_COST === 777 && CONFIG.TEAM_ASYM_1V3 === 150);
+      const { currentBalance } = await import('../src/ui/balance.js');
+      const snap = currentBalance();
+      check('p4: team knobs serialize back into `general`',
+        snap.general.TEAM_REFUND_PCT === 65 && snap.general.TEAM_ASYM_1V3 === 150);
+      applyBalance({ general: saved }); // restore
+    }
     applyModeLayout(1); // restore the classic 1v1 geometry for anything after
     applyBalance({});
   }

@@ -14,6 +14,7 @@ $navTabs = [
   ['abilities', 'abilities.php',         '✨ Abilități'],
   ['upgrades',  'upgrades.php',          '🐗 Upgrades'],
   ['trainer',   'train.php',             '🧬 Antrenor AI'],
+  ['team',      'team.php',              '⚔ Moduri echipă'],
 ];
 ?>
 <style>
