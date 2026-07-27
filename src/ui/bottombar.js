@@ -848,7 +848,9 @@ export class BottomBar {
         ? upgrades
         : myUnits.map((id) => {
             const u = statsUnit(race, id);
-            return { kind: 'unit', id, cost: u.cost, tier: u.tier, slot: Number.isInteger(u.slot) ? u.slot : -1 };
+            // carry the tech building so the card locks (🔒, greyed) while this
+            // very building is still a construction site — exactly like the shop
+            return { kind: 'unit', id, cost: u.cost, tier: u.tier, building: info.type, slot: Number.isInteger(u.slot) ? u.slot : -1 };
           });
       // Fixed cells: sell at slot 7, the ⬆/⬇ toggle at slot 8. The units /
       // upgrades occupy cells 0..6 at their admin-chosen slot (or auto-fill the
@@ -1051,6 +1053,7 @@ export class BottomBar {
       if (!d) continue;
       const el = slot.el;
       el.classList.remove('selected', 'disabled', 'locked', 'on', 'off', 'owned-upg', 'sell', 'tog-off', 'ready');
+      this.setLock(el, null); // cleared every frame; the branches below re-add it
       let cd = 0;
       let cdTotal = 0; // full cooldown length (for the radial sweep overlay)
       let tog = null;  // toggle state: true = ✔ activ, false = ✖ oprit, null = no badge
@@ -1067,6 +1070,8 @@ export class BottomBar {
             : u.tier;
           if (!heroOwned && reqTier > game.tier[this.team]) { el.classList.add('locked'); this.setLockTier(el, reqTier); }
           else if (!d.isHero && d.building && !game.hasBuilding(this.team, d.building)) { el.classList.add('locked'); this.setLock(el, '🔒'); }
+          // heroes come only from a FINISHED Hero Hall
+          else if (d.isHero && !heroOwned && !game.hasBuilding(this.team, 'herohall')) { el.classList.add('locked'); this.setLock(el, '🔒'); }
           else if (heroWait > 0) {
             // hero still time-locked (⚙ Balance): radial countdown on the card
             el.classList.add('disabled');
@@ -1262,8 +1267,10 @@ export class BottomBar {
     }
   }
 
+  // text = null removes the badge (a card that just unlocked must not keep it)
   setLock(el, text) {
     let l = el.querySelector('.s-lock');
+    if (text == null) { if (l) l.remove(); return; }
     if (!l) {
       l = document.createElement('span');
       l.className = 's-lock';
