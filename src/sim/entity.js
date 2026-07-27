@@ -278,6 +278,7 @@ export function spawnProjectile(game, source, stats, target) {
   game.projectiles.push({
     id: game.nextId++,
     team: source.team,
+    owner: source.owner != null ? source.owner : source.team, // art: shooter's race
     sourceId: source.id,                          // for lifesteal on impact
     srcType: source.type || source.kind || null, // for the projectile sprite
     projSize: stats.projSize || 1,               // projectile size multiplier

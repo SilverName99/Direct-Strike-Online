@@ -39,14 +39,28 @@ let spritesLoaded = false;     // true once the manifest + all its images finish
 // a match never starts with placeholder shapes (entering too fast).
 export function spritesReady() { return spritesLoaded; }
 const towerVideoUrls = new Map(); // `${race}/tier{1..3}` -> url of a tower's per-tier portrait clip
+// Art identity is PER PLAYER: each commander picks their own race in the lobby,
+// so two allies on the same side can look completely different. `teamRaces` is
+// therefore indexed by PLAYER (in 1v1 player === side, so nothing changes).
+// Tinting is a separate axis — it follows the battlefield SIDE (see pickImg),
+// which is why players also carry a side map.
 let teamRaces = ['humans', 'humans'];
+let playerSides = [0, 1];
 
-export function setTeamRaces(races) {
+export function setTeamRaces(races, sides = null) {
   teamRaces = races.slice();
+  // default: player index === side (classic 1v1 / any 2-player game)
+  playerSides = sides ? sides.slice() : races.map((_, i) => (i < 1 ? 0 : 1));
 }
 
-export function raceOf(team) {
-  return teamRaces[team] || 'humans';
+// The side a PLAYER fights on (art tinting, "is this mine or the enemy's").
+export function sideOfPlayer(player) {
+  const s = playerSides[player];
+  return s != null ? s : (player ? 1 : 0);
+}
+
+export function raceOf(player) {
+  return teamRaces[player] || 'humans';
 }
 
 export function loadSprites(base = 'assets/units/', onReady = null) {
@@ -262,14 +276,19 @@ function tint(img, hex) {
 // Which team is "mine" for tinting purposes — 0 in single player; online the
 // local player may be team 1, and their units must still read as friendly.
 let viewerTeam = 0;
-export function setViewerTeam(t) { viewerTeam = t === 1 ? 1 : 0; }
+export function setViewerTeam(t) { viewerTeam = Math.max(0, t | 0); }
 export function getViewerTeam() { return viewerTeam; }
+// The local player's SIDE — everything on it reads as friendly, everything on
+// the other side gets the enemy tint (team modes: an ALLY is not "the enemy").
+export function getViewerSide() { return sideOfPlayer(viewerTeam); }
 
-export function pickImg(entry, team) {
+// `player` is the owning commander; tint compares their SIDE with the viewer's.
+export function pickImg(entry, player) {
   const mode = CONFIG.TEAM_TINT || 'enemy';
   if (mode === 'none') return entry.img;
-  if (mode === 'team') return team === viewerTeam ? entry.blue : entry.red;
-  return team === viewerTeam ? entry.img : entry.red; // 'enemy': mine native, enemy red
+  const friendly = sideOfPlayer(player) === getViewerSide();
+  if (mode === 'team') return friendly ? entry.blue : entry.red;
+  return friendly ? entry.img : entry.red; // 'enemy': mine native, enemy red
 }
 
 export function getBackground(race) {

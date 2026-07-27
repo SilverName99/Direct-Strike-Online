@@ -276,6 +276,9 @@ function newGame(playerRace, enemyRace, difficulty, format = '1v1') {
   const lay = teamMode ? teamLayout(nA, nB) : null;
   const races = lay ? lay.perPlayer.map((pp) => (pp.side === 0 ? playerRace : enemyRace)) : [playerRace, enemyRace];
   const incomeMult = lay ? lay.perPlayer.map((pp) => (pp.side === 0 ? 1 : diff.incomeMult)) : [1, diff.incomeMult];
+  // art identity is per COMMANDER: races indexed by player + each player's side
+  setTeamRaces(races, lay ? lay.perPlayer.map((pp) => pp.side) : [0, 1]);
+  bottombar.refresh();
   game = new Game(seed, { races, incomeMult, middles, ...(lay ? { layout: lay } : {}) });
   window.__game = game; // debug/test handle (render side only; sim never reads it)
   window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)

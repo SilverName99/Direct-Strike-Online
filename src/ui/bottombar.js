@@ -476,7 +476,7 @@ export class BottomBar {
     // a selected gold-miner: its own idle clip in the portrait, a short blurb
     // in the details (workers are cosmetic — no sim stats to show)
     if (info.kind === 'worker') {
-      const race = raceOf(info.side);
+      const race = raceOf(info.team);
       const vid = getMineVideoUrl(race, 'workeridle');
       this.setPortraitVideo(vid);
       if (!vid) {
@@ -502,10 +502,10 @@ export class BottomBar {
       : info.kind === 'entity' && info.u.beast ? 'beast'
       : info.kind === 'entity' && info.u.dismounted ? 'foot' : 'base';
     const vid = info.kind === 'structure' && info.type === 'generator'
-      ? (getMineVideoUrl(raceOf(info.side), 'mineidle') || getPortraitVideoUrl(raceOf(info.side), info.type, form))
+      ? (getMineVideoUrl(raceOf(info.team), 'mineidle') || getPortraitVideoUrl(raceOf(info.team), info.type, form))
       : info.kind === 'structure' && info.type === 'tower'
-        ? (getTowerVideoUrl(raceOf(info.side), game.tier[info.team]) || getPortraitVideoUrl(raceOf(info.side), info.type, form))
-        : getPortraitVideoUrl(raceOf(info.side), info.type, form);
+        ? (getTowerVideoUrl(raceOf(info.team), game.tier[info.team]) || getPortraitVideoUrl(raceOf(info.team), info.type, form))
+        : getPortraitVideoUrl(raceOf(info.team), info.type, form);
     this.setPortraitVideo(vid);
     if (!vid) this.drawPortrait(ctx, game, info);
 
@@ -641,7 +641,7 @@ export class BottomBar {
   }
 
   drawPortrait(ctx, game, info) {
-    const race = raceOf(info.side); // art resolves per SIDE (team modes: ally art != mine)
+    const race = raceOf(info.team); // races are per COMMANDER (lobby picks)
     const frame = Math.floor(performance.now() / 500) % 2;
     // a split beast / rider on foot shows its own art: form idle sprite, then
     // form thumbnail, then the whole unit's idle sprite / thumb, then vectors
@@ -654,7 +654,7 @@ export class BottomBar {
     if (info.kind === 'structure') {
       ctx.save();
       ctx.translate(56, 58);
-      if (drawThumb(ctx, info.type, info.side, 96, form)) { ctx.restore(); return; }
+      if (drawThumb(ctx, info.type, info.team, 96, form)) { ctx.restore(); return; }
       ctx.restore();
     }
     let entry = null;
@@ -678,12 +678,12 @@ export class BottomBar {
     }
     ctx.save();
     ctx.translate(56, 58);
-    if (drawThumb(ctx, info.type, info.side, 96, form)) { ctx.restore(); return; }
+    if (drawThumb(ctx, info.type, info.team, 96, form)) { ctx.restore(); return; }
     ctx.restore();
     if (info.kind !== 'structure' && hasCharacter(info.type)) {
       ctx.save();
       ctx.translate(56, 60);
-      drawCharacter(ctx, info.type, 'idle', 0, info.side, 2.4);
+      drawCharacter(ctx, info.type, 'idle', 0, info.team, 2.4);
       ctx.restore();
       return;
     }
@@ -870,7 +870,7 @@ export class BottomBar {
     if (!isStruct && !own && stats.isHero) {
       const tpl = game && game.heroTemplateOf(info.team, info.type);
       const ranks = (tpl && tpl.ranks) || {};
-      for (const slot of heroAbilitySlots(raceOf(info.side), info.type)) {
+      for (const slot of heroAbilitySlots(raceOf(info.team), info.type)) {
         if (slot.id && (ranks[slot.id] || 0) > 0) {
           items.push({ kind: 'ability', id: slot.id, team: info.team, unit: info.type, own: false });
         }
@@ -885,7 +885,7 @@ export class BottomBar {
       }
     }
     if (!isStruct) {
-      const race = raceOf(info.side); // upgrades filter by the unit's own race
+      const race = raceOf(info.team); // upgrades filter by the owner's race
       // Ability-unlock upgrades are represented on the unit panel by the ability
       // icon itself (locked until bought) — the "buy" card belongs only on the
       // tech building's upgrades page, so skip them here (no duplicate icon).

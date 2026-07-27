@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { teamColor } from '../render/renderer.js';
-import { getViewerTeam } from '../render/sprites.js';
+import { getViewerTeam, getViewerSide } from '../render/sprites.js';
 
 // Corner minimap: whole world in miniature + the camera rectangle.
 // Click or drag on it to move the camera there.
@@ -71,7 +71,7 @@ export class Minimap {
       for (let p = 0; p < game.players.length; p++) {
         const zp = game.zones[p];
         if (!zp.alive) continue;
-        ctx.fillStyle = tints[game.players[p].side === getViewerTeam() ? 0 : 1];
+        ctx.fillStyle = tints[game.players[p].side === getViewerSide() ? 0 : 1];
         for (const z of [zp.build, zp.army]) {
           ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
         }
@@ -79,7 +79,7 @@ export class Minimap {
       for (const side of [0, 1]) {
         const mz = game.midBuild && game.midBuild[side];
         if (!mz) continue;
-        ctx.fillStyle = tints[side === getViewerTeam() ? 0 : 1];
+        ctx.fillStyle = tints[side === getViewerSide() ? 0 : 1];
         ctx.fillRect(mz.x0 * s, mz.y0 * s, (mz.x1 - mz.x0) * s, (mz.y1 - mz.y0) * s);
       }
     } else {
@@ -87,7 +87,7 @@ export class Minimap {
         const zonesMM = [CONFIG.CONSTRUCTION_ZONE[team], CONFIG.ARMY_ZONE[team]];
         if (CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team]) zonesMM.push(CONFIG.MID_BUILD_ZONE[team]);
         for (const z of zonesMM) {
-          ctx.fillStyle = tints[team === getViewerTeam() ? 0 : 1]; // my side always blue
+          ctx.fillStyle = tints[team === getViewerSide() ? 0 : 1]; // my side always blue
           ctx.fillRect(z.x0 * s, z.y0 * s, (z.x1 - z.x0) * s, (z.y1 - z.y0) * s);
         }
       }

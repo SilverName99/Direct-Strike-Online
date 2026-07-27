@@ -1,8 +1,13 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getCorpseImage, getCorpseImageBig } from './sprites.js';
+import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig } from './sprites.js';
 import { snapToZone, zoneFor } from '../ui/grid.js';
+
+// Which PLAYER's art an object uses. Races are per-commander (lobby), so the
+// sprite lookup keys off the OWNER; the friendly/enemy tint keys off that
+// player's SIDE (resolved inside sprites.js). 1v1: owner === team.
+const artOf = (o) => (o && o.owner != null ? o.owner : (o ? o.team : 0));
 import { structureExtents } from '../sim/entity.js';
 import { resolvedAbility, statsBuilding } from '../ui/balance.js';
 import { effectVal } from '../sim/abilities.js';
@@ -12,7 +17,7 @@ import { Fog } from './fog.js';
 export const TEAM_COLORS = ['#4da6ff', '#ff5566'];
 // viewer-relative team color: MY team is always blue, the enemy always red —
 // online the local player can be team 1 and must still read as friendly
-export const teamColor = (t) => TEAM_COLORS[t === getViewerTeam() ? 0 : 1];
+export const teamColor = (t) => TEAM_COLORS[t === getViewerSide() ? 0 : 1];
 
 // The unit's on-screen body radius: its DRAWN-body radius scaled by the unit
 // Size % (or the on-foot / beast override size). Used for both the selection
@@ -22,12 +27,12 @@ export const teamColor = (t) => TEAM_COLORS[t === getViewerTeam() ? 0 : 1];
 export function visualRadiusOf(u) {
   const scale = (u.dismounted || u.beast) && u.ovSize != null
     ? u.ovSize
-    : sizeOf(raceOf(u.team), u.type);
+    : sizeOf(raceOf(artOf(u)), u.type);
   const base = u.baseRadius || u.radius || 10;
   return base * Math.max(1, scale || 1);
 }
 export const TEAM_COLORS_DARK = ['#2d6db3', '#b33a47'];
-export const teamColorDark = (t) => TEAM_COLORS_DARK[t === getViewerTeam() ? 0 : 1];
+export const teamColorDark = (t) => TEAM_COLORS_DARK[t === getViewerSide() ? 0 : 1];
 
 // Draws a unit shape centered at (0,0) in a pre-transformed context.
 // Tower attack period for a base tier (mirrors balance.towerStatForTier).
@@ -318,7 +323,7 @@ export class Renderer {
 
     // per-team base quadrant: army zone (back) + construction zone (front)
     const tints0 = ['rgba(77, 166, 255,', 'rgba(255, 85, 102,'];
-    const tints = [tints0[getViewerTeam() === 0 ? 0 : 1], tints0[getViewerTeam() === 0 ? 1 : 0]]; // my side always blue
+    const tints = [tints0[getViewerSide() === 0 ? 0 : 1], tints0[getViewerSide() === 0 ? 1 : 0]]; // my side always blue
     if (game.zones && game.players && game.players.length > 2) {
       // TEAM MODES: one [army][build] zone pair per PLAYER, tinted by side;
       // a collapsed zone vanishes from the map (its ground is lost)
@@ -868,7 +873,7 @@ export class Renderer {
       ctx.save();
       ctx.translate(bx, by);
       ctx.rotate(ang + this.now * 12); // spin as it flies
-      if (!drawAbilityProjectileSprite(ctx, 'daggerthrow', u.type, u.team, size)) {
+      if (!drawAbilityProjectileSprite(ctx, 'daggerthrow', u.type, artOf(u), size)) {
         const s = size / 26;
         ctx.fillStyle = '#e0b0ff'; ctx.strokeStyle = '#7a2fc0'; ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -909,7 +914,7 @@ export class Renderer {
       // must not send its miners marching across the map to MY anchor base)
       const base = (game.mainOfPlayer && s.owner != null) ? game.mainOfPlayer(s.owner) : game.mainOf(s.team);
       if (!base || base.hp <= 0) continue;
-      const race = raceOf(s.team);
+      const race = raceOf(artOf(s));
       // opt-in: only if the mine has walking worker art uploaded
       const hasEmpty = !!getSprite(race, 'generator', 'worker-empty', 0);
       const hasFull = !!getSprite(race, 'generator', 'worker-full', 0);
@@ -1079,20 +1084,20 @@ export class Renderer {
       // reload so it always returns to Attack 1 before the next shot
       const flash = Math.min(Math.max(0.02, bs.attackHold ?? 0.4), period);
       const frame = sinceFire >= 0 && sinceFire < flash ? 1 : 0;
-      return drawTowerSprite(ctx, s.team, tier, hw, hh, 'attack', frame);
+      return drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'attack', frame);
     }
     if (idleFor >= (bs.campfireDelay ?? 60)) {
       // the tower stands empty (soldiers came down); its "at rest" frame falls
       // back to the normal idle if that art wasn't uploaded
-      let drawn = drawTowerSprite(ctx, s.team, tier, hw, hh, 'camptower', 0);
-      if (!drawn) drawn = drawTowerSprite(ctx, s.team, tier, hw, hh, 'idle', 0);
+      let drawn = drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'camptower', 0);
+      if (!drawn) drawn = drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'idle', 0);
       // the soldiers + fire are a SEPARATE sprite, off to the tower's own-base
       // side, nudged per-tower so several towers don't line up identically
       this.drawCampfire(ctx, s, tier, hw, hh, bs);
       return drawn;
     }
     const frame = (Math.floor(this.now * (bs.idleSpeed || 2)) + s.id) % 2;
-    return drawTowerSprite(ctx, s.team, tier, hw, hh, 'idle', frame);
+    return drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'idle', frame);
   }
 
   // The campfire soldiers, drawn beside the tower base while it's idling. The
@@ -1113,7 +1118,7 @@ export class Renderer {
     const dy = hh * 0.35 + jy * hh * 0.35;       // a touch below center
     ctx.save();
     ctx.translate(dx, dy);
-    drawTowerSprite(ctx, s.team, tier, hw * scale, hh * scale, 'camp', frame);
+    drawTowerSprite(ctx, artOf(s), tier, hw * scale, hh * scale, 'camp', frame);
     ctx.restore();
   }
 
@@ -1191,10 +1196,10 @@ export class Renderer {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
         ctx.globalAlpha = p < 0.3 ? 0.45 : 1;
-        let cDrawn = drawConstructSprite(ctx, s.kind, s.team, hw, hh, p < 0.6 ? 0 : 1);
+        let cDrawn = drawConstructSprite(ctx, s.kind, artOf(s), hw, hh, p < 0.6 ? 0 : 1);
         if (!cDrawn) {
           ctx.globalAlpha = 0.3 + 0.5 * p;
-          cDrawn = drawBuildingSprite(ctx, s.kind, s.team, hw, hh, 0);
+          cDrawn = drawBuildingSprite(ctx, s.kind, artOf(s), hw, hh, 0);
         }
         ctx.restore();
         if (!cDrawn) { // no art at all: dashed outline so the site still reads
@@ -1214,12 +1219,12 @@ export class Renderer {
         if (s.team === 1) ctx.scale(-1, 1);
         if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
         // 3-tier tower art: idle / attack / campfire chosen by tier + activity
-        if (s.kind === 'tower' && hasTowerTierArt(s.team)) {
+        if (s.kind === 'tower' && hasTowerTierArt(artOf(s))) {
           spriteDrawn = this.drawTower(ctx, game, s, hw, hh);
         }
         // Armed buildings (turret/tower) show their attack animation while
         // engaged: "fire" frame right after each shot, "aim" frame otherwise.
-        if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, s.team)) {
+        if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, artOf(s))) {
           const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
           if (tgt && tgt.hp > 0) {
             const abs = game.bstat(s.team, s.kind);
@@ -1227,12 +1232,12 @@ export class Renderer {
             const sinceFire = period - s.cooldown; // 0 right after a shot
             const flash = Math.min(Math.max(0.02, abs.attackHold ?? 0.16), period);
             const frame = sinceFire >= 0 && sinceFire < flash ? 1 : 0;
-            spriteDrawn = drawStructureAttack(ctx, s.kind, s.team, hw, hh, frame);
+            spriteDrawn = drawStructureAttack(ctx, s.kind, artOf(s), hw, hh, frame);
           }
         }
         if (!spriteDrawn && s.kind === 'wall') {
           // walls show a per-base-tier idle look (falls back to plain idle art)
-          spriteDrawn = drawWallSprite(ctx, s.team, game.tier[s.team], hw, hh, this.now, s.id);
+          spriteDrawn = drawWallSprite(ctx, artOf(s), game.tier[artOf(s)], hw, hh, this.now, s.id);
         }
         if (!spriteDrawn) {
           if (s.kind === 'main') {
@@ -1241,15 +1246,15 @@ export class Renderer {
             const upgrading = game.baseUpgrading(s.team);
             const showTier = upgrading ? game.baseUpgradeToTier(s.team) : game.tier[s.team];
             if (upgrading) ctx.globalAlpha *= 0.5;
-            spriteDrawn = drawMainTierSprite(ctx, s.team, showTier, hw, hh); // per-upgrade image
+            spriteDrawn = drawMainTierSprite(ctx, artOf(s), showTier, hw, hh); // per-upgrade image
           } else {
-            spriteDrawn = drawStructureSprite(ctx, s.kind, s.team, hw, hh, this.now, s.id);
+            spriteDrawn = drawStructureSprite(ctx, s.kind, artOf(s), hw, hh, this.now, s.id);
           }
         }
         ctx.restore();
       }
 
-      const size = sizeOf(raceOf(s.team), s.kind);
+      const size = sizeOf(raceOf(artOf(s)), s.kind);
       if (spriteDrawn && s.kind === 'main') {
         // tier pips still shown over sprite art
         const tier = game.tier[s.team];
@@ -1384,7 +1389,7 @@ export class Renderer {
       if (s.kind === 'main' || s.hp < s.maxHp || CONFIG.HEALTHBAR_ALWAYS) {
         // slim rounded pill: narrower than the footprint, thin, dark inset
         // with a hairline border — reads clearly without dominating the art
-        const size = Math.max(1, sizeOf(raceOf(s.team), s.kind));
+        const size = Math.max(1, sizeOf(raceOf(artOf(s)), s.kind));
         const topH = spriteDrawn
           ? (s.kind === 'main' || s.kind === 'turret' ? r * 1.5 * size : (s.hh || r) * size)
           : r;
@@ -1464,7 +1469,7 @@ export class Renderer {
       ctx.strokeStyle = 'rgba(255,255,255,0.55)';
       ctx.strokeRect(u.x - hw, u.y - hh, hw * 2, hh * 2);
       const r = Math.max(s.range || 0, 4); // reach floor matches atkRange()
-      ctx.strokeStyle = u.team === getViewerTeam() ? 'rgba(88,214,141,0.85)' : 'rgba(255,95,110,0.85)';
+      ctx.strokeStyle = u.team === getViewerSide() ? 'rgba(88,214,141,0.85)' : 'rgba(255,95,110,0.85)';
       contour(u.x, u.y, hw, hh, r);
     }
     ctx.setLineDash([6, 4]);
@@ -1482,7 +1487,7 @@ export class Renderer {
         ctx.stroke();
       }
       if ((bs.damage || 0) > 0 && (bs.range || 0) > 0) {
-        ctx.strokeStyle = st.team === getViewerTeam() ? 'rgba(88,214,141,0.7)' : 'rgba(255,95,110,0.7)';
+        ctx.strokeStyle = st.team === getViewerSide() ? 'rgba(88,214,141,0.7)' : 'rgba(255,95,110,0.7)';
         contour(st.x, st.y, hw, hh, bs.range);
       }
     }
@@ -1604,7 +1609,7 @@ export class Renderer {
       const color = teamColor(u.team);
       // visual scale: dismounted units use the upgrade's on-foot size, else the
       // unit's own Size (%)
-      let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(u.team), u.type);
+      let vScale = (u.dismounted || u.beast || u.summon) && u.ovSize != null ? u.ovSize : sizeOf(raceOf(artOf(u)), u.type);
       // Elemental Form: the morphed hero draws at its beast size (visual only, so
       // the deterministic sim/collision stays untouched) — but keep hero size
       // while the Prepare/Transform cast frames play (u.castState set)
@@ -1642,7 +1647,7 @@ export class Renderer {
       // render faint/ghostly. Stealth is deeper than the clone tint.
       if ((u.stealthUntil || 0) > game.time) ctx.globalAlpha *= 0.32;
       else if (u.clone) ctx.globalAlpha *= 0.5;
-      if (hasCharacter(u.type, u.team)) {
+      if (hasCharacter(u.type, artOf(u))) {
         // character path: side-view sprite/puppet, mirrored to face where it is
         // GOING (or its target) — a unit walking back toward its own base flips
         // around instead of moonwalking. Sticky per-unit so jitter can't flap it.
@@ -1650,7 +1655,7 @@ export class Renderer {
         let anim;
         let frame;
         const isCaster = rstats.caster;
-        const prep = isCaster && hasPrepareAnim(u.type, u.team);
+        const prep = isCaster && hasPrepareAnim(u.type, artOf(u));
         // a caster whose "attack" IS an ability (e.g. Empower) has no basic
         // attack: while it stands in place doing its job it should loop that
         // ability's two "Cast X" frames continuously (no idle between casts).
@@ -1671,7 +1676,7 @@ export class Renderer {
           // set on the ability (frame1Time / frame2Time), never the idle frame.
           // (an ACTIVE cast — e.g. throwing a totem — is handled below so its
           // own cast frames show instead of the empower loop.)
-          anim = castAnimOf(u.type, u.team, replaceAb.aid) || (prep ? 'prepare' : 'attack');
+          anim = castAnimOf(u.type, artOf(u), replaceAb.aid) || (prep ? 'prepare' : 'attack');
           const t0 = Math.max(0.05, replaceAb.params.frame1Time != null ? replaceAb.params.frame1Time : 0.4);
           const t1 = Math.max(0.05, replaceAb.params.frame2Time != null ? replaceAb.params.frame2Time : 0.4);
           const phase = (this.now + u.id * 0.137) % (t0 + t1);
@@ -1683,7 +1688,7 @@ export class Renderer {
           // gracefully to attack/idle when a frame isn't uploaded.
           const castAb = resolvedAbility(u.castAbility);
           const twoPhase = !!(castAb && castAb.castTwoPhase); // Elemental Form: cast 1 = prepare, cast 2 = transform
-          const castA = castAnimOf(u.type, u.team, u.castAbility);
+          const castA = castAnimOf(u.type, artOf(u), u.castAbility);
           if (u.castState === 'prepare') {
             // two-phase ability (Elemental Form): the wind-up shows its OWN cast
             // frame 1 (Prepare); other casters use the shared "prepare" pose
@@ -1708,7 +1713,7 @@ export class Renderer {
             // shared "prepare" during the wind-up, one "attack" release frame
             anim = u.windup > 0 && prep ? 'prepare' : 'attack';
             frame = 0;
-          } else if (u.acidAttacker && hasAcidAnim(u.type, u.team)) {
+          } else if (u.acidAttacker && hasAcidAnim(u.type, artOf(u))) {
             // Acid Spit upgrade: cycle the two "Acid" attack frames in step
             // with the unit's real attack period (one 1<->2 cycle per swing)
             anim = 'acid';
@@ -1722,11 +1727,11 @@ export class Renderer {
           }
         } else if (u.running) {
           // Kamikaze charging an in-range enemy: its "Fugă" (run) frames, else walk
-          anim = hasRunAnim(u.type, u.team) ? 'run' : 'walk';
+          anim = hasRunAnim(u.type, artOf(u)) ? 'run' : 'walk';
           frame = (Math.floor(this.now * (rstats.animSpeed || 5) * 1.6) + u.id) % 2;
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk
-          anim = hasDashAnim(u.type, u.team) ? 'dash' : 'walk';
+          anim = hasDashAnim(u.type, artOf(u)) ? 'dash' : 'walk';
           frame = 0;
         } else {
           // marching, or a caster calmly waiting to cast -> idle/walk
@@ -1734,16 +1739,16 @@ export class Renderer {
           frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
         }
         // fireball upgrade: swap walk/attack for the uploaded "Foc" sprite set
-        if (u.fireAttacker && (anim === 'walk' || anim === 'attack') && hasFireAnim(u.type, u.team, anim)) {
+        if (u.fireAttacker && (anim === 'walk' || anim === 'attack') && hasFireAnim(u.type, artOf(u), anim)) {
           anim = `fire-${anim}`;
         }
         // dismounted (mount upgrade): use the on-foot sprite set only if it was
         // uploaded, else keep the mounted sprite/puppet (which always exists)
-        if (u.dismounted && !anim.startsWith('foot-') && hasFootAnim(u.type, u.team, anim)) {
+        if (u.dismounted && !anim.startsWith('foot-') && hasFootAnim(u.type, artOf(u), anim)) {
           anim = `foot-${anim}`;
         }
         // split-off mount: same idea with the "Bestie" sprite set
-        if (u.beast && !anim.startsWith('beast-') && hasBeastAnim(u.type, u.team, anim)) {
+        if (u.beast && !anim.startsWith('beast-') && hasBeastAnim(u.type, artOf(u), anim)) {
           anim = `beast-${anim}`;
         }
         // summoned animal: its art is hosted on the caster's type under an
@@ -1752,37 +1757,37 @@ export class Renderer {
         // idle frames (it spawns into the fight), so map idle -> walk to avoid
         // falling back to the host caster's idle sprite.
         if (u.summon && u.summonKind && !u.totem && anim === 'idle') anim = 'walk';
-        if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, u.team, u.summonKind, anim)) {
+        if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, artOf(u), u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
         }
         // Elemental Form (hero ultimate): swap to the uploaded "morph-" sprite set,
         // but NOT during the Prepare/Transform cast frames — the hero plays
         // those in its own form first, then the beast bursts out.
-        if (u.morph && u.morphUntil > game.time && !u.castState && !anim.startsWith('morph-') && hasMorphAnim(u.type, u.team, anim)) {
+        if (u.morph && u.morphUntil > game.time && !u.castState && !anim.startsWith('morph-') && hasMorphAnim(u.type, artOf(u), anim)) {
           anim = `morph-${anim}`;
         }
         // Landed bat: swap to the uploaded ground-form ("ground-") sprite set.
-        if (u.landed && !anim.startsWith('ground-') && hasGroundAnim(u.type, u.team, anim)) {
+        if (u.landed && !anim.startsWith('ground-') && hasGroundAnim(u.type, artOf(u), anim)) {
           anim = `ground-${anim}`;
         }
         // Scut de lumină: show the "shield" pose only for the ACTIVATION moment
         // (configurable); after that the unit keeps fighting normally, with the
         // light dome (drawn separately) over it for the rest of the invuln
-        if (u.shieldAt >= 0 && game.time < u.shieldAt + (u.shieldPose ?? 0.5) && hasShieldAnim(u.type, u.team)) {
+        if (u.shieldAt >= 0 && game.time < u.shieldAt + (u.shieldPose ?? 0.5) && hasShieldAnim(u.type, artOf(u))) {
           anim = 'shield'; frame = 0;
         }
         // Vortex of Light (Sword Saint ult): hold the vortex cast frame the whole
         // time it spins, over any march/attack pose
         if (u.vortexUntil > game.time) {
-          const va = castAnimOf(u.type, u.team, 'vortexoflight');
+          const va = castAnimOf(u.type, artOf(u), 'vortexoflight');
           if (va) { anim = va; frame = 0; }
         }
         // Loves dagger (ult): hold the "throw" cast frame while the blade flies
         if (u.daggerFlying) {
-          const da = castAnimOf(u.type, u.team, 'daggerthrow');
+          const da = castAnimOf(u.type, artOf(u), 'daggerthrow');
           if (da) { anim = da; frame = 1; }
         }
-        drawCharacter(ctx, u.type, anim, frame, u.team, vScale);
+        drawCharacter(ctx, u.type, anim, frame, artOf(u), vScale);
       } else {
         ctx.rotate(u.team === 0 ? 0 : Math.PI);
         if (stats.shape === 'ring') {
@@ -1906,12 +1911,12 @@ export class Renderer {
         // image first — even when it also carries acid (Poison Arrow) — so the
         // poison arrow shows its own sprite while the stance is up.
         drawn = p.ability
-          ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, p.team, size)
+          ? drawAbilityProjectileSprite(ctx, p.ability, p.srcType, artOf(p), size)
           : p.acid
-            ? (drawAcidProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
+            ? (drawAcidProjectileSprite(ctx, p.srcType, artOf(p), size) || drawProjectileSprite(ctx, p.srcType, artOf(p), size))
             : p.fire
-              ? (drawFireProjectileSprite(ctx, p.srcType, p.team, size) || drawProjectileSprite(ctx, p.srcType, p.team, size))
-              : drawProjectileSprite(ctx, p.srcType, p.team, size);
+              ? (drawFireProjectileSprite(ctx, p.srcType, artOf(p), size) || drawProjectileSprite(ctx, p.srcType, artOf(p), size))
+              : drawProjectileSprite(ctx, p.srcType, artOf(p), size);
         ctx.restore();
       }
       if (!drawn) {
