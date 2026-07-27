@@ -902,13 +902,28 @@ html, body {
 .mp-code-input::placeholder { color: #7c8ba1; letter-spacing: 4px; }
 
 /* ---- camera (lobby): sloturi pe două tabere + chat ---- */
-.lobby-screen { width: min(1040px, 96vw); }
-.lobby-title { margin-bottom: 8px; }
-.lb-code {
-  font-family: "Impact", "Arial Narrow", sans-serif; letter-spacing: 8px; padding-left: 8px;
-  background: linear-gradient(180deg, #fff2c9, var(--gold) 55%, #b0812c);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+/* the lobby is the tallest screen in the menu: no giant logo above it, and it
+   sits near the top instead of being vertically centered */
+#menu-root.in-lobby { justify-content: flex-start; padding: 8vh 24px 4vh; }
+#menu-root.in-lobby .menu-brand { display: none; }
+#menu-root.in-lobby .m-screen { max-width: none; }
+.lobby-screen { width: min(1040px, 96vw); gap: 10px; }
+.lb-head { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.lb-head-t {
+  font: 800 11px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 3px;
+  text-transform: uppercase; color: #a8b6c9;
 }
+.lb-head-s { font: 400 12px/1 "Segoe UI", system-ui, sans-serif; color: #8d9bb0; }
+.lb-code {
+  font-family: "Impact", "Arial Narrow", sans-serif; font-size: clamp(34px, 6vw, 52px); line-height: 1.1;
+  letter-spacing: 12px; padding: 2px 6px 2px 18px; cursor: pointer;
+  background: none; border: 0; border-radius: 10px;
+  color: #ffe39a; text-shadow: 0 3px 14px rgba(0, 0, 0, 0.75), 0 0 22px rgba(233, 197, 101, 0.35);
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+.lb-code:hover { transform: translateY(-1px); color: #fff2c9; }
+.lb-code.copied { font-size: 24px; letter-spacing: 3px; color: #7fd98a; }
+.lb-hint { margin: 6px 0 0; font-size: 12.5px; color: #9fb0c6; }
 .lb-wrap { display: flex; flex-direction: column; gap: 10px; }
 .lb-sides { display: flex; align-items: stretch; justify-content: center; gap: 10px; }
 .lb-col {

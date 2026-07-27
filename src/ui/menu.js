@@ -116,6 +116,9 @@ export class Menu {
 
   go(name) {
     for (const s of this.el.querySelectorAll('.m-screen')) s.classList.toggle('hidden', s.dataset.screen !== name);
+    // the lobby is TALL: it drops the big logo and hugs the top instead of
+    // being centered, so nothing hides behind the brand
+    this.root.classList.toggle('in-lobby', name === 'lobby');
     this.cd.classList.add('hidden');
     this.load.classList.add('hidden');
     this.root.classList.remove('hidden');
@@ -193,6 +196,7 @@ export class Menu {
     const send = (o) => { if (this.hooks.onLobby) this.hooks.onLobby(o); };
     switch (d.lb) {
       case 'say': this.lobbySay(); return;
+      case 'copy': this.copyCode(); return;
       case 'ready': send({ action: 'ready', ready: !this.myReady() }); return;
       case 'start': send({ action: 'start' }); return;
       case 'race': this.sel.player = d.r; send({ action: 'race', race: d.r }); return;
@@ -206,6 +210,23 @@ export class Menu {
       default: return;
     }
   }
+  // one click on the code copies it (that's the whole point of the code) —
+  // the badge confirms for a second, then goes back to showing the code
+  copyCode() {
+    const code = this.lobby && this.lobby.code;
+    const el = this.el.querySelector('#lb-code');
+    if (!code || !el) return;
+    const done = () => {
+      el.classList.add('copied');
+      el.textContent = 'COPIAT ✔';
+      this.later(() => { el.classList.remove('copied'); el.textContent = code; }, 1200);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => {});
+      else done();
+    } catch { /* no clipboard permission — the code stays readable on screen */ }
+  }
+
   mySlot() {
     const r = this.lobby;
     if (!r) return null;
@@ -263,16 +284,27 @@ export class Menu {
       ready.classList.toggle('on', on);
       ready.innerHTML = on ? '✔&nbsp;&nbsp;Sunt gata' : '✔&nbsp;&nbsp;Gata';
     }
+    // START is the host's alone, and only once every HUMAN is ready and both
+    // sides have someone (bots count as always ready)
+    const waiting = seated.filter((sl) => sl.kind === 'player' && !sl.ready);
+    const bothSides = n[0] > 0 && n[1] > 0;
+    const ok = bothSides && !waiting.length;
     const start = this.el.querySelector('#lb-start');
     if (start) {
-      // START is the host's alone, and only once every HUMAN is ready and both
-      // sides have someone (bots count as always ready)
-      const humansReady = seated.every((sl) => sl.kind === 'bot' || sl.ready);
-      const ok = host && humansReady && n[0] > 0 && n[1] > 0;
       start.classList.toggle('hidden', !host);
-      start.disabled = !ok;
+      start.disabled = !(host && ok);
       start.title = ok ? `Pornește ${n[0]}v${n[1]}` : 'Toți jucătorii umani trebuie să fie GATA';
-      start.innerHTML = `▶&nbsp;&nbsp;START ${n[0]}v${n[1]}`;
+      start.innerHTML = ok ? `▶&nbsp;&nbsp;START ${n[0]}v${n[1]}` : '▶&nbsp;&nbsp;START';
+    }
+    // ...and say out loud what's still missing (the host can't guess otherwise)
+    const hint = this.el.querySelector('#lb-hint');
+    if (hint) {
+      let msg = '';
+      if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot sau așteaptă un jucător.`;
+      else if (waiting.length) msg = `Se așteaptă: ${waiting.map((sl) => esc(sl.name || 'Player')).join(', ')}`;
+      else if (!host) msg = 'Gazda pornește meciul.';
+      else msg = `Sloturile goale dispar — pornești ${n[0]}v${n[1]}${n[0] !== n[1] ? ' (asimetric: tabăra mică primește bonus de venit)' : ''}.`;
+      hint.innerHTML = msg;
     }
   }
 
@@ -850,7 +882,11 @@ const TEMPLATE = `
   </section>
 
   <section class="m-screen hidden lobby-screen" data-screen="lobby">
-    <h2 class="m-title lobby-title">Cameră <span id="lb-code" class="lb-code"></span></h2>
+    <div class="lb-head">
+      <span class="lb-head-t">Cod cameră</span>
+      <button id="lb-code" class="lb-code" data-lb="copy" title="Click ca să copiezi codul"></button>
+      <span class="lb-head-s">dă-l prietenilor ca să intre</span>
+    </div>
     <div id="lb-swap" class="lb-swap hidden"></div>
     <div class="lb-wrap">
       <div id="lb-sides" class="lb-sides"></div>
@@ -866,6 +902,7 @@ const TEMPLATE = `
       <button class="m-btn lb-ready-btn" id="lb-ready" data-lb="ready">✔&nbsp;&nbsp;Gata</button>
       <button class="m-btn primary lb-start-btn" id="lb-start" data-lb="start">▶&nbsp;&nbsp;START</button>
     </div>
+    <p class="m-hint lb-hint" id="lb-hint"></p>
     <button class="m-back" data-mp="cancel"><span class="m-back-txt">◄ Ieși din cameră</span></button>
   </section>
 
