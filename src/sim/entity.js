@@ -1,8 +1,11 @@
 import { CONFIG } from '../config.js';
 import { towerStatForTier } from '../ui/balance.js';
 
-export function spawnUnit(game, team, type, x, y) {
-  const s = game.ustat(team, type);
+// `owner` = the PLAYER the unit belongs to (stats/economy); `team` stays the
+// battlefield SIDE (targeting). In 1v1 they coincide, so the default keeps
+// every existing call site identical.
+export function spawnUnit(game, team, type, x, y, owner = team) {
+  const s = game.ustat(owner, type);
   // A footprint bigger than 1x1 (grid cells) makes the unit physically larger:
   // its collision/separation radius grows to span the cells. 1x1 keeps the
   // unit's own base radius (backwards-compatible with every existing unit).
@@ -18,7 +21,7 @@ export function spawnUnit(game, team, type, x, y) {
   const hh = footprint ? (ch * CONFIG.GRID) / 2 : s.radius;
   const e = {
     id: game.nextId++,
-    team, type,
+    team, owner, type,
     x, y, prevX: x, prevY: y,
     hp: s.hp, maxHp: s.hp,
     cooldown: 0,
@@ -126,7 +129,8 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
   const front = caster.team === 0 ? 1 : -1;
   const e = {
     id: game.nextId++,
-    team: caster.team, type: caster.type, // type hosts the sprites; stats overridden
+    team: caster.team, owner: caster.owner != null ? caster.owner : caster.team,
+    type: caster.type, // type hosts the sprites; stats overridden
     x: totem ? caster.x + front * 55 : caster.x + dir * 20, y: caster.y + (totem ? 0 : 14), prevX: caster.x, prevY: caster.y,
     hp: stats.hp, maxHp: stats.hp,
     cooldown: 0, windup: 0, windupMax: 0,
@@ -183,7 +187,8 @@ export function spawnCloneShadow(game, caster, p, cloneDmg, index = 0, count = 1
   const life = p.life != null ? p.life : (p.duration || 0);
   const e = {
     id: game.nextId++,
-    team: caster.team, type: caster.type, // hero sprites; stats overridden
+    team: caster.team, owner: caster.owner != null ? caster.owner : caster.team,
+    type: caster.type, // hero sprites; stats overridden
     x: caster.x + ox, y: caster.y + oy, prevX: caster.x, prevY: caster.y,
     hp: stats.hp, maxHp: stats.hp,
     cooldown: 0, windup: 0, windupMax: 0,
@@ -230,9 +235,11 @@ function structureHp(kind, bs, tier) {
 // Generic structure factory: the main base (win objective), the starting
 // turret, and player-built walls / towers / generators. Stats resolve per
 // the building team's race.
-export function makeStructure(game, team, kind, x, y) {
-  const bs = game.bstat(team, kind);
-  const hp = structureHp(kind, bs, (game.tier && game.tier[team]) || 1);
+// `owner` = the PLAYER who built it (economy/refunds); `team` = the SIDE it
+// fights for. Defaults keep 1v1 call sites identical (owner === team).
+export function makeStructure(game, team, kind, x, y, owner = team) {
+  const bs = game.bstat(owner, kind);
+  const hp = structureHp(kind, bs, (game.tier && game.tier[owner]) || 1); // tier is per-PLAYER
   const ext = structureExtents(kind, bs);
   // Player-built structures can take time to raise (buildTime, admin-set;
   // 0 = instant). While `building`, the structure is INERT: towers don't
@@ -242,7 +249,7 @@ export function makeStructure(game, team, kind, x, y) {
   const buildTime = (kind !== 'main' && kind !== 'turret' && kind !== 'generator') ? (bs.buildTime || 0) : 0;
   const s = {
     id: game.nextId++,
-    team, kind,
+    team, owner, kind,
     x, y, prevX: x, prevY: y,
     hp, maxHp: hp,
     radius: ext.radius,

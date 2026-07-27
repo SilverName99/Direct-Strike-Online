@@ -2785,6 +2785,33 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     check('move: base is not movable', !rb.ok);
     applyBalance({});
   }
+
+  // Phase 0 (team-modes groundwork): players/sides taxonomy, per-entity owner,
+  // and the multi-main win condition — all invisible in 1v1.
+  console.log('team-modes phase 0 (owner vs side)');
+  {
+    const { applyBalance } = await import('../src/ui/balance.js');
+    applyBalance({});
+    const g = new Game(310, { races: ['humans', 'orcs'] });
+    check('phase0: 1v1 defaults to two players on sides 0/1',
+      g.players.length === 2 && g.sideOf(0) === 0 && g.sideOf(1) === 1);
+    check('phase0: playersOnSide maps 1v1 one-to-one',
+      g.playersOnSide(0).length === 1 && g.playersOnSide(0)[0] === 0 && g.playersOnSide(1)[0] === 1);
+    const u = spawnUnit(g, 0, 'grunt', 300, 400);
+    check('phase0: spawned unit carries owner === team in 1v1', u.owner === 0 && u.team === 0);
+    const m0 = g.structures.find((s) => s.kind === 'main' && s.team === 0);
+    check('phase0: structures carry owner too', m0 && m0.owner === 0);
+    // a SECOND main on side 0 (as a team mode will have): killing one main must
+    // NOT end the game while a living main remains on that side
+    const extra = makeStructure(g, 0, 'main', m0.x, m0.y + 200, 0);
+    g.removeStructure(m0, true);
+    check('phase0: side survives while another main still stands', g.winner === null);
+    const evs = g.drainEvents();
+    check('phase0: mainDown event fired for the fallen base', evs.some((e) => e.type === 'mainDown' && e.team === 0));
+    g.removeStructure(extra, true);
+    check('phase0: last main down -> side loses', g.winner === 1);
+    applyBalance({});
+  }
 }
 
 // ----------------------------------------------------------------- done

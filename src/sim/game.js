@@ -21,7 +21,19 @@ export class Game {
     this.time = 0;
     this.winner = null;
 
-    // each team plays a race; unit stats resolve per race
+    // ---- PLAYERS vs SIDES (team-modes groundwork) ---------------------------
+    // A PLAYER is one commander: their own gold, templates, tier, upgrades and
+    // buildings. A SIDE (0 = left, 1 = right) is the battlefield faction that
+    // units fight for. In 1v1 player index === side, so every per-player array
+    // below keeps its historical [0, 1] shape and nothing changes. Team modes
+    // (2v2/3v3) will register more players per side via options.players.
+    // Entities/structures carry BOTH: `team` (side, drives targeting/combat)
+    // and `owner` (player, drives stats/economy/refunds).
+    this.players = Array.isArray(options.players) && options.players.length
+      ? options.players.map((p, i) => ({ side: p.side != null ? p.side : (i < 1 ? 0 : 1), race: p.race || RACES[0] }))
+      : [{ side: 0, race: (options.races || [RACES[0], RACES[0]])[0] }, { side: 1, race: (options.races || [RACES[0], RACES[0]])[1] }];
+
+    // each player plays a race; unit stats resolve per race (indexed by PLAYER)
     this.races = options.races || [RACES[0], RACES[0]];
 
     this.money = [CONFIG.START_MONEY, CONFIG.START_MONEY];
@@ -162,7 +174,9 @@ export class Game {
   // resolves by type per its race.
   ustatOf(u) {
     if (u.summonStats) return u.summonStats;
-    const s = statsUnit(this.races[u.team], u.type);
+    // stats resolve by the OWNER's race (players on one side may differ); in
+    // 1v1 owner === team, so this is the historical behavior
+    const s = statsUnit(this.races[u.owner != null ? u.owner : u.team], u.type);
     // the hero fights AND casts its LEARNED abilities (rank >= 1); its ability
     // list is synced onto the entity from the template's ranks.
     // autoAttackBetween: a hero is a FIGHTER first — it must swing between
@@ -200,8 +214,29 @@ export class Game {
     return this.upgrades[team].has(id) && !this.upgradeOff[team].has(id);
   }
 
+  // Which battlefield SIDE a player fights on (1v1: player index === side).
+  sideOf(player) {
+    const p = this.players && this.players[player];
+    return p ? p.side : player;
+  }
+
+  // Player indices fighting on a side (1v1: exactly one per side).
+  playersOnSide(side) {
+    const out = [];
+    for (let i = 0; i < this.players.length; i++) if (this.players[i].side === side) out.push(i);
+    return out;
+  }
+
+  // First LIVING main base on a side (falls back to a ruined one so the
+  // end-screen render and old callers keep an anchor). 1v1: the one main.
   mainOf(team) {
-    return this.structures.find((s) => s.team === team && s.kind === 'main') || null;
+    return this.structures.find((s) => s.team === team && s.kind === 'main' && s.hp > 0)
+      || this.structures.find((s) => s.team === team && s.kind === 'main') || null;
+  }
+
+  // All living main bases on a side (team modes: one per player still standing).
+  mainsOf(team) {
+    return this.structures.filter((s) => s.team === team && s.kind === 'main' && s.hp > 0);
   }
 
   enemyStructures(team) {
@@ -937,8 +972,15 @@ export class Game {
       }
       if (s.kind === 'main' && this.winner === null) {
         s.hp = 0;
-        this.winner = 1 - s.team;
-        this.events.push({ type: 'gameover', winner: this.winner });
+        // a SIDE only falls once its LAST main is down (team modes have one
+        // main per player; 1v1 has a single main, so this fires immediately)
+        const anyLeft = this.structures.some((o) => o !== s && o.team === s.team && o.kind === 'main' && o.hp > 0);
+        if (!anyLeft) {
+          this.winner = 1 - s.team;
+          this.events.push({ type: 'gameover', winner: this.winner });
+        } else {
+          this.events.push({ type: 'mainDown', team: s.team, owner: s.owner, x: s.x, y: s.y });
+        }
         return; // keep the ruined main for the end-screen render
       }
     }
