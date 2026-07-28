@@ -2848,20 +2848,27 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     // per-player zone ownership: player 1 places army in THEIR zone, not the ally's
     const z1 = g.zones[1].army, z0 = g.zones[0].army;
     check('2v2: army placement ok in your own zone', g.isValidPlacement(1, (z1.x0 + z1.x1) / 2, 400, -1, 'grunt'));
-    check('2v2: army placement rejected in the ally zone', !g.isValidPlacement(1, (z0.x0 + z0.x1) / 2, 400, -1, 'grunt'));
-    // build: tower in own zone ok; in the ALLY zone only up to the X% allowance
-    // (tower cap 6 × 20% -> exactly 1 allowed per ally zone)
+    // teammates share their whole depth: parking army in an ALLY's strip is fine
+    check('2v2: army placement ok in the ally zone too', g.isValidPlacement(1, (z0.x0 + z0.x1) / 2, 400, -1, 'grunt'));
+    // ...and so is building there — your own global caps are the only limit
     for (let p = 0; p < 4; p++) g.money[p] = 99999;
     const b1 = g.zones[1].build;
     const r1 = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b1.x0 + 60, y: 400 });
     check('2v2: tower builds in your own zone', r1.ok, r1.reason);
     const b0 = g.zones[0].build;
     const r2 = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b0.x0 + 60, y: 400 });
-    check('2v2: ONE ally-zone tower fits the X% allowance', r2.ok, r2.reason);
+    check('2v2: a tower builds in the ally zone', r2.ok, r2.reason);
     const r2b = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: b0.x0 + 60, y: 240 });
-    check('2v2: a SECOND ally-zone tower exceeds the allowance', !r2b.ok);
+    check('2v2: and a second one too (no per-zone allowance)', r2b.ok, r2b.reason);
     const r2c = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b0.x0 + 60, y: 700 });
-    check('2v2: mines stay personal — rejected in the ally zone while your base stands', !r2c.ok);
+    check('2v2: mines are allowed at an ally as well', r2c.ok, r2c.reason);
+    // the ENEMY side stays off-limits
+    const bEnemy = g.zones[2].build;
+    const rEnemy = g.issueCommand({ type: 'build', team: 1, kind: 'tower', x: bEnemy.x0 + 60, y: 400 });
+    check('2v2: building in an ENEMY zone is refused', !rEnemy.ok);
+    const zEnemyArmy = g.zones[2].army;
+    check('2v2: army placement in an ENEMY strip is refused',
+      !g.isValidPlacement(1, (zEnemyArmy.x0 + zEnemyArmy.x1) / 2, 400, -1, 'grunt'));
     // free mines: a generator builds anywhere valid in YOUR zone (no plots)
     const r3 = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b1.x0 + 60, y: 600 });
     check('2v2: mine builds freely in your own zone (no predefined plots)', r3.ok, r3.reason);
@@ -3015,10 +3022,10 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     // ---- Phase 4: the TEAM_* knobs persist through balance.json's `general`
     {
       const saved = {};
-      for (const k of ['TEAM_REFUND_PCT', 'TEAM_ALLY_PCT_VANGUARD', 'TEAM_MAIN_REBUILD_COST', 'TEAM_ASYM_1V3']) saved[k] = CONFIG[k];
-      applyBalance({ general: { TEAM_REFUND_PCT: 65, TEAM_ALLY_PCT_VANGUARD: 35, TEAM_MAIN_REBUILD_COST: 777, TEAM_ASYM_1V3: 150 } });
+      for (const k of ['TEAM_REFUND_PCT', 'TEAM_ZONE_GAP', 'TEAM_MAIN_REBUILD_COST', 'TEAM_ASYM_1V3']) saved[k] = CONFIG[k];
+      applyBalance({ general: { TEAM_REFUND_PCT: 65, TEAM_ZONE_GAP: 300, TEAM_MAIN_REBUILD_COST: 777, TEAM_ASYM_1V3: 150 } });
       check('p4: team knobs load from the general block',
-        CONFIG.TEAM_REFUND_PCT === 65 && CONFIG.TEAM_ALLY_PCT_VANGUARD === 35 &&
+        CONFIG.TEAM_REFUND_PCT === 65 && CONFIG.TEAM_ZONE_GAP === 300 &&
         CONFIG.TEAM_MAIN_REBUILD_COST === 777 && CONFIG.TEAM_ASYM_1V3 === 150);
       const { currentBalance } = await import('../src/ui/balance.js');
       const snap = currentBalance();

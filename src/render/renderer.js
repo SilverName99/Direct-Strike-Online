@@ -320,8 +320,13 @@ export class Renderer {
     this.drawBackgroundHalf(ctx, getBackground(raceOf(anchorOf(game, 1))), mid, mid, true);
     // "Blight": the corrupt terrain overlay, shown only inside organic blobs
     // around each team's buildings (undead), on top of the normal terrain.
-    this.drawBlight(ctx, game, 0, 0, mid, false);
-    this.drawBlight(ctx, game, 1, mid, mid, true);
+    // 1v1 ONLY — in team modes the depth zones sit close together and each
+    // player may build in a teammate's ground, so the corruption would smear
+    // over allied bases that have nothing to do with it.
+    if (!game.players || game.players.length <= 2) {
+      this.drawBlight(ctx, game, 0, 0, mid, false);
+      this.drawBlight(ctx, game, 1, mid, mid, true);
+    }
     // forget grow-in state for buildings that are gone (a rebuild re-blooms)
     if (this.blightAnim.size) {
       const live = new Set(game.structures.map((s) => s.id));

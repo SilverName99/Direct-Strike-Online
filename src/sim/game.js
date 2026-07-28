@@ -132,15 +132,6 @@ export class Game {
     return this.zones[player] ? !this.zones[player].alive : false;
   }
 
-  // The % of their normal caps a player may use inside an ALLY's zone of the
-  // given role. Baseless players use the raised Y% everywhere.
-  allyBuildPct(player, role) {
-    if (this.isBaseless(player)) return CONFIG.TEAM_FALLEN_PCT || 0;
-    if (role === 'vanguard') return CONFIG.TEAM_ALLY_PCT_VANGUARD || 0;
-    if (role === 'center') return CONFIG.TEAM_ALLY_PCT_CENTER || 0;
-    return CONFIG.TEAM_ALLY_PCT_ANCHOR || 0;
-  }
-
   generateMineSpots(player) {
     const bs = this.bstat(player, 'generator');
     const n = Math.max(0, Math.round(bs.cap || 0));
@@ -628,18 +619,15 @@ export class Game {
   isValidPlacement(team, x, y, ignoreIndex = -1, unitId = null) {
     const { hw, hh } = this.footprintHalf(team, unitId);
     const fits = (zone) => zone && !(x - hw < zone.x0 || x + hw > zone.x1 || y - hh < zone.y0 || y + hh > zone.y1);
-    // the footprint (a point for 1x1 units) must sit inside an army strip: the
-    // player's OWN while their zone lives; a BASELESS player parks their army
-    // in any allied living zone instead ("contribuie la zonele aliaților")
-    if (this.zones[team].alive) {
-      if (!fits(this.zones[team].army)) return false;
-    } else {
-      let ok = false;
-      for (const q of this.playersOnSide(this.sideOf(team))) {
-        if (q !== team && this.zones[q].alive && fits(this.zones[q].army)) { ok = true; break; }
-      }
-      if (!ok) return false;
+    // the footprint (a point for 1x1 units) must sit inside ANY living army
+    // strip on the player's own side — your own or an ally's. Teammates share
+    // their whole depth freely: you can send your formation to hold a line that
+    // isn't yours (and a baseless player simply keeps doing it).
+    let inStrip = false;
+    for (const q of this.playersOnSide(this.sideOf(team))) {
+      if (this.zones[q].alive && fits(this.zones[q].army)) { inStrip = true; break; }
     }
+    if (!inStrip) return false;
     const min = CONFIG.TEMPLATE_MIN_DIST;
     // overlap runs against EVERY same-side player's parked templates (allies can
     // share a strip); 1v1 has one player per side, so this is the historical check
@@ -671,41 +659,19 @@ export class Game {
     if (kind !== 'main' && !CONFIG.BUILDINGS[kind]) return false;
     const ext = structureExtents(kind, this.bstat(team, kind));
     const boxFits = (z) => z && x - ext.hw >= z.x0 && x + ext.hw <= z.x1 && y - ext.hh >= z.y0 && y + ext.hh <= z.y1;
-    // A building may go in: the player's OWN (living) construction zone, the
-    // side's forward pocket by the mid turret, or an ALLY's living zone — the
-    // latter capped at X% of the player's normal caps for that kind (Y% once
-    // the player is baseless, which also unlocks mines there).
+    // A building may go in ANY living construction zone on the player's own side
+    // — theirs or a teammate's — plus the side's forward pocket by the mid
+    // turret. Allies invest freely in each other's depth; the player's own
+    // global caps (checked by the build command) are the only limit.
     const side = this.sideOf(team);
-    let hosted = (this.zones[team].alive && boxFits(this.zones[team].build)) ||
-      (kind !== 'main' && this.midBuild && boxFits(this.midBuild[side]));
+    let hosted = kind !== 'main' && this.midBuild && boxFits(this.midBuild[side]);
     if (!hosted) {
-      let host = -1;
       for (const q of this.playersOnSide(side)) {
-        if (q === team || !this.zones[q].alive) continue;
-        if (boxFits(this.zones[q].build)) { host = q; break; }
-      }
-      if (host < 0) return false;
-      // the rebuilt main bypasses the % cap — it's the comeback mechanic; it
-      // only needs a hosting ally zone and clear ground
-      if (kind !== 'main') {
-        // mines stay personal: they're allowed in an ally's zone ONLY once your
-        // own zone fell (the fallen player rebuilds their economy at the allies')
-        if (kind === 'generator' && !this.isBaseless(team)) return false;
-        const pct = this.allyBuildPct(team, this.players[host].role);
-        const cap = Math.floor((this.bstat(team, kind).cap || 0) * pct / 100);
-        if (cap <= 0) return false;
-        // count what THIS player already has inside THAT ally zone
-        const hz = this.zones[host].build;
-        let mine = 0;
-        for (const s of this.structures) {
-          if (s.hp <= 0 || s.kind !== kind) continue;
-          if ((s.owner != null ? s.owner : s.team) !== team) continue;
-          if (ignoreId != null && s.id === ignoreId) continue;
-          if (s.x >= hz.x0 && s.x <= hz.x1 && s.y >= hz.y0 && s.y <= hz.y1) mine++;
-        }
-        if (mine >= cap) return false;
+        if (!this.zones[q].alive) continue;
+        if (boxFits(this.zones[q].build)) { hosted = true; break; }
       }
     }
+    if (!hosted) return false;
     const gap = CONFIG.BUILD_GAP;
     for (const s of this.structures) {
       if (s.hp <= 0) continue;
