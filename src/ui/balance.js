@@ -33,7 +33,7 @@ export const UNIT_SELECT_FIELDS = {
   landArmor: ['light', 'armored'],
 };
 export const BUILDING_FIELDS = {
-  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP'], ['regen', 'Regenerare HP/s (0 = oprit)'], ['cap', 'Max pe teren'], ['chainMax', 'Stoc max wall-uri (0/1 = oprit)'], ['chainDelay', 'Secunde pentru +1 în stoc']],
+  wall: [['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['hp', 'HP Tier 1'], ['hp2', 'HP Tier 2'], ['hp3', 'HP Tier 3'], ['regen', 'Regenerare HP/s (0 = oprit)'], ['cap', 'Max pe teren'], ['chainMax', 'Stoc max wall-uri (0/1 = oprit)'], ['chainDelay', 'Secunde pentru +1 în stoc']],
   tower: [
     ['cost', 'Cost'], ['buildTime', 'Timp construcție (s)'], ['cap', 'Max buildable'], ['range', 'Range'],
     ['regen', 'Regenerare HP/s (0 = oprit)'],

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v18.4';
+export const VERSION = 'v18.5';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -177,7 +177,9 @@ export const CONFIG = {
   // Footprint is a rectangle of cw x ch grid cells; idleSpeed sets how fast
   // the uploaded idle 1↔2 frames alternate (flips per second).
   BUILDINGS: {
-    wall: { cost: 40, buildTime: 0, hp: 450, cw: 1, ch: 1, cap: 24, idleSpeed: 2, chainMax: 1, chainDelay: 3, regen: 0, name: 'Wall' },
+    // walls scale with the OWNER's base tier, like towers: hp / hp2 / hp3
+    // (each falls back to the lower tier when left unset)
+    wall: { cost: 40, buildTime: 0, hp: 450, hp2: 450, hp3: 450, cw: 1, ch: 1, cap: 24, idleSpeed: 2, chainMax: 1, chainDelay: 3, regen: 0, name: 'Wall' },
     tower: {
       cost: 200, buildTime: 0, hp: 350, cw: 1, ch: 1, cap: 6, idleSpeed: 2, regen: 0, name: 'Tower',
       range: 200, damage: 18, period: 0.9, dmgType: 'normal',

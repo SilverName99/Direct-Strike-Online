@@ -597,11 +597,12 @@ export class Game {
       main.maxHp = this.bstat(player, 'main').hp[this.tier[player] - 1];
       main.hp = Math.min(main.maxHp, main.hp + 1000);
     }
-    // the player's towers scale with THEIR base tier: raise max HP + heal the gain
-    const tbs = this.bstat(player, 'tower');
+    // the player's towers AND walls scale with THEIR base tier: raise max HP and
+    // heal the gain, so an upgrade instantly thickens the standing defenses
     for (const s of this.structures) {
-      if ((s.owner != null ? s.owner : s.team) !== player || s.kind !== 'tower' || s.hp <= 0) continue;
-      const nm = towerStatForTier(tbs, this.tier[player]).hp;
+      if ((s.owner != null ? s.owner : s.team) !== player || s.hp <= 0) continue;
+      if (s.kind !== 'tower' && s.kind !== 'wall') continue;
+      const nm = towerStatForTier(this.bstat(player, s.kind), this.tier[player]).hp;
       const gain = nm - s.maxHp;
       s.maxHp = nm;
       if (gain > 0) s.hp = Math.min(nm, s.hp + gain);

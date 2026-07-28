@@ -7,6 +7,10 @@ import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 // Which PLAYER's art an object uses. Races are per-commander (lobby), so the
 // sprite lookup keys off the OWNER; the friendly/enemy tint keys off that
 // player's SIDE (resolved inside sprites.js). 1v1: owner === team.
+// Soul Harvest fires a beam at every unit in its rings at once — drawn at
+// this opacity so the pile of tendrils never hides the fight under them.
+const HARVEST_BEAM_ALPHA = 0.6;
+
 const artOf = (o) => (o && o.owner != null ? o.owner : (o ? o.team : 0));
 // The commander whose art stands for a whole SIDE (its back-most player).
 // Used where one lookup must cover the side — the terrain halves, the blight
@@ -796,9 +800,13 @@ export class Renderer {
           this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(209,75,203,0.85)', '#f0a8ff', '#d14bcb');
         }
       }
-      // Soul Harvest: one drain tendril per enemy in the ring, one heal tendril per ally
+      // Soul Harvest: one drain tendril per enemy in the ring, one heal tendril
+      // per ally. Many beams at once, so they draw at 60% opacity — the field
+      // stays readable underneath them.
       if (u.harvestUntil > game.time && u.harvest) {
         const h = u.harvest;
+        ctx.save();
+        ctx.globalAlpha *= HARVEST_BEAM_ALPHA;
         const [x0f, y0f] = this._lerpXY(u, alpha);
         const x0 = x0f;
         // her end leaves from around chest/hands, not from under her feet — lift
@@ -817,6 +825,7 @@ export class Renderer {
             if (hr2 > 0 && dd <= hr2) this.drawTendril(ctx, ex, ey, x0, y0, 'rgba(120,230,150,0.75)', '#c6ffd6', '#78e696', W);
           }
         }
+        ctx.restore();
       }
     }
   }
@@ -1177,9 +1186,13 @@ export class Renderer {
   drawStructures(ctx, game) {
     // depth sort (painter's): draw back-to-front by each building's base Y, so a
     // structure standing IN FRONT of the mid turret (lower on screen) overlaps
-    // it, while one behind it (higher up) stays under it
+    // it, while one behind it (higher up) stays under it. A destroyed main is
+    // kept by the sim (zone anchors, the end screen), but it draws NOTHING —
+    // rubble shouldn't linger as a ghost building on the field.
     const baseY = (s) => s.y + (s.hh || s.radius);
-    const ordered = [...game.structures].sort((a, b) => baseY(a) - baseY(b));
+    const ordered = [...game.structures]
+      .filter((s) => !(s.kind === 'main' && s.hp <= 0))
+      .sort((a, b) => baseY(a) - baseY(b));
     for (const s of ordered) {
       if (!this.visible(s.x, s.y, s.radius + 320)) continue;
       // fog of war: an enemy building shows once you've explored its spot
@@ -1239,7 +1252,7 @@ export class Renderer {
       if (!s.building) {
         ctx.save();
         if (s.team === 1) ctx.scale(-1, 1);
-        if (s.kind === 'main' && s.hp <= 0) ctx.globalAlpha = 0.35;
+
         // 3-tier tower art: idle / attack / campfire chosen by tier + activity
         if (s.kind === 'tower' && hasTowerTierArt(artOf(s))) {
           spriteDrawn = this.drawTower(ctx, game, s, hw, hh);

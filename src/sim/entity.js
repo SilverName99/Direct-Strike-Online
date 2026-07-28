@@ -228,7 +228,8 @@ export function structureExtents(kind, bs) {
 
 function structureHp(kind, bs, tier) {
   if (kind === 'main') return bs.hp[0];
-  if (kind === 'tower') return towerStatForTier(bs, tier || 1).hp;
+  // towers AND walls scale with the owner's base tier (hp / hp2 / hp3)
+  if (kind === 'tower' || kind === 'wall') return towerStatForTier(bs, tier || 1).hp;
   return bs.hp;
 }
 

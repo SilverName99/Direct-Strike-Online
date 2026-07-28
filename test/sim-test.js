@@ -193,6 +193,31 @@ console.log('unit commands (army zone, tiers)');
   check('moveUnit outside army zone rejected', !badMv.ok);
 }
 
+// ------------------------------------------------- walls scale with the tier
+console.log('wall tiers');
+{
+  const { applyBalance } = await import('../src/ui/balance.js');
+  applyBalance({ races: { humans: { buildings: { wall: { hp: 400, hp2: 700, hp3: 1200, buildTime: 0 } } } } });
+  const g = new Game(71);
+  g.money[0] = 99999;
+  if (g.wallStock) g.wallStock[0] = 9; // walls come from a refilling stock
+  const z = CONFIG.CONSTRUCTION_ZONE[0];
+  const w1 = g.issueCommand({ type: 'build', team: 0, kind: 'wall', x: z.x0 + 20, y: 300 });
+  check('wall: builds at tier 1', w1.ok, w1.reason);
+  const wall = g.structures.find((s) => s.kind === 'wall');
+  check('wall: tier-1 HP', wall.maxHp === 400, `${wall.maxHp}`);
+  g.applyTierUp(0);
+  check('wall: a standing wall grows on tier up', wall.maxHp === 700, `${wall.maxHp}`);
+  check('wall: and is healed by the gain', wall.hp === 700, `${wall.hp}`);
+  if (g.wallStock) g.wallStock[0] = 9;
+  const w2 = g.issueCommand({ type: 'build', team: 0, kind: 'wall', x: z.x0 + 20, y: 740 });
+  const fresh = g.structures.filter((s) => s.kind === 'wall').pop();
+  check('wall: a new wall is built at the current tier', w2.ok && fresh.maxHp === 700, `${fresh.maxHp}`);
+  g.applyTierUp(0);
+  check('wall: tier 3 too', wall.maxHp === 1200, `${wall.maxHp}`);
+  applyBalance({}); // restore defaults for the blocks below
+}
+
 // ----------------------------------------------------------- buildings
 console.log('buildings');
 {
