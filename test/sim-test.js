@@ -3002,6 +3002,27 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
       check('asym: income reflects the bonus', Math.abs(gA.incomePer20s(0) - base) < 0.001, `${gA.incomePer20s(0)} vs ${base}`);
       CONFIG.TEAM_ASYM_1V2 = saved;
     }
+    // a ruined main is scenery: its destruction must fire ONCE, not every tick
+    // (in team modes the side fights on, so it kept re-exploding — an endless
+    // particle pile where the base fell)
+    {
+      const layR = teamLayout(2, 2);
+      const gR = new Game(343, { layout: layR, races: ['humans', 'humans', 'orcs', 'orcs'] });
+      const main0 = gR.structures.find((s) => s.kind === 'main' && s.owner === 0);
+      main0.hp = 0;
+      gR.update(CONFIG.FIXED_DT);
+      let evs = gR.drainEvents().filter((e) => e.type === 'structureDestroyed');
+      check('ruin: the main reports destroyed once', evs.length === 1, `${evs.length}`);
+      check('ruin: the side fights on (its other main stands)', gR.winner === null);
+      let again = 0;
+      for (let i = 0; i < 60; i++) {
+        gR.update(CONFIG.FIXED_DT);
+        again += gR.drainEvents().filter((e) => e.type === 'structureDestroyed').length;
+      }
+      check('ruin: and never again on later ticks', again === 0, `${again} extra`);
+      check('ruin: the rubble stays for the end screen',
+        gR.structures.some((s) => s.kind === 'main' && s.owner === 0 && s.hp <= 0));
+    }
     // tier + building stats are PER COMMANDER: an ally upgrading their base must
     // not touch mine (they were being read by SIDE)
     {

@@ -10,7 +10,7 @@ import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
 import { Menu } from './ui/menu.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getCursorUrl, availableMiddleSlots } from './render/sprites.js';
+import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getCursorUrl } from './render/sprites.js';
 import { NetClient } from './net/netclient.js';
 import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
@@ -249,6 +249,18 @@ function applyRandomMenuCursor() {
   applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
 }
 
+// Middle-of-map terrain options handed to the sim. It MUST NOT depend on which
+// art happens to be decoded yet: online, both clients build the Game from the
+// same seed, and if one of them saw a different-length list the seeded pick
+// would differ — different terrain effect on each screen, i.e. a desync. So the
+// list is always the 3 configured slots (+ the N "empty" entries); the renderer
+// simply draws nothing when the picked slot has no image loaded.
+function middleOptions() {
+  const list = [0, 1, 2].map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
+  for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) list.push({ slot: -1, kind: 'none' });
+  return list;
+}
+
 // Single player from a ROSTER — one entry per commander in layout order (side 0
 // back → front, then side 1): `{side, race, bot, difficulty}`. Exactly the
 // shape the lobby produces, so "Create room" against the bots lands here. The
@@ -262,11 +274,7 @@ function newGameFromRoster(roster) {
   setViewerTeam(me);
   renderer.resetFog(); // fresh fog of war for the new match
   const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-  // middle-of-map terrain: the available uploaded variants + their effects,
-  // plus N "empty" entries so some matches roll a plain middle; the sim picks
-  // one at random (seeded) and applies its effect
-  const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
-  for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
+  const middles = middleOptions();
 
   const sides = roster.map((r) => (r.side ? 1 : 0));
   const races = roster.map((r) => r.race || 'humans');
@@ -339,6 +347,13 @@ async function ensureNet() {
   // ---- the lobby ("cameră") ----
   net.on('lobby', (m) => menu.showLobby(m.room, net.id));
   net.on('roomlist', (m) => menu.showRooms(m.rooms));
+  // the server's checksum watchdog caught the sims drifting apart: say it out
+  // loud (once) instead of letting the players discover it by comparing screens
+  net.on('desync', () => {
+    if (!netmatch || netmatch._warnedDesync) return;
+    netmatch._warnedDesync = true;
+    toast('⚠ Meciul s-a desincronizat — ce vedeți nu mai e identic');
+  });
   net.on('swap_req', (m) => menu.showSwapAsk(m.from, m.name));
   net.on('swap_declined', (m) => toast(`${m.name} nu vrea să schimbe poziția`));
   net.on('kicked', () => { menu.hideSwapAsk(); menu.netError('Ai fost dat afară din cameră.'); });
@@ -401,8 +416,7 @@ function startNetMatch(m) {
   renderer.resetFog(); // fresh fog of war for the new match
   bottombar.refresh();
   applyCursor(races[m.youAre]);
-  const middles = availableMiddleSlots().map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
-  for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) middles.push({ slot: -1, kind: 'none' });
+  const middles = middleOptions();
   game = new Game(m.seed, { races, incomeMult: races.map(() => 1), middles, ...(lay ? { layout: lay } : {}) });
   window.__game = game;
   window.__ui = uiState;

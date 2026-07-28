@@ -1105,9 +1105,12 @@ export class Game {
     this.updateMidControl();
 
     // Destroyed structures are gone for good; losing the main base loses
-    // the game.
+    // the game. A ruined MAIN stays on the field as scenery (see
+    // removeStructure), so it must be swept only ONCE — otherwise, in team
+    // modes where the side fights on, every tick re-fired its destruction
+    // (endless explosion particles, repeated events).
     for (const s of [...this.structures]) {
-      if (s.hp <= 0) this.removeStructure(s, true);
+      if (s.hp <= 0 && !s.ruined) this.removeStructure(s, true);
     }
 
     // Manual hero-cast requests are one-shot: whatever fired (or couldn't) this
@@ -1140,6 +1143,7 @@ export class Game {
       }
       if (s.kind === 'main' && this.winner === null) {
         s.hp = 0;
+        s.ruined = true; // swept once; from here on it's just rubble
         // a SIDE only falls once its LAST main is down (team modes have one
         // main per player; 1v1 has a single main, so this fires immediately)
         const anyLeft = this.structures.some((o) => o !== s && o.team === s.team && o.kind === 'main' && o.hp > 0);
