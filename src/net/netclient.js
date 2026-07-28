@@ -7,8 +7,11 @@
 // this exact file is unit-tested headlessly against a local server.
 
 export class NetClient {
-  constructor(url) {
+  // `version` is this build's CONFIG.VERSION: the server refuses to seat two
+  // different builds in one match (they would run two different sims).
+  constructor(url, version = '?') {
     this.url = url;
+    this.version = version;
     this.ws = null;
     this.id = null;
     this.handlers = {};      // type -> [fn]
@@ -28,7 +31,7 @@ export class NetClient {
       let ws;
       try { ws = new WebSocket(this.url); } catch (e) { reject(e); return; }
       this.ws = ws;
-      ws.onopen = () => this.send({ t: 'hello', name: this._name });
+      ws.onopen = () => this.send({ t: 'hello', name: this._name, version: this.version });
       ws.onmessage = (ev) => this._onMessage(ev.data);
       ws.onclose = () => { this.emit('close'); if (!done) { done = true; reject(new Error('closed')); } };
       ws.onerror = (e) => { this.emit('error', e); if (!done) { done = true; reject(e); } };
@@ -71,7 +74,7 @@ export class NetClient {
   lobbySwapReq(id) { this.send({ t: 'lobby_swap_req', id }); }
   lobbySwapReply(id, accept) { this.send({ t: 'lobby_swap_reply', id, accept: !!accept }); }
   lobbyStart() { this.send({ t: 'lobby_start' }); }
-  setName(name) { this._name = String(name || 'Player').slice(0, 24); this.send({ t: 'hello', name: this._name }); }
+  setName(name) { this._name = String(name || 'Player').slice(0, 24); this.send({ t: 'hello', name: this._name, version: this.version }); }
 
   // ---- in match ----
   sendCmd(cmd) { this.send({ t: 'cmd', cmd }); }

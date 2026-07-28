@@ -2,7 +2,7 @@
 // setup (races + difficulty) → 5s countdown → loading screen → the match.
 // Owns the #overlay element (main menu AND the game-over screen).
 
-import { CONFIG, RACES } from '../config.js';
+import { CONFIG, RACES, VERSION } from '../config.js';
 import { getLoadingScreens, spritesReady } from '../render/sprites.js';
 
 // Player name: shown top-left in the menu, carried into the lobby and matches.
@@ -68,6 +68,8 @@ export class Menu {
     this.galNext = this.el.querySelector('#menu-gallery-next');
     this.galleryIdx = 0; // 0 = the menu background; then the loading screens
     this.music = null;
+    const ver = this.el.querySelector('#menu-version');
+    if (ver) ver.textContent = VERSION;
     this.el.addEventListener('click', (e) => this.onClick(e));
     this.el.addEventListener('input', (e) => this.onInput(e));
     this.applyTheme();
@@ -394,8 +396,9 @@ export class Menu {
     // START is the host's alone, and only once every HUMAN is ready and both
     // sides have someone (bots count as always ready)
     const waiting = seated.filter((sl) => sl.kind === 'player' && !sl.ready);
+    const mixedBuilds = seated.some((sl) => sl.kind === 'player' && sl.version && r.version && sl.version !== r.version);
     const bothSides = n[0] > 0 && n[1] > 0;
-    const ok = bothSides && !waiting.length;
+    const ok = bothSides && !waiting.length && !mixedBuilds;
     const start = this.el.querySelector('#lb-start');
     if (start) {
       start.classList.toggle('hidden', !host);
@@ -407,7 +410,11 @@ export class Menu {
     const hint = this.el.querySelector('#lb-hint');
     if (hint) {
       let msg = '';
-      if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot${solo ? '.' : ' sau așteaptă un jucător.'}`;
+      const wrongVer = seated.filter((sl) => sl.kind === 'player' && sl.version && r.version && sl.version !== r.version);
+      if (wrongVer.length) {
+        msg = `Versiuni diferite (${wrongVer.map((sl) => `${esc(sl.name)}: ${esc(sl.version)}`).join(', ')}) — camera merge pe ${esc(r.version)}. Reîmprospătați pagina cu Ctrl+Shift+R.`;
+      }
+      else if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot${solo ? '.' : ' sau așteaptă un jucător.'}`;
       else if (solo) msg = ''; // offline: the START label already says the format
       else if (waiting.length) msg = `Se așteaptă: ${waiting.map((sl) => esc(sl.name || 'Player')).join(', ')}`;
       else if (!host) msg = 'Gazda pornește meciul.';
@@ -433,8 +440,11 @@ export class Menu {
     let ctl = '';
 
     if (sl.kind === 'player') {
+      const roomVer = this.lobby.version;
+      const badVer = !!(sl.version && roomVer && sl.version !== roomVer);
       const tag = [sl.id === this.lobby.hostId ? '<span class="lb-tag host">HOST</span>' : '',
-        isMe ? '<span class="lb-tag me">TU</span>' : ''].join('');
+        isMe ? '<span class="lb-tag me">TU</span>' : '',
+        badVer ? `<span class="lb-tag bad" title="Versiune diferită de a camerei (${esc(roomVer)})">⚠ ${esc(sl.version)}</span>` : ''].join('');
       body = `<span class="lb-name">${esc(sl.name || 'Player')}</span>${tag}
         <span class="lb-ready ${sl.ready ? 'on' : ''}">${sl.ready ? '✔ gata' : '… așteaptă'}</span>`;
       // your own race is yours to pick; everyone else's is just shown
@@ -901,6 +911,7 @@ const TEMPLATE = `
     <span class="name-ico">🛡</span>
     <input id="menu-name-input" maxlength="16" spellcheck="false" autocomplete="off">
   </div>
+  <div id="menu-version" title="Versiunea jocului — toți jucătorii dintr-un meci trebuie s-o aibă pe aceeași"></div>
   <button id="menu-fs-corner" class="corner-btn fs-btn" title="Ecran complet" data-opt-fs>⛶</button>
   <div id="menu-sound">
     <button id="music-prev" class="corner-btn music-arrow hidden" title="Melodia anterioară" data-music="-1">‹</button>

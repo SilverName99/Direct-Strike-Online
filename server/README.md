@@ -85,7 +85,7 @@ sudo systemctl restart fh-server
 
 ## Protocol (v3)
 
-Client → server: `hello{name}`, `quickmatch{race}`, `create{race,private}`,
+Client → server: `hello{name,version}`, `quickmatch{race}`, `create{race,private}`,
 `join{code,race}`, `rooms`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`,
 plus the lobby: `lobby_race{race}`, `lobby_ready{ready}`, `lobby_chat{text}`,
 `lobby_slot{side,depth,kind,difficulty,race}`, `lobby_kick{id}`,
@@ -97,6 +97,15 @@ Server → client: `welcome{id}`, `queued`, `room{code}`, `lobby{room}`,
 roster,races,sides,inputDelay,tickHz}`, `cmd{tick,team,cmd}`, `clock{tick}`,
 `desync{tick}`, `player_left{index,name,reason}`, `opp_left`, `error{reason}`,
 `pong`.
+
+### Build guard
+
+`hello` carries the client's build (`src/config.js` VERSION). Two builds run two
+different sims, so the server never puts them in one match: quick match pairs
+only identical builds, `join` on a room of another build returns
+`error{reason:'version'}`, and `lobby_start` refuses while the seated humans
+disagree. The room's build (the host's) and each player's build travel in the
+`lobby` state, so the UI can flag the odd one out.
 
 ### The room ("cameră")
 

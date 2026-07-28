@@ -255,6 +255,7 @@ class Room {
   state() {
     return {
       code: this.code, hostId: this.hostId, maxPerSide: MAX_PER_SIDE, public: this.public,
+      version: this.version(), // the room's build (the host's)
       slots: this.slots.map((side) => side.map((sl) => {
         const c = sl.connId ? clients.get(sl.connId) : null;
         return {
@@ -262,6 +263,7 @@ class Room {
           id: sl.connId, name: c ? c.name : null,
           bot: sl.kind === 'bot', difficulty: sl.difficulty,
           race: sl.race, ready: sl.kind === 'bot' ? true : sl.ready,
+          version: c ? c.version : null, // shown in the lobby; must match to start
         };
       })),
       chat: this.chat.slice(-40),
@@ -276,12 +278,23 @@ class Room {
     if (this.chat.length > 80) this.chat.shift();
   }
 
-  // every seated human ready, and both sides have at least one participant
+  // the build this room runs (the host's); everyone must match it
+  version() {
+    const host = clients.get(this.hostId);
+    return host ? host.version : '?';
+  }
+  // every seated human on the room's build?
+  sameVersion() {
+    const v = this.version();
+    return this.conns().every((c) => c.version === v);
+  }
+  // every seated human ready, all on one build, and both sides have someone
   canStart() {
     const r = this.roster();
     const s0 = r.filter((x) => x.side === 0).length;
     const s1 = r.filter((x) => x.side === 1).length;
     if (!s0 || !s1) return false;
+    if (!this.sameVersion()) return false;
     return r.every((x) => x.bot || x.ready);
   }
 
@@ -317,10 +330,14 @@ class Room {
 // ------------------------------ matchmaking ------------------------------
 function tryQuickMatch() {
   queue = queue.filter((id) => clients.has(id) && clients.get(id).state === 'queued');
-  while (queue.length >= 2) {
-    const a = clients.get(queue.shift());
-    const b = clients.get(queue.shift());
-    if (!a || !b) continue;
+  // pair by BUILD: two versions of the game would desync on the first tick
+  for (let i = 0; i < queue.length; i++) {
+    const a = clients.get(queue[i]);
+    if (!a) continue;
+    const j = queue.findIndex((id, k) => k > i && clients.get(id) && clients.get(id).version === a.version);
+    if (j < 0) continue;
+    const b = clients.get(queue[j]);
+    queue.splice(j, 1); queue.splice(i, 1); i = -1;
     const m = new Match([
       { conn: a, bot: false, difficulty: 'normal', race: a.race, side: 0, name: a.name },
       { conn: b, bot: false, difficulty: 'normal', race: b.race, side: 1, name: b.name },
@@ -346,6 +363,9 @@ function onMessage(conn, raw) {
   switch (msg.t) {
     case 'hello':
       conn.name = String(msg.name || 'Player').slice(0, 24);
+      // the client's BUILD (src/config.js VERSION). Two different builds run
+      // two different sims, so they are never allowed into the same match.
+      conn.version = String(msg.version || '?').slice(0, 16);
       send(conn, { t: 'welcome', id: conn.id, protocol: PROTOCOL });
       return;
 
@@ -390,6 +410,8 @@ function onMessage(conn, raw) {
       const room = rooms.get(c);
       if (!room) return err(conn, 'no-room');
       if (room.findSlot(conn.id)) return err(conn, 'own-room');
+      // a different build runs a different sim — never let them into one match
+      if (room.version() !== conn.version) return err(conn, 'version');
       const free = room.firstOpen();
       if (!free) return err(conn, 'room-full');
       leaveQueueAndRooms(conn);
@@ -500,6 +522,7 @@ function onMessage(conn, raw) {
 
     case 'lobby_start': {          // HOST: launch the match
       const room = conn.room; if (!room || !isHost(conn)) return;
+      if (!room.sameVersion()) return err(conn, 'version');
       if (!room.canStart()) return err(conn, 'not-ready');
       room.start();
       return;
@@ -549,7 +572,7 @@ const httpServer = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 wss.on('connection', (ws) => {
-  const conn = { id: nextId++, ws, name: 'Player', state: 'idle', match: null, room: null, team: null, alive: true };
+  const conn = { id: nextId++, ws, name: 'Player', version: '?', state: 'idle', match: null, room: null, team: null, alive: true };
   clients.set(conn.id, conn);
   ws.on('message', (data) => onMessage(conn, data.toString()));
   ws.on('close', () => onClose(conn));

@@ -901,6 +901,14 @@ html, body {
 .mp-code-input:focus { outline: none; border-color: var(--gold); }
 .mp-code-input::placeholder { color: #7c8ba1; letter-spacing: 4px; }
 
+/* versiunea buildului, discret în colț — trebuie să fie aceeași la toți */
+#menu-version {
+  position: absolute; right: 14px; bottom: 10px; z-index: 3; pointer-events: none;
+  font: 700 11px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
+  color: rgba(210, 222, 238, 0.45); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+.lb-tag.bad { background: rgba(255, 85, 102, 0.22); color: #ffb3bd; }
+
 /* ---- lista de camere ("Join a room") ---- */
 .mp-rooms {
   width: min(560px, 92vw); display: flex; flex-direction: column; gap: 6px;

@@ -19,15 +19,16 @@ function ok(cond, label) { console.log((cond ? 'ok   ' : 'FAIL ') + label); if (
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 // a tiny client wrapper that records messages by type
-function connect(name) {
+// `version` = the client build; the server refuses to mix builds in one match
+function connect(name, version = 'vTEST') {
   const ws = new WebSocket(URL);
-  const c = { ws, name, msgs: [], byType: {} };
+  const c = { ws, name, version, msgs: [], byType: {} };
   ws.on('message', (d) => {
     const m = JSON.parse(d.toString());
     c.msgs.push(m);
     (c.byType[m.t] ||= []).push(m);
   });
-  return new Promise((res) => ws.on('open', () => { ws.send(JSON.stringify({ t: 'hello', name })); res(c); }));
+  return new Promise((res) => ws.on('open', () => { ws.send(JSON.stringify({ t: 'hello', name, version })); res(c); }));
 }
 const say = (c, obj) => c.ws.send(JSON.stringify(obj));
 const waitFor = async (c, type, ms = 2000) => {
@@ -159,6 +160,29 @@ ok(privLob && privLob.room.public === false, 'the room reports itself as private
 say(browser, { t: 'rooms' });
 const list2 = await waitFor(browser, 'roomlist');
 ok((list2.rooms || []).every((r) => r.code !== privRoom.code), 'still hidden after the join');
+
+// ---- 4c) version guard: two builds never share a match ----
+const oldCli = await connect('Veche', 'v1.0');
+const newCli = await connect('Noua', 'v2.0');
+say(newCli, { t: 'create', race: 'humans' });
+const vRoom = await waitFor(newCli, 'room');
+oldCli.byType.error = [];
+say(oldCli, { t: 'join', code: vRoom.code });
+const vErr = await waitFor(oldCli, 'error');
+ok(vErr && vErr.reason === 'version', 'a different build is refused at the door');
+const vLob = newCli.byType.lobby.at(-1);
+ok(vLob && vLob.room.version === 'v2.0', `the room reports its build (${vLob && vLob.room.version})`);
+// quick match only pairs identical builds
+const qOld = await connect('QVeche', 'v1.0');
+const qNew = await connect('QNoua', 'v2.0');
+say(qOld, { t: 'quickmatch', race: 'humans' });
+say(qNew, { t: 'quickmatch', race: 'orcs' });
+await sleep(250);
+ok(!qOld.byType.start && !qNew.byType.start, 'quick match does NOT pair two different builds');
+const qSame = await connect('QVeche2', 'v1.0');
+say(qSame, { t: 'quickmatch', race: 'undead' });
+const qStart = await waitFor(qOld, 'start');
+ok(!!qStart, 'the same build pairs normally');
 
 // ---- 5) bad room code ----
 const x = await connect('Lost');

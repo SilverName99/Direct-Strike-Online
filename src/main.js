@@ -336,10 +336,13 @@ const NET_ERRORS = {
   'no-room': 'Camera nu există (cod greșit sau expirat).',
   'own-room': 'Acela e codul TĂU — dă-i-l prietenului.',
   'in-match': 'Ești deja într-un meci.',
+  'room-full': 'Camera e plină.',
+  'not-ready': 'Nu toți jucătorii sunt gata.',
+  version: `Versiuni diferite de joc. Tu ai ${VERSION} — reîmprospătați pagina (Ctrl+Shift+R) ca să aveți toți aceeași versiune.`,
 };
 async function ensureNet() {
   if (net && net.ws && net.ws.readyState === 1) return net;
-  net = new NetClient(netUrl());
+  net = new NetClient(netUrl(), VERSION);
   net.on('queued', () => menu.netWaiting('Se caută adversar…', 'Ține pagina deschisă'));
   net.on('room', (m) => menu.netWaiting('Se deschide camera…', 'Cod:', m.code));
   net.on('error', (m) => menu.netError(NET_ERRORS[m.reason] || `Eroare: ${m.reason}`));
