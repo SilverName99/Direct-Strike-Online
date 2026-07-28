@@ -185,7 +185,7 @@ function visionOfUnit(game, u) {
 
 // Structures see a little further than they shoot (and never less than a base).
 function visionOfStructure(game, s) {
-  const st = game.bstat ? game.bstat(s.team, s.kind) : null;
+  const st = game.bstat ? game.bstat(s.owner != null ? s.owner : s.team, s.kind) : null;
   const v = st && st.vision;
   if (v && v > 0) return v;
   return Math.max(340, ((st && st.range) || 0) + 140);

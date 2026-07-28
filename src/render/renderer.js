@@ -941,7 +941,7 @@ export class Renderer {
       if (!hasEmpty && !hasFull) continue;
 
       // configurable size / speed / count (⚙ stats on the Generator)
-      const gs = game.bstat(s.team, 'generator');
+      const gs = game.bstat(artOf(s), 'generator');
       const count = cl(Math.round(gs.workerCount ?? 2), 0, 8);
       if (count === 0) continue;
       const speed = cl(gs.workerSpeed || 100, 10, 1000);
@@ -1087,10 +1087,10 @@ export class Renderer {
   // render-side (cosmetic) so it never touches the sim. Context is already
   // translated to the tower and mirrored for team 1.
   drawTower(ctx, game, s, hw, hh) {
-    const tier = game.tier[s.team];
+    const tier = game.tier[artOf(s)]; // the OWNER's base tier, not the side's
     const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
     const firing = !!(tgt && tgt.hp > 0);
-    const bs = game.bstat(s.team, 'tower');
+    const bs = game.bstat(artOf(s), 'tower');
 
     // track seconds since this tower last had a target (reset while firing)
     this._towerIdle ||= new Map();
@@ -1195,7 +1195,7 @@ export class Renderer {
 
       // range ring first, so it sits under sprite or vector art
       if (s.kind === 'turret' || s.kind === 'tower') {
-        const stats = game.bstat(s.team, s.kind);
+        const stats = game.bstat(artOf(s), s.kind);
         ctx.globalAlpha = 0.06;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
@@ -1249,8 +1249,8 @@ export class Renderer {
         if (!spriteDrawn && (s.kind === 'turret' || s.kind === 'tower') && hasStructureAttack(s.kind, artOf(s))) {
           const tgt = s.targetId != null ? game.byId.get(s.targetId) : null;
           if (tgt && tgt.hp > 0) {
-            const abs = game.bstat(s.team, s.kind);
-            const period = s.kind === 'tower' ? towerPeriodFor(abs, game.tier[s.team]) : (abs.period || 1);
+            const abs = game.bstat(artOf(s), s.kind);
+            const period = s.kind === 'tower' ? towerPeriodFor(abs, game.tier[artOf(s)]) : (abs.period || 1);
             const sinceFire = period - s.cooldown; // 0 right after a shot
             const flash = Math.min(Math.max(0.02, abs.attackHold ?? 0.16), period);
             const frame = sinceFire >= 0 && sinceFire < flash ? 1 : 0;
@@ -1265,8 +1265,8 @@ export class Renderer {
           if (s.kind === 'main') {
             // While upgrading, already show the NEXT tier's art but faded, so
             // the base visibly "becomes" its upgraded self as the bar fills.
-            const upgrading = game.baseUpgrading(s.team);
-            const showTier = upgrading ? game.baseUpgradeToTier(s.team) : game.tier[s.team];
+            const upgrading = game.baseUpgrading(artOf(s));
+            const showTier = upgrading ? game.baseUpgradeToTier(artOf(s)) : game.tier[artOf(s)];
             if (upgrading) ctx.globalAlpha *= 0.5;
             spriteDrawn = drawMainTierSprite(ctx, artOf(s), showTier, hw, hh); // per-upgrade image
           } else {
@@ -1279,7 +1279,7 @@ export class Renderer {
       const size = sizeOf(raceOf(artOf(s)), s.kind);
       if (spriteDrawn && s.kind === 'main') {
         // tier pips still shown over sprite art
-        const tier = game.tier[s.team];
+        const tier = game.tier[artOf(s)];
         ctx.fillStyle = '#ffd35c';
         for (let i = 0; i < tier; i++) {
           ctx.beginPath();
@@ -1305,7 +1305,7 @@ export class Renderer {
         ctx.fill();
         ctx.restore();
         // tier pips (world scale)
-        const tier = game.tier[s.team];
+        const tier = game.tier[artOf(s)];
         ctx.fillStyle = '#ffd35c';
         for (let i = 0; i < tier; i++) {
           ctx.beginPath();
@@ -1497,7 +1497,7 @@ export class Renderer {
     ctx.setLineDash([6, 4]);
     for (const st of game.structures) {
       if (st.hp <= 0 || st.building) continue;
-      const bs = game.bstat(st.team, st.kind);
+      const bs = game.bstat(artOf(st), st.kind);
       const hw = st.hw || st.radius;
       const hh = st.hh || st.radius;
       ctx.strokeStyle = 'rgba(255,255,255,0.45)';

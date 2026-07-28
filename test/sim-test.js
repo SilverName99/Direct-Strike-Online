@@ -2848,7 +2848,9 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     // per-player zone ownership: player 1 places army in THEIR zone, not the ally's
     const z1 = g.zones[1].army, z0 = g.zones[0].army;
     check('2v2: army placement ok in your own zone', g.isValidPlacement(1, (z1.x0 + z1.x1) / 2, 400, -1, 'grunt'));
-    check('2v2: army placement rejected in the ally zone', !g.isValidPlacement(1, (z0.x0 + z0.x1) / 2, 400, -1, 'grunt'));
+    check('2v2: army parks in an ALLY strip too', g.isValidPlacement(1, (z0.x0 + z0.x1) / 2, 400, -1, 'grunt'));
+    check('2v2: army placement in an ENEMY strip is refused',
+      !g.isValidPlacement(1, (g.zones[2].army.x0 + g.zones[2].army.x1) / 2, 400, -1, 'grunt'));
     // build: tower in own zone ok; in the ALLY zone only up to the X% allowance
     // (tower cap 6 × 20% -> exactly 1 allowed per ally zone)
     for (let p = 0; p < 4; p++) g.money[p] = 99999;
@@ -2862,6 +2864,11 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
     check('2v2: a SECOND ally-zone tower exceeds the allowance', !r2b.ok);
     const r2c = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b0.x0 + 60, y: 700 });
     check('2v2: mines stay personal — rejected in the ally zone while your base stands', !r2c.ok);
+    // a cap-1 building (tech / Hero Hall) still gets ONE slot at an ally
+    const r2d = g.issueCommand({ type: 'build', team: 1, kind: 'bldg1', x: b0.x0 + 160, y: 640 });
+    check('2v2: a cap-1 building fits the allowance once', r2d.ok, r2d.reason);
+    const r2e = g.issueCommand({ type: 'build', team: 1, kind: 'bldg1', x: b0.x0 + 160, y: 300 });
+    check('2v2: ...but only once', !r2e.ok);
     // free mines: a generator builds anywhere valid in YOUR zone (no plots)
     const r3 = g.issueCommand({ type: 'build', team: 1, kind: 'generator', x: b1.x0 + 60, y: 600 });
     check('2v2: mine builds freely in your own zone (no predefined plots)', r3.ok, r3.reason);
@@ -2994,6 +3001,33 @@ console.log('undead bat-tank land/air (Aterizare upgrade)');
       const base = (CONFIG.INCOME_BASE) * 1.77;
       check('asym: income reflects the bonus', Math.abs(gA.incomePer20s(0) - base) < 0.001, `${gA.incomePer20s(0)} vs ${base}`);
       CONFIG.TEAM_ASYM_1V2 = saved;
+    }
+    // tier + building stats are PER COMMANDER: an ally upgrading their base must
+    // not touch mine (they were being read by SIDE)
+    {
+      const layT = teamLayout(2, 2);
+      const gT = new Game(342, { layout: layT, races: ['humans', 'orcs', 'humans', 'orcs'] });
+      gT.money[1] = 99999;
+      gT.issueCommand({ type: 'upgradeBase', team: 1 });
+      for (let i = 0; i < Math.round(60 / CONFIG.FIXED_DT); i++) gT.update(CONFIG.FIXED_DT);
+      check('tier: the ally reached tier 2', gT.tier[1] === 2, JSON.stringify(gT.tier));
+      check('tier: my own tier is untouched', gT.tier[0] === 1);
+      const mineMain = gT.structures.find((s) => s.kind === 'main' && s.owner === 0);
+      const allyMain = gT.structures.find((s) => s.kind === 'main' && s.owner === 1);
+      check('tier: only the upgraded base grew', mineMain.maxHp < allyMain.maxHp,
+        `${mineMain.maxHp} vs ${allyMain.maxHp}`);
+      // a tower's stats follow ITS OWNER's tier, not the side's
+      const zt = gT.zones[0].build;
+      gT.money[0] = 99999;
+      const rt = gT.issueCommand({ type: 'build', team: 0, kind: 'tower', x: zt.x0 + 60, y: 200 });
+      check('tier: tower built for the tier-1 player', rt.ok, rt.reason);
+      const tw = gT.structures.find((s) => s.kind === 'tower' && s.owner === 0);
+      const { towerStatForTier } = await import('../src/ui/balance.js');
+      const t1 = towerStatForTier(gT.bstat(0, 'tower'), 1);
+      const t2 = towerStatForTier(gT.bstat(0, 'tower'), 2);
+      check('tier: the tower uses its OWNER\'s tier-1 stats',
+        Math.round(tw.maxHp) === Math.round(t1.hp) || t1.hp === t2.hp,
+        `${tw.maxHp} vs t1 ${t1.hp} / t2 ${t2.hp}`);
     }
     // an online DISCONNECT ("abandon"): the leaver's base stays on the field,
     // but their side counts as short-handed -> the asymmetric bonus flips over

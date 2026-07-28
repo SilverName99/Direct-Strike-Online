@@ -242,18 +242,19 @@ export function updateCombat(game, dt) {
   // enemy unit in range. A tower still under construction can't shoot yet.
   for (const s of game.structures) {
     if (s.hp <= 0 || s.building) continue;
-    if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.team, 'turret'), dt);
+    if (s.kind === 'turret') updateTurret(game, s, game.bstat(s.owner != null ? s.owner : s.team, 'turret'), dt);
     else if (s.kind === 'tower') {
       // towers scale their HP / damage / period / projectile-count with the
       // owner's base tier (arrows per tier are configurable, default 1/2/3)
-      const bs = game.bstat(s.team, 'tower');
-      const tn = Math.max(1, Math.min(3, game.tier[s.team]));
+      const owner = s.owner != null ? s.owner : s.team; // tier is per COMMANDER
+      const bs = game.bstat(owner, 'tower');
+      const tn = Math.max(1, Math.min(3, game.tier[owner]));
       const st = towerStatForTier(bs, tn);
       updateTurret(game, s, { ...bs, hp: st.hp, damage: st.damage, period: st.period }, dt, Math.max(1, Math.round(st.shots || 1)));
     }
     // the main base only shoots if given an attack (damage > 0) in ⚙ stats
     else if (s.kind === 'main') {
-      const ms = game.bstat(s.team, 'main');
+      const ms = game.bstat(s.owner != null ? s.owner : s.team, 'main');
       if (ms.damage > 0) updateTurret(game, s, ms, dt);
     }
   }

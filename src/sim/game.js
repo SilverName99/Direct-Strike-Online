@@ -628,18 +628,15 @@ export class Game {
   isValidPlacement(team, x, y, ignoreIndex = -1, unitId = null) {
     const { hw, hh } = this.footprintHalf(team, unitId);
     const fits = (zone) => zone && !(x - hw < zone.x0 || x + hw > zone.x1 || y - hh < zone.y0 || y + hh > zone.y1);
-    // the footprint (a point for 1x1 units) must sit inside an army strip: the
-    // player's OWN while their zone lives; a BASELESS player parks their army
-    // in any allied living zone instead ("contribuie la zonele aliaților")
-    if (this.zones[team].alive) {
-      if (!fits(this.zones[team].army)) return false;
-    } else {
-      let ok = false;
-      for (const q of this.playersOnSide(this.sideOf(team))) {
-        if (q !== team && this.zones[q].alive && fits(this.zones[q].army)) { ok = true; break; }
-      }
-      if (!ok) return false;
+    // the footprint (a point for 1x1 units) must sit inside ANY living army
+    // strip on the player's own side — your own or an ally's. Formations move
+    // freely across the team's depth (a baseless player simply keeps doing it);
+    // only BUILDINGS are rationed at an ally, by the % allowance.
+    let inStrip = false;
+    for (const q of this.playersOnSide(this.sideOf(team))) {
+      if (this.zones[q].alive && fits(this.zones[q].army)) { inStrip = true; break; }
     }
+    if (!inStrip) return false;
     const min = CONFIG.TEMPLATE_MIN_DIST;
     // overlap runs against EVERY same-side player's parked templates (allies can
     // share a strip); 1v1 has one player per side, so this is the historical check
@@ -692,7 +689,10 @@ export class Game {
         // own zone fell (the fallen player rebuilds their economy at the allies')
         if (kind === 'generator' && !this.isBaseless(team)) return false;
         const pct = this.allyBuildPct(team, this.players[host].role);
-        const cap = Math.floor((this.bstat(team, kind).cap || 0) * pct / 100);
+        // ...at least ONE of any kind while the allowance is on: flooring 20%
+        // of a cap of 1 (the tech buildings, the Hero Hall) gave zero, so those
+        // could never be hosted at all.
+        const cap = pct > 0 ? Math.max(1, Math.floor((this.bstat(team, kind).cap || 0) * pct / 100)) : 0;
         if (cap <= 0) return false;
         // count what THIS player already has inside THAT ally zone
         const hz = this.zones[host].build;
@@ -1036,7 +1036,7 @@ export class Game {
     for (const s of this.structures) {
       if (s.hp <= 0 || s.hp >= s.maxHp || s.building) continue;
       if (s.kind !== 'turret' && s.kind !== 'tower' && s.kind !== 'wall') continue;
-      const regen = this.bstat(s.team, s.kind).regen || 0;
+      const regen = this.bstat(s.owner != null ? s.owner : s.team, s.kind).regen || 0;
       if (regen > 0) s.hp = Math.min(s.maxHp, s.hp + regen * dt);
     }
 
