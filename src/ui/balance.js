@@ -84,6 +84,10 @@ export const GENERAL_FIELDS = [
 // Team-mode (2v2/3v3/asimetric) knobs — edited in their own admin tab
 // ("⚔ Moduri echipă"), persisted in balance.json alongside the general rules.
 export const TEAM_FIELDS = [
+  ['TEAM_ALLY_PCT_ANCHOR', 'Construit la aliat: % din plafoane în zona ANCORĂ'],
+  ['TEAM_ALLY_PCT_CENTER', 'Construit la aliat: % din plafoane în zona CENTRU'],
+  ['TEAM_ALLY_PCT_VANGUARD', 'Construit la aliat: % din plafoane în zona VANGUARD'],
+  ['TEAM_FALLEN_PCT', 'Fără bază: % din plafoane la aliați (înlocuiește X%)'],
   ['TEAM_REFUND_PCT', 'Refund la prăbușirea zonei (% din ce a plătit fiecare)'],
   ['TEAM_MAIN_REBUILD_COST', 'Reconstruire bază: cost (aur)'],
   ['TEAM_MAIN_REBUILD_TIME', 'Reconstruire bază: durată șantier (s, 0 = instant)'],

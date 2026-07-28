@@ -15,6 +15,9 @@ function setStatus(msg, cls = '') {
 
 // group -> which TEAM_FIELDS keys it shows (order preserved from TEAM_FIELDS)
 const GROUPS = [
+  ['🤝 Colaborare — construit în zona aliatului', [
+    'TEAM_ALLY_PCT_ANCHOR', 'TEAM_ALLY_PCT_CENTER', 'TEAM_ALLY_PCT_VANGUARD', 'TEAM_FALLEN_PCT',
+  ], 'Cât la sută din plafoanele TALE normale poți construi în zona unui aliat, per rol de zonă (ex: 20% dintr-un plafon de 6 turnuri = 1 turn). „Fără bază" = procentul mărit după ce zona ta a căzut (atunci ai voie și mine la aliați).'],
   ['💥 Prăbușirea zonei & reconstrucția bazei', [
     'TEAM_REFUND_PCT', 'TEAM_MAIN_REBUILD_COST', 'TEAM_MAIN_REBUILD_TIME',
   ], 'Când baza unui jucător cade, toată zona lui (clădiri + armata parcată) se distruge și fiecare investitor primește refund-ul setat din ce a plătit EL. Jucătorul căzut își poate reconstrui baza într-o zonă vie a unui aliat — costul și durata șantierului se setează aici.'],

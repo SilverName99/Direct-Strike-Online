@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v18.0';
+export const VERSION = 'v18.1';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -64,6 +64,10 @@ export const CONFIG = {
 
   // ---- Team modes (2v2 / 3v3 / asymmetric) — "defense in depth" ------------
   TEAM_REFUND_PCT: 50,       // X% refunded to each investor when a zone collapses (buildings + parked army)
+  TEAM_ALLY_PCT_ANCHOR: 20,  // % of your normal caps you may build inside an ALLY's anchor zone
+  TEAM_ALLY_PCT_CENTER: 20,  // ... inside an ally's center zone
+  TEAM_ALLY_PCT_VANGUARD: 20,// ... inside an ally's vanguard zone
+  TEAM_FALLEN_PCT: 50,       // Y% allowance once YOUR zone fell (replaces the X% above; mines allowed too)
   TEAM_MAIN_REBUILD_COST: 400, // gold a fallen player pays to rebuild their main base at an ally's zone
   TEAM_MAIN_REBUILD_TIME: 30,  // seconds the rebuilt base takes to raise (construction site; 0 = instant)
   TEAM_ZONE_GAP: 240,        // open ground (px) between two allied depth zones (applies at match start)
