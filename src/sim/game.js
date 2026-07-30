@@ -472,6 +472,16 @@ export class Game {
     return v > 0 ? v : 1;
   }
 
+  // Seconds into the match before heroes can be bought (⚙ Balance). "Testing"
+  // overrides it with its own value (0 = recruit from the first second).
+  heroUnlockTime() {
+    if (this.testing) {
+      const v = Number((CONFIG.TESTING || {}).heroUnlock);
+      return Number.isFinite(v) ? Math.max(0, v) : 0;
+    }
+    return CONFIG.HERO_UNLOCK_TIME || 0;
+  }
+
   incomePer20s(team) {
     const gens = this.countBuilt(team, 'generator'); // sites don't pay yet
     const asym = 1 + this.asymBonusPct(team) / 100;
@@ -805,7 +815,7 @@ export class Game {
       // 3rd @ T3) — you may pick ANY hero for each slot.
       if (stats.isHero && this.heroTemplates(cmd.team).length >= this.tier[cmd.team]) return { ok: false, reason: 'tier-locked' };
       // heroes can be gated behind a match timer (⚙ Balance: HERO_UNLOCK_TIME)
-      if (stats.isHero && this.time < (CONFIG.HERO_UNLOCK_TIME || 0))
+      if (stats.isHero && this.time < this.heroUnlockTime())
         return { ok: false, reason: 'hero-locked' };
       if (this.money[cmd.team] < stats.cost) return { ok: false, reason: 'money' };
       if (this.foodUsed(cmd.team) + (stats.food || 0) > this.foodCap(cmd.team))

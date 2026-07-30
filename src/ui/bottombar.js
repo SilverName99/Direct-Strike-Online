@@ -1061,7 +1061,7 @@ export class BottomBar {
         el.classList.toggle('selected', this.uiState.selected === d.id);
         if (game) {
           const u = game.ustat(this.team, d.id);
-          const heroWait = d.isHero ? (CONFIG.HERO_UNLOCK_TIME || 0) - game.time : 0;
+          const heroWait = d.isHero ? game.heroUnlockTime() - game.time : 0;
           const heroOwned = d.isHero && game.hasHeroType(this.team, d.id);
           // heroes gate by COUNT (the N-th distinct hero needs base tier N), not
           // by the hero's own tier — any hero can be your 1st at tier 1.
@@ -1076,7 +1076,7 @@ export class BottomBar {
             // hero still time-locked (⚙ Balance): radial countdown on the card
             el.classList.add('disabled');
             cd = heroWait;
-            cdTotal = CONFIG.HERO_UNLOCK_TIME || 0;
+            cdTotal = game.heroUnlockTime();
           }
           else if (heroOwned) el.classList.add('owned-upg'); // already recruited THIS hero
           else if (game.money[this.team] < u.cost) el.classList.add('disabled');

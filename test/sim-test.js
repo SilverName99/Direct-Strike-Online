@@ -417,6 +417,20 @@ console.log('testing mode');
     tN.level === 1 && tN.points === 1 && tF.level === T.heroLevel && tF.points === T.heroPoints,
     `${tF.level}/${tF.points}`);
   check('the ultimate is unlocked at that level', tF.level >= 6);
+
+  // the "seconds until heroes can be bought" gate is lifted too
+  const savedWait = CONFIG.HERO_UNLOCK_TIME;
+  CONFIG.HERO_UNLOCK_TIME = 120;
+  const slow = new Game(71, { races: ['humans', 'orcs'] });
+  const quick = new Game(71, { races: ['humans', 'orcs'], testing: true });
+  for (const g of [slow, quick]) { g.money[0] = 99999; makeStructure(g, 0, 'herohall', 820, 300); }
+  const rS = slow.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 300 });
+  const rQ = quick.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 300 });
+  check('hero time-lock still applies normally', !rS.ok && rS.reason === 'hero-locked');
+  check('hero time-lock lifted in testing', rQ.ok, rQ.reason || '');
+  check('unlock time reads 0 while testing',
+    quick.heroUnlockTime() === 0 && slow.heroUnlockTime() === 120);
+  CONFIG.HERO_UNLOCK_TIME = savedWait;
 }
 
 // ------------------------------------------ multi-hero recruit (Hero Hall)

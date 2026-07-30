@@ -451,7 +451,7 @@ export class AIController {
     const heroIds = resolvedHeroIds(game.races[t]);
     if (!heroIds.length) return false; // no heroes defined for this race
     // heroes still time-locked (⚙ Balance) — don't buy or save toward one yet
-    if (game.time < (CONFIG.HERO_UNLOCK_TIME || 0) && !game.hasHero(t)) return false;
+    if (game.time < game.heroUnlockTime() && !game.hasHero(t)) return false;
 
     // 1) invest a talent point into ANY fielded hero (one action per think)
     for (const heroId of heroIds) {
