@@ -1769,8 +1769,11 @@ export class Renderer {
           anim = hasDashAnim(u.type, artOf(u)) ? 'dash' : 'walk';
           frame = 0;
         } else {
-          // marching, or a caster calmly waiting to cast -> idle/walk
-          anim = u.state === 'march' ? 'walk' : 'idle';
+          // marching, or a caster calmly waiting to cast -> idle/walk. A unit
+          // held by the siege "Stai pe loc" button isn't walking anywhere, so
+          // it breathes in its idle frames instead of moon-walking in place.
+          const stuck = game.isHeld && game.isHeld(artOf(u), u.type);
+          anim = (u.state === 'march' && !stuck) ? 'walk' : 'idle';
           frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
         }
         // fireball upgrade: swap walk/attack for the uploaded "Foc" sprite set

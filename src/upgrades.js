@@ -209,6 +209,17 @@ export const UPGRADES = {
       cost: 60, // aur, din Bază
     },
   },
+  holdground: {
+    name: 'Stai pe loc (asediu)',
+    desc: 'Unitatea de asediu (Blight Rat) primește un buton de OPRIRE: apeși o dată și toate unitățile TALE de tipul ăsta se opresc pe loc (rămân în frame-ul de idle) maximum atâtea secunde cât setezi; apeși din nou și pornesc imediat. Se folosește ca să nu plece asediul singur în fața valului. Nu costă mana — se cumpără o dată din Bază.',
+    kind: 'hold',
+    race: 'undead',
+    unit: 'mender', // slotul de asediu (unitatea 9 — Blight Rat)
+    params: {
+      cost: 120,        // aur, din Bază
+      holdDuration: 10, // secunde maxime cât rămân oprite (apoi pornesc singure)
+    },
+  },
   batland: {
     name: 'Aterizare (Liliac)',
     desc: 'Liliacul-tanc: fără upgrade e doar zburător (lovește doar aerul, de aproape). Cu el, aterizează AUTOMAT când un inamic terestru (sau o clădire) intră în rază și devine un tanc melee la sol (statele de mai jos); decolează înapoi când solul e liber. Armura la sol se setează în ⚙ stats („landArmor"). Are nevoie de setul de sprite-uri „La sol" (mers + atac) pe unitate.',
@@ -255,6 +266,7 @@ export const UPGRADE_PARAM_LABELS = {
   threshold: 'Prag activare (% HP)',
   duration: 'Durată invulnerabilitate (s)',
   cooldown: 'Cooldown (s)',
+  holdDuration: 'Durată oprire (s)',
   shieldSize: 'Mărime scut (%)',
   poseTime: 'Durată poză activare (s)',
   allies: 'Aliați scutați în plus',

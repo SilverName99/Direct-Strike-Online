@@ -12,6 +12,9 @@ export function updateMovement(game, dt) {
     if ((u.phaseUntil || 0) > game.time) continue;
     const stats = game.ustatOf(u);
     if (stats.gravedig || stats.bomber) continue; // these drive their own movement (combat.js)
+    // "Stai pe loc" (siege hold): the player pressed the button — this type
+    // stands its ground (idle) until the timer runs out or they press again.
+    if (game.isHeld && game.isHeld(u.owner != null ? u.owner : u.team, u.type)) continue;
     // dashing units close the gap at their charge speed (basic dash or mount);
     // dismounted riders / split beasts move at their override speed
     let base;

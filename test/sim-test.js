@@ -10,6 +10,7 @@ import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
 import { stepCaster, updateAbilities, isStunned, learnedAbilityParams, effectVal } from '../src/sim/abilities.js';
 import { effStats, applyDamage } from '../src/sim/combat.js';
+import { updateMovement } from '../src/sim/movement.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 import { statsBuilding, resolvedAbility, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
@@ -191,6 +192,48 @@ console.log('unit commands (army zone, tiers)');
   check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 400);
   const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 740, y: 500 });
   check('moveUnit outside army zone rejected', !badMv.ok);
+}
+
+// ------------------------------------------- siege "hold" upgrade (Blight Rat)
+console.log('siege hold');
+{
+  const { applyBalance } = await import('../src/ui/balance.js');
+  applyBalance({ upgrades: { holdground: { race: 'undead', unit: 'mender', params: { cost: 120, holdDuration: 4 } } } });
+  const g = new Game(72, { races: ['undead', 'humans'] });
+  const march = () => {
+    const u = g.entities.find((e) => e.owner === 0 && e.type === 'mender');
+    return u;
+  };
+  // put a siege unit on the field by hand (no shop dance needed)
+  const z = CONFIG.ARMY_ZONE[0];
+  const u = spawnUnit(g, 0, 'mender', (z.x0 + z.x1) / 2, 400, 0);
+  u.state = 'march';
+  const x0 = u.x;
+  for (let i = 0; i < 30; i++) { updateMovement(g, CONFIG.FIXED_DT); g.time += CONFIG.FIXED_DT; }
+  check('hold: it marches normally without the upgrade', u.x > x0 + 1, `${x0} -> ${u.x}`);
+  // no upgrade yet -> the command is refused
+  check('hold: the button does nothing until the upgrade is bought',
+    g.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' }).ok === false);
+  g.upgrades[0].add('holdground');
+  const held = g.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  check('hold: pressing it stops the type', held.ok && g.isHeld(0, 'mender'));
+  const x1 = u.x;
+  for (let i = 0; i < 30; i++) { updateMovement(g, CONFIG.FIXED_DT); g.time += CONFIG.FIXED_DT; }
+  check('hold: it stands still while held', Math.abs(u.x - x1) < 0.01, `${x1} -> ${u.x}`);
+  check('hold: the panel shows the seconds left', g.holdLeft(0, 'mender') > 0);
+  // pressing again releases it at once
+  g.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  check('hold: pressing again releases it', !g.isHeld(0, 'mender'));
+  for (let i = 0; i < 30; i++) { updateMovement(g, CONFIG.FIXED_DT); g.time += CONFIG.FIXED_DT; }
+  check('hold: and it marches on', u.x > x1 + 1, `${x1} -> ${u.x}`);
+  // ...or it releases itself after the duration
+  g.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  g.time += 4.1;
+  check('hold: it lets go by itself after the set seconds', !g.isHeld(0, 'mender'));
+  const x2 = u.x;
+  for (let i = 0; i < 30; i++) { updateMovement(g, CONFIG.FIXED_DT); g.time += CONFIG.FIXED_DT; }
+  check('hold: moving again once the timer ran out', u.x > x2 + 1);
+  applyBalance({});
 }
 
 // ------------------------------------------------- walls scale with the tier

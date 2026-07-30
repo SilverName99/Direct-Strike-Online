@@ -896,7 +896,7 @@ export class BottomBar {
         if (unlockIds.has(id)) continue;
         const up = resolvedUpgrade(id);
         if (up && up.unit === info.type && (!up.race || up.race === race)) {
-          items.push({ kind: 'upgrade', id, team: info.team, own, cost: up.params.cost || 0 });
+          items.push({ kind: 'upgrade', id, team: info.team, unit: info.type, own, cost: up.params.cost || 0 });
         }
       }
     }
@@ -1153,7 +1153,20 @@ export class BottomBar {
           if (c.textContent !== want) c.textContent = want;
         }
         if (owned) {
-          tog = !game.upgradeOff[d.team].has(d.id); // ✔ activ / ✖ dezactivat
+          const up = resolvedUpgrade(d.id);
+          if (up && up.kind === 'hold' && d.own) {
+            // "Stai pe loc": the card becomes a STOP/GO button. While the hold
+            // runs, the radial counts the seconds left before they march again.
+            const held = game.isHeld(d.team, d.unit);
+            tog = held ? true : null;
+            if (held) {
+              el.classList.add('on');
+              cd = game.holdLeft(d.team, d.unit);
+              cdTotal = Math.max(0.1, up.params.holdDuration || 0);
+            }
+          } else {
+            tog = !game.upgradeOff[d.team].has(d.id); // ✔ activ / ✖ dezactivat
+          }
         } else {
           el.classList.add('disabled');
         }
@@ -1365,6 +1378,11 @@ export class BottomBar {
       return;
     }
     if (d.kind === 'upgrade' && d.own && game.upgrades[this.team].has(d.id)) {
+      const up = resolvedUpgrade(d.id);
+      if (up && up.kind === 'hold') { // press = stand still / march on
+        game.issueCommand({ type: 'holdUnits', team: this.team, unit: d.unit });
+        return;
+      }
       const on = game.upgradeOff[this.team].has(d.id);
       game.issueCommand({ type: 'toggleUpgrade', team: this.team, id: d.id, on });
       return;

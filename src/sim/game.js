@@ -67,6 +67,9 @@ export class Game {
     // press never lingers — nothing happens if it wasn't ready, press again).
     this.abilityCastReq = this.players.map(() => new Set());
     this.upgradeOff = this.players.map(() => new Set()); // per player: upgrade id owned but deactivated
+    // "Stai pe loc" (siege hold upgrade): per player, unitType -> game.time when
+    // the hold expires. While it hasn't expired those units stand still (idle).
+    this.holdUntil = this.players.map(() => ({}));
     const im = options.incomeMult || [];
     this.incomeMult = this.players.map((_, i) => (im[i] != null ? im[i] : 1));
     // commanders who left the match (online disconnect) — see activeOnSide()
@@ -464,6 +467,23 @@ export class Game {
     return Math.round(this.incomePer20s(team) * (CONFIG.INCOME_TICK / CONFIG.INCOME_WINDOW));
   }
 
+  // The "hold" upgrade bound to a unit type for this player (or null).
+  holdUpgradeOf(player, unitType) {
+    for (const id of this.upgrades[player]) {
+      if (!this.upgradeActive(player, id)) continue;
+      const up = resolvedUpgrade(id);
+      if (up && up.kind === 'hold' && up.unit === unitType && (!up.race || up.race === this.races[player])) return up;
+    }
+    return null;
+  }
+  // Are this player's units of that type standing still right now?
+  isHeld(player, unitType) {
+    return (this.holdUntil[player][unitType] || 0) > this.time;
+  }
+  holdLeft(player, unitType) {
+    return Math.max(0, (this.holdUntil[player][unitType] || 0) - this.time);
+  }
+
   // Seconds left until this team may build that kind again (build cooldown).
   buildCdLeft(team, kind) {
     return Math.max(0, (this.buildReadyAt[team][kind] || 0) - this.time);
@@ -737,6 +757,17 @@ export class Game {
       if (this.abandoned[cmd.team]) return { ok: false, reason: 'already-gone' };
       this.abandoned[cmd.team] = true;
       this.events.push({ type: 'abandon', team: cmd.team });
+      return { ok: true };
+    }
+
+    // "Stai pe loc": toggle the siege hold for a unit TYPE. Press once and every
+    // living unit of that type stands still (idle) for at most the upgrade's
+    // duration; press again — or let it run out — and they march on.
+    if (cmd.type === 'holdUnits') {
+      const up = this.holdUpgradeOf(cmd.team, cmd.unit);
+      if (!up) return { ok: false, reason: 'no-upgrade' };
+      if (this.isHeld(cmd.team, cmd.unit)) this.holdUntil[cmd.team][cmd.unit] = 0;
+      else this.holdUntil[cmd.team][cmd.unit] = this.time + Math.max(0, up.params.holdDuration || 0);
       return { ok: true };
     }
 
