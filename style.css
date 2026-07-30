@@ -1191,3 +1191,13 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
 #bb-sell #bb-sell-ico { font-size: 16px; }
 #bb-sell:hover { background: rgba(160, 40, 40, 0.55); border-color: #c05555; }
 #bb-sell.hidden { display: none; }
+
+/* „Testing": badge de colț cât timp meciul rulează pe numerele accelerate
+   (comutatorul din Options; doar meciuri offline). */
+#testing-badge {
+  position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 40;
+  pointer-events: none; padding: 3px 12px; border-radius: 999px;
+  background: rgba(255, 176, 32, 0.16); border: 1px solid rgba(255, 176, 32, 0.5);
+  color: #ffc960; font: 700 11px/1.6 "Segoe UI", system-ui, sans-serif; letter-spacing: 2px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}

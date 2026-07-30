@@ -382,6 +382,43 @@ console.log('holy light per-rank heal');
   check('holy light rank 2 auto-scales when override is 0', Math.abs(fAuto - 0.225) < 0.01, `frac=${fAuto.toFixed(3)}`);
 }
 
+// -------------------------------------------- "Testing" mode (Options switch)
+console.log('testing mode');
+{
+  const T = CONFIG.TESTING;
+  const normal = new Game(70, { races: ['humans', 'orcs'] });
+  const fast = new Game(70, { races: ['humans', 'orcs'], testing: true });
+
+  check('off by default', normal.testing === false && fast.testing === true);
+  check('more starting gold', fast.money[0] === T.startMoney && normal.money[0] === CONFIG.START_MONEY,
+    `${fast.money[0]} vs ${normal.money[0]}`);
+  check('income runs faster', Math.abs(fast.incomePer20s(0) - normal.incomePer20s(0) * T.incomeMult) < 0.001,
+    `${fast.incomePer20s(0)} vs ${normal.incomePer20s(0)}`);
+  check('waves come sooner', Math.abs(fast.waveTimer - normal.waveTimer / T.waveMult) < 0.001,
+    `${fast.waveTimer} vs ${normal.waveTimer}`);
+  check('tier upgrade finishes faster',
+    Math.abs(fast.baseUpgradeDuration(0) - normal.baseUpgradeDuration(0) / T.tierMult) < 0.001,
+    `${fast.baseUpgradeDuration(0)} vs ${normal.baseUpgradeDuration(0)}`);
+
+  // buildings raise faster (the generator has an admin-set buildTime)
+  const bt = statsBuilding('humans', 'generator').buildTime || 0;
+  const sN = makeStructure(normal, 0, 'generator', 700, MID_Y);
+  const sF = makeStructure(fast, 0, 'generator', 700, MID_Y);
+  check('buildings raise faster',
+    bt > 0 && Math.abs((sF.buildDone - sF.buildStart) - (sN.buildDone - sN.buildStart) / T.buildMult) < 0.001,
+    `${sF.buildDone - sF.buildStart} vs ${sN.buildDone - sN.buildStart}`);
+
+  // heroes are bought straight at the testing level, with their talent points
+  for (const g of [normal, fast]) { g.money[0] = 99999; makeStructure(g, 0, 'herohall', 820, 300); }
+  normal.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 300 });
+  fast.issueCommand({ type: 'buy', team: 0, unitId: 'hero', x: 300, y: 300 });
+  const tN = normal.heroTemplateOf(0, 'hero'), tF = fast.heroTemplateOf(0, 'hero');
+  check('hero starts at the testing level with its points',
+    tN.level === 1 && tN.points === 1 && tF.level === T.heroLevel && tF.points === T.heroPoints,
+    `${tF.level}/${tF.points}`);
+  check('the ultimate is unlocked at that level', tF.level >= 6);
+}
+
 // ------------------------------------------ multi-hero recruit (Hero Hall)
 console.log('multi-hero recruitment');
 {

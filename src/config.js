@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v18.8';
+export const VERSION = 'v18.9';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -251,6 +251,19 @@ export const CONFIG = {
   // Seconds into the match before HEROES can be bought (0 = from the start).
   // Applies to both the player and the AI; editable in ⚙ Balance.
   HERO_UNLOCK_TIME: 0,
+
+  // "Testing" (Options switch, OFFLINE matches only): a fast-forwarded match so
+  // you can check things quickly. Nothing here is saved into a match — untick it
+  // and the very next match runs on the normal numbers again.
+  TESTING: {
+    startMoney: 5000, // gold you start with
+    incomeMult: 10,   // income runs this many times faster
+    buildMult: 10,    // buildings raise this many times faster
+    tierMult: 10,     // the base tier upgrade finishes this many times faster
+    waveMult: 4,      // waves come this many times sooner
+    heroLevel: 6,     // heroes are bought straight at this level (ultimate unlocked)
+    heroPoints: 6,    // ...with this many talent points to spend
+  },
 
   // Waves
   WAVE_INTERVAL: 20,

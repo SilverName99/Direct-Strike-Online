@@ -261,6 +261,19 @@ function middleOptions() {
   return list;
 }
 
+// A corner badge while the match runs on the "Testing" numbers, so a fast match
+// can never be mistaken for a real one. Created on first use.
+function showTestingBadge(on) {
+  let el = document.getElementById('testing-badge');
+  if (!on) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'testing-badge';
+    el.textContent = 'TESTING';
+    document.body.appendChild(el);
+  }
+}
+
 // Single player from a ROSTER — one entry per commander in layout order (side 0
 // back → front, then side 1): `{side, race, bot, difficulty}`. Exactly the
 // shape the lobby produces, so "Create room" against the bots lands here. The
@@ -294,7 +307,11 @@ function newGameFromRoster(roster) {
   // art identity is per COMMANDER: races indexed by player + each player's side
   setTeamRaces(races, sides);
   bottombar.refresh(); // shop reflects the player race at match start
-  game = new Game(seed, { races, incomeMult, middles, ...(lay ? { layout: lay } : {}) });
+  // "Testing" (Options switch): only ever an OFFLINE match — an online sim has
+  // to run the same numbers on every client, so newNetGame never passes it.
+  const testing = !!(menu && menu.testing);
+  game = new Game(seed, { races, incomeMult, middles, testing, ...(lay ? { layout: lay } : {}) });
+  showTestingBadge(testing);
   window.__game = game; // debug/test handle (render side only; sim never reads it)
   window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)
   window.__bb = bottombar; // debug/test handle (inspect the command grid state)
@@ -421,6 +438,7 @@ function startNetMatch(m) {
   applyCursor(races[m.youAre]);
   const middles = middleOptions();
   game = new Game(m.seed, { races, incomeMult: races.map(() => 1), middles, ...(lay ? { layout: lay } : {}) });
+  showTestingBadge(false); // online matches always run the normal numbers
   window.__game = game;
   window.__ui = uiState;
   window.__bb = bottombar;

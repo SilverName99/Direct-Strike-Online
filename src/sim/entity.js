@@ -350,7 +350,9 @@ export function makeStructure(game, team, kind, x, y, owner = team) {
   // shoot, farms grant no food, tech unlocks nothing, MINES pay no gold and
   // send no miners — but it counts toward caps and can already be attacked.
   // Only the starting main + turret are exempt (they're placed by the sim).
-  const buildTime = (kind !== 'main' && kind !== 'turret') ? (bs.buildTime || 0) : 0;
+  const buildTime = (kind !== 'main' && kind !== 'turret')
+    ? (bs.buildTime || 0) / (game.testDiv ? game.testDiv('buildMult') : 1)
+    : 0;
   const s = {
     id: game.nextId++,
     team, owner, kind,

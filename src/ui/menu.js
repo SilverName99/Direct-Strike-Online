@@ -24,6 +24,17 @@ export function savePlayerName(name) {
   return n;
 }
 
+// "Testing" switch (Options): remembered per browser. It only ever reaches an
+// OFFLINE match — an online sim must run the same numbers on every client.
+const TESTING_KEY = 'fh-testing';
+export function loadTesting() {
+  try { return localStorage.getItem(TESTING_KEY) === '1'; } catch { return false; }
+}
+export function saveTesting(on) {
+  try { localStorage.setItem(TESTING_KEY, on ? '1' : '0'); } catch { /* private mode */ }
+  return !!on;
+}
+
 // Lobby helpers: chat + names come from other players, so everything that
 // lands in innerHTML goes through esc() first.
 const RACE_RO = { humans: 'Oameni', orcs: 'Orci', undead: 'Undead' };
@@ -53,6 +64,9 @@ export class Menu {
     this.musicStarted = false;
     this.musicIndex = 0;   // which track of the menu-music playlist is playing
     this.playerName = loadPlayerName();
+    // "Testing" switch (Options): a fast-forwarded OFFLINE match. Remembered
+    // between sessions, but it only ever reaches a match main.js starts locally.
+    this.testing = loadTesting();
     this.build();
     this.wireName();
     this.wireLobby();
@@ -79,6 +93,7 @@ export class Menu {
   onInput(e) {
     if (e.target && (e.target.id === 'opt-music' || e.target.id === 'snd-range')) this.setMusicVol(Number(e.target.value) / 100);
     if (e.target && e.target.id === 'opt-capture' && this.hooks.onCaptureMouse) this.hooks.onCaptureMouse(e.target.checked);
+    if (e.target && e.target.id === 'opt-testing') this.testing = saveTesting(e.target.checked);
   }
 
   onClick(e) {
@@ -515,6 +530,8 @@ export class Menu {
     if (m) m.value = String(Math.round(this.musicVol * 100));
     const c = this.el.querySelector('#opt-capture');
     if (c && this.hooks.getCaptureMouse) c.checked = !!this.hooks.getCaptureMouse();
+    const t = this.el.querySelector('#opt-testing');
+    if (t) t.checked = !!this.testing;
   }
   setMusicVol(v) {
     this.musicVol = Math.max(0, Math.min(1, v));
@@ -1014,6 +1031,8 @@ const TEMPLATE = `
         <div class="m-opts"><button class="corner-btn fs-btn" title="Comută ecran complet" data-opt-fs>⛶</button></div></div>
       <div class="m-row"><span class="m-label">Block the mouse<br><small class="m-sub">Recommended when using two screens</small></span>
         <label class="m-switch"><input type="checkbox" id="opt-capture"><span class="m-slider"></span></label></div>
+      <div class="m-row"><span class="m-label">Testing<br><small class="m-sub">Aur, construcții, tier și valuri accelerate; eroii vin cu 6 nivele. Doar în meciurile offline — se debifează și totul revine la normal.</small></span>
+        <label class="m-switch"><input type="checkbox" id="opt-testing"><span class="m-slider"></span></label></div>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>

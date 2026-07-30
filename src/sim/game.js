@@ -46,7 +46,14 @@ export class Game {
     this.zones = this.layout.perPlayer.map((pp) => ({ army: pp.army, build: pp.build, alive: true }));
     this.midBuild = this.layout.midBuild; // forward pockets by SIDE
 
-    this.money = this.players.map(() => CONFIG.START_MONEY);
+    // "Testing" (Options switch, offline only): a fast-forwarded match — more
+    // starting gold, faster income/building/tier/waves and heroes bought at a
+    // higher level. It's a MATCH option, so the sim stays deterministic and the
+    // next match without it runs on the normal numbers again.
+    this.testing = !!options.testing;
+    this.money = this.players.map(() => (this.testing
+      ? (CONFIG.TESTING.startMoney != null ? CONFIG.TESTING.startMoney : CONFIG.START_MONEY)
+      : CONFIG.START_MONEY));
     this.spent = this.players.map(() => 0);
     this.tier = this.players.map(() => 1);
     // Base tier upgrade in progress, per player: null when idle, else
@@ -76,7 +83,7 @@ export class Game {
     this.abandoned = this.players.map(() => false);
 
     // the first round can run on its own timer; every later wave uses WAVE_INTERVAL
-    this.waveTimer = CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL;
+    this.waveTimer = (CONFIG.FIRST_WAVE_INTERVAL != null ? CONFIG.FIRST_WAVE_INTERVAL : CONFIG.WAVE_INTERVAL) / this.testDiv('waveMult');
     this.waveCount = 0;
 
     this.templates = this.players.map(() => []); // per player: {type, x, y}
@@ -457,10 +464,19 @@ export class Game {
     return 0;
   }
 
+  // "Testing" speed-up factor for one knob (1 = off / not set), so every call
+  // site reads its normal value the moment the switch is unticked.
+  testDiv(key) {
+    if (!this.testing) return 1;
+    const v = Number((CONFIG.TESTING || {})[key]);
+    return v > 0 ? v : 1;
+  }
+
   incomePer20s(team) {
     const gens = this.countBuilt(team, 'generator'); // sites don't pay yet
     const asym = 1 + this.asymBonusPct(team) / 100;
-    return (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income) * this.incomeMult[team] * asym;
+    return (CONFIG.INCOME_BASE + gens * this.bstat(team, 'generator').income)
+      * this.incomeMult[team] * asym * this.testDiv('incomeMult');
   }
 
   incomePerTick(team) {
@@ -577,7 +593,7 @@ export class Game {
     const arr = this.bstat(team, 'main').upgradeTime;
     const idx = this.tier[team] - 1;
     const v = Array.isArray(arr) ? arr[idx] : arr;
-    return Math.max(0, Number(v) || 0);
+    return Math.max(0, Number(v) || 0) / this.testDiv('tierMult');
   }
 
   // Is the base mid-upgrade? / seconds still left / 0..1 progress / target tier.
@@ -801,7 +817,14 @@ export class Game {
       const tpl = { type: cmd.unitId, x: cmd.x, y: cmd.y, spawned: false };
       // heroes start at level 1 WITH one talent point, so they can learn an
       // ability right away (further points come on each level-up)
-      if (stats.isHero) { tpl.hero = true; tpl.level = 1; tpl.xp = 0; tpl.points = 1; }
+      // In "Testing" a hero is bought straight at CONFIG.TESTING.heroLevel with
+      // that many talent points (so the ultimate, which needs level 6, is open).
+      if (stats.isHero) {
+        const T = this.testing ? (CONFIG.TESTING || {}) : null;
+        tpl.hero = true; tpl.xp = 0;
+        tpl.level = T ? Math.max(1, Math.min(10, T.heroLevel || 1)) : 1;
+        tpl.points = T ? Math.max(1, T.heroPoints || 1) : 1;
+      }
       this.templates[cmd.team].push(tpl);
       return { ok: true };
     }
@@ -859,7 +882,7 @@ export class Game {
       this.spent[cmd.team] += price;
       const s = makeStructure(this, this.sideOf(cmd.team), 'main', cmd.x, cmd.y, cmd.team);
       s.maxHp = this.bstat(cmd.team, 'main').hp[this.tier[cmd.team] - 1]; // HP at the player's tier
-      const wait = CONFIG.TEAM_MAIN_REBUILD_TIME != null ? CONFIG.TEAM_MAIN_REBUILD_TIME : 30;
+      const wait = (CONFIG.TEAM_MAIN_REBUILD_TIME != null ? CONFIG.TEAM_MAIN_REBUILD_TIME : 30) / this.testDiv('buildMult');
       if (wait > 0) {
         s.building = true;
         s.buildStart = this.time;
@@ -938,7 +961,7 @@ export class Game {
         return { ok: false, reason: 'zone' };
       // relocate and restart construction: it's inert while it rebuilds (30s)
       s.x = bx; s.y = by; s.prevX = bx; s.prevY = by;
-      const rebuild = CONFIG.MOVE_REBUILD_TIME != null ? CONFIG.MOVE_REBUILD_TIME : 30;
+      const rebuild = (CONFIG.MOVE_REBUILD_TIME != null ? CONFIG.MOVE_REBUILD_TIME : 30) / this.testDiv('buildMult');
       s.building = true;
       s.buildStart = this.time;
       s.buildDone = this.time + rebuild;
@@ -1114,7 +1137,7 @@ export class Game {
     // Waves
     this.waveTimer -= dt;
     if (this.waveTimer <= 0) {
-      this.waveTimer += CONFIG.WAVE_INTERVAL;
+      this.waveTimer += CONFIG.WAVE_INTERVAL / this.testDiv('waveMult');
       spawnWave(this);
     }
 
