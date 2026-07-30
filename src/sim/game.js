@@ -9,7 +9,7 @@ import { UPGRADE_IDS, ABILITY_UNLOCK_UPGRADE } from '../upgrades.js';
 import { ABILITY_IDS } from '../abilities.js';
 import { mulberry32 } from './rng.js';
 import { teamLayout } from './layout.js';
-import { makeStructure, structureExtents } from './entity.js';
+import { makeStructure, structureExtents, tickCocoons } from './entity.js';
 import { updateCombat, updateProjectiles } from './combat.js';
 import { updateMovement } from './movement.js';
 import { updateAbilities, applyEffect } from './abilities.js';
@@ -1129,6 +1129,9 @@ export class Game {
     updateCombat(this, dt);
     updateMovement(this, dt);
     updateProjectiles(this, dt);
+    // cocoons drop their larvae (and empty themselves out when their timer is
+    // up) BEFORE the despawn sweep kills the pouch
+    tickCocoons(this);
     // summoned animals with a lifetime expire (play their death like any unit)
     for (const e of this.entities) {
       if (e.summon && e.despawnAt != null && e.hp > 0 && this.time >= e.despawnAt) e.hp = 0;

@@ -99,7 +99,10 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
   const p = params || ab.params; // hero casters pass rank-scaled params
   const base = ab.params;        // unscaled base: hp/damage grow per-rank additively
   const animal = ab.animal || 'wolf';
-  const totem = !!ab.totem; // stationary aura totem (no move, no attack)
+  // A cocoon is planted like a totem (stationary, no attack) but instead of an
+  // aura it hatches larvae one at a time — see tickCocoons.
+  const cocoon = !!ab.cocoon;
+  const totem = !!ab.totem || cocoon; // stationary: no move, no attack
   const r = Math.max(1, rank || 1);
   // HP and damage scale by an explicit per-rank increment (set in admin), not by
   // the generic rank multiplier — rank 1 = base, each extra rank adds hpPerRank /
@@ -131,7 +134,9 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     id: game.nextId++,
     team: caster.team, owner: caster.owner != null ? caster.owner : caster.team,
     type: caster.type, // type hosts the sprites; stats overridden
-    x: totem ? caster.x + front * 55 : caster.x + dir * 20, y: caster.y + (totem ? 0 : 14), prevX: caster.x, prevY: caster.y,
+    // the cocoon is laid where the moth stands; a totem is planted in front
+    x: cocoon ? caster.x : (totem ? caster.x + front * 55 : caster.x + dir * 20),
+    y: caster.y + (totem ? 0 : 14), prevX: caster.x, prevY: caster.y,
     hp: stats.hp, maxHp: stats.hp,
     cooldown: 0, windup: 0, windupMax: 0,
     effects: [], abilityCd: {}, auraUntil: {},
@@ -149,13 +154,106 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     // stationary aura totem: no move/attack; emits a slow aura each tick and
     // shows a life bar. maxLife lets the render draw a depleting timer bar.
     totem: totem,
-    totemAura: totem ? { radius: p.radius || 140, atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0 } : null,
+    totemAura: (totem && !cocoon) ? { radius: p.radius || 140, atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0 } : null,
     maxLife: (p.life != null ? p.life : (p.duration || 0)) || 0,
     despawnAt: (() => { const life = p.life != null ? p.life : (p.duration || 0); return life > 0 ? game.time + life : null; })(),
   };
+  if (cocoon) {
+    // the pouch: how many larvae are still inside, when the next one crawls out
+    // and the stats every larva is born with (all settable on the ability).
+    const interval = Math.max(0.1, p.larvaInterval != null ? p.larvaInterval : 4);
+    e.cocoon = true;
+    e.larvaKind = ab.larva || 'larva';
+    e.larvaLeft = Math.max(0, Math.floor(p.larvae || 0));
+    e.larvaInterval = interval;
+    e.larvaNextAt = e.larvaLeft > 0 ? game.time + interval : null;
+    e.larvaHatched = 0; // how many already crawled out (spreads them around the pouch)
+    e.larvaSpec = {
+      hp: Math.max(1, p.larvaHp || 1),
+      damage: p.larvaDamage || 0,
+      range: p.larvaRange || 26,
+      period: p.larvaPeriod || 1,
+      speed: p.larvaSpeed || 95,
+      size: p.larvaSize != null ? p.larvaSize : 80,
+      animSpeed: p.larvaAnimSpeed || 6,
+      splash: p.larvaSplash || 0,
+      armored: !!p.larvaArmored,
+      life: p.larvaLife || 0,
+    };
+  }
   game.entities.push(e);
   game.byId.set(e.id, e);
   return e;
+}
+
+// One larva crawling out of a cocoon: a small melee summon whose art is hosted
+// on the MOTH (the cocoon's host type) under the "larva-" prefix. Its stats come
+// from the cocoon's `larvaSpec` (set on the Cocon ability in admin).
+export function spawnLarva(game, pouch) {
+  const s = pouch.larvaSpec || {};
+  const radius = 8;
+  const stats = {
+    name: 'Larvă',
+    hp: s.hp || 1,
+    damage: s.damage || 0, range: s.range || 26, period: s.period || 1,
+    dmgType: 'normal', armor: s.armored ? 'armored' : 'light',
+    speed: s.speed || 95, radius, shape: 'circle',
+    isAir: false, targetsAir: false, targetsGround: true,
+    projectile: false, ranged: false, projectileSpeed: 380, splash: s.splash || 0,
+    size: (s.size != null ? s.size : 80) / 100, animSpeed: s.animSpeed || 6,
+    caster: false, heal: false, cw: 1, ch: 1, tier: 1, cost: 0,
+  };
+  // fan the larvae around the pouch so they don't stack on one pixel
+  const n = pouch.larvaHatched || 0;
+  const side = (n % 2 === 0) ? 1 : -1;
+  const step = Math.floor(n / 2) + 1;
+  const e = {
+    id: game.nextId++,
+    team: pouch.team, owner: pouch.owner != null ? pouch.owner : pouch.team,
+    type: pouch.type, // the moth hosts the larva sprites
+    x: pouch.x + side * 10 * step, y: pouch.y + (n % 2 === 0 ? 8 : -8),
+    prevX: pouch.x, prevY: pouch.y,
+    hp: stats.hp, maxHp: stats.hp,
+    cooldown: 0, windup: 0, windupMax: 0,
+    effects: [], abilityCd: {}, auraUntil: {},
+    castState: null, castAbility: null, castTargetId: null, castManual: false, castPhaseEnd: 0, spellHold: false,
+    dashing: false, dashCharge: false, dashReadyAt: 0, dashVel: 0,
+    mountTargetId: null, splitTargetId: null, dismounted: false, beast: false,
+    ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovRanged: null,
+    ovSize: stats.size,
+    mana: 0, manaMax: 0,
+    targetId: null, state: 'march',
+    radius, baseRadius: radius, footprint: false, hw: radius, hh: radius,
+    armor: stats.armor, isAir: false,
+    summon: true, summonKind: pouch.larvaKind || 'larva', summonOf: pouch.summonOf, summonStats: stats,
+    totem: false, totemAura: null,
+    maxLife: s.life || 0,
+    despawnAt: s.life > 0 ? game.time + s.life : null,
+  };
+  pouch.larvaHatched = n + 1;
+  game.entities.push(e);
+  game.byId.set(e.id, e);
+  game.events.push({ type: 'summon', x: e.x, y: e.y, team: e.team });
+  return e;
+}
+
+// Cocoons hatch their larvae one at a time, at the interval set on the ability.
+// Break the pouch and the rest never come out; let it run out its timer and the
+// remaining larvae all crawl out at once as it opens.
+export function tickCocoons(game) {
+  const pouches = game.entities.filter((e) => e.cocoon && e.hp > 0);
+  for (const c of pouches) {
+    while (c.larvaLeft > 0 && c.larvaNextAt != null && game.time >= c.larvaNextAt) {
+      spawnLarva(game, c);
+      c.larvaLeft--;
+      c.larvaNextAt = c.larvaLeft > 0 ? c.larvaNextAt + c.larvaInterval : null;
+    }
+    // the pouch is about to open (its lifetime is up): release what's left
+    if (c.despawnAt != null && game.time >= c.despawnAt) {
+      while (c.larvaLeft > 0) { spawnLarva(game, c); c.larvaLeft--; }
+      c.larvaNextAt = null;
+    }
+  }
 }
 
 // Twin Shadows (Shadow Assassin skill): spawn a shadow clone that copies the

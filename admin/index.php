@@ -90,6 +90,9 @@ const ABILITY_INFO = [
   // Acid Paste: a cast frame + its own green-spit projectile (the puddle itself
   // is drawn procedurally by the game).
   'acidpaste' => ['Acid Paste', true, true],
+  // Molie (Undead unit 8): stă pe loc și depune coconul (1 cadru de cast), apoi
+  // coconul scoate larve — coconul + larva au setul lor de sprite-uri mai jos.
+  'cocoon' => ['Cocon', true, false, 1],
   // Death Knight (Undead hero) kit: Execute + Soul Link get a cast frame; Reap
   // Cleave and Vampiric Aura are passives (no cast frame). No projectiles.
   'execute' => ['Execute', true, false],
@@ -108,11 +111,15 @@ const ABILITY_INFO = [
   'daggerthrow' => ['Loves dagger', true, true, 2],
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet', 'skeletonranged' => 'Schelet ranged'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged', 'cocoon' => 'cocoon'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet', 'skeletonranged' => 'Schelet ranged', 'cocoon' => 'Cocon', 'larva' => 'Larvă'];
 // summon abilities whose spawned entity is a stationary totem (idle-only sprite,
 // no walk/attack/die, no portrait animation)
 const TOTEM_ABILITIES = ['slowingtotem'];
+// summon abilities that lay a COCOON: the pouch itself has a single standing
+// frame, and the larvae that crawl out of it get their own walk/attack/die set
+// (both hosted on the caster — the moth)
+const COCOON_ABILITIES = ['cocoon'];
 // abilities that replace the unit's basic attack (the "attack" IS the cast), so
 // the unit needs no attack/projectile sprite slots
 const ATTACK_REPLACING_ABILITIES = ['empower'];
@@ -133,6 +140,7 @@ const UPGRADE_INFO = [
   'frosttraining' => 'Frost Bolt (deblocare)',
   'skelcap' => 'Undead: plafon schelete (buton bază) — fallback 💀',
   'batland' => 'Undead: Aterizare (liliac)',
+  'cocoonunlock' => 'Undead: Cocon (deblocare Molie)',
 ];
 // GLOBAL command-card icon keys (assets/units/icons/<key>.png)
 function iconKeys(): array {
@@ -308,8 +316,8 @@ function portraitVidVariants(string $race, string $ent): array {
   // a summoned animal (Shaman) can have its own portrait clip, hosted here
   $ua = unitAbilities($race, $ent);
   foreach (SUMMON_ANIMALS as $aid => $animal) {
-    // a stationary totem has only a thumbnail, no portrait clip
-    if (in_array($aid, TOTEM_ABILITIES, true)) continue;
+    // a stationary totem (or a cocoon) has only its standing frame, no portrait clip
+    if (in_array($aid, TOTEM_ABILITIES, true) || in_array($aid, COCOON_ABILITIES, true)) continue;
     if (in_array($aid, $ua, true)) $v["-$animal"] = 'Animație portret — ' . SUMMON_LABELS[$animal];
   }
   return $v;
@@ -529,6 +537,17 @@ function slotsFor(string $ent, string $race = 'humans'): array {
       $slots["{$animal}-thumb"] = "$lbl: Thumb";
       $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
       $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
+      continue;
+    }
+    // the cocoon just sits there (one frame); the larvae that hatch from it are
+    // small melee crawlers with their own mers/atac/die set
+    if (in_array($aid, COCOON_ABILITIES, true)) {
+      $slots["{$animal}-idle_0"] = "$lbl: Cocon";
+      $slots['larva-walk_0'] = 'Larvă: Mers 1';
+      $slots['larva-walk_1'] = 'Larvă: Mers 2';
+      $slots['larva-attack_0'] = 'Larvă: Atac 1';
+      $slots['larva-attack_1'] = 'Larvă: Atac 2';
+      $slots['larva-die_0'] = 'Larvă: Die';
       continue;
     }
     // a summoned animal spawns straight into the fight — it never stands idle,

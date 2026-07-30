@@ -574,6 +574,34 @@ export const ABILITIES = {
       castPrepare: 0,
     },
   },
+  // --- Molia (Undead, unitatea 10): depune un COCON care scoate larve una
+  // câte una. Coconul stă pe loc, nu atacă, are HP și un cronometru: ucis nu mai
+  // scoate nimic, expirat eclozează larvele rămase.
+  cocoon: {
+    name: 'Cocon',
+    kind: 'summon',
+    animal: 'cocoon',      // sprite-ul coconului stă pe molie: "cocoon-idle"
+    animalName: 'Cocon',
+    larva: 'larva',        // sprite-urile larvei, tot pe molie: "larva-walk/attack/die"
+    cocoon: true,          // marchează ramura specială din releaseSpell
+    color: '#b18cff',
+    desc: 'Molia depune un cocon pe loc: o pungă imobilă, cu viață proprie și cronometru, din care ies larve UNA CÂTE UNA. Dacă îl spargi, restul larvelor nu mai apar; dacă îl lași să expire, ultimele eclozează deodată. Larvele atacă de aproape și trăiesc puțin. Numărul de larve, intervalul dintre ele și viața coconului se setează mai jos.',
+    params: {
+      tier: 3, manaCost: 60, cooldown: 25,
+      castPrepare: 0,     // fără wind-up separat — molia intră direct în poziția de depunere
+      castHold: 1.2,      // secunde cât stă în frame-ul „depune coconul”
+      cap: 1,             // coconi vii deodată per molie
+      hp: 200,            // viața coconului
+      life: 20,           // secunde până se deschide singur
+      size: 100,          // mărimea coconului (%)
+      larvae: 4,          // câte larve scoate în total
+      larvaInterval: 4,   // secunde între două larve
+      larvaLife: 12,      // cât trăiește o larvă
+      larvaHp: 60, larvaDamage: 10, larvaRange: 26, larvaPeriod: 1, larvaSpeed: 95,
+      larvaSize: 80, larvaAnimSpeed: 6,
+      larvaSplash: 0, larvaArmored: 0,
+    },
+  },
   soulharvest: {
     name: 'Soul Harvest',
     kind: 'active', // ultimate
@@ -869,6 +897,19 @@ export const ABILITY_PARAM_LABELS = {
   armored: 'Armură grea (1/0)',
   targetsAir: 'Atacă aerul (1/0)',
   targetsGround: 'Atacă solul (1/0)',
+  // Cocon (Molie): pouch + larvae
+  larvae: 'Cocon: câte larve scoate în total',
+  larvaInterval: 'Cocon: interval între larve (s)',
+  larvaLife: 'Larvă: durată viață (s, 0 = nu dispare)',
+  larvaHp: 'Larvă: HP',
+  larvaDamage: 'Larvă: damage',
+  larvaRange: 'Larvă: rază atac (melee)',
+  larvaPeriod: 'Larvă: perioadă atac (s)',
+  larvaSpeed: 'Larvă: viteză mișcare',
+  larvaSize: 'Larvă: mărime (%)',
+  larvaAnimSpeed: 'Larvă: viteză animație mers (flip/s)',
+  larvaSplash: 'Larvă: splash (rază, 0 = fără)',
+  larvaArmored: 'Larvă: armură grea (1/0)',
   // Acid Paste
   pasteRadius: 'Pastă: rază baltă',
   pasteDuration: 'Pastă: durată baltă (s)',

@@ -220,6 +220,18 @@ export const UPGRADES = {
       holdDuration: 10, // secunde maxime cât rămân oprite (apoi pornesc singure)
     },
   },
+  cocoonunlock: {
+    name: 'Cocon (Molie)',
+    desc: 'Deblochează abilitatea Cocon pentru Molie: fără upgrade abilitatea e blocată; după ce îl cumperi o dată, moliile tale depun un cocon din care ies larve una câte una. Numărul de larve, intervalul dintre ele și viața coconului se setează la abilitatea „Cocon". Cumpărat o dată din clădirea moliei; permanent pe meci.',
+    kind: 'unlock',
+    unlocks: 'cocoon',
+    race: 'undead',
+    unit: 'archon', // slotul moliei (unitatea 8) — reasignabil din admin
+    params: {
+      cost: 250, // aur, din clădirea unității
+      tier: 2,   // tier-ul de bază necesar ca să-l poți cumpăra
+    },
+  },
   batland: {
     name: 'Aterizare (Liliac)',
     desc: 'Liliacul-tanc: fără upgrade e doar zburător (lovește doar aerul, de aproape). Cu el, aterizează AUTOMAT când un inamic terestru (sau o clădire) intră în rază și devine un tanc melee la sol (statele de mai jos); decolează înapoi când solul e liber. Armura la sol se setează în ⚙ stats („landArmor"). Are nevoie de setul de sprite-uri „La sol" (mers + atac) pe unitate.',

@@ -804,6 +804,73 @@ console.log('summon per-rank + targeting');
   wolf.params = saved;
 }
 
+// ---------------------------------------- Molie: coconul și larvele lui
+console.log('cocoon: larvae hatch one at a time');
+{
+  const ab = resolvedAbility('cocoon');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, { larvae: 3, larvaInterval: 2, life: 10, hp: 200, larvaLife: 0, larvaHp: 50 });
+  const larvaeOf = (g) => g.entities.filter((e) => e.hp > 0 && e.summonKind === 'larva').length;
+
+  // 1) one larva per interval, never two at once
+  {
+    const game = new Game(90, { races: ['undead', 'humans'] });
+    const moth = spawnUnit(game, 0, 'archon', 700, MID_Y);
+    const pouch = spawnSummon(game, moth, ab, ab.params, 1);
+    check('cocoon: stationary, no aura', pouch.cocoon === true && pouch.totem === true && pouch.totemAura === null);
+    check('cocoon: laid where the moth stands', Math.abs(pouch.x - moth.x) < 1);
+    run(game, 1.5);
+    check('cocoon: nothing hatched before the interval', larvaeOf(game) === 0, `${larvaeOf(game)}`);
+    run(game, 1);
+    check('cocoon: first larva out after the interval', larvaeOf(game) === 1, `${larvaeOf(game)}`);
+    run(game, 2);
+    check('cocoon: a second larva, one interval later', larvaeOf(game) === 2, `${larvaeOf(game)}`);
+    const lv = game.entities.find((e) => e.hp > 0 && e.summonKind === 'larva');
+    check('larva: melee ground summon on the moth art', lv.summon === true && lv.type === 'archon'
+      && lv.summonStats.ranged === false && lv.isAir === false && lv.maxHp === 50);
+    check('larva: owned by the moth\'s player', lv.owner === moth.owner && lv.team === moth.team);
+  }
+
+  // 2) break the pouch -> the rest never come out
+  {
+    const game = new Game(91, { races: ['undead', 'humans'] });
+    const moth = spawnUnit(game, 0, 'archon', 700, MID_Y);
+    const pouch = spawnSummon(game, moth, ab, ab.params, 1);
+    run(game, 2.2);
+    check('cocoon killed: one larva was already out', larvaeOf(game) === 1, `${larvaeOf(game)}`);
+    pouch.hp = 0;
+    run(game, 6);
+    check('cocoon killed: no more larvae hatch', larvaeOf(game) === 1, `${larvaeOf(game)}`);
+  }
+
+  // 3) let it expire -> the remaining larvae all crawl out at once
+  {
+    const game = new Game(92, { races: ['undead', 'humans'] });
+    const moth = spawnUnit(game, 0, 'archon', 700, MID_Y);
+    Object.assign(ab.params, { larvae: 3, larvaInterval: 4, life: 5 });
+    spawnSummon(game, moth, ab, ab.params, 1);
+    run(game, 4.2);
+    check('cocoon expiring: only the scheduled larva is out', larvaeOf(game) === 1, `${larvaeOf(game)}`);
+    run(game, 1.2); // the pouch's 5s timer runs out
+    check('cocoon expired: the rest hatch at once', larvaeOf(game) === 3, `${larvaeOf(game)}`);
+    check('cocoon expired: the pouch is gone',
+      !game.entities.some((e) => e.hp > 0 && e.summonKind === 'cocoon'));
+  }
+  ab.params = saved;
+}
+
+// ------------------------------------- Cocon unlock upgrade (Molie)
+console.log('cocoon unlock upgrade');
+{
+  const game = new Game(93, { races: ['undead', 'humans'] });
+  game.tier[0] = resolvedAbility('cocoon').params.tier || 1; // tier-ul cerut e deja atins
+  check('cocoon locked without the unlock', !game.abilityUsable(0, 'archon', 'cocoon'));
+  game.upgrades[0].add('cocoonunlock');
+  check('cocoon usable after buying the unlock', game.abilityUsable(0, 'archon', 'cocoon'));
+  game.upgradeOff[0].add('cocoonunlock'); // toggled off -> re-locked
+  check('cocoon re-locked when the unlock is toggled off', !game.abilityUsable(0, 'archon', 'cocoon'));
+}
+
 // ------------------------------------- Slowing Totem unlock upgrade
 console.log('slowing totem unlock upgrade');
 {

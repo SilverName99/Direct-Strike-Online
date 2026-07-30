@@ -553,7 +553,7 @@ const ENGAGE_EXEMPT = new Set(['regenaura', 'heal', 'holylight', 'divineshield',
 // FIGHT reaches it — not only when an enemy is in the caster's own attack range,
 // but also when nearby allies are fighting / enemies are close. This lets the
 // shaman empower and plant totems from behind the front line.
-const ALLY_ENGAGE = new Set(['empower', 'slowingtotem']);
+const ALLY_ENGAGE = new Set(['empower', 'slowingtotem', 'cocoon']);
 const SUPPORT_ENGAGE_RADIUS = 320; // how far around the caster counts as "the fight"
 
 // True when combat is happening around the caster: an enemy is within `radius`,
