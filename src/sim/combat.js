@@ -178,6 +178,14 @@ export function updateCombat(game, dt) {
     // healer or a fighter. It only falls through to the basic attack/heal
     // when out of mana (or the admin opted into auto-attacks between spells).
     if (hasActiveAbility(game, u, stats) && stepCasterHold(game, u, stats, dt)) continue;
+    // "Stai pe loc" (hold upgrade): a bomber and a grave digger move THEMSELVES
+    // here, so the movement-pass gate never sees them — a held one would run at
+    // the enemy and blow up anyway. Stop them right here instead.
+    if ((stats.gravedig || stats.bomber) && game.isHeld
+        && game.isHeld(u.owner != null ? u.owner : u.team, u.type)) {
+      u.running = false; u.state = 'idle'; u.targetId = null;
+      continue;
+    }
     if (stats.gravedig) {
       updateGraveDigger(game, u, stats, dt);
     } else if (stats.bomber) {
@@ -611,11 +619,16 @@ function updateBomber(game, u, stats, dt) {
   u.windup = 0; u.dashing = false; u.dashCharge = false;
   let tx = 0, ty = 0, td2 = Infinity, tr = 0;
   const air = !!stats.explodeAir;
-  for (const e of game.entities) {
-    if (e === u || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
-    if (e.isAir && !air) continue; // can't reach fliers unless the blast hits air
-    const dx = e.x - u.x, dy = e.y - u.y, d2 = dx * dx + dy * dy;
-    if (d2 < td2) { td2 = d2; tx = e.x; ty = e.y; tr = e.radius || 0; }
+  // "Focus building": the bomber walks PAST enemy troops and only ever runs at
+  // (and detonates on) a structure. The blast itself still catches whoever
+  // stands next to the building — the upgrade picks the target, not the splash.
+  if (!stats.buildingsOnly) {
+    for (const e of game.entities) {
+      if (e === u || e.team === u.team || e.hp <= 0 || e.isStructure) continue;
+      if (e.isAir && !air) continue; // can't reach fliers unless the blast hits air
+      const dx = e.x - u.x, dy = e.y - u.y, d2 = dx * dx + dy * dy;
+      if (d2 < td2) { td2 = d2; tx = e.x; ty = e.y; tr = e.radius || 0; }
+    }
   }
   for (const s of game.enemyStructures(u.team)) {
     const dx = s.x - u.x, dy = s.y - u.y, d2 = dx * dx + dy * dy;

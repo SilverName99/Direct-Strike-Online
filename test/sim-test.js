@@ -13,7 +13,7 @@ import { effStats, applyDamage } from '../src/sim/combat.js';
 import { updateMovement } from '../src/sim/movement.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
-import { statsBuilding, resolvedAbility, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
+import { statsBuilding, resolvedAbility, resolvedUpgrade, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
 
 const DT = CONFIG.FIXED_DT;
 const MID_Y = CONFIG.MAIN.y; // lane center (field extends lower as a scenic apron)
@@ -1575,6 +1575,43 @@ console.log('abilities (casters, auras, status effects)');
     for (let i = 0; i < 2; i++) { g4.update(DT); g4.drainEvents(); }
     check('bomber: runs (charges) when an enemy enters run range',
       b4.running && b4.state === 'run' && (b4.x - bx1) / (2 * DT) > 200, `state=${b4.state}`);
+
+    // "Stai pe loc": a HELD bomber stands still — it moves itself (not through
+    // the movement pass), so it used to charge and detonate anyway.
+    const hold = resolvedUpgrade('holdground');
+    const savedHold = { race: hold.race, unit: hold.unit, params: { ...hold.params } };
+    Object.assign(hold, { race: 'humans', unit: 'grunt' });
+    hold.params = { ...hold.params, holdDuration: 10 };
+    const g5 = new Game(70, { races: ['humans', 'orcs'] });
+    const b5 = spawnUnit(g5, 0, 'grunt', 300, 400);
+    const foe5 = spawnUnit(g5, 1, 'grunt', 420, 400); foe5.hp = foe5.maxHp = 100000;
+    g5.upgrades[0].add('holdground');
+    g5.issueCommand({ type: 'holdUnits', team: 0, unit: 'grunt' });
+    const bx5 = b5.x;
+    run(g5, 2);
+    check('bomber: a held one stays put', b5.hp > 0 && Math.abs(b5.x - bx5) < 1 && !b5.running,
+      `moved ${(b5.x - bx5).toFixed(1)}, hp ${b5.hp}`);
+    g5.issueCommand({ type: 'holdUnits', team: 0, unit: 'grunt' }); // release
+    run(g5, 2);
+    check('bomber: released, it charges and detonates', b5.hp <= 0 || b5.x > bx5 + 20,
+      `x ${(b5.x - bx5).toFixed(0)}, hp ${b5.hp}`);
+    Object.assign(hold, savedHold);
+
+    // "Focus building": it walks PAST enemy troops and only blows up on a structure
+    applyBalance({ races: { humans: { units: { grunt: { bomber: true, speed: 120, runSpeed: 300, runRange: 200, explodeRange: 30, explodeRadius: 60, explodeDamage: 200 } } } } });
+    const focus = resolvedUpgrade('focusbuilding'); // after applyBalance — it re-resolves upgrades
+    const savedFocus = { race: focus.race, unit: focus.unit };
+    Object.assign(focus, { race: 'humans', unit: 'grunt' });
+    const g6 = new Game(71, { races: ['humans', 'orcs'] });
+    g6.upgrades[0].add('focusbuilding');
+    const main6 = g6.mainOf(1); const mainHp0 = main6.hp;
+    const b6 = spawnUnit(g6, 0, 'grunt', main6.x - 400, main6.y);
+    const bait = spawnUnit(g6, 1, 'grunt', main6.x - 330, main6.y); // right in its path
+    bait.hp = bait.maxHp = 100000;
+    run(g6, 6);
+    check('focus building: the bomber ignores the troop in its way', bait.hp === 100000, `${bait.hp}`);
+    check('focus building: it detonates on the base instead', main6.hp < mainHp0, `${mainHp0}->${main6.hp}`);
+    Object.assign(focus, savedFocus);
   }
   // Death Knight (Undead hero) kit: execute, reap cleave lifesteal, soul link
   {
