@@ -27,6 +27,7 @@ const cursorUrls = new Map();  // race -> url of the uploaded custom mouse curso
 const loadingUrls = new Map(); // race -> [urls] of the uploaded loading screens
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
 let corpseImg = null;          // GLOBAL raisable-corpse decal (Rise Dead), if uploaded
+let battleSfxUrl = null;       // GLOBAL battle-ambience loop (admin upload), if any
 let corpseImgBig = null;       // GLOBAL corpse decal for units bigger than 1×1, if uploaded
 const tabIcons = new Map();    // `${race}/units` | `${race}/buildings` -> Image (shop tab buttons)
 const baseUpgIcons = new Map(); // race -> Image (base tier-upgrade slot icon, per race)
@@ -196,6 +197,9 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
         load(`${base}icons/${file}?v=${man.v || 0}`, (img) => uiIcons.set(key, img));
       }
       // GLOBAL raisable-corpse decal (Rise Dead) — the remains left on the ground
+      // GLOBAL battle-ambience loop — kept as a URL; the audio layer fetches
+      // and decodes it itself (see render/battlesfx.js)
+      battleSfxUrl = man.battle ? `${base}${man.battle}?v=${man.v || 0}` : null;
       if (man.corpse) load(`${base}corpse.png?v=${man.v || 0}`, (img) => { corpseImg = img; });
       // GLOBAL corpse decal for units bigger than 1×1 (falls back to the normal one)
       if (man.corpseBig) load(`${base}corpse-big.png?v=${man.v || 0}`, (img) => { corpseImgBig = img; });
@@ -328,6 +332,11 @@ export function getMiddleImage(i) {
 // URL of the uploaded background-music track for a race, or null.
 export function getMusicUrl(race) {
   return musicUrls.get(race) || null;
+}
+
+// URL of the uploaded battle-ambience loop (global), or null.
+export function getBattleSfxUrl() {
+  return battleSfxUrl;
 }
 
 // URL of the uploaded custom mouse-cursor image for a race, or null.

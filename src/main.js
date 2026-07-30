@@ -3,6 +3,7 @@ import { Game } from './sim/game.js';
 import { AIController } from './sim/ai.js';
 import { Renderer } from './render/renderer.js';
 import { Effects } from './render/effects.js';
+import { BattleSfx } from './render/battlesfx.js';
 import { Camera } from './ui/camera.js';
 import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
@@ -10,7 +11,7 @@ import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
 import { Menu } from './ui/menu.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getCursorUrl } from './render/sprites.js';
+import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getBattleSfxUrl, getCursorUrl } from './render/sprites.js';
 import { NetClient } from './net/netclient.js';
 import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
@@ -23,6 +24,7 @@ const camera = new Camera(canvas);
 renderer.camera = camera;
 const minimap = new Minimap(document.getElementById('minimap'), camera);
 const effects = new Effects();
+const battleSfx = new BattleSfx(); // looping battle ambience, driven by what the camera sees
 const uiState = {
   myTeam: 0, // the team this player commands (0 in single player; assigned online)
   selected: null,
@@ -232,6 +234,53 @@ if (muteBtn) muteBtn.addEventListener('click', () => {
 paintVolFill();
 applyMuteBtn();
 
+// Battle-ambience pod: its OWN slider + mute, so turning the music down doesn't
+// take the fighting with it. Both remembered, like the music ones.
+let sfxVol = 1, sfxMuted = false;
+try { sfxMuted = localStorage.getItem('fh-sfx-muted') === '1'; } catch { /* private mode */ }
+try { const v = parseFloat(localStorage.getItem('fh-sfx-vol')); if (isFinite(v)) sfxVol = Math.max(0, Math.min(1, v)); } catch { /* private mode */ }
+const sfxBtn = document.getElementById('sfx-btn');
+const sfxSlider = document.getElementById('sfx-vol');
+function applySfxBtn() {
+  if (sfxBtn) { sfxBtn.textContent = (sfxMuted || sfxVol === 0) ? '🔇' : '💥'; sfxBtn.classList.toggle('off', sfxMuted); }
+}
+function setSfxVol(v, persist = true) {
+  sfxVol = Math.max(0, Math.min(1, v));
+  battleSfx.setVolume(sfxVol);
+  if (sfxSlider) {
+    if (Math.round(Number(sfxSlider.value)) !== Math.round(sfxVol * 100)) sfxSlider.value = String(Math.round(sfxVol * 100));
+    sfxSlider.style.setProperty('--fill', `${Math.round(sfxVol * 100)}%`);
+  }
+  if (persist) { try { localStorage.setItem('fh-sfx-vol', String(sfxVol)); } catch { /* private mode */ } }
+  applySfxBtn();
+}
+if (sfxSlider) sfxSlider.addEventListener('input', () => setSfxVol(Number(sfxSlider.value) / 100));
+if (sfxBtn) sfxBtn.addEventListener('click', () => {
+  sfxMuted = !sfxMuted;
+  battleSfx.setMuted(sfxMuted);
+  try { localStorage.setItem('fh-sfx-muted', sfxMuted ? '1' : '0'); } catch { /* private mode */ }
+  applySfxBtn();
+});
+battleSfx.setMuted(sfxMuted);
+setSfxVol(sfxVol, false);
+
+// Web Audio stays blocked until the page has seen a real gesture — arm it on
+// the first click/key, then never again.
+function armBattleSfx() {
+  battleSfx.unlock();
+  window.removeEventListener('pointerdown', armBattleSfx);
+  window.removeEventListener('keydown', armBattleSfx);
+}
+window.addEventListener('pointerdown', armBattleSfx);
+window.addEventListener('keydown', armBattleSfx);
+
+// The uploaded loop lives in the sprite manifest; point the mixer at it and let
+// it fade in with the fighting.
+function startBattleSfx() {
+  battleSfx.setUrl(getBattleSfxUrl());
+  battleSfx.start();
+}
+
 // Apply the player race's uploaded custom mouse cursor (falls back to the
 // default arrow when none is uploaded for that race).
 function applyCursor(race) {
@@ -338,6 +387,7 @@ function newGameFromRoster(roster) {
   camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[mySide], CONFIG.MAIN.y);
   state = 'playing';
   startMusic(playerRace);
+  startBattleSfx();
   applyCursor(playerRace);
 }
 
@@ -462,12 +512,14 @@ function startNetMatch(m) {
     if (kind === 'opp_left' && game && game.winner === null && state !== 'over') {
       state = 'over';
       stopMusic();
+      battleSfx.stop();
       toast('Adversarul a părăsit meciul');
       endNetMatch();
       setTimeout(() => menu.showGameOver(game, true, uiState.myTeam, true), 600);
     } else if (kind === 'closed' && state !== 'over') {
       // dropped mid-match OR mid-countdown — back to the menu either way
       stopMusic();
+      battleSfx.stop();
       toast('Conexiune pierdută cu serverul');
       endNetMatch();
       state = 'menu';
@@ -504,6 +556,7 @@ const menu = new Menu(document.getElementById('overlay'), {
     state = 'playing';
     const race = game ? game.races[uiState.myTeam] : 'humans';
     startMusic(race);
+    startBattleSfx();
     applyCursor(race);
   },
   enterFullscreen: () => pointer.enter(), // from the Play click (a user gesture)
@@ -516,6 +569,8 @@ const menu = new Menu(document.getElementById('overlay'), {
 window.__menu = menu; // debug/test handle (drive the entry menu in tests)
 window.__renderer = renderer; // debug/test handle (fog + layer state)
 window.__effects = effects;   // debug/test handle (corpses + particles)
+window.__sfx = battleSfx;     // debug/test handle (battle ambience mixer)
+window.__camera = camera;     // debug/test handle (zoom range)
 // seed the behind-the-menu preview with the default matchup
 setTeamRaces(['humans', 'orcs']);
 bottombar.refresh();
@@ -592,12 +647,14 @@ function frameBody(now) {
       const events = game.drainEvents();
       effects.spawnFromEvents(events);
       effects.update(delta);
+      battleSfx.update(game, renderer, camera, delta);
       hud.update(game, delta);
       updateAiDebug();
 
       if (game.winner !== null) {
         state = 'over';
         stopMusic();
+        battleSfx.stop();
         const won = game.winner === uiState.myTeam;
         const wasNet = !!netmatch;
         if (wasNet) endNetMatch();

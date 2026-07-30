@@ -282,6 +282,13 @@ function musicFileFor(string $assetsDir, string $race): ?string {
   return null;
 }
 
+// The GLOBAL battle-ambience loop (assets/units/battle.<ext>), or null. One file
+// for the whole game — the client fades it in and out with what the camera sees.
+function battleSfxFileFor(string $assetsDir): ?string {
+  foreach (MUSIC_EXTS as $e) if (is_file("$assetsDir/battle.$e")) return "battle.$e";
+  return null;
+}
+
 // A gold-mine idle CLIP (mp4/webm) played on the map: which ∈ {mineidle,
 // workeridle} → <race>/generator/<which>.<ext>, or null.
 const MINE_VID_WHICH = ['mineidle', 'workeridle'];
@@ -733,13 +740,14 @@ function regenManifest(string $assetsDir): void {
     $mf = middleFileFor($assetsDir, $n);
     if ($mf) $middle[] = $mf;
   }
+  $battle = battleSfxFileFor($assetsDir); // GLOBAL battle-ambience loop (one file)
   $corpse = is_file("$assetsDir/corpse.png"); // GLOBAL raisable-corpse decal (Rise Dead)
   $corpseBig = is_file("$assetsDir/corpse-big.png"); // corpse decal for units bigger than 1×1
   $favicon = is_file("$assetsDir/favicon.png"); // browser-tab icon
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'backgrounds2' => (object)$backgrounds2, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'backgrounds2' => (object)$backgrounds2, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'battle' => $battle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -1236,6 +1244,38 @@ if ($authed && $action === 'deleteicon') {
   }
 }
 
+// GLOBAL battle-ambience loop (shared, not per race) — battle.<ext>
+if ($authed && $action === 'uploadbattle') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['audio']) || $_FILES['audio']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['audio']['size'] > MUSIC_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['audio']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['audio']['tmp_name'];
+    if (!in_array($ext, MUSIC_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere audio: ' . implode(', ', MUSIC_EXTS) . '.';
+    } else {
+      foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/battle.$e"); // one loop, whatever the format
+      if (move_uploaded_file($tmp, "$assetsDir/battle.$ext")) {
+        regenManifest($assetsDir);
+        $msg = 'Sunet de luptă încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebattle') {
+  if (checkCsrf()) {
+    foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/battle.$e");
+    regenManifest($assetsDir);
+    $msg = 'Sunet de luptă șters.';
+  }
+}
+
 // GLOBAL middle-of-map strip variants (shared, not per race) — middle-<n>.png
 if ($authed && $action === 'uploadmiddle') {
   $slot = (int)($_POST['slot'] ?? 0);
@@ -1597,6 +1637,45 @@ if ($authed && $action === 'deletebarover') {
           jumătăți — lățimea benzii în joc = <b>lățimea PNG-ului ÷ 2</b> (400 → ~200 unități). Ține-o
           neutră, cu <b>marginile stânga/dreapta transparente (fade)</b> ca să se topească în cele două
           hărți. Încarcă 1–3 variante; jocul alege una random la fiecare meci.
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php $battleFile = battleSfxFileFor($assetsDir); $hasBattle = $battleFile !== null; ?>
+  <div class="ent" id="battle-sfx">
+    <div class="title"><b>Sunet de luptă</b><span>global — o buclă care se aude cât timp CAMERA vede unități care se bat</span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Buclă luptă</span>
+        <?php if ($hasBattle): ?>
+          <audio src="<?= $assetsUrl ?>/<?= $battleFile ?>?t=<?= filemtime("$assetsDir/$battleFile") ?>" controls loop style="width:220px"></audio>
+        <?php else: ?>
+          <div class="thumb" style="width:220px;height:44px;background:#0a0e14"><span class="empty">+</span></div>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbattle">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasBattle ? 'înlocuiește' : 'încarcă' ?><input type="file" name="audio" accept=".mp3,.ogg,.m4a,.mp4,audio/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBattle): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebattle">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi sunetul de luptă?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:420px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          Un fișier care se repetă la nesfârșit (max 12 MB). Volumul urmează <b>ce vede camera</b>:
+          cu cât se bat mai multe unități în ecran și cu cât ești mai aproape (zoom), cu atât se aude
+          mai tare; la zoom-out complet rămâne un vuiet îndepărtat. O bătălie <b>în afara ecranului</b>
+          se aude foarte slab, dinspre partea în care se dă — ca să te uiți într-acolo.<br><br>
+          Fă-l <b>continuu și neutru</b> (rumoare de luptă, fără melodie și fără lovituri clare — altfel
+          se aude repetiția). <b>.ogg</b> sau <b>.wav</b> se buclează perfect; un <b>.mp3</b> are o mică
+          pauză la capete — pentru el lasă „tăiere capete buclă" pe 40 ms în ⚙ Balance.<br><br>
+          Tot din <b>⚙ Balance</b> reglezi volumul de bază, câți luptători înseamnă intensitate maximă,
+          cât rămâne la zoom-out și vitezele de creștere/scădere.
         </div>
       </div>
     </div>

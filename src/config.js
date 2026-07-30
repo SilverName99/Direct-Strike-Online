@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v19.6';
+export const VERSION = 'v20.0';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -265,6 +265,20 @@ export const CONFIG = {
     heroPoints: 6,    // ...with this many talent points to spend
     heroUnlock: 0,    // ...and they're buyable this many seconds in (0 = right away)
   },
+
+  // ---- Battle ambience -----------------------------------------------------
+  // One looping "fighting" track (uploaded in admin, global) whose volume follows
+  // what the CAMERA sees: how many of your units are actually swinging inside the
+  // view (intensity) × how close you are zoomed in (proximity). A fight raging
+  // OFF-screen keeps a faint bed going, panned toward it, so you look that way.
+  BATTLE_SFX_VOL: 70,       // base volume of the loop (%, before the player's slider)
+  BATTLE_SFX_FIGHTERS: 8,   // this many fighters in view ≈ 63% intensity (it saturates)
+  BATTLE_SFX_FAR: 15,       // % of the volume left at full zoom-out (0 = silent up there)
+  BATTLE_SFX_OFFSCREEN: 12, // % ceiling for a battle raging outside the view
+  BATTLE_SFX_ATTACK: 0.3,   // seconds to fade UP toward the new level
+  BATTLE_SFX_RELEASE: 1,    // seconds to fade DOWN (slower, so it never pumps)
+  BATTLE_SFX_PAN: 80,       // % of full stereo width the panning may use
+  BATTLE_SFX_TRIM: 40,      // ms trimmed off both loop ends (mp3 padding = a gap/click)
 
   // Waves
   WAVE_INTERVAL: 20,

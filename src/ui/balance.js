@@ -80,6 +80,14 @@ export const GENERAL_FIELDS = [
   ['BLIGHT_START_OPACITY', 'Undead: opacitate corupție la apariție (%) — crește la 100%'],
   ['BLIGHT_WOBBLE_MIN', 'Undead: onduleuri margine corupție — minim'],
   ['BLIGHT_WOBBLE_MAX', 'Undead: onduleuri margine corupție — maxim'],
+  ['BATTLE_SFX_VOL', 'Sunet luptă: volum de bază (%)'],
+  ['BATTLE_SFX_FIGHTERS', 'Sunet luptă: câți luptători în ecran = intensitate mare'],
+  ['BATTLE_SFX_FAR', 'Sunet luptă: % volum la zoom-out complet'],
+  ['BATTLE_SFX_OFFSCREEN', 'Sunet luptă: % volum pentru lupta din afara ecranului'],
+  ['BATTLE_SFX_ATTACK', 'Sunet luptă: secunde de creștere'],
+  ['BATTLE_SFX_RELEASE', 'Sunet luptă: secunde de scădere'],
+  ['BATTLE_SFX_PAN', 'Sunet luptă: lățime stereo (%, 0 = fără panoramare)'],
+  ['BATTLE_SFX_TRIM', 'Sunet luptă: tăiere capete buclă (ms, contra pauzei de la mp3)'],
 ];
 // Team-mode (2v2/3v3/asimetric) knobs — edited in their own admin tab
 // ("⚔ Moduri echipă"), persisted in balance.json alongside the general rules.
