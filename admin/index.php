@@ -316,8 +316,14 @@ function portraitVidVariants(string $race, string $ent): array {
   // a summoned animal (Shaman) can have its own portrait clip, hosted here
   $ua = unitAbilities($race, $ent);
   foreach (SUMMON_ANIMALS as $aid => $animal) {
-    // a stationary totem (or a cocoon) has only its standing frame, no portrait clip
-    if (in_array($aid, TOTEM_ABILITIES, true) || in_array($aid, COCOON_ABILITIES, true)) continue;
+    // a stationary totem has only its standing frame, no portrait clip
+    if (in_array($aid, TOTEM_ABILITIES, true)) continue;
+    if (in_array($aid, COCOON_ABILITIES, true)) {
+      // the pouch just sits there, but the LARVA that crawls out of it is a
+      // creature like any other summon — it gets its own portrait clip
+      if (in_array($aid, $ua, true)) $v['-larva'] = 'Animație portret — ' . SUMMON_LABELS['larva'];
+      continue;
+    }
     if (in_array($aid, $ua, true)) $v["-$animal"] = 'Animație portret — ' . SUMMON_LABELS[$animal];
   }
   return $v;
