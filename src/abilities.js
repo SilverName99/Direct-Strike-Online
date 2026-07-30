@@ -584,12 +584,13 @@ export const ABILITIES = {
     animalName: 'Cocon',
     larva: 'larva',        // sprite-urile larvei, tot pe molie: "larva-walk/attack/die"
     cocoon: true,          // marchează ramura specială din releaseSpell
+    castTwoPhase: true,    // cadrul 1 = molia se pregătește, cadrul 2 = depune coconul
     color: '#b18cff',
     desc: 'Molia depune un cocon pe loc: o pungă imobilă, cu viață proprie și cronometru, din care ies larve UNA CÂTE UNA. Dacă îl spargi, restul larvelor nu mai apar; dacă îl lași să expire, ultimele eclozează deodată. Larvele atacă de aproape și trăiesc puțin. Numărul de larve, intervalul dintre ele și viața coconului se setează mai jos.',
     params: {
       tier: 3, manaCost: 60, cooldown: 25,
-      castPrepare: 0,     // fără wind-up separat — molia intră direct în poziția de depunere
-      castHold: 1.2,      // secunde cât stă în frame-ul „depune coconul”
+      castPrepare: 0.8,   // secunde pe cadrul 1 (molia se pregătește), înainte să apară coconul
+      castHold: 0.8,      // secunde pe cadrul 2 (molia depune coconul), după ce apare
       cap: 1,             // coconi vii deodată per molie
       hp: 200,            // viața coconului
       life: 20,           // secunde până se deschide singur

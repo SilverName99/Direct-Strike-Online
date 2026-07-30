@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig } from './sprites.js';
 import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
@@ -1743,9 +1743,11 @@ export class Renderer {
             }
           }
         } else if (attacking) {
-          if (isCaster && !rstats.isHero) {
+          if (isCaster && !rstats.isHero && !hasAttackCycle(u.type, artOf(u))) {
             // regular caster auto-attacking (out of mana / between spells):
-            // shared "prepare" during the wind-up, one "attack" release frame
+            // shared "prepare" during the wind-up, one "attack" release frame.
+            // (a caster that HAS uploaded "Attack 2" falls through to the normal
+            // two-frame swing below instead)
             anim = u.windup > 0 && prep ? 'prepare' : 'attack';
             frame = 0;
           } else if (u.acidAttacker && hasAcidAnim(u.type, artOf(u))) {

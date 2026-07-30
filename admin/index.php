@@ -92,7 +92,7 @@ const ABILITY_INFO = [
   'acidpaste' => ['Acid Paste', true, true],
   // Molie (Undead unit 8): stă pe loc și depune coconul (1 cadru de cast), apoi
   // coconul scoate larve — coconul + larva au setul lor de sprite-uri mai jos.
-  'cocoon' => ['Cocon', true, false, 1],
+  'cocoon' => ['Cocon', true, false, 2],
   // Death Knight (Undead hero) kit: Execute + Soul Link get a cast frame; Reap
   // Cleave and Vampiric Aura are passives (no cast frame). No projectiles.
   'execute' => ['Execute', true, false],
@@ -451,6 +451,9 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     // regular caster: one shared wind-up pose + one release frame per action
     $slots['prepare_0'] = 'Prepare spell';
     $slots['attack_0'] = 'Attack';
+    // optional: upload a second attack frame and the caster swings with the full
+    // two-frame cycle (like a fighter) instead of the single release frame
+    $slots['attack_1'] = 'Attack 2 (opțional)';
   } else {
     // fighters — and heroes, who fight melee-first — use a full 2-frame attack
     // cycle (Attack 1 while winding up, Attack 2 after the hit).
@@ -592,6 +595,10 @@ function slotsFor(string $ent, string $race = 'humans'): array {
         // the two Backline Teleport frames are the blink sequence (prepare + land)
         $slots["cast-{$aid}_0"] = 'Backline Teleport: Prepare';
         $slots["cast-{$aid}_1"] = 'Backline Teleport: Land';
+      } else if ($aid === 'cocoon') {
+        // molia stă și depune coconul: două cadre (se pregătește + depune)
+        $slots["cast-{$aid}_0"] = 'Cocon: Molia se pregătește';
+        $slots["cast-{$aid}_1"] = 'Cocon: Molia depune coconul';
       } else if ($castFrames >= 2) {
         $slots["cast-{$aid}_0"] = "Cast {$name} 1";
         $slots["cast-{$aid}_1"] = "Cast {$name} 2";

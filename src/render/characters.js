@@ -66,6 +66,13 @@ export function castAnimOf(type, team, ability) {
   return hasSpriteAnim(raceOf(team), type, anim) ? anim : null;
 }
 
+// True when a unit has uploaded a SECOND basic-attack frame ("Attack 2").
+// A caster normally swings with the shared Prepare pose + one release frame;
+// upload this one and it animates the full two-frame cycle like a fighter.
+export function hasAttackCycle(type, team) {
+  return getFrame(raceOf(team), type, 'attack', 1) != null;
+}
+
 // True when a caster has uploaded the shared "Prepare spell" wind-up frame.
 export function hasPrepareAnim(type, team) {
   return hasSpriteAnim(raceOf(team), type, 'prepare');
