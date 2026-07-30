@@ -586,7 +586,7 @@ export const ABILITIES = {
     cocoon: true,          // marchează ramura specială din releaseSpell
     castTwoPhase: true,    // cadrul 1 = molia se pregătește, cadrul 2 = depune coconul
     color: '#b18cff',
-    desc: 'Molia depune un cocon pe loc: o pungă imobilă, cu viață proprie și cronometru, din care ies larve UNA CÂTE UNA. Dacă îl spargi, restul larvelor nu mai apar; dacă îl lași să expire, ultimele eclozează deodată. Larvele atacă de aproape și trăiesc puțin. Numărul de larve, intervalul dintre ele și viața coconului se setează mai jos.',
+    desc: 'Molia depune un cocon pe loc: o pungă imobilă, cu viață proprie și cronometru, din care ies larve pe rând — câte una sau câte mai multe deodată, cum setezi. Dacă îl spargi, restul larvelor nu mai apar; dacă îl lași să expire, ultimele eclozează deodată. Larvele atacă de aproape și trăiesc puțin. Numărul total de larve, câte ies odată, intervalul dintre eclozări și viața coconului se setează mai jos.',
     params: {
       tier: 3, manaCost: 60, cooldown: 25,
       castPrepare: 0.8,   // secunde pe cadrul 1 (molia se pregătește), înainte să apară coconul
@@ -596,7 +596,8 @@ export const ABILITIES = {
       life: 20,           // secunde până se deschide singur
       size: 100,          // mărimea coconului (%)
       larvae: 4,          // câte larve scoate în total
-      larvaInterval: 4,   // secunde între două larve
+      larvaBatch: 1,      // câte ies DEODATĂ la fiecare eclozare (1 = una câte una)
+      larvaInterval: 4,   // secunde între două eclozări
       hatchPose: 0.6,     // secunde pe frame-ul „se deschide” la fiecare larvă
       larvaLife: 12,      // cât trăiește o larvă
       larvaHp: 60, larvaDamage: 10, larvaRange: 26, larvaPeriod: 1, larvaSpeed: 95,
@@ -901,7 +902,8 @@ export const ABILITY_PARAM_LABELS = {
   targetsGround: 'Atacă solul (1/0)',
   // Cocon (Molie): pouch + larvae
   larvae: 'Cocon: câte larve scoate în total',
-  larvaInterval: 'Cocon: interval între larve (s)',
+  larvaBatch: 'Cocon: câte larve ies DEODATĂ (1 = una câte una)',
+  larvaInterval: 'Cocon: interval între eclozări (s)',
   hatchPose: 'Cocon: timp pe frame-ul „se deschide” (s)',
   larvaLife: 'Larvă: durată viață (s, 0 = nu dispare)',
   larvaHp: 'Larvă: HP',

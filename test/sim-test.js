@@ -860,7 +860,7 @@ console.log('cocoon: larvae hatch one at a time');
 {
   const ab = resolvedAbility('cocoon');
   const saved = { ...ab.params };
-  Object.assign(ab.params, { larvae: 3, larvaInterval: 2, life: 10, hp: 200, larvaLife: 0, larvaHp: 50, hatchPose: 0.6 });
+  Object.assign(ab.params, { larvae: 3, larvaBatch: 1, larvaInterval: 2, life: 10, hp: 200, larvaLife: 0, larvaHp: 50, hatchPose: 0.6 });
   const larvaeOf = (g) => g.entities.filter((e) => e.hp > 0 && e.summonKind === 'larva').length;
 
   // 1) one larva per interval, never two at once
@@ -895,6 +895,24 @@ console.log('cocoon: larvae hatch one at a time');
     pouch.hp = 0;
     run(game, 6);
     check('cocoon killed: no more larvae hatch', larvaeOf(game) === 1, `${larvaeOf(game)}`);
+  }
+
+  // 2b) larvaBatch: several larvae crawl out on the same hatch
+  {
+    const game = new Game(94, { races: ['undead', 'humans'] });
+    const moth = spawnUnit(game, 0, 'archon', 700, MID_Y);
+    Object.assign(ab.params, { larvae: 5, larvaBatch: 2, larvaInterval: 2, life: 30 });
+    spawnSummon(game, moth, ab, ab.params, 1);
+    run(game, 2.2);
+    check('batch: two larvae on the first hatch', larvaeOf(game) === 2, `${larvaeOf(game)}`);
+    run(game, 2);
+    check('batch: two more on the next hatch', larvaeOf(game) === 4, `${larvaeOf(game)}`);
+    run(game, 2);
+    check('batch: the last hatch is short and stops at the total',
+      larvaeOf(game) === 5, `${larvaeOf(game)}`);
+    run(game, 4);
+    check('batch: nothing hatches past the total', larvaeOf(game) === 5, `${larvaeOf(game)}`);
+    Object.assign(ab.params, { larvae: 3, larvaBatch: 1, larvaInterval: 2, life: 10 });
   }
 
   // 3) let it expire -> the remaining larvae all crawl out at once

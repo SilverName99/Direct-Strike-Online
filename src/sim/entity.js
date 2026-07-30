@@ -165,6 +165,7 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     e.cocoon = true;
     e.larvaKind = ab.larva || 'larva';
     e.larvaLeft = Math.max(0, Math.floor(p.larvae || 0));
+    e.larvaBatch = Math.max(1, Math.floor(p.larvaBatch || 1)); // how many crawl out at once
     e.larvaInterval = interval;
     e.larvaNextAt = e.larvaLeft > 0 ? game.time + interval : null;
     e.larvaHatched = 0; // how many already crawled out (spreads them around the pouch)
@@ -242,15 +243,16 @@ export function spawnLarva(game, pouch) {
   return e;
 }
 
-// Cocoons hatch their larvae one at a time, at the interval set on the ability.
-// Break the pouch and the rest never come out; let it run out its timer and the
-// remaining larvae all crawl out at once as it opens.
+// Cocoons hatch their larvae at the interval set on the ability — one at a time,
+// or `larvaBatch` of them at once. Break the pouch and the rest never come out;
+// let it run out its timer and the remaining larvae all crawl out as it opens.
 export function tickCocoons(game) {
   const pouches = game.entities.filter((e) => e.cocoon && e.hp > 0);
   for (const c of pouches) {
     while (c.larvaLeft > 0 && c.larvaNextAt != null && game.time >= c.larvaNextAt) {
-      spawnLarva(game, c);
-      c.larvaLeft--;
+      const batch = Math.min(c.larvaLeft, Math.max(1, c.larvaBatch || 1));
+      for (let i = 0; i < batch; i++) spawnLarva(game, c);
+      c.larvaLeft -= batch;
       c.larvaNextAt = c.larvaLeft > 0 ? c.larvaNextAt + c.larvaInterval : null;
     }
     // the pouch is about to open (its lifetime is up): release what's left
