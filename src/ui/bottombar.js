@@ -1167,6 +1167,15 @@ export class BottomBar {
               el.classList.add('on');
               cd = game.holdLeft(d.team, d.unit);
               cdTotal = Math.max(0.1, up.params.holdDuration || 0);
+            } else {
+              // marched on: the button waits out its cooldown before it can stop
+              // them again — greyed, with the radial counting it down
+              const wait = game.holdCdLeftFor(d.team, d.unit);
+              if (wait > 0) {
+                el.classList.add('disabled');
+                cd = wait;
+                cdTotal = Math.max(0.1, up.params.holdCooldown || 0);
+              }
             }
           } else {
             tog = !game.upgradeOff[d.team].has(d.id); // ✔ activ / ✖ dezactivat
@@ -1384,6 +1393,8 @@ export class BottomBar {
     if (d.kind === 'upgrade' && d.own && game.upgrades[this.team].has(d.id)) {
       const up = resolvedUpgrade(d.id);
       if (up && up.kind === 'hold') { // press = stand still / march on
+        // still cooling down after the last hold: the sim would refuse it anyway
+        if (!game.isHeld(this.team, d.unit) && !game.holdReady(this.team, d.unit)) return;
         game.issueCommand({ type: 'holdUnits', team: this.team, unit: d.unit });
         return;
       }

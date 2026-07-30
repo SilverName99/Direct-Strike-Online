@@ -211,13 +211,14 @@ export const UPGRADES = {
   },
   holdground: {
     name: 'Stai pe loc (asediu)',
-    desc: 'Unitatea de asediu (Blight Rat) primește un buton de OPRIRE: apeși o dată și toate unitățile TALE de tipul ăsta se opresc pe loc (rămân în frame-ul de idle) maximum atâtea secunde cât setezi; apeși din nou și pornesc imediat. Se folosește ca să nu plece asediul singur în fața valului. Nu costă mana — se cumpără o dată din Bază.',
+    desc: 'Unitatea de asediu (Blight Rat) primește un buton de OPRIRE: apeși o dată și toate unitățile TALE de tipul ăsta se opresc pe loc (rămân în frame-ul de idle) maximum atâtea secunde cât setezi; apeși din nou și pornesc imediat. După ce pornesc — fie că le-ai repornit tu, fie că a expirat timpul — butonul intră în cooldown și nu-l mai poți apăsa până nu trece. Se folosește ca să nu plece asediul singur în fața valului. Nu costă mana — se cumpără o dată din Bază.',
     kind: 'hold',
     race: 'undead',
     unit: 'mender', // slotul de asediu (unitatea 9 — Blight Rat)
     params: {
       cost: 120,        // aur, din Bază
       holdDuration: 10, // secunde maxime cât rămân oprite (apoi pornesc singure)
+      holdCooldown: 25, // secunde de așteptare după ce pornesc, până poți opri iar
     },
   },
   cocoonunlock: {
@@ -279,6 +280,7 @@ export const UPGRADE_PARAM_LABELS = {
   duration: 'Durată invulnerabilitate (s)',
   cooldown: 'Cooldown (s)',
   holdDuration: 'Durată oprire (s)',
+  holdCooldown: 'Cooldown după repornire (s)',
   shieldSize: 'Mărime scut (%)',
   poseTime: 'Durată poză activare (s)',
   allies: 'Aliați scutați în plus',

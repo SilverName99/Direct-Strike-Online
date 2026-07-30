@@ -233,6 +233,38 @@ console.log('siege hold');
   const x2 = u.x;
   for (let i = 0; i < 30; i++) { updateMovement(g, CONFIG.FIXED_DT); g.time += CONFIG.FIXED_DT; }
   check('hold: moving again once the timer ran out', u.x > x2 + 1);
+
+  // ---- cooldown: once they march on, the button waits before it can stop them again
+  applyBalance({ upgrades: { holdground: { race: 'undead', unit: 'mender', params: { cost: 120, holdDuration: 4, holdCooldown: 25 } } } });
+  const g2 = new Game(73, { races: ['undead', 'humans'] });
+  g2.upgrades[0].add('holdground');
+  check('cooldown: ready before the first press', g2.holdReady(0, 'mender'));
+  g2.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  check('cooldown: no cooldown while they are still held',
+    g2.isHeld(0, 'mender') && g2.holdCdLeftFor(0, 'mender') === 0);
+  g2.time += 1;
+  g2.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' }); // released early
+  check('cooldown: starts when you release them early',
+    !g2.isHeld(0, 'mender') && Math.abs(g2.holdCdLeftFor(0, 'mender') - 25) < 0.01,
+    `${g2.holdCdLeftFor(0, 'mender')}`);
+  const blocked = g2.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  check('cooldown: pressing during it is refused', !blocked.ok && blocked.reason === 'cooldown');
+  g2.time += 25;
+  const again = g2.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  check('cooldown: usable again once it runs out', again.ok && g2.isHeld(0, 'mender'));
+
+  // ...and it also starts when the hold simply times out (no press needed)
+  const g3 = new Game(74, { races: ['undead', 'humans'] });
+  g3.upgrades[0].add('holdground');
+  g3.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' });
+  g3.time += 4.1; // the 4s hold ran out on its own
+  check('cooldown: also starts when the hold times out',
+    !g3.isHeld(0, 'mender') && Math.abs(g3.holdCdLeftFor(0, 'mender') - 24.9) < 0.05,
+    `${g3.holdCdLeftFor(0, 'mender')}`);
+  check('cooldown: refused right after the timeout',
+    g3.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' }).ok === false);
+  g3.time += 25;
+  check('cooldown: free again later', g3.issueCommand({ type: 'holdUnits', team: 0, unit: 'mender' }).ok);
   applyBalance({});
 }
 

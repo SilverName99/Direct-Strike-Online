@@ -77,6 +77,9 @@ export class Game {
     // "Stai pe loc" (siege hold upgrade): per player, unitType -> game.time when
     // the hold expires. While it hasn't expired those units stand still (idle).
     this.holdUntil = this.players.map(() => ({}));
+    // "Stai pe loc": when the units march on again, the button goes on cooldown
+    // (holdCooldown) — unitType -> game.time it can be pressed again
+    this.holdReadyAt = this.players.map(() => ({}));
     const im = options.incomeMult || [];
     this.incomeMult = this.players.map((_, i) => (im[i] != null ? im[i] : 1));
     // commanders who left the match (online disconnect) — see activeOnSide()
@@ -533,6 +536,15 @@ export class Game {
   holdLeft(player, unitType) {
     return Math.max(0, (this.holdUntil[player][unitType] || 0) - this.time);
   }
+  // Seconds before the hold can be pressed again. The cooldown starts the moment
+  // the units MARCH ON — whether you released them early or the timer ran out.
+  holdCdLeftFor(player, unitType) {
+    if (this.isHeld(player, unitType)) return 0; // still holding: not on cooldown yet
+    return Math.max(0, (this.holdReadyAt[player][unitType] || 0) - this.time);
+  }
+  holdReady(player, unitType) {
+    return this.holdCdLeftFor(player, unitType) <= 0;
+  }
 
   // Seconds left until this team may build that kind again (build cooldown).
   buildCdLeft(team, kind) {
@@ -812,12 +824,23 @@ export class Game {
 
     // "Stai pe loc": toggle the siege hold for a unit TYPE. Press once and every
     // living unit of that type stands still (idle) for at most the upgrade's
-    // duration; press again — or let it run out — and they march on.
+    // duration; press again — or let it run out — and they march on. Marching on
+    // puts the button on cooldown (holdCooldown) before it can be pressed again.
     if (cmd.type === 'holdUnits') {
       const up = this.holdUpgradeOf(cmd.team, cmd.unit);
       if (!up) return { ok: false, reason: 'no-upgrade' };
-      if (this.isHeld(cmd.team, cmd.unit)) this.holdUntil[cmd.team][cmd.unit] = 0;
-      else this.holdUntil[cmd.team][cmd.unit] = this.time + Math.max(0, up.params.holdDuration || 0);
+      const cool = Math.max(0, up.params.holdCooldown || 0);
+      if (this.isHeld(cmd.team, cmd.unit)) {
+        // released early: they march NOW, so the cooldown starts now
+        this.holdUntil[cmd.team][cmd.unit] = 0;
+        this.holdReadyAt[cmd.team][cmd.unit] = this.time + cool;
+        return { ok: true };
+      }
+      if (!this.holdReady(cmd.team, cmd.unit)) return { ok: false, reason: 'cooldown' };
+      const until = this.time + Math.max(0, up.params.holdDuration || 0);
+      this.holdUntil[cmd.team][cmd.unit] = until;
+      // if it simply runs out, the cooldown starts at that moment — no tick needed
+      this.holdReadyAt[cmd.team][cmd.unit] = until + cool;
       return { ok: true };
     }
 
