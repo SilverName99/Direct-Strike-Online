@@ -1795,6 +1795,10 @@ export class Renderer {
         // idle frames (it spawns into the fight), so map idle -> walk to avoid
         // falling back to the host caster's idle sprite.
         if (u.summon && u.summonKind && !u.totem && anim === 'idle') anim = 'walk';
+        // a cocoon has TWO frames and doesn't breathe between them: it sits
+        // closed (frame 1) and shows the open frame (frame 2) only while a larva
+        // is crawling out (hatchPose seconds, set on the ability).
+        if (u.cocoon) { anim = 'idle'; frame = (u.hatchUntil || 0) > game.time ? 1 : 0; }
         if (u.summon && u.summonKind && !anim.startsWith(`${u.summonKind}-`) && hasSummonAnim(u.type, artOf(u), u.summonKind, anim)) {
           anim = `${u.summonKind}-${anim}`;
         }

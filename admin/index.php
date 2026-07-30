@@ -542,7 +542,8 @@ function slotsFor(string $ent, string $race = 'humans'): array {
     // the cocoon just sits there (one frame); the larvae that hatch from it are
     // small melee crawlers with their own mers/atac/die set
     if (in_array($aid, COCOON_ABILITIES, true)) {
-      $slots["{$animal}-idle_0"] = "$lbl: Cocon";
+      $slots["{$animal}-idle_0"] = "$lbl: Cocon (închis)";
+      $slots["{$animal}-idle_1"] = "$lbl: Cocon (se deschide — iese larva)";
       $slots['larva-walk_0'] = 'Larvă: Mers 1';
       $slots['larva-walk_1'] = 'Larvă: Mers 2';
       $slots['larva-attack_0'] = 'Larvă: Atac 1';

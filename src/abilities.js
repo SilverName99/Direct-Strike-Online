@@ -596,6 +596,7 @@ export const ABILITIES = {
       size: 100,          // mărimea coconului (%)
       larvae: 4,          // câte larve scoate în total
       larvaInterval: 4,   // secunde între două larve
+      hatchPose: 0.6,     // secunde pe frame-ul „se deschide” la fiecare larvă
       larvaLife: 12,      // cât trăiește o larvă
       larvaHp: 60, larvaDamage: 10, larvaRange: 26, larvaPeriod: 1, larvaSpeed: 95,
       larvaSize: 80, larvaAnimSpeed: 6,
@@ -900,6 +901,7 @@ export const ABILITY_PARAM_LABELS = {
   // Cocon (Molie): pouch + larvae
   larvae: 'Cocon: câte larve scoate în total',
   larvaInterval: 'Cocon: interval între larve (s)',
+  hatchPose: 'Cocon: timp pe frame-ul „se deschide” (s)',
   larvaLife: 'Larvă: durată viață (s, 0 = nu dispare)',
   larvaHp: 'Larvă: HP',
   larvaDamage: 'Larvă: damage',

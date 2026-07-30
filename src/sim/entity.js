@@ -168,6 +168,10 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     e.larvaInterval = interval;
     e.larvaNextAt = e.larvaLeft > 0 ? game.time + interval : null;
     e.larvaHatched = 0; // how many already crawled out (spreads them around the pouch)
+    // the pouch OPENS for a moment whenever a larva pops out (second cocoon
+    // frame); the rest of the time it sits closed
+    e.hatchPose = p.hatchPose != null ? p.hatchPose : 0.6;
+    e.hatchUntil = 0;
     e.larvaSpec = {
       hp: Math.max(1, p.larvaHp || 1),
       damage: p.larvaDamage || 0,
@@ -231,6 +235,7 @@ export function spawnLarva(game, pouch) {
     despawnAt: s.life > 0 ? game.time + s.life : null,
   };
   pouch.larvaHatched = n + 1;
+  pouch.hatchUntil = game.time + (pouch.hatchPose || 0); // the pouch shows its open frame
   game.entities.push(e);
   game.byId.set(e.id, e);
   game.events.push({ type: 'summon', x: e.x, y: e.y, team: e.team });

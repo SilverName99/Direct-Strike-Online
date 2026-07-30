@@ -809,7 +809,7 @@ console.log('cocoon: larvae hatch one at a time');
 {
   const ab = resolvedAbility('cocoon');
   const saved = { ...ab.params };
-  Object.assign(ab.params, { larvae: 3, larvaInterval: 2, life: 10, hp: 200, larvaLife: 0, larvaHp: 50 });
+  Object.assign(ab.params, { larvae: 3, larvaInterval: 2, life: 10, hp: 200, larvaLife: 0, larvaHp: 50, hatchPose: 0.6 });
   const larvaeOf = (g) => g.entities.filter((e) => e.hp > 0 && e.summonKind === 'larva').length;
 
   // 1) one larva per interval, never two at once
@@ -823,7 +823,10 @@ console.log('cocoon: larvae hatch one at a time');
     check('cocoon: nothing hatched before the interval', larvaeOf(game) === 0, `${larvaeOf(game)}`);
     run(game, 1);
     check('cocoon: first larva out after the interval', larvaeOf(game) === 1, `${larvaeOf(game)}`);
-    run(game, 2);
+    check('cocoon: opens (2nd frame) while the larva crawls out', pouch.hatchUntil > game.time);
+    run(game, 1);
+    check('cocoon: closes again after the hatch pose', pouch.hatchUntil <= game.time);
+    run(game, 1);
     check('cocoon: a second larva, one interval later', larvaeOf(game) === 2, `${larvaeOf(game)}`);
     const lv = game.entities.find((e) => e.hp > 0 && e.summonKind === 'larva');
     check('larva: melee ground summon on the moth art', lv.summon === true && lv.type === 'archon'
