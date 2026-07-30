@@ -849,8 +849,12 @@ export class BottomBar {
         : myUnits.map((id) => {
             const u = statsUnit(race, id);
             // carry the tech building so the card locks (🔒, greyed) while this
-            // very building is still a construction site — exactly like the shop
-            return { kind: 'unit', id, cost: u.cost, tier: u.tier, building: info.type, slot: Number.isInteger(u.slot) ? u.slot : -1 };
+            // very building is still a construction site — exactly like the shop.
+            // `slot` is the unit's cell in the SHOP page; here only this
+            // building's 3-4 units are shown, so honouring it would scatter them
+            // (an Undead barracks left the whole first row empty). They pack from
+            // the first cell instead, in the shop's own order.
+            return { kind: 'unit', id, cost: u.cost, tier: u.tier, building: info.type, slot: -1 };
           });
       // Fixed cells: sell at slot 7, the ⬆/⬇ toggle at slot 8. The units /
       // upgrades occupy cells 0..6 at their admin-chosen slot (or auto-fill the

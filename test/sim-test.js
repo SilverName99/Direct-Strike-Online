@@ -883,6 +883,25 @@ console.log('cocoon: larvae hatch one at a time');
     check('larva: melee ground summon on the moth art', lv.summon === true && lv.type === 'archon'
       && lv.summonStats.ranged === false && lv.isAir === false && lv.maxHp === 50);
     check('larva: owned by the moth\'s player', lv.owner === moth.owner && lv.team === moth.team);
+    // the death frame keeps the live size unless larvaDieSize says otherwise
+    check('larva: die frame follows the live size by default', lv.ovDieSize === null);
+  }
+
+  // 1b) larvaDieSize: the corpse sprite gets its own scale
+  {
+    const game = new Game(95, { races: ['undead', 'humans'] });
+    const moth = spawnUnit(game, 0, 'archon', 700, MID_Y);
+    Object.assign(ab.params, { larvae: 1, larvaInterval: 1, larvaSize: 80, larvaDieSize: 150 });
+    spawnSummon(game, moth, ab, ab.params, 1);
+    run(game, 1.2);
+    const lv = game.entities.find((e) => e.hp > 0 && e.summonKind === 'larva');
+    check('larva: die frame takes its own size', lv.ovDieSize === 1.5 && lv.ovSize === 0.8,
+      `${lv.ovDieSize}/${lv.ovSize}`);
+    applyDamage(game, lv, 99999, 'normal'); // kill it: the corpse carries the scale
+    const death = game.drainEvents().find((e) => e.type === 'death' && e.summonKind === 'larva');
+    check('larva: the corpse is drawn at the die size', death && death.footScale === 1.5,
+      death ? String(death.footScale) : 'no death event');
+    Object.assign(ab.params, { larvae: 3, larvaInterval: 2, larvaSize: 80, larvaDieSize: 0 });
   }
 
   // 2) break the pouch -> the rest never come out
@@ -931,6 +950,60 @@ console.log('cocoon: larvae hatch one at a time');
   ab.params = saved;
 }
 
+// ------------------ the cocoon drops only when the laying animation finishes
+console.log('cocoon: laid at the end of the cast pose');
+{
+  const ab = resolvedAbility('cocoon');
+  const saved = { ...ab.params };
+  Object.assign(ab.params, {
+    castPrepare: 0.8, castHold: 0.8, manaCost: 0, cooldown: 30,
+    larvae: 1, larvaInterval: 5, life: 30, tier: 1,
+  });
+  const st = statsUnit('undead', 'archon');
+  const savedSt = { caster: st.caster, mana: st.mana, abilities: st.abilities, autoAttackBetween: st.autoAttackBetween };
+  Object.assign(st, { caster: true, mana: 100, abilities: ['cocoon'], autoAttackBetween: true });
+
+  const game = new Game(96, { races: ['undead', 'humans'] });
+  game.abilityUsable = () => true; // focus on the timing, not the unlock upgrade
+  const moth = spawnUnit(game, 0, 'archon', 1800, MID_Y);
+  moth.mana = moth.manaMax = 100;
+  spawnUnit(game, 1, 'grunt', 1900, MID_Y); // a fight nearby, so the moth acts
+  const pouches = () => game.entities.filter((e) => e.cocoon && e.hp > 0).length;
+
+  let castAt = null, pouchAt = null;
+  for (let i = 0; i < Math.ceil(8 / DT) && pouchAt === null; i++) {
+    game.update(DT);
+    for (const e of game.drainEvents()) {
+      if (e.type === 'cast' && e.ability === 'cocoon' && castAt === null) castAt = game.time;
+    }
+    if (castAt !== null && pouches() > 0 && pouchAt === null) pouchAt = game.time;
+  }
+  check('the moth casts Cocon', castAt !== null);
+  check('the pouch is NOT there when the spell fires', pouchAt === null || pouchAt > castAt);
+  check('it drops when the laying pose ends',
+    pouchAt !== null && Math.abs((pouchAt - castAt) - ab.params.castHold) <= DT * 1.5,
+    `${pouchAt !== null ? (pouchAt - castAt).toFixed(2) : 'never'} vs ${ab.params.castHold}`);
+
+  // a moth killed mid-pose lays nothing
+  const g2 = new Game(97, { races: ['undead', 'humans'] });
+  g2.abilityUsable = () => true;
+  const m2 = spawnUnit(g2, 0, 'archon', 1800, MID_Y);
+  m2.mana = m2.manaMax = 100;
+  spawnUnit(g2, 1, 'grunt', 1900, MID_Y);
+  let killed = false;
+  for (let i = 0; i < Math.ceil(8 / DT); i++) {
+    g2.update(DT);
+    for (const e of g2.drainEvents()) {
+      if (e.type === 'cast' && e.ability === 'cocoon' && !killed) { m2.hp = 0; killed = true; }
+    }
+  }
+  check('a moth killed mid-pose lays nothing',
+    killed && g2.entities.filter((e) => e.cocoon && e.hp > 0).length === 0);
+
+  Object.assign(st, savedSt);
+  ab.params = saved;
+}
+
 // ------------------------------------- Cocon unlock upgrade (Molie)
 console.log('cocoon unlock upgrade');
 {
@@ -939,8 +1012,18 @@ console.log('cocoon unlock upgrade');
   check('cocoon locked without the unlock', !game.abilityUsable(0, 'archon', 'cocoon'));
   game.upgrades[0].add('cocoonunlock');
   check('cocoon usable after buying the unlock', game.abilityUsable(0, 'archon', 'cocoon'));
+  // buying the unlock also turns the moth INTO a caster (that's where its mana
+  // pool comes from) and puts the ability in its list
+  const moth = spawnUnit(game, 0, 'archon', 700, MID_Y);
+  const st = game.ustatOf(moth);
+  check('the unlock makes the moth a caster', st.caster === true && st.abilities.includes('cocoon'));
+  updateAbilities(game, 1 / 30);
+  check('a moth already on the field opens its mana pool',
+    moth.manaMax === (statsUnit('undead', 'archon').mana || 0) && moth.manaMax > 0, `${moth.manaMax}`);
+
   game.upgradeOff[0].add('cocoonunlock'); // toggled off -> re-locked
   check('cocoon re-locked when the unlock is toggled off', !game.abilityUsable(0, 'archon', 'cocoon'));
+  check('and the moth is a plain fighter again', game.ustatOf(moth).caster !== true);
 }
 
 // ------------------------------------- Slowing Totem unlock upgrade

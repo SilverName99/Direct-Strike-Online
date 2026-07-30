@@ -180,6 +180,7 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
       period: p.larvaPeriod || 1,
       speed: p.larvaSpeed || 95,
       size: p.larvaSize != null ? p.larvaSize : 80,
+      dieSize: p.larvaDieSize || 0, // 0 = the death frame draws at the living size
       animSpeed: p.larvaAnimSpeed || 6,
       splash: p.larvaSplash || 0,
       armored: !!p.larvaArmored,
@@ -226,6 +227,8 @@ export function spawnLarva(game, pouch) {
     mountTargetId: null, splitTargetId: null, dismounted: false, beast: false,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovRanged: null,
     ovSize: stats.size,
+    // the death frame can be drawn at its own scale (larvaDieSize; 0 = as alive)
+    ovDieSize: s.dieSize > 0 ? s.dieSize / 100 : null,
     mana: 0, manaMax: 0,
     targetId: null, state: 'march',
     radius, baseRadius: radius, footprint: false, hw: radius, hh: radius,

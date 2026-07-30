@@ -1173,7 +1173,10 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
       dismounted: !!target.dismounted, // corpse uses the on-foot "foot-die" sprite
       beast: !!target.beast,           // split mount corpse -> "beast-die" sprite
       summonKind: target.summon ? target.summonKind : null, // -> "<animal>-die"
-      footScale: (target.dismounted || target.beast || target.summon) ? (target.ovSize || 1) : null,
+      // scale of the corpse sprite: a summon can give its DEATH frame its own
+      // size (ovDieSize, e.g. the larva's "die"), else it dies at its live size
+      footScale: (target.dismounted || target.beast || target.summon)
+        ? (target.ovDieSize || target.ovSize || 1) : null,
     });
   }
 }

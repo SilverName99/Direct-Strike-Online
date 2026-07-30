@@ -601,7 +601,7 @@ export const ABILITIES = {
       hatchPose: 0.6,     // secunde pe frame-ul „se deschide” la fiecare larvă
       larvaLife: 12,      // cât trăiește o larvă
       larvaHp: 60, larvaDamage: 10, larvaRange: 26, larvaPeriod: 1, larvaSpeed: 95,
-      larvaSize: 80, larvaAnimSpeed: 6,
+      larvaSize: 80, larvaDieSize: 0, larvaAnimSpeed: 6,
       larvaSplash: 0, larvaArmored: 0,
     },
   },
@@ -912,6 +912,7 @@ export const ABILITY_PARAM_LABELS = {
   larvaPeriod: 'Larvă: perioadă atac (s)',
   larvaSpeed: 'Larvă: viteză mișcare',
   larvaSize: 'Larvă: mărime (%)',
+  larvaDieSize: 'Larvă: mărime cadru „die" (%, 0 = ca larva vie)',
   larvaAnimSpeed: 'Larvă: viteză animație mers (flip/s)',
   larvaSplash: 'Larvă: splash (rază, 0 = fără)',
   larvaArmored: 'Larvă: armură grea (1/0)',

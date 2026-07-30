@@ -152,8 +152,31 @@ export function applyEffect(u, kind, val, until, time) {
 
 // ---------------------------------------------------------------- update
 
+// Summons whose creature only shows up when the caster FINISHES its cast
+// animation (the moth's cocoon): releaseSpell queues them, this drops them on
+// the tick their pose ends. Deterministic — a plain time-ordered queue. A
+// caster that dies mid-pose never lays anything.
+function flushPendingSummons(game) {
+  if (!game.pendingSummons || !game.pendingSummons.length) return;
+  const due = [];
+  game.pendingSummons = game.pendingSummons.filter((p) => {
+    if (game.time < p.at) return true;
+    due.push(p);
+    return false;
+  });
+  for (const p of due) {
+    const caster = game.byId.get(p.casterId);
+    if (!caster || caster.hp <= 0) continue; // interrupted -> nothing appears
+    const ab = resolvedAbility(p.aid);
+    if (!ab) continue;
+    const animal = spawnSummon(game, caster, ab, abParams(caster, p.aid, ab), p.rank);
+    game.events.push({ type: 'summon', x: animal.x, y: animal.y, team: caster.team });
+  }
+}
+
 export function updateAbilities(game, dt) {
   const time = game.time;
+  flushPendingSummons(game);
 
   // expire dead effects (cheap filter, bounded lists)
   for (const u of game.entities) {
@@ -173,6 +196,13 @@ export function updateAbilities(game, dt) {
   for (const u of game.entities) {
     const stats = game.ustatOf(u);
     if (!stats.caster || !stats.abilities || stats.abilities.length === 0) continue;
+    // An unlock upgrade can turn a unit INTO a caster mid-match (the moth gets
+    // its pool when "Cocon" is bought): units already on the field were spawned
+    // without one, so open it here — empty, to be filled by regen.
+    if (!u.summon && u.manaMax === 0 && (stats.mana || 0) > 0) {
+      u.manaMax = stats.mana;
+      u.mana = 0;
+    }
 
     // mana regen (capped at the unit's configured pool); a hero's regen grows
     // with its level (manaRegenPerLevel, set in admin under Nivelare)
@@ -1052,6 +1082,14 @@ function releaseSpell(game, caster, time) {
     }
     // pass the caster's learned rank so the animal's HP/damage grow per-rank
     const rank = (caster.hero && caster.heroRanks) ? (caster.heroRanks[aid] || 1) : 1;
+    // A cocoon isn't there the moment the spell fires: the moth has to finish
+    // its laying pose first, so the pouch is queued for the end of the hold.
+    if (ab.cocoon) {
+      if (!game.pendingSummons) game.pendingSummons = [];
+      game.pendingSummons.push({ casterId: caster.id, aid, at: time + hold, rank });
+      game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: caster.x, y: caster.y });
+      return hold;
+    }
     const animal = spawnSummon(game, caster, ab, p, rank);
     // Rise Dead / single skeletons are raised FROM a corpse: place there + consume
     if (aid === 'risedead' || aid === 'skeletonmelee' || aid === 'skeletonranged') {

@@ -109,6 +109,9 @@ export class Game {
     this.fireZones = []; // burning ground left by the Fireball upgrade
     this.pasteZones = []; // green Acid Paste puddles: {x,y,radius,amp,until,team} — amplify damage taken by enemies standing on them
     this.corpses = [];   // {x, y, until} — fresh bodies the Spirit Huntress can raise
+    // summons that appear only when the caster FINISHES its cast pose (the
+    // moth's cocoon): {casterId, aid, at, rank}, dropped by updateAbilities
+    this.pendingSummons = [];
     this.byId = new Map();
     this.events = []; // drained by the render layer
 
@@ -232,7 +235,28 @@ export class Game {
     // (that hold made heroes stand doing nothing whenever they had mana but
     // Holy Light / War Stomp was on cooldown or had no valid target).
     if (u.hero) return { ...s, caster: true, autoAttackBetween: true, abilities: u.heroAbilities || [] };
+    // An UNLOCK upgrade turns its unit into a caster (e.g. the moth only gets
+    // its mana pool once "Cocon" is bought), and makes sure the ability it
+    // unlocks is in the unit's list even if it wasn't ticked in admin.
+    const unlocked = this.casterUnlockFor(u.owner != null ? u.owner : u.team, u.type);
+    if (unlocked && !s.caster) {
+      const abilities = (s.abilities || []).includes(unlocked) ? s.abilities : [...(s.abilities || []), unlocked];
+      return { ...s, caster: true, abilities };
+    }
     return s;
+  }
+
+  // The ability id an active `unlock` upgrade grants this player's unit TYPE,
+  // or null. Owning such an upgrade is what makes the unit a caster.
+  casterUnlockFor(player, type) {
+    for (const id of this.upgrades[player]) {
+      if (!this.upgradeActive(player, id)) continue;
+      const up = resolvedUpgrade(id);
+      if (!up || up.kind !== 'unlock' || !up.unlocks || up.unit !== type) continue;
+      if (up.race && up.race !== this.races[player]) continue;
+      return up.unlocks;
+    }
+    return null;
   }
 
   // Resolved building stats for a team, per its race.
