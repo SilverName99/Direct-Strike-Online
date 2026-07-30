@@ -12,6 +12,7 @@
 // Pure UI: every mutation goes through game.issueCommand.
 
 import { CONFIG } from '../config.js';
+import { cellKeyLabel } from './hotkeys.js';
 import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS, ABILITY_UNLOCK_UPGRADE } from '../upgrades.js';
 import {
@@ -32,21 +33,21 @@ function isActiveAbility(aid) {
 }
 
 const BUILDING_CARDS = [
-  { id: 'wall', hotkey: 'Z', role: 'Blochează unitățile terestre',
+  { id: 'wall', role: 'Blochează unitățile terestre',
     tip: 'Barieră ieftină — inamicii trebuie să o spargă sau să o ocolească. Zburătorii trec peste.' },
-  { id: 'tower', hotkey: 'X', role: 'Turn defensiv',
+  { id: 'tower', role: 'Turn defensiv',
     tip: 'Trage în sol și aer. Apără zona de construcție.' },
-  { id: 'generator', hotkey: 'C', role: 'Clădire economică',
+  { id: 'generator', role: 'Clădire economică',
     tip: 'Fiecare adaugă aur în plus la fiecare 20s. Poate fi distrus — protejează-ți economia!' },
-  { id: 'bldg1', hotkey: 'V', role: 'Deblochează unități',
+  { id: 'bldg1', role: 'Deblochează unități',
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
-  { id: 'bldg2', hotkey: 'B', role: 'Deblochează unități',
+  { id: 'bldg2', role: 'Deblochează unități',
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
-  { id: 'bldg3', hotkey: 'N', role: 'Deblochează unități',
+  { id: 'bldg3', role: 'Deblochează unități',
     tip: 'Construiește-o ca să poți cumpăra unitățile ei. Click pe ea pentru unități + upgrade-uri. Distrusă = pierzi accesul.' },
-  { id: 'farm', hotkey: 'M', role: 'Mărește food cap',
+  { id: 'farm', role: 'Mărește food cap',
     tip: 'Fiecare fermă crește plafonul de food, ca să poți plasa mai multe unități. Distrusă = pierzi plafonul (unitățile plasate rămân).' },
-  { id: 'herohall', hotkey: 'H', role: 'Recrutează eroi',
+  { id: 'herohall', role: 'Recrutează eroi',
     tip: 'Click pe ea ca să recrutezi eroi (până la 3). Al 2-lea erou se deblochează la tier 2, al 3-lea la tier 3. Distrusă = nu mai poți recruta (eroii plasați rămân).' },
 ];
 
@@ -731,9 +732,12 @@ export class BottomBar {
       ictx.scale(SS, SS); // drawing code stays in 46-unit space
       this.drawSlotIcon(ictx, data, game);
       // overlays
-      if (data.hotkey) {
+      // the hotkey belongs to the CELL (positional), so the badge always
+      // matches the key that fires it — whatever card happens to sit here
+      const keyTxt = cellKeyLabel(i);
+      if (keyTxt && keyTxt !== '—') {
         const k = document.createElement('span');
-        k.className = 's-key'; k.textContent = data.hotkey;
+        k.className = 's-key'; k.textContent = keyTxt;
         slot.el.appendChild(k);
       }
       if (data.cost != null) {
@@ -768,7 +772,6 @@ export class BottomBar {
       else auto.push(it);
     }
     for (let i = 0; i <= 8 && auto.length; i++) if (grid[i] == null) grid[i] = auto.shift();
-    for (let i = 0; i < 9; i++) if (grid[i]) grid[i].hotkey = String(i + 1);
     return grid;
   }
 
@@ -779,7 +782,7 @@ export class BottomBar {
     // laid out exactly like the unit cards in a tech building.
     const cards = BUILDING_CARDS.map((b) => {
       const bs = statsBuilding(race, b.id);
-      return { kind: 'building', id: b.id, cost: bs.cost, hotkey: b.hotkey,
+      return { kind: 'building', id: b.id, cost: bs.cost,
         slot: Number.isInteger(bs.slot) ? bs.slot : -1 };
     });
     const grid = new Array(9).fill(null);
@@ -1332,6 +1335,38 @@ export class BottomBar {
     m.classList.toggle('auto', mode === 'auto');
     m.classList.toggle('manual', mode === 'manual');
     m.classList.toggle('no', mode === 'off');
+  }
+
+  // A hotkey press on command-card cell `i` (0-8): replays exactly what a click
+  // on that cell does — same locks, same toggles, same commands. Silent when the
+  // cell is empty.
+  pressCell(i) {
+    const slot = this.slots[i];
+    if (!slot || !slot.data) return false;
+    this.clickSlot(slot.data, slot.el, 0);
+    return true;
+  }
+
+  // Sell from a hotkey: the same button the mouse would press, and only while
+  // it's actually offered (hidden = nothing sellable selected).
+  pressSell() {
+    const btn = document.getElementById('bb-sell');
+    if (!btn || btn.classList.contains('hidden')) return false;
+    btn.click();
+    return true;
+  }
+
+  // Switch the bottom bar's shop tab from a hotkey (same as clicking the tab).
+  pressTab(tab) {
+    if (!this.tabBtns[tab]) return false;
+    this.tab = tab;
+    this.mode = tab;
+    this.uiState.inspect = null; // a tab press leaves any selection panel
+    this.refreshTabs();
+    // rebuild the grid NOW: the cells are what the next hotkey will press, so
+    // they must not lag a frame behind the tab you just switched to
+    this.update(this.getGame());
+    return true;
   }
 
   clickSlot(d, el, button = 0) {

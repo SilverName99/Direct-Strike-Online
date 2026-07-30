@@ -1,8 +1,9 @@
 import { CONFIG } from '../config.js';
-import { UNITS, UNIT_IDS } from '../units.js';
+import { UNITS } from '../units.js';
 import { hitTestTemplate, visualRadiusOf } from '../render/renderer.js';
 import { snapToZone, zoneFor, armyZoneFor } from './grid.js';
 import { toast } from './pointer.js';
+import { actionForKey, cellForKey } from './hotkeys.js';
 
 const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
 
@@ -17,6 +18,7 @@ const BUILDING_IDS = ['wall', 'tower', 'generator', 'bldg1', 'bldg2', 'bldg3', '
 export class Input {
   constructor(canvas, renderer, camera, uiState, getGame) {
     this.canvas = canvas;
+    this.bar = null; // BottomBar, set by main.js — hotkeys press its grid cells
     this.renderer = renderer;
     this.camera = camera;
     this.uiState = uiState;
@@ -177,8 +179,14 @@ export class Input {
         this.keys.add(e.key);
         return;
       }
-      if (e.key === ' ') {
-        e.preventDefault();
+      // Everything else goes through the rebindable bindings. The nine command
+      // -card cells are POSITIONAL: a cell key does whatever sits in that cell
+      // right now, in whichever panel is open — so the badge on the card and the
+      // key that fires it can never drift apart.
+      const action = actionForKey(e.key);
+      if (!action) return;
+      e.preventDefault();
+      if (action === 'homeBase') {
         if (document.activeElement) document.activeElement.blur();
         // MY base — in team modes the player number isn't a side index
         const game = this.getGame();
@@ -186,34 +194,19 @@ export class Input {
         this.camera.centerOn(myMain ? myMain.x : CONFIG.MAIN.x[this.team % 2], CONFIG.MAIN.y);
         return;
       }
-      if (e.key === 'Escape') {
+      if (action === 'cancel') {
         this.uiState.selected = null;
         this.uiState.drag = null;
         this.uiState.inspect = null;
         this.uiState.movingBuilding = null;
         return;
       }
-      // hotkeys: 1-9 units, Z/X/C buildings, 0 base upgrade
-      if (e.key >= '1' && e.key <= '9') {
-        const id = UNIT_IDS[Number(e.key) - 1];
-        if (id) this.select(id);
-      } else if (e.key === '0') {
-        this.select('upgrade');
-      } else if (e.key === 'z' || e.key === 'Z') {
-        this.select('wall');
-      } else if (e.key === 'x' || e.key === 'X') {
-        this.select('tower');
-      } else if (e.key === 'c' || e.key === 'C') {
-        this.select('generator');
-      } else if (e.key === 'v' || e.key === 'V') {
-        this.select('bldg1');
-      } else if (e.key === 'b' || e.key === 'B') {
-        this.select('bldg2');
-      } else if (e.key === 'n' || e.key === 'N') {
-        this.select('bldg3');
-      } else if (e.key === 'm' || e.key === 'M') {
-        this.select('farm');
-      }
+      if (action === 'upgradeBase') { this.select('upgrade'); return; }
+      if (action === 'tabUnits') { if (this.bar) this.bar.pressTab('units'); return; }
+      if (action === 'tabBuildings') { if (this.bar) this.bar.pressTab('buildings'); return; }
+      if (action === 'sell') { if (this.bar) this.bar.pressSell(); return; }
+      const cell = cellForKey(e.key);
+      if (cell >= 0 && this.bar) this.bar.pressCell(cell);
     });
     document.addEventListener('keyup', (e) => this.keys.delete(e.key));
     window.addEventListener('blur', () => this.keys.clear());

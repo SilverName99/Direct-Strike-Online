@@ -1201,3 +1201,37 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
   color: #ffc960; font: 700 11px/1.6 "Segoe UI", system-ui, sans-serif; letter-spacing: 2px;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
+
+/* OPTIONS -> Taste: one row per rebindable action, grouped. */
+/* the Taste row stacks: label on top, the scrollable list under it, so the
+   options panel keeps its 420px column instead of spilling off-screen */
+.m-keys-row { flex-direction: column; align-items: stretch; gap: 8px; }
+.m-keys-row .m-label { white-space: normal; }
+.m-keys { display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow-y: auto; width: 100%; }
+.m-keys-g {
+  margin: 6px 0 2px; color: #ffd35c; font: 700 10px/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 2px; text-transform: uppercase;
+}
+.m-key-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  color: #cbd6e6; font: 400 13px/1.5 "Segoe UI", system-ui, sans-serif;
+}
+.m-key {
+  min-width: 62px; padding: 3px 10px; border-radius: 6px; cursor: pointer;
+  background: rgba(10, 14, 20, 0.7); border: 1px solid #3a4658; color: #ffe9a8;
+  font: 700 12px/1.4 ui-monospace, monospace; letter-spacing: 1px;
+}
+.m-key:hover { border-color: #ffd35c; color: #fff; }
+.m-key.live { border-color: #ffd35c; background: rgba(255, 211, 92, 0.18); color: #fff; }
+.m-mini {
+  padding: 5px 14px; border-radius: 7px; cursor: pointer;
+  background: rgba(10, 14, 20, 0.7); border: 1px solid #3a4658; color: #cbd6e6;
+  font: 700 12px/1.4 "Segoe UI", system-ui, sans-serif;
+}
+.m-mini:hover { border-color: #ffd35c; color: #fff; }
+
+/* Options rows with a long explanation under the title: let them WRAP inside
+   the 420px column instead of stretching the row off-screen (the labels are
+   nowrap by default, which was pushing the Testing switch out of the view). */
+.m-setup-opts .m-label { white-space: normal; }
+.m-setup-opts .m-sub { display: block; margin-top: 3px; line-height: 1.5; text-transform: none; letter-spacing: 0; }

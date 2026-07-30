@@ -17,6 +17,7 @@ import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
 import { teamLayout, applyModeLayout } from './sim/layout.js';
 import { setExtraBuildZones, setLocalZones } from './ui/grid.js';
+import { actionForKey } from './ui/hotkeys.js';
 
 const canvas = document.getElementById('game');
 const renderer = new Renderer(canvas);
@@ -60,6 +61,7 @@ const bottombar = new BottomBar(
   () => (state === 'playing' ? game : null),
   (id) => input.select(id) // shop slot clicks share the hotkey gating
 );
+input.bar = bottombar; // hotkeys press the command-card cells through the bar
 const pointer = new PointerManager(canvas);
 
 console.log(`Fangs & Honor ${VERSION}`);
@@ -145,7 +147,7 @@ applyUiScale();
 // (see PointerManager) and is toggleable from the menu's OPTIONS screen.
 document.addEventListener('keydown', (e) => {
   if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
-  if (e.key === 'f' || e.key === 'F') pointer.toggle();
+  if (actionForKey(e.key) === 'fullscreen') pointer.toggle();
   if (e.key === 'g' || e.key === 'G') { // toggle the AI debug overlay
     aiDebugOn = !aiDebugOn;
     aiDebugEl.style.display = aiDebugOn ? 'block' : 'none';

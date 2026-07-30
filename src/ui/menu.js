@@ -4,6 +4,7 @@
 
 import { CONFIG, RACES, VERSION } from '../config.js';
 import { getLoadingScreens, spritesReady } from '../render/sprites.js';
+import { HOTKEY_ACTIONS, hotkeyOf, keyLabel, setHotkey, resetHotkeys, loadHotkeys } from './hotkeys.js';
 
 // Player name: shown top-left in the menu, carried into the lobby and matches.
 // Persisted per browser; a themed default is rolled on the very first visit.
@@ -100,7 +101,7 @@ export class Menu {
     this.ensureMusic(); // first click unlocks + starts the menu music
     const gal = e.target.closest('[data-gallery]');
     if (gal) { this.cycleGallery(Number(gal.dataset.gallery)); return; }
-    const t = e.target.closest('[data-go],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp],[data-music],[data-lb]');
+    const t = e.target.closest('[data-go],[data-play],[data-tut],[data-tutgo],[data-opt-fs],[data-snd],[data-mp],[data-music],[data-lb],[data-key],#opt-keys-reset');
     if (!t || t.disabled) return;
     if (t.dataset.lb) { this.onLobbyClick(t); return; }
     if (t.dataset.music) { this.changeTrack(Number(t.dataset.music)); return; }
@@ -123,6 +124,8 @@ export class Menu {
       this.go(t.dataset.go);
       return;
     }
+    if (t.dataset.key) { this.startRebind(t.dataset.key); return; }
+    if (t.id === 'opt-keys-reset') { resetHotkeys(); this.rebinding = null; this.renderKeys(); return; }
     if (t.hasAttribute('data-play')) { this.play(); return; }
   }
 
@@ -525,6 +528,44 @@ export class Menu {
   }
 
   // reflect current settings in the Options screen
+  // OPTIONS -> Taste: one row per action, click a key to rebind it.
+  renderKeys() {
+    const box = this.el.querySelector('#opt-keys');
+    if (!box) return;
+    loadHotkeys();
+    let html = '';
+    let group = null;
+    for (const a of HOTKEY_ACTIONS) {
+      if (a.group !== group) { group = a.group; html += `<div class="m-keys-g">${esc(group)}</div>`; }
+      const live = this.rebinding === a.id;
+      html += `<div class="m-key-row"><span>${esc(a.label)}</span>`
+        + `<button class="m-key${live ? ' live' : ''}" data-key="${a.id}">`
+        + `${live ? 'apasă…' : esc(keyLabel(hotkeyOf(a.id)))}</button></div>`;
+    }
+    box.innerHTML = html;
+  }
+
+  // Click a key button -> the next keypress lands on that action.
+  startRebind(action) {
+    this.rebinding = action;
+    this.renderKeys();
+    if (this.rebindHandler) window.removeEventListener('keydown', this.rebindHandler, true);
+    this.rebindHandler = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.removeEventListener('keydown', this.rebindHandler, true);
+      this.rebindHandler = null;
+      const act = this.rebinding;
+      this.rebinding = null;
+      if (!act) return;
+      if (e.key === 'Escape') { this.renderKeys(); return; }        // cancel
+      if (e.key === 'Backspace') { setHotkey(act, ''); this.renderKeys(); return; } // unbind
+      setHotkey(act, e.key); // a key can only do one thing: the old owner loses it
+      this.renderKeys();
+    };
+    window.addEventListener('keydown', this.rebindHandler, true);
+  }
+
   syncOptions() {
     const m = this.el.querySelector('#opt-music');
     if (m) m.value = String(Math.round(this.musicVol * 100));
@@ -532,6 +573,8 @@ export class Menu {
     if (c && this.hooks.getCaptureMouse) c.checked = !!this.hooks.getCaptureMouse();
     const t = this.el.querySelector('#opt-testing');
     if (t) t.checked = !!this.testing;
+    this.rebinding = null;
+    this.renderKeys();
   }
   setMusicVol(v) {
     this.musicVol = Math.max(0, Math.min(1, v));
@@ -1033,6 +1076,10 @@ const TEMPLATE = `
         <label class="m-switch"><input type="checkbox" id="opt-capture"><span class="m-slider"></span></label></div>
       <div class="m-row"><span class="m-label">Testing<br><small class="m-sub">Aur, construcții, tier și valuri accelerate; eroii vin cu 6 nivele. Doar în meciurile offline — se debifează și totul revine la normal.</small></span>
         <label class="m-switch"><input type="checkbox" id="opt-testing"><span class="m-slider"></span></label></div>
+      <div class="m-row m-keys-row"><span class="m-label">Taste<br><small class="m-sub">Cele 9 căsuțe sunt pe POZIȚIE: tasta face ce e în căsuța aia, în orice panou. Click pe o tastă, apoi apasă noua tastă (Esc = renunți, Backspace = scoți tasta).</small></span>
+        <div class="m-keys" id="opt-keys"></div></div>
+      <div class="m-row"><span class="m-label"></span>
+        <button class="m-mini" id="opt-keys-reset">Resetează tastele</button></div>
     </div>
     <button class="m-back" data-go="main"><span class="m-back-txt">◄ Înapoi</span></button>
   </section>
