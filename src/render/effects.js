@@ -222,7 +222,10 @@ export class Effects {
       const anim = c.summonKind ? `${c.summonKind}-die`
         : c.beast && hasBeastAnim(c.type, art, 'die') ? 'beast-die'
         : c.dismounted && hasFootAnim(c.type, art, 'die') ? 'foot-die' : 'die';
-      const scale = (c.dismounted || c.beast) && c.footScale != null ? c.footScale : sizeOf(raceOf(art), c.type);
+      // A corpse that carries its own scale uses it: the on-foot rider, the
+      // split beast — and every SUMMON, whose sprites are hosted on the caster
+      // but whose size is its own (a larva must not die at the moth's size).
+      const scale = c.footScale != null ? c.footScale : sizeOf(raceOf(art), c.type);
       drawCharacter(ctx, c.type, anim, frame, art, scale);
       ctx.restore();
     }

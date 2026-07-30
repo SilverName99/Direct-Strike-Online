@@ -515,6 +515,7 @@ const menu = new Menu(document.getElementById('overlay'), {
 });
 window.__menu = menu; // debug/test handle (drive the entry menu in tests)
 window.__renderer = renderer; // debug/test handle (fog + layer state)
+window.__effects = effects;   // debug/test handle (corpses + particles)
 // seed the behind-the-menu preview with the default matchup
 setTeamRaces(['humans', 'orcs']);
 bottombar.refresh();
