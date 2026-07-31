@@ -909,8 +909,9 @@ export class Renderer {
     }
   }
 
-  // Soul Link (Death Knight ult): a glowing purple tether from the hero to each
-  // living linked ally, for as long as the bond holds.
+  // Soul Link (Death Knight ult): a glowing RED tether from the hero to each
+  // living linked ally, for as long as the bond holds — the blood he pushes
+  // into them, told apart at a glance from the purple Binding Blade strings.
   drawSoulLinks(ctx, game, alpha) {
     for (const u of game.entities) {
       if (u.hp <= 0 || !u.soulLinks || !u.soulLinks.length) continue;
@@ -919,7 +920,7 @@ export class Renderer {
         const a = game.byId.get(id);
         if (!a || a.hp <= 0) continue;
         const [x1, y1] = this._lerpXY(a, alpha);
-        this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(150,90,220,0.7)', '#cbaaff', '#6a3fb0', 2.4);
+        this.drawTendril(ctx, x0, y0, x1, y1, 'rgba(224,60,60,0.72)', '#ffb3ad', '#a01824', 2.4);
       }
     }
   }
