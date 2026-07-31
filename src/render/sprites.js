@@ -23,7 +23,8 @@ const backgrounds = new Map(); // race -> Image
 const backgrounds2 = new Map(); // race -> Image (corrupt "blight" overlay terrain)
 const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
 const musicUrls = new Map();   // race -> url of the uploaded background track
-const cursorUrls = new Map();  // race -> url of the uploaded custom mouse cursor
+const cursorUrls = new Map();
+const zoneIcons = new Map();  // `${race}/${which}` -> Image (army / build corner icon)  // race -> url of the uploaded custom mouse cursor
 const loadingUrls = new Map(); // race -> [urls] of the uploaded loading screens
 const uiIcons = new Map();     // GLOBAL command-card icons: 'ability-<id>' / 'upgrade-<id>' -> Image
 let corpseImg = null;          // GLOBAL raisable-corpse decal (Rise Dead), if uploaded
@@ -185,6 +186,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       for (const [race, file] of Object.entries(man.cursors || {})) {
         cursorUrls.set(race, `${base}${race}/${file}?v=${man.v || 0}`);
       }
+      // per-race ZONE corner icons (army / construction)
+      for (const [race, kinds] of Object.entries(man.zoneicons || {})) {
+        for (const [which, file] of Object.entries(kinds || {})) {
+          load(`${base}${race}/${file}?v=${man.v || 0}`, (img) => zoneIcons.set(`${race}/${which}`, img));
+        }
+      }
       // per-race loading screens (up to 5; one shown at random when that race
       // is chosen for a match)
       for (const [race, files] of Object.entries(man.loadings || {})) {
@@ -337,6 +344,11 @@ export function getMusicUrl(race) {
 // URL of the uploaded battle-ambience loop (global), or null.
 export function getBattleSfxUrl() {
   return battleSfxUrl;
+}
+
+// The uploaded corner icon for a race's army / construction zone, or null.
+export function getZoneIcon(race, which) {
+  return zoneIcons.get(`${race}/${which}`) || null;
 }
 
 // URL of the uploaded custom mouse-cursor image for a race, or null.

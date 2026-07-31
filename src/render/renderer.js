@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig } from './sprites.js';
+import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon } from './sprites.js';
 import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
 // Which PLAYER's art an object uses. Races are per-commander (lobby), so the
@@ -362,8 +362,9 @@ export class Renderer {
         const z = game.zones[p];
         if (!z.alive) continue;
         const side = game.players[p].side;
-        this.drawZonePlate(ctx, z.army, tints[side], 'ARMY', '⚔️', 0.05);
-        this.drawZonePlate(ctx, z.build, tints[side], 'CONSTRUCTION', '🔨', 0.10);
+        const zr = game.players[p].race;
+        this.drawZonePlate(ctx, z.army, tints[side], 'army', '⚔️', 0.05, zr);
+        this.drawZonePlate(ctx, z.build, tints[side], 'build', '🔨', 0.10, zr);
       }
       for (const side of [0, 1]) {
         const mz = game.midBuild && game.midBuild[side];
@@ -373,8 +374,8 @@ export class Renderer {
       for (const team of [0, 1]) {
         const cz = CONFIG.CONSTRUCTION_ZONE[team];
         const az = CONFIG.ARMY_ZONE[team];
-        this.drawZonePlate(ctx, az, tints[team], 'ARMY', '⚔️', 0.05);
-        this.drawZonePlate(ctx, cz, tints[team], 'CONSTRUCTION', '🔨', 0.10);
+        this.drawZonePlate(ctx, az, tints[team], 'army', '⚔️', 0.05, raceOf(team));
+        this.drawZonePlate(ctx, cz, tints[team], 'build', '🔨', 0.10, raceOf(team));
         // forward build pocket around the mid turret (same styling, no label)
         const mz = CONFIG.MID_BUILD_ZONE && CONFIG.MID_BUILD_ZONE[team];
         if (mz) this.drawZonePlate(ctx, mz, tints[team], null, null, 0.08);
@@ -397,7 +398,7 @@ export class Renderer {
   // caps) floating just ABOVE the zone. `tint` is a partial rgba prefix like
   // 'rgba(77, 166, 255,' — this appends the alpha. `topAlpha` is the fill
   // strength at the top edge (fades toward the bottom).
-  drawZonePlate(ctx, z, tint, label, icon, topAlpha) {
+  drawZonePlate(ctx, z, tint, kind, glyph, topAlpha, race) {
     const x = z.x0, y = z.y0, w = z.x1 - z.x0, h = z.y1 - z.y0;
     const r = Math.min(16, w / 2, h / 2);
     const rr = (rx, ry, rw, rh, rad) => {
@@ -417,33 +418,28 @@ export class Renderer {
     ctx.strokeStyle = `${tint} 0.30)`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    // centered label pill floating just above the top edge
-    if (label) {
-      const cx = x + w / 2;
-      ctx.font = '700 13px sans-serif';
-      const prevLS = ctx.letterSpacing;
-      ctx.letterSpacing = '3px';
+    // Corner mark: just an icon in the TOP-LEFT of the zone (no pill, no text).
+    // Each race uploads its own pair in admin; without an upload we fall back to
+    // the plain glyph so the zone is still readable.
+    if (!kind) return;
+    const size = Math.max(16, Number(CONFIG.ZONE_ICON_SIZE) || 64);
+    const pad = Math.max(2, Number(CONFIG.ZONE_ICON_PAD) || 10);
+    const img = race ? getZoneIcon(race, kind) : null;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(100, Number(CONFIG.ZONE_ICON_ALPHA ?? 85))) / 100;
+    if (img && img.width && img.height) {
+      // contain-fit into the square so a non-square upload keeps its proportions
+      const k = Math.min(size / img.width, size / img.height);
+      ctx.drawImage(img, x + pad, y + pad, img.width * k, img.height * k);
+    } else if (glyph) {
+      ctx.font = `${Math.round(size * 0.8)}px sans-serif`;
       ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      const txt = label;
-      const iconTxt = icon ? `${icon} ` : '';
-      const tw = ctx.measureText(iconTxt + txt).width;
-      const padX = 12, ph = 22;
-      const pw = tw + padX * 2;
-      const px = cx - pw / 2, py = y - 14; // pill center sits above the zone
-      rr(px, py - ph / 2, pw, ph, ph / 2);
-      ctx.fillStyle = 'rgba(8, 12, 18, 0.72)';
-      ctx.fill();
-      rr(px, py - ph / 2, pw, ph, ph / 2);
-      ctx.strokeStyle = `${tint} 0.5)`;
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.fillStyle = `${tint} 0.92)`;
-      ctx.fillText(iconTxt + txt, px + padX, py + 1);
-      ctx.letterSpacing = prevLS || '0px';
+      ctx.textBaseline = 'top';
+      ctx.fillText(glyph, x + pad, y + pad);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
     }
+    ctx.restore();
   }
 
   // Cover-fit a background image into a half of the field, clipped to it.

@@ -336,6 +336,13 @@ function portraitVidVariants(string $race, string $ent): array {
   return $v;
 }
 
+// Zone corner icons for a race: assets/units/<race>/zone-army.png and
+// zone-build.png — drawn in the top-left corner of the army / construction zone.
+const ZONE_ICONS = ['army' => 'Iconiță zonă ARMATĂ', 'build' => 'Iconiță zonă CONSTRUCȚIE'];
+function zoneIconFileFor(string $assetsDir, string $race, string $which): ?string {
+  return is_file("$assetsDir/$race/zone-$which.png") ? "zone-$which.png" : null;
+}
+
 // The uploaded custom-cursor file for a race (cursor.<ext>), or null.
 function cursorFileFor(string $assetsDir, string $race): ?string {
   foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/cursor.$e")) return "cursor.$e";
@@ -679,6 +686,7 @@ function regenManifest(string $assetsDir): void {
   $barovers = [];
   $baseupg = [];
   $portraitvids = [];
+  $zoneicons = [];
   $minevids = [];
   $towervids = [];
   foreach (RACES as $r) {
@@ -716,6 +724,11 @@ function regenManifest(string $assetsDir): void {
     if ($pv) $portraitvids[$r] = $pv;
     $cf = cursorFileFor($assetsDir, $r);
     if ($cf) $cursors[$r] = $cf;
+    $zi = [];
+    foreach (array_keys(ZONE_ICONS) as $which) {
+      if (zoneIconFileFor($assetsDir, $r, $which)) $zi[$which] = "zone-$which.png";
+    }
+    if ($zi) $zoneicons[$r] = (object)$zi;
     $t = [];
     foreach (array_keys(TAB_SLOTS) as $slot) {
       $tf = tabFileFor($assetsDir, $r, $slot);
@@ -747,7 +760,7 @@ function regenManifest(string $assetsDir): void {
   @mkdir($assetsDir, 0755, true);
   file_put_contents(
     "$assetsDir/manifest.json",
-    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'backgrounds2' => (object)$backgrounds2, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'battle' => $battle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'backgrounds2' => (object)$backgrounds2, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'zoneicons' => (object)$zoneicons, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'battle' => $battle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
   );
 }
 
@@ -845,6 +858,39 @@ if ($authed && $action === 'delete') {
 }
 
 // per-race background (shown on that side's half of the field)
+// per-race ZONE CORNER ICONS (army / construction), zone-<which>.png
+if ($authed && $action === 'uploadzoneicon') {
+  $which = $_POST['which'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !array_key_exists($which, ZONE_ICONS)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/zone-$which.png")) {
+        regenManifest($assetsDir);
+        $msg = "Iconiță zonă încărcată: $race / $which";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletezoneicon') {
+  $which = $_POST['which'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && array_key_exists($which, ZONE_ICONS)) {
+    @unlink("$assetsDir/$race/zone-$which.png");
+    regenManifest($assetsDir);
+    $msg = "Iconiță zonă ștearsă: $race / $which";
+  }
+}
 if ($authed && $action === 'uploadbg') {
   if (!checkCsrf() || !in_array($race, RACES, true)) {
     $err = 'Cerere invalidă.';
@@ -1849,6 +1895,35 @@ if ($authed && $action === 'deletebarover') {
           Arată unde cad baza, zona de unități și turela — pictează decorul aliniat, exportă la <b>3600×1920</b>.
         </div>
       </div>
+      <?php foreach (ZONE_ICONS as $which => $lbl): $zf = zoneIconFileFor($assetsDir, $race, $which); ?>
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c"><?= $lbl ?></span>
+        <div class="thumb" style="width:90px;height:90px;background:#0a0e14">
+          <?php if ($zf): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $zf ?>?t=<?= filemtime("$assetsDir/$race/$zf") ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadzoneicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="which" value="<?= $which ?>">
+          <label class="pick"><?= $zf ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($zf): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletezoneicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="which" value="<?= $which ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <div style="color:#7c8ba1;font-size:11px;max-width:150px;margin-top:6px;line-height:1.5">
+          PNG pătrat, fundal transparent. Apare în <b>colțul stânga-sus</b> al zonei, pe hartă.
+        </div>
+      </div>
+      <?php endforeach; ?>
       <div class="slot">
         <span class="lbl" style="color:#c58cff">Jumătatea <?= $race ?> 2 (corupt)</span>
         <div class="thumb" style="width:160px;height:90px">

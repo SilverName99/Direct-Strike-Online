@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v20.5';
+export const VERSION = 'v21.0';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -266,6 +266,13 @@ export const CONFIG = {
     heroPoints: 6,    // ...with this many talent points to spend
     heroUnlock: 0,    // ...and they're buyable this many seconds in (0 = right away)
   },
+
+  // Zone corner marks: only an icon, top-left inside each army / construction
+  // zone. Each race uploads its own pair in admin (Background block); without an
+  // upload the plain ⚔️ / 🔨 glyph stands in.
+  ZONE_ICON_SIZE: 64,  // drawn size in world units (contain-fit, keeps proportions)
+  ZONE_ICON_PAD: 10,   // inset from the zone's top-left corner
+  ZONE_ICON_ALPHA: 85, // % opacity
 
   // ---- Parked formation ("ghost" units in the army zone) -------------------
   // A placed unit stays visible in its cell. When the wave takes it away the
