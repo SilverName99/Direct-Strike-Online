@@ -494,6 +494,7 @@ function snapshot() {
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
     menuMusic: CONFIG.MENU_MUSIC || '',
     menuMusics: (Array.isArray(CONFIG.MENU_MUSICS) ? CONFIG.MENU_MUSICS : []).slice(0, 8).map((s) => s || ''),
+    menuMusicNames: (Array.isArray(CONFIG.MENU_MUSIC_NAMES) ? CONFIG.MENU_MUSIC_NAMES : []).slice(0, 8).map((s) => s || ''),
     menuMusicPrev: CONFIG.MENU_MUSIC_PREV || '',
     menuMusicNext: CONFIG.MENU_MUSIC_NEXT || '',
     menuMusicVol: CONFIG.MENU_MUSIC_VOL,
@@ -586,9 +587,19 @@ export function applyBalance(data) {
   // menu-music playlist (new). Migrate a legacy single track into slot 0 so old
   // configs keep playing; keep only non-empty entries.
   {
-    const list = Array.isArray(data.menuMusics) ? data.menuMusics.filter((s) => typeof s === 'string' && s) : [];
-    if (!list.length && CONFIG.MENU_MUSIC) list.push(CONFIG.MENU_MUSIC);
+    // names ride ALONGSIDE the tracks, so they must be paired BEFORE the empty
+    // slots are dropped — otherwise a hole in the middle shifts every name.
+    const raw = Array.isArray(data.menuMusics) ? data.menuMusics : [];
+    const rawNames = Array.isArray(data.menuMusicNames) ? data.menuMusicNames : [];
+    const list = [], names = [];
+    raw.forEach((src, i) => {
+      if (typeof src !== 'string' || !src) return;
+      list.push(src);
+      names.push(typeof rawNames[i] === 'string' ? rawNames[i] : '');
+    });
+    if (!list.length && CONFIG.MENU_MUSIC) { list.push(CONFIG.MENU_MUSIC); names.push(''); }
     CONFIG.MENU_MUSICS = list;
+    CONFIG.MENU_MUSIC_NAMES = names;
   }
   CONFIG.MENU_MUSIC_PREV = typeof data.menuMusicPrev === 'string' ? data.menuMusicPrev : '';
   CONFIG.MENU_MUSIC_NEXT = typeof data.menuMusicNext === 'string' ? data.menuMusicNext : '';
@@ -842,6 +853,7 @@ export function importBalance(data) {
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepMenuMusicVol = CONFIG.MENU_MUSIC_VOL, keepTips = CONFIG.LOADING_TIPS;
   const keepMenuMusics = CONFIG.MENU_MUSICS, keepMenuMusicPrev = CONFIG.MENU_MUSIC_PREV, keepMenuMusicNext = CONFIG.MENU_MUSIC_NEXT;
+  const keepMenuMusicNames = CONFIG.MENU_MUSIC_NAMES;
   const keepTutorials = CONFIG.TUTORIALS;
   applyBalance(data);
   if (typeof data.goldIcon !== 'string' || !data.goldIcon) CONFIG.GOLD_ICON = keepGoldIcon;
@@ -864,6 +876,7 @@ export function importBalance(data) {
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) { CONFIG.MENU_MUSIC = keepMenuMusic; CONFIG.MENU_MUSIC_VOL = keepMenuMusicVol; }
   if (!Array.isArray(data.menuMusics) || !data.menuMusics.some((s) => typeof s === 'string' && s)) {
     if (Array.isArray(keepMenuMusics) && keepMenuMusics.length) CONFIG.MENU_MUSICS = keepMenuMusics;
+    if (Array.isArray(keepMenuMusicNames) && keepMenuMusicNames.length) CONFIG.MENU_MUSIC_NAMES = keepMenuMusicNames;
   }
   if (typeof data.menuMusicPrev !== 'string' || !data.menuMusicPrev) CONFIG.MENU_MUSIC_PREV = keepMenuMusicPrev;
   if (typeof data.menuMusicNext !== 'string' || !data.menuMusicNext) CONFIG.MENU_MUSIC_NEXT = keepMenuMusicNext;

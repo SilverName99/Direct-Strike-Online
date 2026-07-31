@@ -816,7 +816,15 @@ html, body {
   color: var(--gold, #ffd35c); font: 700 15px/1.2 inherit; letter-spacing: 0.5px;
 }
 #menu-name input:focus { outline: none; border-bottom-color: #ffd35c; background: rgba(255, 211, 92, 0.07); }
-#menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; align-items: center; gap: 10px; }
+/* the track title sits on its own line ABOVE the music controls */
+#menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+#menu-sound-row { display: flex; align-items: center; gap: 10px; }
+#music-title {
+  max-width: 340px; text-align: right;
+  color: #ffd769; font: 700 12px/1.4 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 #menu-sound .snd-range { width: 120px; }
 
 /* ---- setup PLAY button skin (shown at the natural size of the art) ---- */

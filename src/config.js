@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v20.2';
+export const VERSION = 'v20.3';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -98,6 +98,7 @@ export const CONFIG = {
   MENU_MUSICS: [],      // main-menu music playlist (data URLs, loop each); prev/next arrows switch
   MENU_MUSIC_PREV: '',  // skin for the menu-music "previous track" arrow; '' = ‹ glyph
   MENU_MUSIC_NEXT: '',  // skin for the menu-music "next track" arrow; '' = › glyph
+  MENU_MUSIC_NAMES: [], // names for the playlist above, index by index (shown over the menu music controls)
   MENU_MUSIC_VOL: 50,   // starting volume of the menu music (0-100); the player can change it live
   NET_URL: '',          // multiplayer server WebSocket URL; '' = auto (play.fangs-and-honor.com, or localhost in dev)
   LOADING_TIPS: [],     // custom loading-screen tips (strings); empty = built-in tips

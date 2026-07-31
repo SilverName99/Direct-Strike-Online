@@ -122,11 +122,11 @@ function render() {
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
-    ${uploaderRow('menumusic0', 'Muzică meniu 1', 'audio (mp3/ogg), se repetă', 'audio')}
-    ${uploaderRow('menumusic1', 'Muzică meniu 2', 'audio (mp3/ogg) — schimbi din meniu cu săgețile', 'audio')}
-    ${uploaderRow('menumusic2', 'Muzică meniu 3', 'audio (mp3/ogg) — opțional', 'audio')}
-    ${uploaderRow('menumusic3', 'Muzică meniu 4', 'audio (mp3/ogg) — opțional', 'audio')}
-    ${uploaderRow('menumusic4', 'Muzică meniu 5', 'audio (mp3/ogg) — opțional', 'audio')}
+    ${uploaderRow('menumusic0', 'Muzică meniu 1', 'audio (mp3/ogg), se repetă', 'audio', 0)}
+    ${uploaderRow('menumusic1', 'Muzică meniu 2', 'audio (mp3/ogg) — schimbi din meniu cu săgețile', 'audio', 1)}
+    ${uploaderRow('menumusic2', 'Muzică meniu 3', 'audio (mp3/ogg) — opțional', 'audio', 2)}
+    ${uploaderRow('menumusic3', 'Muzică meniu 4', 'audio (mp3/ogg) — opțional', 'audio', 3)}
+    ${uploaderRow('menumusic4', 'Muzică meniu 5', 'audio (mp3/ogg) — opțional', 'audio', 4)}
     ${uploaderRow('menumusicprev', 'Design săgeată „‹” (melodia anterioară)', 'PNG pătrat — apare în meniu la 2+ melodii')}
     ${uploaderRow('menumusicnext', 'Design săgeată „›” (melodia următoare)', 'PNG pătrat — apare în meniu la 2+ melodii')}
     <div class="fields" style="margin:-4px 0 8px"><label class="fld"><span>Volum start muzică meniu (0-100)</span>
@@ -162,7 +162,10 @@ function render() {
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);
-  for (let i = 0; i < 5; i++) wireAsset('MENU_MUSICS', `menumusic${i}`, 'audio', 6 * 1024 * 1024, i);
+  for (let i = 0; i < 5; i++) {
+    wireAsset('MENU_MUSICS', `menumusic${i}`, 'audio', 6 * 1024 * 1024, i);
+    wireTrackName(`menumusic${i}`, i);
+  }
   wireAsset('MENU_MUSIC_PREV', 'menumusicprev', 'image', 1 * 1024 * 1024);
   wireAsset('MENU_MUSIC_NEXT', 'menumusicnext', 'image', 1 * 1024 * 1024);
   wireTips();
@@ -256,7 +259,7 @@ function wireTutorials(wrap) {
 }
 
 // build one uploader row (image or audio) for the Meniu & Loading group
-function uploaderRow(slug, label, hint, kind = 'image') {
+function uploaderRow(slug, label, hint, kind = 'image', nameIdx = null) {
   const box = kind === 'audio' ? 'width:120px;height:44px' : 'width:120px;height:64px';
   return `<div style="margin-bottom:12px">
     <div style="color:#b9c4d4;font-size:13px;margin-bottom:6px">${label} <span style="color:#7c8ba1">— ${hint}</span></div>
@@ -265,6 +268,8 @@ function uploaderRow(slug, label, hint, kind = 'image') {
       <button type="button" id="${slug}-pick" style="padding:8px 14px;background:#1d2c42;color:#dfe8f4;border:1px solid #33507a;border-radius:8px;cursor:pointer">Alege…</button>
       <button type="button" id="${slug}-clear" style="padding:8px 14px;background:#26140f;color:#f0d6cc;border:1px solid #5a3a2e;border-radius:8px;cursor:pointer">Fără</button>
       <input type="file" id="${slug}-file" accept="${kind === 'audio' ? 'audio/*' : 'image/*'}" style="display:none">
+      ${nameIdx == null ? '' : `<label class="fld" style="flex:1;min-width:200px"><span>Numele melodiei (apare în meniu)</span>
+        <input type="text" id="${slug}-name" maxlength="48" placeholder="ex. Marșul Hoardei"></label>`}
     </div></div>`;
 }
 // read/write a config asset — a plain string key, or one slot of an array key
@@ -301,6 +306,19 @@ function wireAsset(key, slug, kind, max, index = null) {
     rd.readAsDataURL(f); file.value = '';
   });
 }
+// The display name of one playlist slot — shown over the menu's music controls.
+function wireTrackName(slug, index) {
+  const el = document.getElementById(`${slug}-name`);
+  if (!el) return;
+  if (!Array.isArray(CONFIG.MENU_MUSIC_NAMES)) CONFIG.MENU_MUSIC_NAMES = [];
+  el.value = CONFIG.MENU_MUSIC_NAMES[index] || '';
+  el.addEventListener('change', () => {
+    if (!Array.isArray(CONFIG.MENU_MUSIC_NAMES)) CONFIG.MENU_MUSIC_NAMES = [];
+    CONFIG.MENU_MUSIC_NAMES[index] = el.value.trim().slice(0, 48);
+    autoSaveGoldIcon('Nume melodie salvat');
+  });
+}
+
 function wireTips() {
   const ta = document.getElementById('tips-area');
   if (!ta) return;

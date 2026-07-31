@@ -678,6 +678,7 @@ export class Menu {
     const nextBtn = this.el.querySelector('#music-next');
     if (prevBtn) { prevBtn.classList.toggle('hidden', !multi); prevBtn.textContent = CONFIG.MENU_MUSIC_PREV ? '' : '‹'; }
     if (nextBtn) { nextBtn.classList.toggle('hidden', !multi); nextBtn.textContent = CONFIG.MENU_MUSIC_NEXT ? '' : '›'; }
+    this.refreshTrackTitle();
   }
 
   // logo + admin-uploaded backgrounds (menu / loading). Called once balance loads.
@@ -787,6 +788,24 @@ export class Menu {
     if (list.length) return list;
     return CONFIG.MENU_MUSIC ? [CONFIG.MENU_MUSIC] : [];
   }
+  // Name of the track now playing, from the admin playlist (index-matched).
+  currentTrackName() {
+    const names = Array.isArray(CONFIG.MENU_MUSIC_NAMES) ? CONFIG.MENU_MUSIC_NAMES : [];
+    const tracks = this.menuTracks();
+    if (!tracks.length) return '';
+    const i = (this.musicIndex >= 0 && this.musicIndex < tracks.length) ? this.musicIndex : 0;
+    return (typeof names[i] === 'string' ? names[i] : '').trim();
+  }
+
+  // Paint it above the music controls; an unnamed track simply shows nothing.
+  refreshTrackTitle() {
+    const el = this.el.querySelector('#music-title');
+    if (!el) return;
+    const name = this.currentTrackName();
+    el.textContent = name;
+    el.classList.toggle('hidden', !name);
+  }
+
   currentTrack() {
     const tracks = this.menuTracks();
     if (!tracks.length) return '';
@@ -798,6 +817,7 @@ export class Menu {
     const tracks = this.menuTracks();
     if (tracks.length < 2) return;
     this.musicIndex = (this.musicIndex + dir + tracks.length) % tracks.length;
+    this.refreshTrackTitle();
     this._musicOff = false;
     if (this.music) { try { this.music.pause(); } catch { /* ignore */ } this.music = null; }
     this.musicStarted = false;
@@ -974,10 +994,13 @@ const TEMPLATE = `
   <div id="menu-version" title="Versiunea jocului — toți jucătorii dintr-un meci trebuie s-o aibă pe aceeași"></div>
   <button id="menu-fs-corner" class="corner-btn fs-btn" title="Ecran complet" data-opt-fs>⛶</button>
   <div id="menu-sound">
-    <button id="music-prev" class="corner-btn music-arrow hidden" title="Melodia anterioară" data-music="-1">‹</button>
-    <button id="snd-btn" class="corner-btn snd-btn" title="Volum muzică (click = mute)" data-snd>🔊</button>
-    <button id="music-next" class="corner-btn music-arrow hidden" title="Melodia următoare" data-music="1">›</button>
-    <input type="range" id="snd-range" class="m-range snd-range" min="0" max="100" value="50">
+    <div id="music-title" class="hidden"></div>
+    <div id="menu-sound-row">
+      <button id="music-prev" class="corner-btn music-arrow hidden" title="Melodia anterioară" data-music="-1">‹</button>
+      <button id="snd-btn" class="corner-btn snd-btn" title="Volum muzică (click = mute)" data-snd>🔊</button>
+      <button id="music-next" class="corner-btn music-arrow hidden" title="Melodia următoare" data-music="1">›</button>
+      <input type="range" id="snd-range" class="m-range snd-range" min="0" max="100" value="50">
+    </div>
   </div>
 
   <section class="m-screen" data-screen="main">
