@@ -89,8 +89,8 @@ Client → server: `hello{name,version}`, `quickmatch{race}`, `create{race,priva
 `join{code,race}`, `rooms`, `cmd{cmd}`, `checksum{tick,sum}`, `leave`, `ping`,
 plus the lobby: `lobby_race{race}`, `lobby_ready{ready}`, `lobby_chat{text}`,
 `lobby_slot{side,depth,kind,difficulty,race}`, `lobby_kick{id}`,
-`lobby_move{fromSide,fromDepth,toSide,toDepth}`, `lobby_swap_req{id}`,
-`lobby_swap_reply{id,accept}`, `lobby_start`.
+`lobby_move{fromSide,fromDepth,toSide,toDepth}`, `lobby_seat{side,depth}`,
+`lobby_swap_req{id}`, `lobby_swap_reply{id,accept}`, `lobby_start`.
 Server → client: `welcome{id}`, `queued`, `room{code}`, `lobby{room}`,
 `roomlist{rooms}` (public rooms with a free seat: code, host, players, bots, max),
 `swap_req{from,name}`, `swap_declined{name}`, `kicked`, `start{seed,youAre,
@@ -112,9 +112,16 @@ disagree. The room's build (the host's) and each player's build travel in the
 A room is a persistent WC3-style lobby: two sides × 3 slots, each `open`,
 `closed`, a `bot` or a seated player. The host owns the slot layout (open /
 close / seat a bot / move a bot / kick); every player owns their own race and
-ready flag. Two humans trade seats only by asking (`lobby_swap_req` → the other
-answers `lobby_swap_reply`). `lobby_start` is host-only and refused unless every
-seated human is ready and both sides have someone.
+ready flag. Any player (the host included) walks onto an EMPTY seat by himself
+with `lobby_seat` — either side, no permission needed, since nobody is being
+displaced; an occupied seat answers `error{reason:'slot-taken'}`. Two humans
+trade seats only by asking (`lobby_swap_req` → the other answers
+`lobby_swap_reply`). `lobby_start` is host-only and refused unless every seated
+human is ready and both sides have someone.
+
+An older server simply ignores `lobby_seat` (no error comes back), so the client
+watches for the seat change and writes a "restart the room's server" line into
+the room log if it never arrives.
 
 ### From the roster to the match
 
