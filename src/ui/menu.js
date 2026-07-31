@@ -225,9 +225,34 @@ export class Menu {
     const input = this.el.querySelector('#lb-input');
     if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); this.lobbySay(); } });
   }
+  // "Move me to that seat" is a message the room's SERVER has to know. An older
+  // server silently ignores anything it doesn't recognise — no error comes back,
+  // so the arrow looks broken. Watch the seat we asked for and say it out loud.
+  watchSeat(side, depth) {
+    clearTimeout(this.seatTimer);
+    this.seatWant = { side, depth };
+    this.seatTimer = setTimeout(() => {
+      if (!this.seatWant) return;
+      this.seatWant = null;
+      this.lobbyNote('Serverul camerei nu cunoaște mutarea pe alt loc — rulează o versiune mai veche și trebuie repornit.');
+    }, 1800);
+  }
+  // a client-side line in the room log (never sent to anyone)
+  lobbyNote(text) {
+    if (!this.lobby) return;
+    (this.lobby.chat || (this.lobby.chat = [])).push({ from: null, text });
+    this.renderLobby();
+  }
   showLobby(room, myId) {
     this.lobby = room;
     this.myId = myId;
+    // the seat change we asked for landed — stop watching for it
+    if (this.seatWant) {
+      const m = this.mySlot();
+      if (m && m.side === this.seatWant.side && m.depth === this.seatWant.depth) {
+        this.seatWant = null; clearTimeout(this.seatTimer);
+      }
+    }
     if (this.el.querySelector('.m-screen[data-screen="lobby"]').classList.contains('hidden')) this.go('lobby');
     this.renderLobby();
   }
@@ -331,7 +356,10 @@ export class Menu {
       case 'slot': send({ action: 'slot', side: +d.s, depth: +d.d, kind: d.k, race: d.r }); return;
       case 'diff': send({ action: 'slot', side: +d.s, depth: +d.d, kind: 'bot', difficulty: d.df, race: d.r }); return;
       case 'move': send({ action: 'move', fromSide: +d.s, fromDepth: +d.d, toSide: +d.ts, toDepth: +d.td }); return;
-      case 'seat': send({ action: 'seat', side: +d.s, depth: +d.d }); return;
+      case 'seat':
+        send({ action: 'seat', side: +d.s, depth: +d.d });
+        if (!this.local) this.watchSeat(+d.s, +d.d);
+        return;
       case 'kick': send({ action: 'kick', id: +d.id }); return;
       case 'swap': send({ action: 'swapReq', id: +d.id }); return;
       case 'swapyes': this.hideSwapAsk(); send({ action: 'swapReply', id: +d.id, accept: true }); return;
