@@ -84,7 +84,10 @@ export function updateMovement(game, dt) {
 
   for (const u of game.entities) {
     u.x = clamp(u.x, 12, CONFIG.FIELD_W - 12);
-    u.y = clamp(u.y, 12, CONFIG.FIELD_H - 12);
+    // the sim lives in the LANE; the extra ground at the bottom of the map is
+    // scenery, so nothing may wander into it (and the sim stays bit-identical
+    // to before the map grew)
+    u.y = clamp(u.y, 12, (CONFIG.LANE_H || CONFIG.FIELD_H) - 12);
   }
 }
 

@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v21.0';
+export const VERSION = 'v21.1';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -15,9 +15,12 @@ export const CONFIG = {
   // Battlefield (simulation units) — larger than the screen; an RTS
   // camera (edge-scroll / arrows / zoom / minimap) shows a window of it.
   FIELD_W: 4080,
-  // Height hugs the play content (a 20-cell band + 2-cell margins): the
-  // camera's fit-zoom fills the screen with map and the UI bar overlays it.
-  FIELD_H: 960,
+  // Height: the PLAYABLE lane still ends at LANE_H — everything above (bases,
+  // zones, turrets, the lane the units walk in) is unchanged. FIELD_H is taller
+  // than that, and the difference is a purely decorative apron along the BOTTOM
+  // edge: more ground to look at, nothing to build or fight on.
+  FIELD_H: 1120,
+  LANE_H: 960,  // the sim's world height (units are clamped to this, not FIELD_H)
 
   // Each side's quadrant is a real base, split in two grid-aligned parts:
   //   [construction zone: main base + buildings][army zone: unit formation]
@@ -314,7 +317,7 @@ export const CONFIG = {
     KEY_SPEED: 1100,   // arrows / WASD
     ZOOM_MAX: 4,       // max zoom = fit-the-map zoom × this (close enough to enjoy the characters)
     ZOOM_STEP: 1.15,   // wheel notch multiplier
-    START_ZOOM: 1.4,   // initial zoom = fit zoom × this (comfortable close-up)
+    START_ZOOM: 1.63,  // initial zoom = fit zoom × this (comfortable close-up; raised with FIELD_H so the opening view keeps its old scale)
     // (no BOTTOM_PAD / ZOOM_OUT: the camera never leaves the map — max
     // zoom-out is exactly the fit, and there is no extra space below)
   },

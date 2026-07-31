@@ -1,19 +1,20 @@
 // Downloadable design guide for a race's HALF-of-the-field background. It draws
 // the play zones (base/construction, army/units, mid turret pocket, main base
 // and starting turret) at their real sim coordinates so uploaded map art can be
-// aligned to them. Exported at 2× → 3600×1920, matching the recommended
-// background resolution (the half is 1800×960 sim units).
+// aligned to them. Exported at 2× the half's size in sim units, so it always
+// matches the recommended background resolution — including the decorative
+// apron along the bottom (FIELD_H is taller than the playable lane).
 //
 // All positions come straight from CONFIG (team 0 / left half), so this stays
 // in sync with the actual battlefield layout.
 
 import { CONFIG } from '../config.js';
 
-const SCALE = 2; // half is 1800×960; 2× = 3600×1920 (the recommended bg size)
+const SCALE = 2; // 2× the half in sim units (1v1: 2040×1120 → 4080×2240)
 
 export function renderMapTemplate() {
   const W = CONFIG.FIELD_W / 2;   // 1800 — one race's half
-  const H = CONFIG.FIELD_H;       // 960
+  const H = CONFIG.FIELD_H;       // the FULL height, apron included
   const cv = document.createElement('canvas');
   cv.width = W * SCALE;
   cv.height = H * SCALE;
