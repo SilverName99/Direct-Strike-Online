@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v21.1';
+export const VERSION = 'v21.2';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -274,7 +274,10 @@ export const CONFIG = {
   // zone. Each race uploads its own pair in admin (Background block); without an
   // upload the plain ⚔️ / 🔨 glyph stands in.
   ZONE_ICON_SIZE: 64,  // drawn size in world units (contain-fit, keeps proportions)
-  ZONE_ICON_PAD: 10,   // inset from the zone's top-left corner
+  // Offset from the zone's top-left corner. BOTH may be negative, which pushes
+  // the icon OUTSIDE the zone — e.g. Y = -74 floats it just above the top edge.
+  ZONE_ICON_X: 10,
+  ZONE_ICON_Y: -74,
   ZONE_ICON_ALPHA: 85, // % opacity
 
   // ---- Parked formation ("ghost" units in the army zone) -------------------

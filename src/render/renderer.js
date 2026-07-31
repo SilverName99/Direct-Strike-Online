@@ -423,19 +423,22 @@ export class Renderer {
     // the plain glyph so the zone is still readable.
     if (!kind) return;
     const size = Math.max(16, Number(CONFIG.ZONE_ICON_SIZE) || 64);
-    const pad = Math.max(2, Number(CONFIG.ZONE_ICON_PAD) || 10);
+    // NOT clamped: a negative offset is the point — it lifts the icon out of the
+    // zone (Y) or pushes it past the left edge (X)
+    const ox = Number.isFinite(Number(CONFIG.ZONE_ICON_X)) ? Number(CONFIG.ZONE_ICON_X) : 10;
+    const oy = Number.isFinite(Number(CONFIG.ZONE_ICON_Y)) ? Number(CONFIG.ZONE_ICON_Y) : -74;
     const img = race ? getZoneIcon(race, kind) : null;
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(100, Number(CONFIG.ZONE_ICON_ALPHA ?? 85))) / 100;
     if (img && img.width && img.height) {
       // contain-fit into the square so a non-square upload keeps its proportions
       const k = Math.min(size / img.width, size / img.height);
-      ctx.drawImage(img, x + pad, y + pad, img.width * k, img.height * k);
+      ctx.drawImage(img, x + ox, y + oy, img.width * k, img.height * k);
     } else if (glyph) {
       ctx.font = `${Math.round(size * 0.8)}px sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(glyph, x + pad, y + pad);
+      ctx.fillText(glyph, x + ox, y + oy);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
     }
