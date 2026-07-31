@@ -223,6 +223,17 @@ console.log('soul collector');
     const other = spawnUnit(g, 0, resolvedHeroIds(race)[0], 1100, MID_Y);
     check('a normal hero still spawns with a full pool', other.manaMax === 0 || other.mana === other.manaMax,
       `${other.mana}/${other.manaMax}`);
+    // the wave is the REAL spawn path: it must not hand him a full bar either
+    const g2 = new Game(78, { races: [race, 'humans'] });
+    g2.templates[0].push({ type: heroId, x: 400, y: MID_Y, hero: true, level: 3, ranks: {} });
+    g2.templates[0].push({ type: resolvedHeroIds(race)[0], x: 460, y: MID_Y, hero: true, level: 3, ranks: {} });
+    spawnWave(g2);
+    const wh = g2.entities.find((e) => e.type === heroId);
+    const wo = g2.entities.find((e) => e.type === resolvedHeroIds(race)[0]);
+    check('the wave respawns the soul hero empty', !!wh && wh.mana === 0 && wh.manaMax > 0,
+      wh ? `${wh.mana}/${wh.manaMax}` : 'none');
+    check('the wave still fills a normal hero', !!wo && (wo.manaMax === 0 || wo.mana === wo.manaMax),
+      wo ? `${wo.mana}/${wo.manaMax}` : 'none');
   }
 
   // without a point: 1 soul per death

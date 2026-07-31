@@ -1,5 +1,5 @@
 import { CONFIG } from '../config.js';
-import { spawnUnit } from './entity.js';
+import { spawnUnit, usesSouls } from './entity.js';
 
 // Every wave, each PLAYER's full placed template list respawns as live units
 // (owner = the player, team = their battlefield side; 1v1: identical).
@@ -23,7 +23,9 @@ export function spawnWave(game) {
         u.maxHp += (u.heroLevel - 1) * (s.hpPerLevel || 0);
         u.hp = u.maxHp;
         u.manaMax = (s.mana || 0) + (u.heroLevel - 1) * (s.manaPerLevel || 0);
-        u.mana = u.manaMax; // respawns with a full pool at its level
+        // respawns with a full pool at its level — EXCEPT the soul hero, whose
+        // bar is earned from the dying and so must come back empty
+        u.mana = usesSouls(game.races[player], tpl.type) ? 0 : u.manaMax;
         game.syncHeroEntity(player, tpl.type); // learned abilities/ranks onto the fresh hero
       }
       tpl.spawned = true; // once spawned, selling only gives the partial refund

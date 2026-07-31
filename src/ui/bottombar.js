@@ -21,8 +21,9 @@ import {
 } from './balance.js';
 import { raceOf, sideOfPlayer, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
-import { TEAM_COLORS, drawShape , isSoulHero } from '../render/renderer.js';
+import { TEAM_COLORS, drawShape } from '../render/renderer.js';
 import { effStats } from '../sim/combat.js';
+import { usesSouls } from '../sim/entity.js';
 
 // A hero ability the player can actively use (cast / summon), as opposed to a
 // passive/aura that's always on. Only active ones get Manual mode + the
@@ -534,13 +535,18 @@ export class BottomBar {
     }
 
     // live numbers
+    // the Undead soul hero spends SOULS, not mana: same bar, its own colour and
+    // label — and it is EARNED, so a template preview shows it empty too
+    const soulKit = !isStruct && usesSouls(game.races[info.team], info.type);
     let hp; let maxHp; let mana = 0; let manaMax = 0;
     if (info.kind === 'entity') {
       hp = info.u.hp; maxHp = info.u.maxHp; mana = info.u.mana || 0; manaMax = info.u.manaMax || 0;
     } else if (isStruct) {
       hp = info.s.hp; maxHp = info.s.maxHp;
     } else {
-      hp = maxHp = stats.hp; mana = manaMax = stats.caster ? stats.mana : 0;
+      hp = maxHp = stats.hp;
+      manaMax = stats.caster ? stats.mana : 0;
+      mana = soulKit ? 0 : manaMax;
     }
 
     const rows = [];
@@ -587,8 +593,7 @@ export class BottomBar {
       }
     }
 
-    // the Undead soul hero spends SOULS, not mana: same bar, green, own label
-    const soulBar = info.kind === 'entity' && isSoulHero(game, info.u);
+    const soulBar = soulKit;
     const manaBar = manaMax > 0
       ? `<div class="d-bar${soulBar ? ' souls' : ''}"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${soulBar ? 'Suflete ' : ''}${Math.floor(mana)} / ${manaMax}</span></div>`
       : '';
