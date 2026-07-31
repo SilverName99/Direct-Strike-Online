@@ -1029,6 +1029,9 @@ html, body {
 }
 .lb-mini:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
 .lb-mini.bad:hover { background: rgba(255, 85, 102, 0.25); border-color: #ff5566; }
+/* "move myself here": the one control on an empty seat that everyone gets */
+.lb-mini.go { color: var(--gold); border-color: rgba(233, 197, 101, 0.35); }
+.lb-mini.go:hover { background: rgba(233, 197, 101, 0.22); border-color: var(--gold); color: #fff; }
 .lb-chat { display: flex; flex-direction: column; gap: 6px; }
 .lb-log {
   height: 118px; overflow-y: auto; text-align: left; padding: 8px 10px; border-radius: 10px;

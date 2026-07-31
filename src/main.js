@@ -443,6 +443,7 @@ function lobbyAction(a) {
     case 'say': net.lobbyChat(a.text); break;
     case 'slot': net.lobbySlot(a.side, a.depth, a.kind, { difficulty: a.difficulty, race: a.race }); break;
     case 'move': net.lobbyMove(a.fromSide, a.fromDepth, a.toSide, a.toDepth); break;
+    case 'seat': net.lobbySeat(a.side, a.depth); break;
     case 'kick': net.lobbyKick(a.id); break;
     case 'swapReq': net.lobbySwapReq(a.id); break;
     case 'swapReply': net.lobbySwapReply(a.id, a.accept); break;

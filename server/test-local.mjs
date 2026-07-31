@@ -108,6 +108,24 @@ say(g, { t: 'lobby_slot', side: 0, depth: 2, kind: 'closed' });
 await sleep(120);
 ok(!h.byType.lobby.length, 'a non-host cannot change slots');
 
+// a player walks over to a FREE seat in the OTHER camp — no host, no asking
+h.byType.lobby = [];
+say(g, { t: 'lobby_seat', side: 1, depth: 2 });
+lob = await waitFor(h, 'lobby');
+const moved = lob.room.slots.flat().find((sl) => sl.name === 'Guest');
+ok(moved && moved.side === 1 && moved.depth === 2, `a player moves himself to the other camp (${moved && moved.side}/${moved && moved.depth})`);
+ok(lob.room.slots[0][1].kind === 'open', 'the seat he left goes free again');
+ok(moved && moved.race === 'orcs', 'he keeps the race he picked');
+// an occupied seat is refused (that is what the swap request is for)
+g.byType.error = [];
+say(g, { t: 'lobby_seat', side: 0, depth: 0 });
+const seatErr = await waitFor(g, 'error');
+ok(seatErr && seatErr.reason === 'slot-taken', 'a taken seat is refused');
+// and back, so the rest of the test keeps its 1v1 shape
+h.byType.lobby = [];
+say(g, { t: 'lobby_seat', side: 0, depth: 1 });
+await waitFor(h, 'lobby');
+
 // chat reaches everyone
 h.byType.lobby = [];
 say(g, { t: 'lobby_chat', text: 'salut!' });

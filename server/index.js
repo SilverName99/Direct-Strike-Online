@@ -494,6 +494,22 @@ function onMessage(conn, raw) {
       return;
     }
 
+    case 'lobby_seat': {           // ANY player: take a FREE seat yourself
+      // Moving into empty ground needs nobody's permission — that's what makes
+      // it different from a swap (which asks the other player) and from
+      // lobby_move (host-only, and it refuses to touch human seats).
+      const room = conn.room; if (!room) return;
+      const to = room.slots[msg.side ? 1 : 0][Math.max(0, Math.min(MAX_PER_SIDE - 1, msg.depth | 0))];
+      const from = room.findSlot(conn.id);
+      if (!from || !to || from === to) return;
+      if (to.kind !== SLOT_OPEN) return err(conn, 'slot-taken');
+      to.kind = 'player'; to.connId = from.connId; to.race = from.race; to.ready = from.ready; to.bot = false;
+      from.kind = SLOT_OPEN; from.connId = null; from.bot = false; from.ready = false;
+      if (from.side !== to.side) room.say(`${conn.name} a trecut în tabăra ${to.side + 1}`);
+      room.broadcast();
+      return;
+    }
+
     // players swap seats by ASKING each other (the target must accept)
     case 'lobby_swap_req': {
       const room = conn.room; if (!room) return;

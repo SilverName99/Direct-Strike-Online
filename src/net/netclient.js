@@ -71,6 +71,8 @@ export class NetClient {
   lobbySlot(side, depth, kind, opts = {}) { this.send({ t: 'lobby_slot', side, depth, kind, ...opts }); }
   lobbyKick(id) { this.send({ t: 'lobby_kick', id }); }
   lobbyMove(fromSide, fromDepth, toSide, toDepth) { this.send({ t: 'lobby_move', fromSide, fromDepth, toSide, toDepth }); }
+  // move MYSELF onto a free seat (either side) — no host, no asking
+  lobbySeat(side, depth) { this.send({ t: 'lobby_seat', side, depth }); }
   lobbySwapReq(id) { this.send({ t: 'lobby_swap_req', id }); }
   lobbySwapReply(id, accept) { this.send({ t: 'lobby_swap_reply', id, accept: !!accept }); }
   lobbyStart() { this.send({ t: 'lobby_start' }); }

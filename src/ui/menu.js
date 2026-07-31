@@ -281,6 +281,12 @@ export class Menu {
         if (a.race) sl.race = a.race;
         if (a.difficulty) sl.difficulty = a.difficulty;
       } else { sl.kind = a.kind === 'closed' ? 'closed' : 'open'; sl.bot = false; }
+    } else if (a.action === 'seat') {
+      // offline: same rule — walk onto any free seat, either camp
+      const to = at(a.side, a.depth); const from = this.mySlot();
+      if (!from || !to || from === to || to.kind !== 'open') return;
+      Object.assign(to, { kind: 'player', id: from.id, name: from.name, race: from.race, ready: from.ready, bot: false });
+      Object.assign(from, { kind: 'open', id: null, name: null, bot: false, ready: false });
     } else if (a.action === 'move') {
       // offline you also move YOURSELF (there's nobody to ask)
       const A = at(a.fromSide, a.fromDepth); const B = at(a.toSide, a.toDepth);
@@ -325,6 +331,7 @@ export class Menu {
       case 'slot': send({ action: 'slot', side: +d.s, depth: +d.d, kind: d.k, race: d.r }); return;
       case 'diff': send({ action: 'slot', side: +d.s, depth: +d.d, kind: 'bot', difficulty: d.df, race: d.r }); return;
       case 'move': send({ action: 'move', fromSide: +d.s, fromDepth: +d.d, toSide: +d.ts, toDepth: +d.td }); return;
+      case 'seat': send({ action: 'seat', side: +d.s, depth: +d.d }); return;
       case 'kick': send({ action: 'kick', id: +d.id }); return;
       case 'swap': send({ action: 'swapReq', id: +d.id }); return;
       case 'swapyes': this.hideSwapAsk(); send({ action: 'swapReply', id: +d.id, accept: true }); return;
@@ -492,6 +499,12 @@ export class Menu {
       const closed = sl.kind === 'closed';
       body = `<span class="lb-name empty">${closed ? '🔒 Închis' : '— Liber —'}</span>
         <span class="lb-ready">${closed ? 'nu intră nimeni' : 'așteaptă un jucător'}</span>`;
+      // Anyone seated may walk over to an EMPTY seat — the other camp included.
+      // No host, no asking: only a swap with a real player needs consent.
+      if (!closed && mine && !(mine.side === s && mine.depth === d)) {
+        const other = mine.side !== s;
+        ctl += `<button class="lb-mini go" title="${other ? 'Treci în tabăra asta' : 'Mută-te aici'}" data-lb="seat" data-s="${s}" data-d="${d}">➜</button>`;
+      }
       if (host) {
         ctl += `<button class="lb-mini" title="Pune un bot" data-lb="slot" data-s="${s}" data-d="${d}" data-k="bot" data-r="${sl.race}">🤖</button>`;
         ctl += closed
