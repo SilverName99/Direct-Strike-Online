@@ -323,6 +323,33 @@ console.log('undead flag + bone field');
   g2.time += 9;
   updateCombat(g2, DT);
   check('bone field: it burns out', g2.boneFields.length === 0);
+
+  // a real cast stamps the zone with whose art it wears, so the renderer can
+  // find the uploaded "Efect Bone Field" image hosted on the caster
+  {
+    const bf = resolvedAbility('bonefield');
+    const savedBf = { ...bf.params };
+    Object.assign(bf.params, { range: 600, radius: 200, duration: 8, atkSlow: 30, moveSlow: 30, manaCost: 0, cooldown: 0, tier: 1 });
+    const heroId = resolvedHeroIds(race)[2] || 'hero3';
+    const st = statsUnit(race, heroId);
+    const savedSt = { heroAbilities: st.heroAbilities, heroUltimate: st.heroUltimate, mana: st.mana, manaRegen: st.manaRegen };
+    st.heroAbilities = ['bonefield']; st.heroUltimate = null; st.mana = 100; st.manaRegen = 100;
+    const g3 = new Game(93, { races: [race, 'humans'] });
+    g3.tier[0] = 4;
+    const h = spawnUnit(g3, 0, heroId, 1000, MID_Y);
+    h.hero = true; h.heroLevel = 6; h.mana = 100; h.manaMax = 100;
+    h.heroAbilities = ['bonefield'];
+    h.heroRanks = { bonefield: 1 }; h.disabledAbilities = new Set();
+    spawnUnit(g3, 1, 'grunt', 1020, MID_Y); // in his face, so he counts as engaged
+    for (let i = 0; i < 300 && !g3.boneFields.length; i++) {
+      updateAbilities(g3, DT); updateCombat(g3, DT); g3.time += DT;
+    }
+    const z = g3.boneFields[0];
+    check('a cast bone field knows its owner', !!z && z.owner === 0, z ? `${z.owner}` : 'none');
+    check('a cast bone field knows the caster type', !!z && z.unitType === heroId, z ? `${z.unitType}` : 'none');
+    bf.params = savedBf;
+    Object.assign(st, savedSt);
+  }
 }
 
 // ------------------------- the parked "ghost" knows when its unit marched off

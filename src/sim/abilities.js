@@ -1348,6 +1348,10 @@ function releaseSpell(game, caster, time) {
       atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0,
       until: time + (p.duration || 0),
       team: caster.team,
+      // whose art the field wears: the OWNER (races are per-commander) and the
+      // caster's type, so the renderer can find its uploaded effect image
+      owner: caster.owner != null ? caster.owner : caster.team,
+      unitType: caster.type,
       id: game.nextId++,
     });
     game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius, dur: p.duration });

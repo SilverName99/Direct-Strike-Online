@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
 import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon } from './sprites.js';
+import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon, getAbilityFx } from './sprites.js';
 import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
 // Which PLAYER's art an object uses. Races are per-commander (lobby), so the
@@ -416,9 +416,22 @@ export class Renderer {
     if (!zones || !zones.length) return;
     ctx.save();
     for (const z of zones) {
-      if (!this.visible(z.x, z.y, z.radius + 40)) continue;
+      // margin covers a tall uploaded dome (bottom anchored, so it reaches up)
+      if (!this.visible(z.x, z.y, z.radius * 2 + 60)) continue;
       const left = z.until - game.time;
       const fade = Math.max(0, Math.min(1, left / 0.8)); // ease out at the end
+      // If the caster has an uploaded effect image ("Efect Bone Field"), that
+      // IS the field: drawn as wide as the diameter, bottom anchored on the
+      // zone centre, exactly like the Holy Nova dome.
+      const img = getAbilityFx(raceOf(artOf(z)), z.unitType || 'hero', 'bonefield');
+      if (img && img.width) {
+        const w = z.radius * 2;
+        const h = w * (img.height / img.width);
+        ctx.globalAlpha = fade;
+        ctx.drawImage(img, z.x - w / 2, z.y - h, w, h);
+        ctx.globalAlpha = 1;
+        continue;
+      }
       const g = ctx.createRadialGradient(z.x, z.y, z.radius * 0.2, z.x, z.y, z.radius);
       g.addColorStop(0, `rgba(232, 226, 200, ${(0.20 * fade).toFixed(3)})`);
       g.addColorStop(1, 'rgba(232, 226, 200, 0)');
