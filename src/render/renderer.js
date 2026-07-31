@@ -162,6 +162,19 @@ export function hitTestTemplate(game, team, x, y) {
   return -1;
 }
 
+// Opacity of a parked template ("ghost") in the army zone. Full while it waits
+// for the wave; the tick the wave takes it away it drops to ARMY_GHOST_GONE_ALPHA
+// and eases back to ARMY_GHOST_ALPHA over ARMY_GHOST_BACK_TIME seconds.
+export function ghostAlpha(game, tpl) {
+  const full = Math.max(0, Math.min(100, Number(CONFIG.ARMY_GHOST_ALPHA ?? 100))) / 100;
+  const gone = Math.max(0, Math.min(100, Number(CONFIG.ARMY_GHOST_GONE_ALPHA ?? 20))) / 100;
+  const back = Math.max(0, Number(CONFIG.ARMY_GHOST_BACK_TIME ?? 5));
+  if (tpl.spawnedAt == null || back <= 0) return full;
+  const t = (game.time - tpl.spawnedAt) / back;
+  if (t >= 1) return full;
+  return gone + (full - gone) * Math.max(0, t);
+}
+
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -1609,13 +1622,17 @@ export class Renderer {
         }
         // (no white hover ring — hovering only brightens the unit below; the
         // only ring shown is the green dashed selection ring in drawInspect)
+        // A parked unit is fully there; the moment the wave marches it off the
+        // ghost drops to GONE and fades back to full over BACK_TIME seconds —
+        // so an empty cell reads as "it left, it's coming back", not as a bug.
+        const ghost = ghostAlpha(game, tpl);
         if (hasCharacter(tpl.type, p)) {
           // ghost character breathing in the build zone (art by OWNER, facing by side)
-          ctx.globalAlpha = hot ? 0.95 : 0.5;
+          ctx.globalAlpha = hot ? Math.max(ghost, 0.95) : ghost;
           if (side === 1) ctx.scale(-1, 1);
           drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, p, sizeOf(raceOf(p), tpl.type));
         } else {
-          ctx.globalAlpha = hot ? 0.9 : 0.35;
+          ctx.globalAlpha = (hot ? Math.max(ghost, 0.9) : ghost) * 0.7; // vector marker: a touch softer
           ctx.rotate(rot);
           drawShape(ctx, stats.shape, stats.radius);
           ctx.stroke();

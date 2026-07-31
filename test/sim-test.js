@@ -11,6 +11,7 @@ import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
 import { stepCaster, updateAbilities, isStunned, learnedAbilityParams, effectVal } from '../src/sim/abilities.js';
 import { effStats, applyDamage } from '../src/sim/combat.js';
 import { updateMovement } from '../src/sim/movement.js';
+import { spawnWave } from '../src/sim/waves.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
 import { CONFIG } from '../src/config.js';
 import { statsBuilding, resolvedAbility, resolvedUpgrade, statsUnit, resolvedHeroId, resolvedHeroIds } from '../src/ui/balance.js';
@@ -192,6 +193,22 @@ console.log('unit commands (army zone, tiers)');
   check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 400);
   const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 740, y: 500 });
   check('moveUnit outside army zone rejected', !badMv.ok);
+}
+
+// ------------------------- the parked "ghost" knows when its unit marched off
+console.log('army ghost timestamp');
+{
+  const g = new Game(75, { races: ['humans', 'orcs'] });
+  const z = CONFIG.ARMY_ZONE[0];
+  g.templates[0].push({ type: 'grunt', x: (z.x0 + z.x1) / 2, y: MID_Y, spawned: false });
+  const tpl = g.templates[0][0];
+  check('a fresh template has no spawn stamp', tpl.spawnedAt == null);
+  g.time = 12.5;
+  spawnWave(g);
+  check('the wave stamps when it left', tpl.spawnedAt === 12.5, `${tpl.spawnedAt}`);
+  g.time = 40;
+  spawnWave(g);
+  check('every later wave re-stamps it', tpl.spawnedAt === 40, `${tpl.spawnedAt}`);
 }
 
 // ------------------------------------------- siege "hold" upgrade (Blight Rat)

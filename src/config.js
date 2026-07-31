@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v20.1';
+export const VERSION = 'v20.2';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -265,6 +265,14 @@ export const CONFIG = {
     heroPoints: 6,    // ...with this many talent points to spend
     heroUnlock: 0,    // ...and they're buyable this many seconds in (0 = right away)
   },
+
+  // ---- Parked formation ("ghost" units in the army zone) -------------------
+  // A placed unit stays visible in its cell. When the wave takes it away the
+  // ghost dims for a moment and then fades back in, so you SEE that it left and
+  // that it will be back. Set GONE = GHOST (or BACK = 0) for a flat look.
+  ARMY_GHOST_ALPHA: 100,     // % opacity of a parked unit waiting for the wave
+  ARMY_GHOST_GONE_ALPHA: 20, // % the instant the wave marched it off
+  ARMY_GHOST_BACK_TIME: 5,   // seconds it takes to fade back to full
 
   // ---- Battle ambience -----------------------------------------------------
   // One looping "fighting" track (uploaded in admin, global) whose volume follows

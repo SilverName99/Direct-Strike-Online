@@ -27,6 +27,9 @@ export function spawnWave(game) {
         game.syncHeroEntity(player, tpl.type); // learned abilities/ranks onto the fresh hero
       }
       tpl.spawned = true; // once spawned, selling only gives the partial refund
+      // when this cell's unit left, so the parked ghost can dim and fade back
+      // in (render-only use, but it lives here to stay identical on every client)
+      tpl.spawnedAt = game.time;
     }
   }
   game.events.push({ type: 'wave', n: game.waveCount });
