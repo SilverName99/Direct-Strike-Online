@@ -819,8 +819,11 @@ html, body {
 /* the track title sits on its own line ABOVE the music controls */
 #menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 #menu-sound-row { display: flex; align-items: center; gap: 10px; }
+/* the title floats ABOVE the pod, centred on the volume slider (its left offset
+   is measured in refreshTrackTitle, so it follows whatever skin sizes are up) */
 #music-title {
-  align-self: stretch; max-width: 340px; text-align: center;
+  position: absolute; bottom: 100%; margin-bottom: 8px; transform: translateX(-50%);
+  max-width: 340px; text-align: center;
   color: #ffd769; font: 700 12px/1.4 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

@@ -804,6 +804,20 @@ export class Menu {
     const name = this.currentTrackName();
     el.textContent = name;
     el.classList.toggle('hidden', !name);
+    if (!name) return;
+    // centre it on the VOLUME SLIDER, not on the whole row — measured, so it
+    // stays put whatever the uploaded button skins measure
+    const pod = this.el.querySelector('#menu-sound');
+    const slider = this.el.querySelector('#snd-range');
+    if (!pod || !slider) return;
+    const p = pod.getBoundingClientRect();
+    const s = slider.getBoundingClientRect();
+    if (!p.width || !s.width) return; // not laid out yet (hidden menu)
+    // ...but never let a long title spill off the right edge of the screen:
+    // the slider sits close to it, so past a certain width the title slides left
+    const w = el.getBoundingClientRect().width;
+    const want = s.left - p.left + s.width / 2;
+    el.style.left = `${Math.round(Math.min(want, p.width - w / 2))}px`;
   }
 
   currentTrack() {
