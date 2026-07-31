@@ -663,7 +663,7 @@ console.log('beast form ultimate');
   game.abilityUsable = () => true;
   const ab = resolvedAbility('beastform');
   const saved = { ...ab.params };
-  Object.assign(ab.params, { duration: 4, hpBonus: 100, dmgBonus: 100, splash: 80, splashPct: 50, range: 35, manaCost: 0, cooldown: 40, castPrepare: 0.5, castHold: 0.5 });
+  Object.assign(ab.params, { duration: 4, morphHp: 2400, morphDamage: 150, morphPeriod: 1.4, splash: 80, splashPct: 50, range: 35, manaCost: 0, cooldown: 40, castPrepare: 0.5, castHold: 0.5 });
   const hero = spawnUnit(game, 0, 'hero', 600, 400);
   hero.hero = true; hero.heroRanks = { beastform: 1 }; hero.mana = 200;
   hero.abilityCd = {}; hero.castState = undefined;
@@ -677,11 +677,26 @@ console.log('beast form ultimate');
   check('beast form: prepare phase before morph', hero.castState === 'prepare' && !hero.morph);
   for (let i = 0; i < 60 && !hero.morph; i++) { game.time += DT; stepCaster(game, hero, stats, DT, true); }
   check('beast form: morph active after cast', !!hero.morph && hero.morphUntil > game.time);
-  check('beast form: max HP doubled (+100%)', Math.abs(hero.maxHp - baseMax * 2) <= 1, `${hero.maxHp} vs ${baseMax}`);
+  check('beast form: max HP is the absolute value typed in', hero.maxHp === 2400, `${hero.maxHp}`);
   const es = effStats(hero, game.ustatOf(hero));
   check('beast form: becomes melee (no projectile)', es.projectile === false && es.ranged === false);
-  check('beast form: damage doubled (+100%)', Math.abs(es.damage - baseDmg * 2) <= 1, `${es.damage} vs ${baseDmg}`);
+  check('beast form: damage is the absolute value typed in', es.damage === 150, `${es.damage}`);
+  check('beast form: attack period is the one typed in', es.period === 1.4, `${es.period}`);
   check('beast form: carries melee splash', es.morphSplash === 80 && es.morphSplashPct === 0.5);
+  // 0 on any of the three keeps the hero's own value
+  Object.assign(ab.params, { morphHp: 0, morphDamage: 0, morphPeriod: 0 });
+  const keepGame = new Game(62, { races: ['humans', 'orcs'] });
+  keepGame.abilityUsable = () => true;
+  const h2 = spawnUnit(keepGame, 0, 'hero', 600, 400);
+  h2.hero = true; h2.heroRanks = { beastform: 1 }; h2.mana = 200; h2.abilityCd = {}; h2.castState = undefined;
+  const h2Max = h2.maxHp, h2Dmg = keepGame.ustatOf(h2).damage, h2Per = keepGame.ustatOf(h2).period;
+  spawnUnit(keepGame, 1, 'grunt', 640, 400);
+  for (let i = 0; i < 60 && !h2.morph; i++) { keepGame.time += DT; stepCaster(keepGame, h2, stats, DT, true); }
+  const es2 = effStats(h2, keepGame.ustatOf(h2));
+  check('beast form: 0 keeps the hero\'s own HP / damage / period',
+    h2.maxHp === h2Max && es2.damage === h2Dmg && es2.period === h2Per,
+    `${h2.maxHp}/${es2.damage}/${es2.period}`);
+  Object.assign(ab.params, { morphHp: 2400, morphDamage: 150, morphPeriod: 1.4 });
   // a grounded melee colossus can't reach fliers, even if the base hero could
   check('beast form: cannot target air', effStats({ morph: hero.morph }, { targetsAir: true, damage: 10 }).targetsAir === false);
   run(game, 5); // outlast the 4s duration

@@ -1244,12 +1244,16 @@ function releaseSpell(game, caster, time) {
     caster.morphUntil = time + (p.duration || 0);
     caster.morphSavedMaxHp = caster.maxHp;
     caster.morphSavedHp = caster.hp;
-    const hpMul = 1 + (p.hpBonus || 0) / 100;
-    const newMax = Math.round(caster.maxHp * hpMul);
-    caster.hp = Math.min(newMax, caster.hp + (newMax - caster.maxHp)); // gain the bonus HP now
+    // absolute stats: the colossus HAS this much HP / damage / attack period.
+    // 0 on any of them means "keep whatever the hero already had".
+    const newMax = (p.morphHp || 0) > 0 ? Math.round(p.morphHp) : caster.maxHp;
+    caster.hp = newMax > caster.maxHp
+      ? Math.min(newMax, caster.hp + (newMax - caster.maxHp)) // gain the fresh chunk now
+      : Math.min(caster.hp, newMax);                          // smaller form: clamp down
     caster.maxHp = newMax;
     caster.morph = {
-      dmgMul: 1 + (p.dmgBonus || 0) / 100,
+      damage: p.morphDamage || 0,   // 0 = the hero's own damage
+      period: p.morphPeriod || 0,   // 0 = the hero's own attack period
       size: (p.size || 150) / 100,
       splash: p.splash || 0,
       splashPct: (p.splashPct || 0) / 100,

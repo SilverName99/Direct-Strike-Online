@@ -39,7 +39,8 @@ export function effStats(u, stats) {
   if (u.morph) {
     return {
       ...stats,
-      damage: stats.damage * u.morph.dmgMul,
+      damage: u.morph.damage > 0 ? u.morph.damage : stats.damage,
+      period: u.morph.period > 0 ? u.morph.period : stats.period,
       range: u.morph.range,
       projectile: false, ranged: false, splash: 0, targetsAir: false,
       morphSplash: u.morph.splash, morphSplashPct: u.morph.splashPct,

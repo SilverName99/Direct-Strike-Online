@@ -211,8 +211,11 @@ export const ABILITIES = {
     params: {
       tier: 1, cooldown: 40, manaCost: 100,
       duration: 10,   // seconds transformed
-      hpBonus: 150,   // % extra MAX hp while morphed
-      dmgBonus: 80,   // % extra damage while morphed
+      // The summoned form's stats are ABSOLUTE, not bonuses — you type what the
+      // colossus IS. 0 on any of them keeps the hero's own value.
+      morphHp: 3000,     // max HP while morphed (0 = keep the hero's)
+      morphDamage: 120,  // damage per hit while morphed (0 = keep the hero's)
+      morphPeriod: 1.4,  // seconds between hits while morphed (0 = keep the hero's)
       size: 200,      // % size (visual + hitbox) while morphed
       splash: 110,    // melee splash radius while morphed
       splashPct: 60,  // % of the hit dealt to nearby enemies (splash)
@@ -887,8 +890,9 @@ export const ABILITY_PARAM_LABELS = {
   dashSpeed: 'Viteză șarjă',
   stun: 'Stun la impact (s)',
   maxTargets: 'Max ținte vindecate (0 = toți)',
-  hpBonus: 'Elemental Form: +HP max (%)',
-  dmgBonus: 'Elemental Form: +damage (%)',
+  morphHp: 'HP (invocat)',
+  morphDamage: 'Damage (invocat)',
+  morphPeriod: 'Perioadă atac (s)',
   splashPct: 'Elemental Form: splash (% din lovitură)',
   healPct: 'Heal (% din HP max, auto-scalat pe rang)',
   healPct1: 'Heal rang 1 (% HP max, 0 = auto)',

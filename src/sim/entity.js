@@ -57,7 +57,7 @@ export function spawnUnit(game, team, type, x, y, owner = team) {
     // melee beast (see effStats). maxHp is boosted at cast and restored on
     // revert, so the pre-morph values are stashed here.
     morphUntil: 0,
-    morph: null,            // { dmgMul, size, splash, splashPct, range } snapshot at cast
+    morph: null,            // { damage, period, size, splash, splashPct, range } snapshot at cast
     morphSavedMaxHp: null, morphSavedHp: null,
     // Empower channel: while empowerUntil > time this caster is locked onto ally
     // empowerTargetId, refreshing its buff and draining mana per second.
