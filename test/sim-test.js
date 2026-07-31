@@ -215,6 +215,16 @@ console.log('soul collector');
     return h;
   };
 
+  // the pool is EARNED: he walks in on empty, a normal caster still spawns full
+  {
+    const g = new Game(79, { races: [race, 'humans'] });
+    const h = spawnUnit(g, 0, heroId, 1000, MID_Y);
+    check('the soul hero starts with an empty bar', h.mana === 0 && h.manaMax === 180, `${h.mana}/${h.manaMax}`);
+    const other = spawnUnit(g, 0, resolvedHeroIds(race)[0], 1100, MID_Y);
+    check('a normal hero still spawns with a full pool', other.manaMax === 0 || other.mana === other.manaMax,
+      `${other.mana}/${other.manaMax}`);
+  }
+
   // without a point: 1 soul per death
   {
     const g = new Game(80, { races: [race, 'humans'] });

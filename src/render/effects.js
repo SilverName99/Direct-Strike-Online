@@ -220,12 +220,12 @@ export class Effects {
       // a short green trail behind it
       if (k < 0.95) {
         this.particles.push({
-          x: o.x, y: o.y, vx: 0, vy: -8, life: 0.22, maxLife: 0.22, color: '#7ef2a8', size: 1.6,
+          x: o.x, y: o.y, vx: 0, vy: -8, life: 0.22, maxLife: 0.22, color: '#bdf24a', size: 1.6,
         });
       }
       if (k >= 1) { // arrival pop, right on the hero
-        this.burst(hero.x, hero.y - 6, 7, '#7ef2a8', 90, 0.3, 2, -30);
-        this.rings.push({ x: hero.x, y: hero.y - 6, r0: 3, r1: 22, life: 0.28, maxLife: 0.28, color: '#7ef2a8' });
+        this.burst(hero.x, hero.y - 6, 7, '#bdf24a', 90, 0.3, 2, -30);
+        this.rings.push({ x: hero.x, y: hero.y - 6, r0: 3, r1: 22, life: 0.28, maxLife: 0.28, color: '#bdf24a' });
         continue;
       }
       alive.push(o);
@@ -241,14 +241,14 @@ export class Effects {
       ctx.save();
       ctx.globalAlpha = 0.9;
       const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, r * 2.4);
-      g.addColorStop(0, 'rgba(190, 255, 214, 0.95)');
-      g.addColorStop(0.45, 'rgba(126, 242, 168, 0.55)');
-      g.addColorStop(1, 'rgba(126, 242, 168, 0)');
+      g.addColorStop(0, 'rgba(238, 255, 190, 0.95)');
+      g.addColorStop(0.45, 'rgba(189, 242, 74, 0.55)');
+      g.addColorStop(1, 'rgba(189, 242, 74, 0)');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(o.x, o.y, r * 2.4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#dcffe9';
+      ctx.fillStyle = '#f2ffcb';
       ctx.beginPath();
       ctx.arc(o.x, o.y, r * 0.5, 0, Math.PI * 2);
       ctx.fill();

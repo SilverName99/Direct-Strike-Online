@@ -84,6 +84,7 @@ export const GENERAL_FIELDS = [
   ['ZONE_ICON_X', 'Iconiță zonă: deplasare X față de colț (— = spre stânga, în afară)'],
   ['ZONE_ICON_Y', 'Iconiță zonă: deplasare Y față de colț (— = deasupra zonei)'],
   ['ZONE_ICON_ALPHA', 'Iconiță zonă: opacitate (%)'],
+  ['BONEFIELD_FX_ALPHA', 'Bone Field: opacitate imagine efect (%)'],
   ['ARMY_GHOST_ALPHA', 'Zona armată: opacitate unitate parcată (%)'],
   ['ARMY_GHOST_GONE_ALPHA', 'Zona armată: opacitate imediat după ce pleacă (%)'],
   ['ARMY_GHOST_BACK_TIME', 'Zona armată: secunde până revine la loc'],

@@ -1247,6 +1247,7 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
 .m-setup-opts .m-label { white-space: normal; }
 .m-setup-opts .m-sub { display: block; margin-top: 3px; line-height: 1.5; text-transform: none; letter-spacing: 0; }
 
-/* Undead soul hero: his mana bar is a SOUL bar — green, so you read instantly
-   that it fills from the dying, not from time. */
-.d-bar.souls .mana { background: linear-gradient(180deg, #a8ffcb, #4fd98a); }
+/* Undead soul hero: his mana bar is a SOUL bar — a spectral toxic green, told
+   apart at a glance from both the mana blue and the HP green right above it.
+   Needs the #bb-details prefix to outweigh the generic `.d-bar .mana` rule. */
+#bb-details .d-bar.souls .mana { background: linear-gradient(180deg, #e2ff8f, #93dd2e); }

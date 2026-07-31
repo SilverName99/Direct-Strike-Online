@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v22.2';
+export const VERSION = 'v22.3';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -279,6 +279,12 @@ export const CONFIG = {
   ZONE_ICON_X: 10,
   ZONE_ICON_Y: -74,
   ZONE_ICON_ALPHA: 85, // % opacity
+
+  // Bone Field: how strongly the uploaded effect image ("Efect Bone Field")
+  // paints on the ground. 100 = the image as it was drawn, lower lets the
+  // terrain show through. Only the uploaded image is affected — the built-in
+  // bone patch keeps its own subtle look.
+  BONEFIELD_FX_ALPHA: 100,
 
   // ---- Parked formation ("ghost" units in the army zone) -------------------
   // A placed unit stays visible in its cell. When the wave takes it away the

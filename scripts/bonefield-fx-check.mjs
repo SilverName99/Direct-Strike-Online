@@ -64,7 +64,9 @@ try {
   await page.waitForTimeout(1500); // sprites
 
   // Draw ONLY the bone fields on a clean canvas and measure the painted box.
-  const measure = (zone) => page.evaluate((z) => {
+  const measure = (zone, alpha = 100) => page.evaluate(async ({ z, alpha }) => {
+    const { CONFIG } = await import('/src/config.js');
+    CONFIG.BONEFIELD_FX_ALPHA = alpha;
     const g = window.__game;
     const r = window.__renderer;
     g.boneFields.length = 0;
@@ -77,31 +79,36 @@ try {
     r.drawBoneFields(ctx, g);
     r.visible = saved;
     const d = ctx.getImageData(0, 0, 500, 500).data;
-    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9, magenta = 0, painted = 0;
+    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9, magenta = 0, painted = 0, aSum = 0;
     for (let y = 0; y < 500; y++) {
       for (let x = 0; x < 500; x++) {
         const i = (y * 500 + x) * 4;
         if (d[i + 3] <= 20) continue;
-        painted++;
+        painted++; aSum += d[i + 3];
         if (d[i] > 200 && d[i + 1] < 60 && d[i + 2] > 200) magenta++;
         if (x < minX) minX = x; if (x > maxX) maxX = x;
         if (y < minY) minY = y; if (y > maxY) maxY = y;
       }
     }
     g.boneFields.length = 0;
-    return { painted, magenta, w: painted ? maxX - minX + 1 : 0, h: painted ? maxY - minY + 1 : 0, bottom: maxY };
-  }, zone);
+    CONFIG.BONEFIELD_FX_ALPHA = 100;
+    return { painted, magenta, alpha: painted ? Math.round(aSum / painted) : 0,
+      w: painted ? maxX - minX + 1 : 0, h: painted ? maxY - minY + 1 : 0, bottom: maxY };
+  }, { z: zone, alpha });
 
   // the hero's own field: art is looked up from owner + unitType
   const withImg = await measure({ radius: 120, atkSlow: 30, moveSlow: 30, owner: 0, unitType: 'hero3' });
   // an unknown caster has no uploaded image -> the procedural bone patch
   const noImg = await measure({ radius: 120, atkSlow: 30, moveSlow: 30, owner: 0, unitType: 'nosuchunit' });
+  // the admin opacity knob really thins the image out
+  const faint = await measure({ radius: 120, atkSlow: 30, moveSlow: 30, owner: 0, unitType: 'hero3' }, 40);
 
-  console.log(JSON.stringify({ withImg, noImg, errors }, null, 2));
+  console.log(JSON.stringify({ withImg, noImg, faint, errors }, null, 2));
   const ok = withImg.magenta > 1000                        // the image really paints
     && Math.abs(withImg.w - 240) <= 2                      // width = 2 * radius
     && Math.abs(withImg.h - 120) <= 2                      // 2:1 image -> half the width
     && Math.abs(withImg.bottom - 300) <= 2                 // bottom anchored on the zone centre
+    && Math.abs(faint.alpha - withImg.alpha * 0.4) <= 4    // 40% knob -> 40% of the alpha
     && noImg.magenta === 0 && noImg.painted > 0;           // fallback still draws
   console.log(ok ? 'OK — the uploaded Bone Field image is drawn, scaled to the radius'
                  : 'FAIL — the effect image does not reach the screen');

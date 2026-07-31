@@ -1,5 +1,11 @@
 import { CONFIG } from '../config.js';
-import { towerStatForTier } from '../ui/balance.js';
+import { towerStatForTier, heroAbilitySlots } from '../ui/balance.js';
+
+// A hero whose KIT carries Soul Collector runs on SOULS: his pool is filled by
+// the dead, so he starts EMPTY instead of walking in with a free full bar.
+export function usesSouls(race, type) {
+  return heroAbilitySlots(race, type).some((sl) => sl.id === 'soulcollector');
+}
 
 // `owner` = the PLAYER the unit belongs to (stats/economy); `team` stays the
 // battlefield SIDE (targeting). In 1v1 they coincide, so the default keeps
@@ -9,6 +15,7 @@ export function spawnUnit(game, team, type, x, y, owner = team) {
   // A footprint bigger than 1x1 (grid cells) makes the unit physically larger:
   // its collision/separation radius grows to span the cells. 1x1 keeps the
   // unit's own base radius (backwards-compatible with every existing unit).
+  const soulPool = !!s.isHero && usesSouls(game.races[owner], type);
   const cw = s.cw || 1;
   const ch = s.ch || 1;
   const cells = Math.max(cw, ch);
@@ -70,7 +77,9 @@ export function spawnUnit(game, team, type, x, y, owner = team) {
     teleportTo: null,
     ovDamage: null, ovRange: null, ovPeriod: null, ovSpeed: null, ovSize: null,
     ovRanged: null, // dismounted override: true keeps the ranged attack (split rider)
-    mana: (s.caster || s.isHero) ? (s.mana || 0) : 0,    // casting resource (heroes cast too)
+    // casting resource (heroes cast too). A SOUL hero starts on empty — his bar
+    // is filled by the units dying around him, never handed to him at spawn.
+    mana: (s.caster || s.isHero) ? (soulPool ? 0 : (s.mana || 0)) : 0,
     manaMax: (s.caster || s.isHero) ? (s.mana || 0) : 0,
     // "Scut de lumină" upgrade state (invulnerability window)
     shieldAt: -1, shieldFrom: 0, shieldUntil: 0, shieldCd: 0, shieldScale: 1, shieldPose: 0.5, shieldPending: false,

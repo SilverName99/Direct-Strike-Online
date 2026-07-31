@@ -427,7 +427,8 @@ export class Renderer {
       if (img && img.width) {
         const w = z.radius * 2;
         const h = w * (img.height / img.width);
-        ctx.globalAlpha = fade;
+        const op = Math.max(0, Math.min(100, Number(CONFIG.BONEFIELD_FX_ALPHA ?? 100))) / 100;
+        ctx.globalAlpha = fade * op;
         ctx.drawImage(img, z.x - w / 2, z.y - h, w, h);
         ctx.globalAlpha = 1;
         continue;
@@ -1960,7 +1961,7 @@ export class Renderer {
       if (u.manaMax > 0) {
         const w = Math.max(20, drawR * 2.4);
         const mratio = Math.max(0, Math.min(1, u.mana / u.manaMax));
-        this.pillBar(ctx, x - w / 2, y - barR - 5, w, 3, mratio, isSoulHero(game, u) ? '#7ef2a8' : '#4da6ff');
+        this.pillBar(ctx, x - w / 2, y - barR - 5, w, 3, mratio, isSoulHero(game, u) ? '#bdf24a' : '#4da6ff');
       }
 
       // status-effect indicators (slow swirl, haste sparks, regen cross...)
