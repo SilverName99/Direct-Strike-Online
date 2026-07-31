@@ -268,6 +268,17 @@ export function updateAbilities(game, dt) {
     if (u.hp <= 0 || !u.totem || !u.totemAura) continue;
     const a = u.totemAura;
     const until = time + AURA_TICK;
+    // an ALLY-facing banner (Undead Flag) heals whoever stands under it...
+    if (a.healHps > 0) {
+      for (const e of game.entities) {
+        if (e.hp <= 0 || e.team !== u.team || e.isStructure || e === u) continue;
+        if (e.hp >= e.maxHp) continue;
+        if (!inRadius(e, u, a.radius)) continue;
+        e.hp = Math.min(e.maxHp, e.hp + a.healHps * dt);
+      }
+    }
+    // ...while a slowing totem works on the enemies
+    if (!a.atkSlow && !a.moveSlow) continue;
     for (const e of game.entities) {
       if (e.hp <= 0 || e.team === u.team || e.summon || e.isStructure) continue;
       if (!inRadius(e, u, a.radius)) continue;
@@ -967,6 +978,18 @@ function findAbilityTarget(game, caster, aid, ab, time, manual) {
     }
     return best;
   }
+  if (aid === 'bonefield') {
+    // drop it where the enemy actually IS: the nearest enemy unit in range, so
+    // the bones land under the wave instead of on empty ground
+    let best = null, bestD = Infinity;
+    for (const u of game.entities) {
+      if (u.team === caster.team || u.hp <= 0 || u.isStructure) continue;
+      if (!inRadius(u, caster, p.range)) continue;
+      const dx = u.x - caster.x, dy = u.y - caster.y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = u; }
+    }
+    return best;
+  }
   if (aid === 'acidpaste') {
     // nearest enemy GROUND unit in range (the paste sticks to the ground)
     let best = null, bestD = Infinity;
@@ -1310,6 +1333,21 @@ function releaseSpell(game, caster, time) {
     const speed = p.projectileSpeed || CONFIG.PROJECTILE_SPEED;
     const travel = speed > 0 ? dist / speed : 0;
     return Math.max(hold, travel);
+  }
+
+  if (aid === 'bonefield') {
+    // the bones appear on the ground at once — no projectile to chase
+    if (!game.boneFields) game.boneFields = [];
+    game.boneFields.push({
+      x: target.x, y: target.y,
+      radius: p.radius || 0,
+      atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0,
+      until: time + (p.duration || 0),
+      team: caster.team,
+      id: game.nextId++,
+    });
+    game.events.push({ type: 'cast', ability: aid, unitId: caster.id, team: caster.team, x: target.x, y: target.y, radius: p.radius, dur: p.duration });
+    return hold;
   }
 
   if (aid === 'acidpaste') {

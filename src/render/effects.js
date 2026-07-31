@@ -20,6 +20,7 @@ export class Effects {
     this.rings = []; // expanding spell rings (dispell etc.)
     this.domes = []; // uploaded AoE effect images scaled to an ability's radius
     this.portals = []; // Backline Teleport landing telegraphs (golden swirl)
+    this.souls = []; // green orbs flying from a corpse to the Undead soul hero
   }
 
   reset() {
@@ -30,6 +31,7 @@ export class Effects {
     this.rings = [];
     this.domes = [];
     this.portals = [];
+    this.souls = [];
   }
 
   spawnFromEvents(events) {
@@ -53,6 +55,12 @@ export class Effects {
           }
           break;
         }
+        case 'soul':
+          // Soul Collector: a green orb leaves the corpse and flies to the hero.
+          // It stores the hero's ID (not a position), so the orb tracks him
+          // while he keeps walking.
+          this.souls.push({ x: e.x, y: e.y, x0: e.x, y0: e.y, heroId: e.heroId, t: 0, life: 0.65 });
+          break;
         case 'explosion':
           this.burst(e.x, e.y, e.blast ? 26 : e.fire ? 20 : 14, e.acid ? '#8fd14f' : e.fire ? '#ff7a1a' : '#ffb347', e.blast ? 240 : e.fire ? 210 : 180, e.blast ? 0.5 : 0.45, e.blast ? 4.5 : e.fire ? 4 : 3.5);
           if (e.acid) this.rings.push({ x: e.x, y: e.y, r0: 4, r1: (e.radius || 90), life: 0.5, maxLife: 0.5, color: '#8fd14f' });
@@ -193,6 +201,60 @@ export class Effects {
       }
     }
     this.portals = this.portals.filter((pl) => pl.t < pl.life);
+  }
+
+  // Soul orbs: each one homes in on its hero's CURRENT position (he keeps
+  // walking), easing in — slow at first, whipped in at the end — and bursts
+  // into sparks when it lands. Purely cosmetic; the mana was already granted.
+  updateSouls(dt, game) {
+    if (!this.souls.length) return;
+    const alive = [];
+    for (const o of this.souls) {
+      o.t += dt;
+      const hero = game && game.byId ? game.byId.get(o.heroId) : null;
+      if (!hero || hero.hp <= 0) continue; // he died mid-flight: the orb fades
+      const k = Math.min(1, o.t / o.life);
+      const ease = k * k * (3 - 2 * k) * 0.35 + k * k * k * 0.65; // slow, then whipped in
+      o.x = o.x0 + (hero.x - o.x0) * ease;
+      o.y = o.y0 + (hero.y - o.y0) * ease;
+      // a short green trail behind it
+      if (k < 0.95) {
+        this.particles.push({
+          x: o.x, y: o.y, vx: 0, vy: -8, life: 0.22, maxLife: 0.22, color: '#7ef2a8', size: 1.6,
+        });
+      }
+      if (k >= 1) { // arrival pop, right on the hero
+        this.burst(hero.x, hero.y - 6, 7, '#7ef2a8', 90, 0.3, 2, -30);
+        this.rings.push({ x: hero.x, y: hero.y - 6, r0: 3, r1: 22, life: 0.28, maxLife: 0.28, color: '#7ef2a8' });
+        continue;
+      }
+      alive.push(o);
+    }
+    this.souls = alive;
+  }
+
+  // Drawn with the units (over the ground, under the HUD).
+  drawSouls(ctx) {
+    for (const o of this.souls) {
+      const k = Math.min(1, o.t / o.life);
+      const r = 4 + 2 * Math.sin(k * 12); // a soft pulse while it travels
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, r * 2.4);
+      g.addColorStop(0, 'rgba(190, 255, 214, 0.95)');
+      g.addColorStop(0.45, 'rgba(126, 242, 168, 0.55)');
+      g.addColorStop(1, 'rgba(126, 242, 168, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, r * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#dcffe9';
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Toppled towers: their per-tier "die" frame, fading out where they fell.

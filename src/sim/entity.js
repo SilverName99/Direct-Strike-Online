@@ -154,7 +154,14 @@ export function spawnSummon(game, caster, ab, params, rank = 1) {
     // stationary aura totem: no move/attack; emits a slow aura each tick and
     // shows a life bar. maxLife lets the render draw a depleting timer bar.
     totem: totem,
-    totemAura: (totem && !cocoon) ? { radius: p.radius || 140, atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0 } : null,
+    totemAura: (totem && !cocoon)
+      ? {
+        radius: p.radius || 140,
+        atkSlow: p.atkSlow || 0, moveSlow: p.moveSlow || 0,
+        // a planted banner heals ALLIES instead of slowing enemies
+        healHps: p.healHps || 0,
+      }
+      : null,
     maxLife: (p.life != null ? p.life : (p.duration || 0)) || 0,
     despawnAt: (() => { const life = p.life != null ? p.life : (p.duration || 0); return life > 0 ? game.time + life : null; })(),
   };

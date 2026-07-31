@@ -1246,3 +1246,7 @@ body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !imp
    nowrap by default, which was pushing the Testing switch out of the view). */
 .m-setup-opts .m-label { white-space: normal; }
 .m-setup-opts .m-sub { display: block; margin-top: 3px; line-height: 1.5; text-transform: none; letter-spacing: 0; }
+
+/* Undead soul hero: his mana bar is a SOUL bar — green, so you read instantly
+   that it fills from the dying, not from time. */
+.d-bar.souls .mana { background: linear-gradient(180deg, #a8ffcb, #4fd98a); }

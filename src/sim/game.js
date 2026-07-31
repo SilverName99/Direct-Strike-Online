@@ -110,6 +110,7 @@ export class Game {
     this.projectiles = [];
     this.structures = [];
     this.fireZones = []; // burning ground left by the Fireball upgrade
+    this.boneFields = []; // Bone Field zones: {x,y,radius,atkSlow,moveSlow,until,team}
     this.pasteZones = []; // green Acid Paste puddles: {x,y,radius,amp,until,team} — amplify damage taken by enemies standing on them
     this.corpses = [];   // {x, y, until} — fresh bodies the Spirit Huntress can raise
     // summons that appear only when the caster FINISHES its cast pose (the

@@ -649,6 +649,7 @@ function frameBody(now) {
       const events = game.drainEvents();
       effects.spawnFromEvents(events);
       effects.update(delta);
+      effects.updateSouls(delta, game); // soul orbs home in on the living hero
       battleSfx.update(game, renderer, camera, delta);
       hud.update(game, delta);
       updateAiDebug();

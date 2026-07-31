@@ -21,7 +21,7 @@ import {
 } from './balance.js';
 import { raceOf, sideOfPlayer, getSprite, getThumb, getUiIcon, getTabIcon, getBaseUpgradeIcon, getBarSkin, getBarOverlay, getPortraitVideoUrl, getMineVideoUrl, getTowerVideoUrl } from '../render/sprites.js';
 import { hasCharacter, drawCharacter, drawThumb } from '../render/characters.js';
-import { TEAM_COLORS, drawShape } from '../render/renderer.js';
+import { TEAM_COLORS, drawShape , isSoulHero } from '../render/renderer.js';
 import { effStats } from '../sim/combat.js';
 
 // A hero ability the player can actively use (cast / summon), as opposed to a
@@ -587,8 +587,10 @@ export class BottomBar {
       }
     }
 
+    // the Undead soul hero spends SOULS, not mana: same bar, green, own label
+    const soulBar = info.kind === 'entity' && isSoulHero(game, info.u);
     const manaBar = manaMax > 0
-      ? `<div class="d-bar"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${Math.floor(mana)} / ${manaMax}</span></div>`
+      ? `<div class="d-bar${soulBar ? ' souls' : ''}"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${soulBar ? 'Suflete ' : ''}${Math.floor(mana)} / ${manaMax}</span></div>`
       : '';
     // units with a limited lifetime (summons/totems given a "Durată viață"):
     // a depleting timer bar under the HP, matching the in-world life bar

@@ -2,7 +2,7 @@ import { CONFIG } from '../config.js';
 import { DAMAGE_MATRIX } from '../units.js';
 import { spawnProjectile, spawnUnit } from './entity.js';
 import { attackPeriodMult, applyEffect, effectVal, casterPrioritizesSpells, hasActiveAbility, stepCaster, learnedAbilityParams, isStunned, isStealthed } from './abilities.js';
-import { resolvedUpgrade, towerStatForTier } from '../ui/balance.js';
+import { resolvedUpgrade, towerStatForTier, resolvedAbility, heroAbilitySlots } from '../ui/balance.js';
 
 // Effective stats: a dismounted "mount" unit fights on foot with its override
 // damage/range/period/speed (and no projectile/splash — unless the override
@@ -244,6 +244,24 @@ export function updateCombat(game, dt) {
       kept.push(z);
     }
     game.pasteZones = kept;
+  }
+
+  // Bone Field: enemies standing on the scattered bones attack and move slower.
+  // Unlike the flag it is not a thing you can break — it just burns down.
+  if (game.boneFields && game.boneFields.length) {
+    const kept = [];
+    for (const z of game.boneFields) {
+      if (game.time >= z.until) continue;
+      for (const e of game.entities) {
+        if (e.team === z.team || e.hp <= 0 || e.isStructure) continue;
+        const dx = e.x - z.x, dy = e.y - z.y;
+        if (dx * dx + dy * dy > z.radius * z.radius) continue;
+        if (z.atkSlow) applyEffect(e, 'atkslow', z.atkSlow, game.time + 0.4, game.time);
+        if (z.moveSlow) applyEffect(e, 'moveslow', z.moveSlow, game.time + 0.4, game.time);
+      }
+      kept.push(z);
+    }
+    game.boneFields = kept;
   }
 
   // Armed structures (starting turret + built towers) shoot the nearest
@@ -1134,6 +1152,46 @@ function effDist(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+
+// SOULS — the Undead support hero's only source of energy. Every unit that dies
+// inside his radius (ally OR enemy) sends one soul his way: it fills his mana
+// bar and the render layer flies a green orb from the corpse to him.
+//
+// The hero takes `soulsBase` per death just for being on the field; each talent
+// point in Soul Collector replaces that with souls1 / souls2 / souls3.
+export function feedSouls(game, dead) {
+  if (!dead || dead.isStructure) return;
+  for (const h of game.entities) {
+    if (h === dead || h.hp <= 0 || !h.hero) continue;
+    // his KIT must carry the passive (learning it only raises the amount)
+    const slots = heroAbilitySlots(game.races[h.owner != null ? h.owner : h.team], h.type);
+    if (!slots.some((sl) => sl.id === 'soulcollector')) continue;
+    const ab = resolvedAbility('soulcollector');
+    if (!ab) continue;
+    const p = ab.params;
+    // a summon only counts when it was KILLED — one that simply ran out of time
+    // would be free food (the moth's larvae expire on their own)
+    if (dead.summon) {
+      if (!p.summons) continue;
+      if (dead.despawnAt != null && game.time >= dead.despawnAt) continue;
+    }
+    const dx = dead.x - h.x, dy = dead.y - h.y;
+    const r = p.radius || 0;
+    if (r > 0 && dx * dx + dy * dy > r * r) continue;
+    const rank = (h.heroRanks && h.heroRanks.soulcollector) || 0;
+    const disabled = h.disabledAbilities && h.disabledAbilities.has('soulcollector');
+    let souls = p.soulsBase || 0;
+    if (rank >= 1 && !disabled) souls = p[`souls${Math.min(3, rank)}`] || souls;
+    if (dead.hero) souls = Math.max(souls, p.heroSouls || 0);
+    if (souls <= 0 || h.manaMax <= 0) continue;
+    const before = h.mana;
+    h.mana = Math.min(h.manaMax, h.mana + souls);
+    if (h.mana > before) {
+      game.events.push({ type: 'soul', x: dead.x, y: dead.y, heroId: h.id, team: h.team });
+    }
+  }
+}
+
 export function applyDamage(game, target, damage, dmgType, silent = false) {
   // Binding Blade (Loves dagger, ult): while the blade is out he's INVINCIBLE —
   // he takes no HP damage, but every raw hit is tallied and later split among the
@@ -1176,6 +1234,7 @@ export function applyDamage(game, target, damage, dmgType, silent = false) {
   if (!silent) game.events.push({ type: 'hit', x: target.x, y: target.y, big: !!target.isBase });
   if (target.hp <= 0 && !target.isBase) {
     game.creditHeroKill(target); // your hero earns XP when your army kills a unit
+    feedSouls(game, target);     // Undead support hero: the dead fill his bar
     game.events.push({
       type: 'death',
       x: target.x, y: target.y,

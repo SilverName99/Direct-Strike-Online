@@ -605,6 +605,72 @@ export const ABILITIES = {
       larvaSplash: 0, larvaArmored: 0,
     },
   },
+  // ---- Undead hero 3 (support): SOULS are his mana. The passive fills the bar,
+  // every other ability spends it — he has no other source of energy.
+  soulcollector: {
+    name: 'Soul Collector',
+    kind: 'passive',
+    color: '#7ef2a8',
+    desc: 'Pasiv: de fiecare dată când moare o unitate (a ta SAU a inamicului) în raza lui, un suflet zboară spre el și îi umple bara. Fără niciun punct investit ia 1 suflet per mort; fiecare punct urcă valoarea (2 / 3 / 4). Sufletele SUNT mana lui — toate celelalte abilități le consumă.',
+    params: {
+      radius: 550,   // morții din afara razei nu-i dau nimic
+      souls1: 2, souls2: 3, souls3: 4, // per rang învățat (nelearnat = soulsBase)
+      soulsBase: 1,  // cât ia doar pentru că e pe teren (fără puncte)
+      heroSouls: 40, // un EROU mort valorează atât (indiferent de rang)
+      summons: 1,    // 1 = și schelete/larve/lupi ucise contează (expirate — nu)
+    },
+  },
+  undeadflag: {
+    name: 'Undead Flag',
+    kind: 'summon',   // stationary totem variant: a planted banner
+    animal: 'flag',   // sprite prefix "flag-" hosted on the hero
+    animalName: 'Steag',
+    totem: true,
+    color: '#a06cff',
+    desc: 'Înfige stindardul în pământ: cât stă acolo, aliații din rază se VINDECĂ. Are viață proprie și cronometru — inamicul îl poate sparge. Costă suflete.',
+    params: {
+      tier: 1, manaCost: 35, cooldown: 20,
+      cap: 1, life: 14,
+      hp: 260,
+      radius: 220,   // heal-aura radius
+      healHps: 18,   // HP/s given to allies inside (grows per rank)
+      healHps1: 0, healHps2: 0, healHps3: 0, // explicit per rank (0 = auto)
+      size: 120,
+      castPrepare: 0.3, castHold: 0.5,
+    },
+  },
+  bonefield: {
+    name: 'Bone Field',
+    kind: 'active',
+    color: '#e8e2c8',
+    desc: 'Presară un câmp de oase pe pământ: inamicii care stau pe el ATACĂ mai încet și se MIȘCĂ mai încet. Nu poate fi distrus — se stinge singur. Costă suflete.',
+    params: {
+      tier: 1, manaCost: 45, cooldown: 16,
+      range: 320,        // how far he can throw it
+      radius: 200,       // the field on the ground
+      duration: 8,       // seconds it stays
+      atkSlow: 30,       // % slower attacks for enemies standing on it
+      moveSlow: 35,      // % slower movement
+      castPrepare: 0.35, castHold: 0.5,
+    },
+  },
+  bonegiant: {
+    name: 'Bone Giant',
+    kind: 'summon',      // the ultimate: a huge melee construct
+    animal: 'bonegiant',
+    animalName: 'Gigant de oase',
+    color: '#dcd6bd',
+    desc: 'Ultima: ridică din oasele celor căzuți un gigant care luptă pentru tine. Mare, lent și greu de doborât. Costă un munte de suflete — apare abia după o măcelărie.',
+    params: {
+      tier: 1, manaCost: 120, cooldown: 70,
+      cap: 1, life: 25,
+      hp: 1400, damage: 70, range: 40, period: 1.6, speed: 60,
+      hpPerRank: 0, damagePerRank: 0, // ultimate = one rank
+      splash: 60, armored: 1,
+      size: 240, animSpeed: 2.5,
+      castPrepare: 0.5, castHold: 0.8,
+    },
+  },
   soulharvest: {
     name: 'Soul Harvest',
     kind: 'active', // ultimate
@@ -900,6 +966,17 @@ export const ABILITY_PARAM_LABELS = {
   armored: 'Armură grea (1/0)',
   targetsAir: 'Atacă aerul (1/0)',
   targetsGround: 'Atacă solul (1/0)',
+  // Undead support hero (souls)
+  souls1: 'Suflete per mort — rang 1',
+  souls2: 'Suflete per mort — rang 2',
+  souls3: 'Suflete per mort — rang 3',
+  soulsBase: 'Suflete per mort fără niciun punct',
+  heroSouls: 'Suflete pentru un EROU mort',
+  summons: 'Numără și summon-urile ucise (1/0)',
+  healHps: 'Vindecare (HP/s) pentru aliații din rază',
+  healHps1: 'Vindecare rang 1 (HP/s, 0 = auto)',
+  healHps2: 'Vindecare rang 2 (HP/s, 0 = auto)',
+  healHps3: 'Vindecare rang 3 (HP/s, 0 = auto)',
   // Cocon (Molie): pouch + larvae
   larvae: 'Cocon: câte larve scoate în total',
   larvaBatch: 'Cocon: câte larve ies DEODATĂ (1 = una câte una)',

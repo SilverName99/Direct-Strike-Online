@@ -9,7 +9,7 @@ import { Game } from '../src/sim/game.js';
 import { AIController, categoryOf } from '../src/sim/ai.js';
 import { spawnUnit, makeStructure, spawnSummon } from '../src/sim/entity.js';
 import { stepCaster, updateAbilities, isStunned, learnedAbilityParams, effectVal } from '../src/sim/abilities.js';
-import { effStats, applyDamage } from '../src/sim/combat.js';
+import { effStats, applyDamage, updateCombat } from '../src/sim/combat.js';
 import { updateMovement } from '../src/sim/movement.js';
 import { spawnWave } from '../src/sim/waves.js';
 import { UNITS, DAMAGE_MATRIX } from '../src/units.js';
@@ -193,6 +193,136 @@ console.log('unit commands (army zone, tiers)');
   check('moveUnit inside army zone ok', mv.ok && game.templates[0][0].x === 400);
   const badMv = game.issueCommand({ type: 'moveUnit', team: 0, index: 0, x: 740, y: 500 });
   check('moveUnit outside army zone rejected', !badMv.ok);
+}
+
+// ---------------------------- Undead support hero: SOULS are his mana
+console.log('soul collector');
+{
+  const race = 'undead';
+  const heroId = resolvedHeroIds(race)[2] || 'hero3';
+  const st = statsUnit(race, heroId);
+  const saved = { heroAbilities: st.heroAbilities, heroUltimate: st.heroUltimate, mana: st.mana, manaRegen: st.manaRegen };
+  st.heroAbilities = ['soulcollector', 'undeadflag', 'bonefield'];
+  st.heroUltimate = 'bonegiant';
+  st.mana = 180; st.manaRegen = 0; // souls are his ONLY source
+  const ab = resolvedAbility('soulcollector');
+  const savedAb = { ...ab.params };
+  Object.assign(ab.params, { radius: 500, soulsBase: 1, souls1: 2, souls2: 3, souls3: 4, heroSouls: 40, summons: 1 });
+
+  const mkHero = (g) => {
+    const h = spawnUnit(g, 0, heroId, 1000, MID_Y);
+    h.hero = true; h.heroLevel = 6; h.mana = 0; h.manaMax = 180; h.heroRanks = {}; h.disabledAbilities = new Set();
+    return h;
+  };
+
+  // without a point: 1 soul per death
+  {
+    const g = new Game(80, { races: [race, 'humans'] });
+    const h = mkHero(g);
+    const foe = spawnUnit(g, 1, 'grunt', 1060, MID_Y); foe.hp = 1;
+    applyDamage(g, foe, 999, 'normal');
+    check('base: 1 soul with no point spent', h.mana === 1, `${h.mana}`);
+    const ev = g.drainEvents().find((e) => e.type === 'soul');
+    check('an orb event is emitted from the corpse', !!ev && ev.heroId === h.id && ev.x === foe.x, ev ? 'ok' : 'none');
+  }
+  // with points: 2 / 3 / 4
+  {
+    for (const [rank, want] of [[1, 2], [2, 3], [3, 4]]) {
+      const g = new Game(81 + rank, { races: [race, 'humans'] });
+      const h = mkHero(g); h.heroRanks = { soulcollector: rank };
+      const foe = spawnUnit(g, 1, 'grunt', 1060, MID_Y);
+      applyDamage(g, foe, 99999, 'normal');
+      check(`rank ${rank}: ${want} souls per kill`, h.mana === want, `${h.mana}`);
+    }
+  }
+  // an ALLY dying feeds him too
+  {
+    const g = new Game(85, { races: [race, 'humans'] });
+    const h = mkHero(g); h.heroRanks = { soulcollector: 1 };
+    const mate = spawnUnit(g, 0, 'grunt', 1060, MID_Y);
+    applyDamage(g, mate, 99999, 'normal');
+    check('an allied death also feeds him', h.mana === 2, `${h.mana}`);
+  }
+  // out of range: nothing
+  {
+    const g = new Game(86, { races: [race, 'humans'] });
+    const h = mkHero(g); h.heroRanks = { soulcollector: 3 };
+    const far = spawnUnit(g, 1, 'grunt', 1000 + 900, MID_Y);
+    applyDamage(g, far, 99999, 'normal');
+    check('a death outside the radius gives nothing', h.mana === 0, `${h.mana}`);
+  }
+  // a summon that EXPIRED is not food; one that was killed is
+  {
+    const g = new Game(87, { races: [race, 'humans'] });
+    const h = mkHero(g); h.heroRanks = { soulcollector: 1 };
+    const wolfAb = resolvedAbility('summonwolf');
+    const pet = spawnSummon(g, h, wolfAb, { ...wolfAb.params, life: 5 }, 1);
+    pet.x = 1040; pet.y = MID_Y;
+    g.time = 99; // its lifetime ran out
+    applyDamage(g, pet, 99999, 'normal');
+    check('an expired summon is not food', h.mana === 0, `${h.mana}`);
+    const g2 = new Game(88, { races: [race, 'humans'] });
+    const h2 = mkHero(g2); h2.heroRanks = { soulcollector: 1 };
+    const pet2 = spawnSummon(g2, h2, wolfAb, { ...wolfAb.params, life: 5 }, 1);
+    pet2.x = 1040; pet2.y = MID_Y;
+    applyDamage(g2, pet2, 99999, 'normal');
+    check('a KILLED summon is food', h2.mana === 2, `${h2.mana}`);
+  }
+  // the bar is capped
+  {
+    const g = new Game(89, { races: [race, 'humans'] });
+    const h = mkHero(g); h.heroRanks = { soulcollector: 3 }; h.mana = 179;
+    const foe = spawnUnit(g, 1, 'grunt', 1060, MID_Y);
+    applyDamage(g, foe, 99999, 'normal');
+    check('souls never overflow the bar', h.mana === 180, `${h.mana}`);
+  }
+  // toggled OFF -> back to the base 1
+  {
+    const g = new Game(90, { races: [race, 'humans'] });
+    const h = mkHero(g); h.heroRanks = { soulcollector: 3 };
+    h.disabledAbilities = new Set(['soulcollector']);
+    const foe = spawnUnit(g, 1, 'grunt', 1060, MID_Y);
+    applyDamage(g, foe, 99999, 'normal');
+    check('turned off, he still takes the base soul', h.mana === 1, `${h.mana}`);
+  }
+  ab.params = savedAb;
+  Object.assign(st, saved);
+}
+
+// ------------------------- Undead Flag heals allies, Bone Field slows enemies
+console.log('undead flag + bone field');
+{
+  const race = 'undead';
+  const flag = resolvedAbility('undeadflag');
+  const savedFlag = { ...flag.params };
+  Object.assign(flag.params, { hp: 260, life: 20, radius: 220, healHps: 20 });
+  const g = new Game(91, { races: [race, 'humans'] });
+  const caster = spawnUnit(g, 0, 'grunt', 1000, MID_Y);
+  const banner = spawnSummon(g, caster, flag, flag.params, 1);
+  check('the flag stands still and heals', banner.totem === true && banner.totemAura.healHps === 20);
+  const hurt = spawnUnit(g, 0, 'grunt', banner.x + 60, MID_Y);
+  hurt.hp = 10;
+  updateAbilities(g, 0.5);
+  check('an ally under the banner is healed', hurt.hp > 10, `${hurt.hp}`);
+  const foe = spawnUnit(g, 1, 'grunt', banner.x + 60, MID_Y);
+  updateAbilities(g, 0.5);
+  check('the banner does not slow the enemy', !(foe.effects || []).some((e) => e.kind === 'moveslow'));
+  flag.params = savedFlag;
+
+  // Bone Field: a ground zone that slows whoever stands on it
+  const g2 = new Game(92, { races: [race, 'humans'] });
+  g2.boneFields.push({ x: 1200, y: MID_Y, radius: 200, atkSlow: 30, moveSlow: 35, until: g2.time + 8, team: 0, id: 1 });
+  const inside = spawnUnit(g2, 1, 'grunt', 1200, MID_Y);
+  const outside = spawnUnit(g2, 1, 'grunt', 1700, MID_Y);
+  const mine = spawnUnit(g2, 0, 'grunt', 1200, MID_Y);
+  updateCombat(g2, DT);
+  const has = (u, k) => (u.effects || []).some((e) => e.kind === k);
+  check('bone field: the enemy on it is slowed', has(inside, 'moveslow') && has(inside, 'atkslow'));
+  check('bone field: an enemy outside is untouched', !has(outside, 'moveslow'));
+  check('bone field: my own units are untouched', !has(mine, 'moveslow'));
+  g2.time += 9;
+  updateCombat(g2, DT);
+  check('bone field: it burns out', g2.boneFields.length === 0);
 }
 
 // ------------------------- the parked "ghost" knows when its unit marched off

@@ -109,13 +109,18 @@ const ABILITY_INFO = [
   // Loves dagger: 2 cast frames (channel + throw) + the thrown-dagger projectile
   // sprite, which sweeps through the linked enemies and boomerangs back.
   'daggerthrow' => ['Loves dagger', true, true, 2],
+  // Undead support hero (souls). Soul Collector is a PASSIVE — no cast frame.
+  'soulcollector' => ['Soul Collector', false, false],
+  'undeadflag' => ['Undead Flag', true, false, 1],   // plants the banner
+  'bonefield' => ['Bone Field', true, false, 1, true], // cast frame + a ground image
+  'bonegiant' => ['Bone Giant', true, false, 2],     // ultimate: raise the giant
 ];
 // summon abilities -> the animal sprite prefix hosted on the caster unit
-const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged', 'cocoon' => 'cocoon'];
-const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet', 'skeletonranged' => 'Schelet ranged', 'cocoon' => 'Cocon', 'larva' => 'Larvă'];
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged', 'cocoon' => 'cocoon', 'undeadflag' => 'flag', 'bonegiant' => 'bonegiant'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet', 'skeletonranged' => 'Schelet ranged', 'cocoon' => 'Cocon', 'larva' => 'Larvă', 'flag' => 'Steag', 'bonegiant' => 'Gigant de oase'];
 // summon abilities whose spawned entity is a stationary totem (idle-only sprite,
 // no walk/attack/die, no portrait animation)
-const TOTEM_ABILITIES = ['slowingtotem'];
+const TOTEM_ABILITIES = ['slowingtotem', 'undeadflag'];
 // summon abilities that lay a COCOON: the pouch itself has a single standing
 // frame, and the larvae that crawl out of it get their own walk/attack/die set
 // (both hosted on the caster — the moth)

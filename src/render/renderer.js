@@ -21,7 +21,7 @@ const anchorOf = (game, side) => {
   return side;
 };
 import { structureExtents } from '../sim/entity.js';
-import { resolvedAbility, statsBuilding } from '../ui/balance.js';
+import { resolvedAbility, statsBuilding, heroAbilitySlots } from '../ui/balance.js';
 import { effectVal } from '../sim/abilities.js';
 import { drawAura, drawSlow, drawAcid, drawHasteSparks, drawRegenCross, drawImmuneHalo, drawLightShield } from './vfx.js';
 import { Fog } from './fog.js';
@@ -165,6 +165,14 @@ export function hitTestTemplate(game, team, x, y) {
 // Opacity of a parked template ("ghost") in the army zone. Full while it waits
 // for the wave; the tick the wave takes it away it drops to ARMY_GHOST_GONE_ALPHA
 // and eases back to ARMY_GHOST_ALPHA over ARMY_GHOST_BACK_TIME seconds.
+// True for a hero whose kit carries Soul Collector — his mana bar is a SOUL bar
+// (green, labelled "Suflete") everywhere it shows.
+export function isSoulHero(game, u) {
+  if (!u || !u.hero || !game || !game.races) return false;
+  const race = game.races[u.owner != null ? u.owner : u.team];
+  return heroAbilitySlots(race, u.type).some((sl) => sl.id === 'soulcollector');
+}
+
 export function ghostAlpha(game, tpl) {
   const full = Math.max(0, Math.min(100, Number(CONFIG.ARMY_GHOST_ALPHA ?? 100))) / 100;
   const gone = Math.max(0, Math.min(100, Number(CONFIG.ARMY_GHOST_GONE_ALPHA ?? 20))) / 100;
@@ -310,12 +318,14 @@ export class Renderer {
     };
     layer('structureCorpses', () => effects.drawStructureCorpses(ctx)); // toppled towers crumble where they stood
     layer('workers', () => this.drawWorkers(ctx, game)); // little miners shuttling gold to the base
+    layer('boneFields', () => this.drawBoneFields(ctx, game)); // slowing bone patches on the ground
     layer('corpses', () => effects.drawCorpses(ctx)); // fallen puppets lie under the living
     layer('units', () => this.drawUnits(ctx, game, alpha));
     layer('soulLinks', () => this.drawSoulLinks(ctx, game, alpha)); // Soul Link tethers
     layer('daggerLinks', () => this.drawDaggerLinks(ctx, game, alpha)); // Binding Blade tethers + blade
     layer('drainBeams', () => this.drawDrainBeams(ctx, game, alpha)); // Life Drain beam
     layer('projectiles', () => this.drawProjectiles(ctx, game, alpha));
+    layer('souls', () => effects.drawSouls(ctx)); // green soul orbs flying to the hero
     layer('effects', () => effects.draw(ctx));
     if (this._fogOn) layer('fog', () => this.fog.draw(ctx, CONFIG.FIELD_W, CONFIG.FIELD_H)); // fog over the battlefield
     if (uiState.showRanges) layer('ranges', () => this.drawRanges(ctx, game)); // 🎯 debug overlay
@@ -398,6 +408,49 @@ export class Renderer {
   // caps) floating just ABOVE the zone. `tint` is a partial rgba prefix like
   // 'rgba(77, 166, 255,' — this appends the alpha. `topAlpha` is the fill
   // strength at the top edge (fades toward the bottom).
+  // Bone Field: a pale patch of scattered bones on the ground. Enemies standing
+  // on it are slowed (see combat); the drawing is a soft disc + a scatter of
+  // bone flecks placed from the zone's own id, so it never shimmers.
+  drawBoneFields(ctx, game) {
+    const zones = game && game.boneFields;
+    if (!zones || !zones.length) return;
+    ctx.save();
+    for (const z of zones) {
+      if (!this.visible(z.x, z.y, z.radius + 40)) continue;
+      const left = z.until - game.time;
+      const fade = Math.max(0, Math.min(1, left / 0.8)); // ease out at the end
+      const g = ctx.createRadialGradient(z.x, z.y, z.radius * 0.2, z.x, z.y, z.radius);
+      g.addColorStop(0, `rgba(232, 226, 200, ${(0.20 * fade).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(232, 226, 200, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(z.x, z.y, z.radius, z.radius * 0.62, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // bone flecks: deterministic from the zone id, so they sit still
+      ctx.fillStyle = `rgba(226, 220, 196, ${(0.5 * fade).toFixed(3)})`;
+      let seed = (z.id || 1) * 2654435761 % 2147483647;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 2147483647; };
+      const n = Math.max(6, Math.round(z.radius / 9));
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * Math.PI * 2;
+        const rr = Math.sqrt(rnd()) * z.radius * 0.92;
+        const bx = z.x + Math.cos(a) * rr, by = z.y + Math.sin(a) * rr * 0.62;
+        const len = 4 + rnd() * 7;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(rnd() * Math.PI);
+        ctx.fillRect(-len / 2, -1, len, 2);
+        ctx.restore();
+      }
+      ctx.strokeStyle = `rgba(226, 220, 196, ${(0.22 * fade).toFixed(3)})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(z.x, z.y, z.radius, z.radius * 0.62, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   drawZonePlate(ctx, z, tint, kind, glyph, topAlpha, race) {
     const x = z.x0, y = z.y0, w = z.x1 - z.x0, h = z.y1 - z.y0;
     const r = Math.min(16, w / 2, h / 2);
@@ -1888,11 +1941,13 @@ export class Renderer {
         const color = ratio > 0.5 ? '#58d68d' : ratio > 0.25 ? '#ffd35c' : '#ff5566';
         this.pillBar(ctx, x - w / 2, y - barR - 10, w, 4, ratio, color);
       }
-      // mana bar (casters only), right under the HP bar slot
+      // mana bar (casters only), right under the HP bar slot. The Undead soul
+      // hero drinks SOULS, not mana — his bar is green, so you read at a glance
+      // that it fills from the dying, not from time.
       if (u.manaMax > 0) {
         const w = Math.max(20, drawR * 2.4);
         const mratio = Math.max(0, Math.min(1, u.mana / u.manaMax));
-        this.pillBar(ctx, x - w / 2, y - barR - 5, w, 3, mratio, '#4da6ff');
+        this.pillBar(ctx, x - w / 2, y - barR - 5, w, 3, mratio, isSoulHero(game, u) ? '#7ef2a8' : '#4da6ff');
       }
 
       // status-effect indicators (slow swirl, haste sparks, regen cross...)
