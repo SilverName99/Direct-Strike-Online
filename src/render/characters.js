@@ -7,7 +7,7 @@ import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
   getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile, getFireProjectile,
-  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf, frameCount, animFpsOf,
+  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf, frameCount, animFpsOf, animSizeOf,
 } from './sprites.js';
 
 export { setTeamRaces } from './sprites.js';
@@ -81,6 +81,10 @@ export function hasDeathAnim(type, team = 0) {
 
 export function drawCharacter(ctx, type, anim, frame, team, scale = 1) {
   const race = raceOf(team);
+  // "Size cadre (%)": this animation's own size, on top of the unit's. Applied
+  // here because every character on the field — units, summons, corpses, the
+  // parked ghosts — is drawn through this one function.
+  scale *= animSizeOf(race, type, anim);
   const entry = getSprite(race, type, anim, frame);
   if (entry) {
     drawEntitySprite(ctx, race, type, entry, unitH(type, scale), team);

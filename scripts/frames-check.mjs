@@ -16,6 +16,7 @@ const DIR = 'assets/units/humans/grunt';
 const MAN = 'assets/units/manifest.json';
 const EIGHT = process.env.EIGHT === '1'; // second pass: 8 walk frames
 const FPS = process.env.FPS ? Number(process.env.FPS) : 0; // explicit walk frames/second
+const SIZE = process.env.SIZE ? Number(process.env.SIZE) : 0; // explicit walk size (%)
 
 function png(w, h, rgb) {
   const raw = Buffer.alloc((w * 4 + 1) * h);
@@ -65,6 +66,7 @@ writeFileSync(MAN, JSON.stringify({
   races: { humans: { grunt: {
     thumb: true, idle: [true, true], walk: walkFrames, attack: [true, true], die: [true],
     ...(FPS > 0 ? { fps: { walk: FPS } } : {}),
+    ...(SIZE > 0 ? { animSize: { walk: SIZE } } : {}),
   } } },
 }));
 
@@ -145,10 +147,33 @@ try {
     if (r.hitAt) r.hitAt.clear();
     const fps = {};
     for (const t of [0, 0.13, 0.26, 0.39, 0.52, 0.65]) fps[`walk@${t}`] = shot(t, march);
-    return { sig, fps, errors: [] };
+
+    // "Size cadre (%)": measure the painted height of a walk frame, so a size
+    // override shows up as a real change in pixels on the canvas.
+    const measure = (setup) => {
+      setup(u);
+      const real = performance.now;
+      performance.now = () => 0;
+      try { r.draw(g, 1, window.__ui, fx); } finally { performance.now = real; }
+      const cv = r.ctx.canvas;
+      const d = r.ctx.getImageData(0, 0, cv.width, cv.height).data;
+      let minY = 1e9, maxY = -1e9;
+      for (let y = 0; y < cv.height; y++) {
+        for (let x = 0; x < cv.width; x++) {
+          const i = (y * cv.width + x) * 4;
+          if (d[i + 3] <= 200) continue;
+          const k = `${d[i]},${d[i + 1]},${d[i + 2]}`;
+          if (!NAMES[k] || !NAMES[k].startsWith('walk')) continue;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+      return maxY >= minY ? maxY - minY + 1 : 0;
+    };
+    const walkHeight = measure(march);
+    return { sig, fps, walkHeight, errors: [] };
   });
 
-  console.log(JSON.stringify({ eightFrames: EIGHT, walkFps: FPS, ...out, errors }, null, 2));
+  console.log(JSON.stringify({ eightFrames: EIGHT, walkFps: FPS, walkSize: SIZE, ...out, errors }, null, 2));
 } finally {
   await browser.close();
   rmSync(DIR, { recursive: true, force: true });

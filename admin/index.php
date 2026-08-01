@@ -687,26 +687,46 @@ function scanFrames(string $assetsDir, string $race, string $ent, string $anim):
   return $frames;
 }
 
-// ---- per-animation playback rate ------------------------------------------
-// How fast one animation runs, in FRAMES PER SECOND. It belongs next to the
-// frames themselves (it only means anything for art with more than two), so it
-// lives in its own small file here rather than in the balance — one owner, no
-// chance of the two overwriting each other. 0 / missing = automatic.
-function animFpsFile(string $assetsDir): string { return "$assetsDir/anim-fps.json"; }
+// ---- per-animation options ------------------------------------------------
+// Two knobs that only mean anything for uploaded art, so they belong next to
+// the frames rather than in the balance — one owner, no chance of the balance
+// editor and the sprite page overwriting each other:
+//   fps  = playback rate in FRAMES PER SECOND (0 = automatic)
+//   size = size of THIS animation as a % of the unit's own size (100 = same)
+// Shape: { "<race>/<ent>": { "<anim>": { "fps": 6, "size": 120 } } }
+const ANIM_OPT_DEFAULTS = ['fps' => 0.0, 'size' => 100.0];
 
-function animFpsAll(string $assetsDir, bool $reload = false): array {
+function animOptFile(string $assetsDir): string { return "$assetsDir/anim-opts.json"; }
+
+function animOptAll(string $assetsDir, bool $reload = false): array {
   static $cache = null;
   if ($cache === null || $reload) {
-    $f = animFpsFile($assetsDir);
+    $f = animOptFile($assetsDir);
+    // an older build stored only the rate, as a bare number per animation
+    if (!is_file($f) && is_file("$assetsDir/anim-fps.json")) $f = "$assetsDir/anim-fps.json";
     $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : [];
-    $cache = is_array($j) ? $j : [];
+    $out = [];
+    foreach (is_array($j) ? $j : [] as $key => $anims) {
+      if (!is_array($anims)) continue;
+      foreach ($anims as $anim => $v) {
+        if (is_array($v)) $out[$key][$anim] = $v;
+        elseif (is_numeric($v)) $out[$key][$anim] = ['fps' => (float)$v]; // legacy
+      }
+    }
+    $cache = $out;
   }
   return $cache;
 }
 
-function animFpsFor(string $assetsDir, string $race, string $ent): array {
-  $v = animFpsAll($assetsDir)["$race/$ent"] ?? [];
+function animOptFor(string $assetsDir, string $race, string $ent): array {
+  $v = animOptAll($assetsDir)["$race/$ent"] ?? [];
   return is_array($v) ? $v : [];
+}
+
+// One knob of one animation, or its default.
+function animOpt(array $opts, string $anim, string $key): float {
+  $v = $opts[$anim][$key] ?? null;
+  return is_numeric($v) ? (float)$v : ANIM_OPT_DEFAULTS[$key];
 }
 
 // Every animation this entity has slots for, in slot order (no duplicates).
@@ -745,10 +765,18 @@ function regenManifest(string $assetsDir): void {
       foreach ($entData as $k => $v) {
         if (is_array($v) && !in_array(true, $v, true)) unset($entData[$k]);
       }
-      // per-animation playback rates ride along in the manifest the client
-      // already fetches (added AFTER the filter above, which would drop it)
-      $fps = animFpsFor($assetsDir, $r, $ent);
+      // per-animation knobs ride along in the manifest the client already
+      // fetches (added AFTER the filter above, which would drop them)
+      $opts = animOptFor($assetsDir, $r, $ent);
+      $fps = []; $asz = [];
+      foreach ($opts as $anim => $o) {
+        $f = animOpt($opts, $anim, 'fps');
+        $z = animOpt($opts, $anim, 'size');
+        if ($f > 0) $fps[$anim] = $f;
+        if (abs($z - 100) >= 0.001) $asz[$anim] = $z;
+      }
       if ($fps) $entData['fps'] = $fps;
+      if ($asz) $entData['animSize'] = $asz;
       if ($entData) $races[$r][$ent] = $entData;
     }
   }
@@ -974,30 +1002,38 @@ if ($authed && $action === 'uploadframes') {
   }
 }
 
-// How fast one animation plays, in frames per second. 0 clears the setting and
-// the animation goes back to its automatic timing.
-if ($authed && $action === 'animfps') {
+// One per-animation knob (rate or size). Setting it back to its default value
+// removes the entry, so an animation with nothing set carries no baggage.
+if ($authed && $action === 'animopt') {
   $ent = $_POST['entity'] ?? '';
   $anim = $_POST['anim'] ?? '';
+  $key = $_POST['key'] ?? '';
   if (!checkCsrf()) {
     $err = 'Sesiune expirată — reîncearcă.';
   } elseif (!in_array($race, RACES, true)
       || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
-      || !in_array($anim, animBasesFor($ent, $race), true)) {
+      || !in_array($anim, animBasesFor($ent, $race), true)
+      || !array_key_exists($key, ANIM_OPT_DEFAULTS)) {
     $err = 'Țintă invalidă.';
   } else {
-    $val = max(0.0, min(60.0, (float)($_POST['fps'] ?? 0)));
-    $all = animFpsAll($assetsDir, true);
-    $key = "$race/$ent";
-    if (!isset($all[$key]) || !is_array($all[$key])) $all[$key] = [];
-    if ($val > 0) $all[$key][$anim] = $val; else unset($all[$key][$anim]);
-    if (!$all[$key]) unset($all[$key]);
-    if (file_put_contents(animFpsFile($assetsDir), json_encode($all, JSON_PRETTY_PRINT)) === false) {
-      $err = 'Nu pot scrie assets/units/anim-fps.json — verifică permisiunile.';
+    $lim = $key === 'fps' ? [0.0, 60.0] : [10.0, 400.0];
+    $val = max($lim[0], min($lim[1], (float)($_POST['val'] ?? 0)));
+    $all = animOptAll($assetsDir, true);
+    $ekey = "$race/$ent";
+    if (!isset($all[$ekey]) || !is_array($all[$ekey])) $all[$ekey] = [];
+    if (!isset($all[$ekey][$anim]) || !is_array($all[$ekey][$anim])) $all[$ekey][$anim] = [];
+    if (abs($val - ANIM_OPT_DEFAULTS[$key]) < 0.001) unset($all[$ekey][$anim][$key]);
+    else $all[$ekey][$anim][$key] = $val;
+    if (!$all[$ekey][$anim]) unset($all[$ekey][$anim]);
+    if (!$all[$ekey]) unset($all[$ekey]);
+    if (file_put_contents(animOptFile($assetsDir), json_encode($all, JSON_PRETTY_PRINT)) === false) {
+      $err = 'Nu pot scrie assets/units/anim-opts.json — verifică permisiunile.';
     } else {
-      animFpsAll($assetsDir, true); // refresh the cache before the manifest
+      animOptAll($assetsDir, true); // refresh the cache before the manifest
       regenManifest($assetsDir);
-      $msg = "Viteză animație: $race · $ent · $anim = " . ($val > 0 ? rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.') . ' cadre/s' : 'automat');
+      $pretty = rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.');
+      $what = $key === 'fps' ? ($val > 0 ? "$pretty cadre/s" : 'viteză automată') : "mărime $pretty%";
+      $msg = "Animație: $race · $ent · $anim → $what";
     }
   }
 }
@@ -2403,29 +2439,39 @@ if ($authed && $action === 'deletebarover') {
         <p class="frames-hint">Alege deodată TOATE cadrele unei animații. Se numerotează singure în ordinea numelui
           (<code>walk_0001.png</code>, <code>walk_0002.png</code>…), deci exportă-le din Blender cu nume în ordine.
           Primele două cadre sunt aceleași fișiere cu sloturile de mai sus. Maxim <?= MAX_ANIM_FRAMES ?> cadre.</p>
-        <?php $fpsMap = animFpsFor($assetsDir, $race, $ent); ?>
+        <?php
+        $optMap = animOptFor($assetsDir, $race, $ent);
+        $num = fn(float $v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
+        ?>
         <?php foreach ($animBases as $anim):
           $frames = scanFrames($assetsDir, $race, $ent, $anim);
           $have = count(array_filter($frames));
-          $fpsVal = (float)($fpsMap[$anim] ?? 0);
           $isAtk = str_ends_with($anim, 'attack') || $anim === 'acid';
+          $knobs = [
+            ['fps', animOpt($optMap, $anim, 'fps'), 0.0, 'cadre/s', 0, 60, 0.5, $isAtk
+              ? 'Cadre pe secundă. 0 = legat de ritmul real de atac (impactul cade pe cadrul din mijloc) — recomandat.'
+              : 'Cadre pe secundă. 0 = automat (păstrează durata ciclului dată de „Viteză animație mers/idle").'],
+            ['size', animOpt($optMap, $anim, 'size'), 100.0, '%', 10, 400, 5,
+              'Mărimea ACESTEI animații, ca procent din mărimea unității. 100 = neschimbată. Se înmulțește cu „Size (%)" din ⚙ stats — util când o animație a fost randată la alt zoom decât restul.'],
+          ];
         ?>
         <div class="frames-row">
           <span class="fr-name"><?= htmlspecialchars($anim) ?></span>
           <span class="fr-count <?= $have > 2 ? 'many' : '' ?>"><?= $have ?> cadre</span>
-          <form method="post" class="fr-fps" title="<?= $isAtk
-            ? 'Cadre pe secundă. 0 = legat de ritmul real de atac (impactul cade pe cadrul din mijloc) — recomandat.'
-            : 'Cadre pe secundă. 0 = automat (păstrează durata ciclului dată de „Viteză animație mers/idle").' ?>">
-            <input type="hidden" name="action" value="animfps">
+          <?php foreach ($knobs as [$k, $val, $def, $unit, $min, $max, $step, $tip]): ?>
+          <form method="post" class="fr-fps" title="<?= htmlspecialchars($tip) ?>">
+            <input type="hidden" name="action" value="animopt">
             <input type="hidden" name="csrf" value="<?= $csrf ?>">
             <input type="hidden" name="race" value="<?= $race ?>">
             <input type="hidden" name="entity" value="<?= $ent ?>">
             <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
-            <input type="number" name="fps" min="0" max="60" step="0.5"
-              value="<?= $fpsVal > 0 ? rtrim(rtrim(number_format($fpsVal, 2, '.', ''), '0'), '.') : '0' ?>"
-              class="<?= $fpsVal > 0 ? 'set' : '' ?>" onchange="this.form.submit()">
-            <span>cadre/s</span>
+            <input type="hidden" name="key" value="<?= $k ?>">
+            <input type="number" name="val" min="<?= $min ?>" max="<?= $max ?>" step="<?= $step ?>"
+              value="<?= $num($val) ?>" class="<?= abs($val - $def) >= 0.001 ? 'set' : '' ?>"
+              onchange="this.form.submit()">
+            <span><?= $unit ?></span>
           </form>
+          <?php endforeach; ?>
           <div class="fr-strip">
             <?php foreach ($frames as $i => $present): if (!$present) continue; ?>
               <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $anim ?>_<?= $i ?>.png?t=<?= filemtime("$assetsDir/$race/$ent/{$anim}_{$i}.png") ?>" alt="<?= $i ?>">

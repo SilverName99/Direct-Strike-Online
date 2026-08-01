@@ -19,7 +19,8 @@ const abilityFx = new Map(); // `${race}/${ent}/${abilityId}` -> Image (AoE effe
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const fireProjectiles = new Map();    // `${race}/${ent}` -> entry (Fireball projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
-const animFpsMap = new Map(); // `${race}/${ent}/${anim}` -> frames per second (admin-set)
+const animFpsMap = new Map();  // `${race}/${ent}/${anim}` -> frames per second (admin-set)
+const animSizeMap = new Map(); // `${race}/${ent}/${anim}` -> size multiplier (admin-set)
 const backgrounds = new Map(); // race -> Image
 const backgrounds2 = new Map(); // race -> Image (corrupt "blight" overlay terrain)
 const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
@@ -143,10 +144,15 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
               abilityFx.set(`${race}/${ent}/${aid}`, img);
             });
           }
-          // per-animation playback rates set next to the frames in admin
+          // per-animation knobs set next to the frames in admin
           if (slots.fps && typeof slots.fps === 'object') {
             for (const [anim, v] of Object.entries(slots.fps)) {
               if (v > 0) animFpsMap.set(`${race}/${ent}/${anim}`, v);
+            }
+          }
+          if (slots.animSize && typeof slots.animSize === 'object') {
+            for (const [anim, v] of Object.entries(slots.animSize)) {
+              if (v > 0) animSizeMap.set(`${race}/${ent}/${anim}`, v / 100);
             }
           }
           for (const [anim, frames] of Object.entries(slots)) {
@@ -438,6 +444,12 @@ export function getSprite(race, ent, anim, frame) {
 // when it was left on "automatic".
 export function animFpsOf(race, ent, anim) {
   return animFpsMap.get(`${race}/${ent}/${anim}`) || 0;
+}
+
+// The admin-set size of one animation, as a multiplier on the unit's own size.
+// 1 (the default) leaves it exactly as the unit is configured.
+export function animSizeOf(race, ent, anim) {
+  return animSizeMap.get(`${race}/${ent}/${anim}`) || 1;
 }
 
 // How many frames this animation was uploaded with (0 = none). Every cycling
