@@ -662,6 +662,44 @@ function checkCsrf(): bool {
   return hash_equals($_SESSION['csrf'], $_POST['csrf'] ?? '');
 }
 
+// ---- multi-frame animations ------------------------------------------------
+// An animation used to be exactly two images (`walk_0`, `walk_1`). It can now
+// carry as many as MAX_ANIM_FRAMES, uploaded in one go from the "cadre
+// suplimentare" block. Frames 0 and 1 stay in their original slots, so nothing
+// about the existing screens or the existing art changes.
+const MAX_ANIM_FRAMES = 32;
+
+// 'walk_0' -> 'walk', 'tier2-idle_1' -> 'tier2-idle', 'cast-heal_0' -> 'cast-heal'
+function animBaseOf(string $slot): string {
+  $parts = explode('_', $slot);
+  array_pop($parts);
+  return implode('_', $parts);
+}
+
+// The frame list of one animation, read off the disk: [true, true, false, true…]
+// with trailing gaps trimmed, so a 2-image animation stays exactly [true, true].
+function scanFrames(string $assetsDir, string $race, string $ent, string $anim): array {
+  $frames = [];
+  for ($i = 0; $i < MAX_ANIM_FRAMES; $i++) {
+    $frames[] = is_file("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+  }
+  while (count($frames) > 1 && $frames[count($frames) - 1] === false) array_pop($frames);
+  return $frames;
+}
+
+// Every animation this entity has slots for, in slot order (no duplicates).
+function animBasesFor(string $ent, string $race): array {
+  $out = [];
+  foreach (slotsFor($ent, $race) as $slot => $label) {
+    if (!str_contains($slot, '_')) continue;               // single-image slot
+    $base = animBaseOf($slot);
+    $tail = substr($slot, strlen($base) + 1);
+    if ($base === '' || !ctype_digit($tail)) continue;      // not <anim>_<n>
+    if (!in_array($base, $out, true)) $out[] = $base;
+  }
+  return $out;
+}
+
 function regenManifest(string $assetsDir): void {
   $races = [];
   foreach (RACES as $r) {
@@ -673,11 +711,12 @@ function regenManifest(string $assetsDir): void {
         if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'morph-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-') || str_starts_with($slot, 'abilityfx-')) {
           if ($exists) $entData[$slot] = true; // single-image slots
         } else {
-          [$anim, $frame] = explode('_', $slot);
-          if (!isset($entData[$anim])) {
-            $entData[$anim] = $anim === 'die' ? [false] : ($anim === 'tier' ? [false, false, false] : [false, false]);
-          }
-          if ($exists) $entData[$anim][(int)$frame] = true;
+          // <anim>_<frame>. The classic slots above cover frames 0-1; the
+          // "cadre suplimentare" block can add as many as MAX_ANIM_FRAMES, so
+          // the folder itself decides how long the frame list is.
+          $anim = animBaseOf($slot);
+          if (isset($entData[$anim])) continue; // this animation was already scanned
+          $entData[$anim] = scanFrames($assetsDir, $r, $ent, $anim);
         }
       }
       // keep only anims that have at least one frame
@@ -853,6 +892,77 @@ if ($authed && $action === 'upload') {
         $err = 'Nu pot salva fișierul — verifică permisiunile assets/units.';
       }
     }
+  }
+}
+
+// Upload a WHOLE animation at once: pick every rendered frame and they are
+// written in filename order as <anim>_0.png … <anim>_N.png. Anything left over
+// from a previous, longer upload is removed, so the animation is exactly what
+// was just picked. Frames 0-1 are the same files the classic slots above use.
+if ($authed && $action === 'uploadframes') {
+  $ent = $_POST['entity'] ?? '';
+  $anim = $_POST['anim'] ?? '';
+  $files = $_FILES['frames'] ?? null;
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!in_array($race, RACES, true)
+      || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+      || !in_array($anim, animBasesFor($ent, $race), true)) {
+    $err = 'Țintă invalidă.';
+  } elseif (!$files || !is_array($files['name']) || count($files['name']) === 0) {
+    $err = 'Nu ai ales niciun fișier.';
+  } else {
+    // sort by file name so walk_0001.png … walk_0008.png land in order
+    $picked = [];
+    foreach ($files['name'] as $i => $name) {
+      if (($files['error'][$i] ?? 1) !== UPLOAD_ERR_OK) continue;
+      $picked[] = ['name' => (string)$name, 'tmp' => $files['tmp_name'][$i], 'size' => $files['size'][$i]];
+    }
+    usort($picked, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+    if (count($picked) > MAX_ANIM_FRAMES) $picked = array_slice($picked, 0, MAX_ANIM_FRAMES);
+    $bad = '';
+    foreach ($picked as $f) {
+      if ($f['size'] > MAX_BYTES) { $bad = "„{$f['name']}" . '" e prea mare (max 1.5 MB).'; break; }
+      $magic = (string)file_get_contents($f['tmp'], false, null, 0, 8);
+      if (!is_uploaded_file($f['tmp']) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+        $bad = "„{$f['name']}" . '" nu e PNG.'; break;
+      }
+    }
+    if ($bad !== '') {
+      $err = $bad;
+    } elseif (!$picked) {
+      $err = 'Upload eșuat — fișiere lipsă sau prea mari.';
+    } else {
+      @mkdir("$assetsDir/$race/$ent", 0755, true);
+      $ok = true;
+      foreach ($picked as $i => $f) {
+        if (!move_uploaded_file($f['tmp'], "$assetsDir/$race/$ent/{$anim}_{$i}.png")) { $ok = false; break; }
+      }
+      // drop frames left over from a longer previous upload
+      for ($i = count($picked); $i < MAX_ANIM_FRAMES; $i++) @unlink("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+      regenManifest($assetsDir);
+      $msg = $ok ? "Animație încărcată: $race · $ent · $anim (" . count($picked) . ' cadre)'
+                 : 'Nu pot salva toate fișierele — verifică permisiunile assets/units.';
+      if (!$ok) { $err = $msg; $msg = ''; }
+    }
+  }
+}
+
+// Back to a plain two-frame animation: frames 2 and up are deleted, the
+// original pair is left untouched.
+if ($authed && $action === 'trimframes') {
+  $ent = $_POST['entity'] ?? '';
+  $anim = $_POST['anim'] ?? '';
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!in_array($race, RACES, true)
+      || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+      || !in_array($anim, animBasesFor($ent, $race), true)) {
+    $err = 'Țintă invalidă.';
+  } else {
+    for ($i = 2; $i < MAX_ANIM_FRAMES; $i++) @unlink("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+    regenManifest($assetsDir);
+    $msg = "Cadre suplimentare șterse: $race · $ent · $anim";
   }
 }
 
@@ -1560,6 +1670,22 @@ if ($authed && $action === 'deletebarover') {
       background: #10151d; color: #9fb0c8; border: 1px solid #2a3446; border-radius: 20px;
     }
     .unit-tabs .utab.active { background: #1c2740; color: #ffd35c; border-color: #5a4a1e; }
+    /* multi-frame animations — deliberately its own block, folded away by
+       default so the classic slot grid above stays exactly as busy as it was */
+    .frames { flex-basis: 100%; border-top: 1px dashed #2a3446; margin-top: 10px; padding-top: 8px; }
+    .frames > summary { cursor: pointer; color: #7ee0a8; font-size: 12px; letter-spacing: 0.4px; list-style: none; }
+    .frames > summary::-webkit-details-marker { display: none; }
+    .frames > summary::before { content: '▸ '; }
+    .frames[open] > summary::before { content: '▾ '; }
+    .frames > summary span { color: #6b7a90; letter-spacing: 0; }
+    .frames-hint { color: #7d8ca3; font-size: 11px; line-height: 1.6; margin: 8px 0 10px; max-width: 760px; }
+    .frames-hint code { color: #9fb0c8; background: #10151d; padding: 1px 4px; border-radius: 3px; }
+    .frames-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-top: 1px solid #1b2331; }
+    .frames-row .fr-name { min-width: 132px; color: #cfd8e6; font-size: 12px; }
+    .frames-row .fr-count { min-width: 62px; color: #6b7a90; font-size: 11px; }
+    .frames-row .fr-count.many { color: #7ee0a8; }
+    .frames-row .fr-strip { display: flex; gap: 3px; flex: 1; overflow-x: auto; }
+    .frames-row .fr-strip img { height: 42px; width: auto; background: #0a0e14; border: 1px solid #2a3446; border-radius: 4px; }
     .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
     .portraitvid .lbl { font-size: 10px; color: #b58fff; text-transform: uppercase; letter-spacing: 1px; }
     .portraitvid .pv-row { display: flex; align-items: center; gap: 14px; margin: 6px 0 12px; }
@@ -2210,6 +2336,49 @@ if ($authed && $action === 'deletebarover') {
         </div>
         <?php endforeach; ?>
       </div>
+
+      <?php // ---- multi-frame animations: its own block, the slots above stay as they are ?>
+      <?php $animBases = animBasesFor($ent, $race); if ($animBases): ?>
+      <details class="frames">
+        <summary>🎞 Cadre suplimentare de animație <span>(opțional — pentru animații fluide, randate din 3D)</span></summary>
+        <p class="frames-hint">Alege deodată TOATE cadrele unei animații. Se numerotează singure în ordinea numelui
+          (<code>walk_0001.png</code>, <code>walk_0002.png</code>…), deci exportă-le din Blender cu nume în ordine.
+          Primele două cadre sunt aceleași fișiere cu sloturile de mai sus. Maxim <?= MAX_ANIM_FRAMES ?> cadre.</p>
+        <?php foreach ($animBases as $anim):
+          $frames = scanFrames($assetsDir, $race, $ent, $anim);
+          $have = count(array_filter($frames));
+        ?>
+        <div class="frames-row">
+          <span class="fr-name"><?= htmlspecialchars($anim) ?></span>
+          <span class="fr-count <?= $have > 2 ? 'many' : '' ?>"><?= $have ?> cadre</span>
+          <div class="fr-strip">
+            <?php foreach ($frames as $i => $present): if (!$present) continue; ?>
+              <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $anim ?>_<?= $i ?>.png?t=<?= filemtime("$assetsDir/$race/$ent/{$anim}_{$i}.png") ?>" alt="<?= $i ?>">
+            <?php endforeach; ?>
+          </div>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadframes">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+            <label class="pick">încarcă cadrele<input type="file" name="frames[]" accept="image/png" multiple onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($have > 2): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="trimframes">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi cadrele de la 3 în sus?')">înapoi la 2</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </details>
+      <?php endif; ?>
+
       <?php if ($kind === 'unit'): ?>
       <div class="portraitvid">
         <?php foreach (portraitVidVariants($race, $ent) as $suffix => $label):

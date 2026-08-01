@@ -7,7 +7,7 @@ import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
 import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
   getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile, getFireProjectile,
-  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf,
+  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf, frameCount,
 } from './sprites.js';
 
 export { setTeamRaces } from './sprites.js';
@@ -32,6 +32,34 @@ function drawEntitySprite(ctx, race, ent, entry, targetH, team) {
 
 export function hasCharacter(type, team = 0) {
   return !!PUPPETS[type] || getAnySprite(raceOf(team), type) != null;
+}
+
+// How many frames were uploaded for this animation (min 2, so the built-in
+// vector puppets — which always have a 2-pose cycle — keep flipping).
+export function animFrames(type, team, anim) {
+  return Math.max(2, frameCount(raceOf(team), type, anim));
+}
+
+// The frame to show for a LOOPING animation (idle / walk).
+//
+// `speed` (the unit's animSpeed) was authored as FLIPS PER SECOND of a
+// two-frame cycle, so one full cycle has always lasted 2/speed seconds. That
+// length is what every unit was tuned to — a Footman's step matches how fast he
+// walks. So the cycle keeps its duration whatever the frame count: eight frames
+// make the same motion SMOOTHER, not four times slower. With two frames the
+// rate is `speed` exactly, as before.
+export function loopFrame(type, team, anim, clock, speed, offset = 0) {
+  const n = animFrames(type, team, anim);
+  return (Math.floor(clock * speed * n / 2) + offset) % n;
+}
+
+// The frame to show for a ONE-SHOT animation played over `phase` (0…1):
+// evenly spread across the uploaded frames, clamped so phase 1 holds the last
+// frame instead of wrapping back to the first.
+export function phaseFrame(type, team, anim, phase) {
+  const n = animFrames(type, team, anim);
+  const p = phase <= 0 ? 0 : phase >= 1 ? 1 : phase;
+  return Math.min(n - 1, Math.floor(p * n));
 }
 
 // True when a death animation exists (sprite or puppet) — used for corpses.
@@ -206,11 +234,12 @@ function drawBuildingScaled(ctx, race, kind, entry, hw, hh, team) {
   drawSpriteScaled(ctx, entry, scale, team);
 }
 
-// Building sprite (idle, 2-frame pulse at the per-building speed). False ->
-// caller draws vector.
+// Building sprite (idle pulse at the per-building speed, over however many
+// frames were uploaded). False -> caller draws vector.
 export function drawStructureSprite(ctx, kind, team, hw, hh, clock, idSeed = 0) {
   const race = raceOf(team);
-  const frame = (Math.floor(clock * idleSpeedOf(race, kind)) + idSeed) % 2;
+  const n = Math.max(2, frameCount(race, kind, 'idle'));
+  const frame = (Math.floor(clock * idleSpeedOf(race, kind)) + idSeed) % n;
   const entry = getSprite(race, kind, 'idle', frame);
   if (!entry) return false;
   drawBuildingScaled(ctx, race, kind, entry, hw, hh, team);
@@ -254,7 +283,9 @@ function wallEntry(race, tier, frame) {
 // Draw a wall's idle frame for its base tier. False -> caller draws vector.
 export function drawWallSprite(ctx, team, tier, hw, hh, clock, idSeed = 0) {
   const race = raceOf(team);
-  const frame = (Math.floor(clock * idleSpeedOf(race, 'wall')) + idSeed) % 2;
+  const n = Math.max(2, frameCount(race, 'wall', `tier${tier < 1 ? 1 : tier > 3 ? 3 : tier}-idle`)
+    || frameCount(race, 'wall', 'idle'));
+  const frame = (Math.floor(clock * idleSpeedOf(race, 'wall')) + idSeed) % n;
   const entry = wallEntry(race, tier, frame);
   if (!entry) return false;
   drawBuildingScaled(ctx, race, 'wall', entry, hw, hh, team);

@@ -144,15 +144,15 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
           }
           for (const [anim, frames] of Object.entries(slots)) {
             if (anim === 'thumb' || !Array.isArray(frames)) continue;
+            // The record is sized from the MANIFEST, not from what has loaded
+            // so far: frameCount() must report the real length the moment the
+            // manifest arrives, or the first frames drawn would cycle wrong.
+            const key = `${race}/${ent}/${anim}`;
+            if (!anims.has(key)) anims.set(key, new Array(frames.length).fill(null));
             frames.forEach((present, i) => {
               if (!present) return;
               load(`${base}${race}/${ent}/${anim}_${i}.png?v=${man.v || 0}`, (img) => {
-                const key = `${race}/${ent}/${anim}`;
-                let rec = anims.get(key);
-                if (!rec) {
-                  rec = [null, null];
-                  anims.set(key, rec);
-                }
+                const rec = anims.get(key);
                 rec[i] = entryFor(img);
                 // remember the tallest frame (the standing pose) so every
                 // frame of this unit draws at one shared scale
@@ -417,8 +417,22 @@ export function getPortraitVideoUrl(race, ent, form = 'base') {
 export function getSprite(race, ent, anim, frame) {
   const rec = anims.get(`${race}/${ent}/${anim}`);
   if (!rec) return null;
-  // tolerate a missing twin frame (e.g. die has a single frame)
-  return rec[frame] || rec[frame ^ 1] || null;
+  if (rec[frame]) return rec[frame];
+  // tolerate a hole: fall back to the NEAREST uploaded frame (with two frames
+  // this is the old "show the twin" behaviour, e.g. a die with a single frame)
+  for (let d = 1; d < rec.length; d++) {
+    if (rec[frame - d]) return rec[frame - d];
+    if (rec[frame + d]) return rec[frame + d];
+  }
+  return null;
+}
+
+// How many frames this animation was uploaded with (0 = none). Every cycling
+// site divides by this, so a 2-frame set keeps flipping 0↔1 exactly as before
+// and an 8-frame set plays all eight.
+export function frameCount(race, ent, anim) {
+  const rec = anims.get(`${race}/${ent}/${anim}`);
+  return rec ? rec.length : 0;
 }
 
 // Exact frame lookup (no twin fallback) — used for the base's per-tier images

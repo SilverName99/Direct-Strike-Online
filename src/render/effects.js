@@ -2,7 +2,7 @@
 // freely because nothing here feeds back into the simulation.
 
 import { TEAM_COLORS } from './renderer.js';
-import { hasDeathAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, hasExplosionAnim, drawCharacter, drawTowerDie, sizeOf } from './characters.js';
+import { hasDeathAnim, hasFootAnim, hasBeastAnim, hasSummonAnim, hasExplosionAnim, drawCharacter, drawTowerDie, sizeOf, animFrames, phaseFrame } from './characters.js';
 import { raceOf, getAbilityFx } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
@@ -275,7 +275,6 @@ export class Effects {
   // Drawn by the renderer beneath the living units.
   drawCorpses(ctx) {
     for (const c of this.corpses) {
-      const frame = c.t < 0.25 ? 0 : 1;
       ctx.save();
       ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
       ctx.translate(c.x, c.y);
@@ -284,6 +283,11 @@ export class Effects {
       const anim = c.summonKind ? `${c.summonKind}-die`
         : c.beast && hasBeastAnim(c.type, art, 'die') ? 'beast-die'
         : c.dismounted && hasFootAnim(c.type, art, 'die') ? 'foot-die' : 'die';
+      // The death PLAYS: the uploaded die frames run once and then hold the
+      // last pose while the body fades. Two frames keep the historical
+      // 0.25s-then-flip timing exactly; more frames run at ~12 fps.
+      const n = animFrames(c.type, art, anim);
+      const frame = phaseFrame(c.type, art, anim, c.t / (n <= 2 ? 0.5 : n / 12));
       // A corpse that carries its own scale uses it: the on-foot rider, the
       // split beast — and every SUMMON, whose sprites are hosted on the caster
       // but whose size is its own (a larva must not die at the moth's size).

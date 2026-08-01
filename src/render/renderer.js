@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
-import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon, getAbilityFx } from './sprites.js';
+import { animFrames, loopFrame, phaseFrame, hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon, getAbilityFx, frameCount } from './sprites.js';
 import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
 // Which PLAYER's art an object uses. Races are per-commander (lobby), so the
@@ -192,6 +192,8 @@ export class Renderer {
     this.attackHold = new Map(); // unit id -> last time seen attacking
     this.blightAnim = new Map(); // structure id -> {fromR, t0, target} for the eased blight growth
     this.facing = new Map();     // unit id -> -1 | 1 (sticky draw direction)
+    this.hitAt = new Map();      // unit id -> render clock of its last landed hit
+    this.deadAt = new Map();     // summon/unit id -> when it started dying (render-only)
     this.fog = new Fog();        // fog of war (client-side, per-viewer)
     this._fogOn = false;         // set each frame: is fog active this draw?
     this._fogTeam = 0;           // the viewer's SIDE (whose vision we render)
@@ -205,8 +207,27 @@ export class Renderer {
   // the hit/shot has fired (until the next swing). Exactly one Attack 1 ->
   // Attack 2 cycle per attack, matching the Attack period. (An earlier free-run
   // clock added stray flips during the between-shots cooldown — that's gone.)
-  attackFrame(u) {
-    return u.windup > 0 ? 0 : 1;
+  // The attack pose, spread over the swing: the wind-up fills the first half of
+  // the animation and the follow-through the second, so the hit always lands on
+  // the middle frame no matter how many frames were uploaded. With the classic
+  // two frames this is bit-for-bit the old "Attack 1 while winding up, Attack 2
+  // after the hit". `hitAt` is a render-only clock for the follow-through.
+  attackFrame(u, anim = 'attack') {
+    const wmax = u.windupMax > 0 ? u.windupMax : 0.2;
+    let phase;
+    if (u.windup > 0) {
+      this.hitAt.delete(u.id); // a fresh swing is under way
+      phase = 0.5 * (1 - Math.max(0, Math.min(1, u.windup / wmax)));
+    } else {
+      let t0 = this.hitAt.get(u.id);
+      if (t0 == null) {
+        t0 = this.now;
+        if (this.hitAt.size > 4000) this.hitAt.clear(); // bound the map
+        this.hitAt.set(u.id, t0);
+      }
+      phase = 0.5 + 0.5 * Math.max(0, Math.min(1, (this.now - t0) / wmax));
+    }
+    return phaseFrame(u.type, artOf(u), anim, phase);
   }
 
   // Which way a character should face: its live target while fighting, its
@@ -1064,7 +1085,7 @@ export class Renderer {
         if (to.x < from.x) ctx.scale(-1, 1); // face travel direction (art faces right)
         // PNG only on the map: a 2-frame walk cycle. (mp4 clips play only in
         // the portrait box on click, never here.)
-        const frame = Math.floor(now * animRate + w) % 2;
+        const frame = Math.floor(now * animRate + w) % Math.max(2, frameCount(race, 'generator', anim));
         const entry = getSprite(race, 'generator', anim, frame) || getSprite(race, 'generator', anim, 0)
           // fallbacks so a partial upload still shows something
           || getSprite(race, 'generator', 'worker-full', frame)
@@ -1205,7 +1226,8 @@ export class Renderer {
       this.drawCampfire(ctx, s, tier, hw, hh, bs);
       return drawn;
     }
-    const frame = (Math.floor(this.now * (bs.idleSpeed || 2)) + s.id) % 2;
+    const tn = Math.max(2, frameCount(raceOf(artOf(s)), 'tower', `tier${tier}-idle`));
+    const frame = (Math.floor(this.now * (bs.idleSpeed || 2)) + s.id) % tn;
     return drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'idle', frame);
   }
 
@@ -1215,7 +1237,8 @@ export class Renderer {
   // Only draws if the tier's "camp" soldier art was uploaded.
   drawCampfire(ctx, s, tier, hw, hh, bs) {
     const speed = bs.campSpeed || 3;
-    const frame = Math.floor(this.now * speed) % 2; // fire/soldier flicker
+    const cn = Math.max(2, frameCount(raceOf(artOf(s)), 'tower', `tier${tier}-camp`));
+    const frame = Math.floor(this.now * speed) % cn; // fire/soldier flicker
     // per-tier soldier size (falls back to the tier-1 value)
     const cs = tier >= 3 ? (bs.campSize3 ?? bs.campSize) : tier === 2 ? (bs.campSize2 ?? bs.campSize) : bs.campSize;
     const scale = Math.max(0.1, Math.min(4, cs ?? 0.8));
@@ -1697,7 +1720,7 @@ export class Renderer {
           // ghost character breathing in the build zone (art by OWNER, facing by side)
           ctx.globalAlpha = hot ? Math.max(ghost, 0.95) : ghost;
           if (side === 1) ctx.scale(-1, 1);
-          drawCharacter(ctx, tpl.type, 'idle', (Math.floor(this.now * 2) + i) % 2, p, sizeOf(raceOf(p), tpl.type));
+          drawCharacter(ctx, tpl.type, 'idle', loopFrame(tpl.type, p, 'idle', this.now, 2, i), p, sizeOf(raceOf(p), tpl.type));
         } else {
           ctx.globalAlpha = (hot ? Math.max(ghost, 0.9) : ghost) * 0.7; // vector marker: a touch softer
           ctx.rotate(rot);
@@ -1838,7 +1861,7 @@ export class Renderer {
             // Acid Spit upgrade: cycle the two "Acid" attack frames in step
             // with the unit's real attack period (one 1<->2 cycle per swing)
             anim = 'acid';
-            frame = this.attackFrame(u);
+            frame = this.attackFrame(u, 'acid');
           } else {
             // fighting: cycle Attack 1 <-> Attack 2 for as long as the unit
             // stays engaged, at the unit's OWN attack cadence — one full
@@ -1849,7 +1872,7 @@ export class Renderer {
         } else if (u.running) {
           // Kamikaze charging an in-range enemy: its "Fugă" (run) frames, else walk
           anim = hasRunAnim(u.type, artOf(u)) ? 'run' : 'walk';
-          frame = (Math.floor(this.now * (rstats.animSpeed || 5) * 1.6) + u.id) % 2;
+          frame = loopFrame(u.type, artOf(u), anim, this.now, (rstats.animSpeed || 5) * 1.6, u.id);
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk
           anim = hasDashAnim(u.type, artOf(u)) ? 'dash' : 'walk';
@@ -1860,7 +1883,7 @@ export class Renderer {
           // it breathes in its idle frames instead of moon-walking in place.
           const stuck = game.isHeld && game.isHeld(artOf(u), u.type);
           anim = (u.state === 'march' && !stuck) ? 'walk' : 'idle';
-          frame = (Math.floor(this.now * (rstats.animSpeed || 5)) + u.id) % 2;
+          frame = loopFrame(u.type, artOf(u), anim, this.now, rstats.animSpeed || 5, u.id);
         }
         // fireball upgrade: swap walk/attack for the uploaded "Foc" sprite set
         if (u.fireAttacker && (anim === 'walk' || anim === 'attack') && hasFireAnim(u.type, artOf(u), anim)) {
