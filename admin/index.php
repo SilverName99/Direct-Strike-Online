@@ -710,6 +710,15 @@ function scanFrames(string $assetsDir, string $race, string $ent, string $anim):
   return $frames;
 }
 
+// The slot a batch of APPENDED frames starts at: right after the last frame on
+// disk, 0 when the animation is still empty. (scanFrames never returns fewer
+// than one element, so its length can't be used for this.)
+function nextFrameIndex(string $assetsDir, string $race, string $ent, string $anim): int {
+  $next = 0;
+  foreach (scanFrames($assetsDir, $race, $ent, $anim) as $i => $present) if ($present) $next = $i + 1;
+  return $next;
+}
+
 // ---- per-animation options ------------------------------------------------
 // Two knobs that only mean anything for uploaded art, so they belong next to
 // the frames rather than in the balance — one owner, no chance of the balance
@@ -985,7 +994,12 @@ if ($authed && $action === 'upload') {
 // written in filename order as <anim>_0.png … <anim>_N.png. Anything left over
 // from a previous, longer upload is removed, so the animation is exactly what
 // was just picked. Frames 0-1 are the same files the classic slots above use.
-if ($authed && $action === 'uploadframes') {
+//
+// `appendframes` is the same thing that WRITES AFTER the frames already there
+// instead of replacing them (the "+" at the end of the strip). That is how an
+// animation gets past `max_file_uploads`: send it in batches of 20 or fewer.
+if ($authed && ($action === 'uploadframes' || $action === 'appendframes')) {
+  $append = $action === 'appendframes';
   $ent = $_POST['entity'] ?? '';
   $anim = $_POST['anim'] ?? '';
   $files = $_FILES['frames'] ?? null;
@@ -998,6 +1012,10 @@ if ($authed && $action === 'uploadframes') {
   } elseif (!$files || !is_array($files['name']) || count($files['name']) === 0) {
     $err = 'Nu ai ales niciun fișier.';
   } else {
+    // where this batch starts: 0 when replacing, right after the last frame on
+    // disk when appending
+    $base = $append ? nextFrameIndex($assetsDir, $race, $ent, $anim) : 0;
+    $room = MAX_ANIM_FRAMES - $base;
     // sort by file name so walk_0001.png … walk_0008.png land in order
     $picked = [];
     foreach ($files['name'] as $i => $name) {
@@ -1005,7 +1023,8 @@ if ($authed && $action === 'uploadframes') {
       $picked[] = ['name' => (string)$name, 'tmp' => $files['tmp_name'][$i], 'size' => $files['size'][$i]];
     }
     usort($picked, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
-    if (count($picked) > MAX_ANIM_FRAMES) $picked = array_slice($picked, 0, MAX_ANIM_FRAMES);
+    $dropped = max(0, count($picked) - max(0, $room));
+    if (count($picked) > $room) $picked = array_slice($picked, 0, max(0, $room));
     $bad = '';
     foreach ($picked as $f) {
       if ($f['size'] > MAX_BYTES) { $bad = "„{$f['name']}" . '" e prea mare (max 1.5 MB).'; break; }
@@ -1016,20 +1035,28 @@ if ($authed && $action === 'uploadframes') {
     }
     if ($bad !== '') {
       $err = $bad;
+    } elseif ($room <= 0) {
+      $err = 'Animația are deja ' . MAX_ANIM_FRAMES . ' cadre — nu mai încape niciunul.';
     } elseif (!$picked) {
       $err = 'Upload eșuat — fișiere lipsă sau prea mari.';
     } else {
       @mkdir("$assetsDir/$race/$ent", 0755, true);
       $ok = true;
       foreach ($picked as $i => $f) {
-        if (!move_uploaded_file($f['tmp'], "$assetsDir/$race/$ent/{$anim}_{$i}.png")) { $ok = false; break; }
+        if (!move_uploaded_file($f['tmp'], "$assetsDir/$race/$ent/{$anim}_" . ($base + $i) . '.png')) { $ok = false; break; }
       }
-      // drop frames left over from a longer previous upload
-      for ($i = count($picked); $i < MAX_ANIM_FRAMES; $i++) @unlink("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+      // replacing means the animation is EXACTLY what was just picked, so a
+      // longer previous upload leaves nothing behind; appending keeps the rest
+      if (!$append) {
+        for ($i = count($picked); $i < MAX_ANIM_FRAMES; $i++) @unlink("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+      }
       regenManifest($assetsDir);
-      $msg = $ok ? "Animație încărcată: $race · $ent · $anim (" . count($picked) . ' cadre)'
-                 : 'Nu pot salva toate fișierele — verifică permisiunile assets/units.';
-      if (!$ok) { $err = $msg; $msg = ''; }
+      $total = $base + count($picked);
+      $msg = $append
+        ? "Adăugate " . count($picked) . " cadre la $race · $ent · $anim (acum $total)"
+        : "Animație încărcată: $race · $ent · $anim ($total cadre)";
+      if (!$ok) { $err = 'Nu pot salva toate fișierele — verifică permisiunile assets/units.'; $msg = ''; }
+      elseif ($dropped > 0) { $err = "$dropped cadre nu au încăput — maximul e " . MAX_ANIM_FRAMES . ' pe animație.'; }
     }
   }
 }
@@ -1813,6 +1840,15 @@ if ($authed && $action === 'deletebarover') {
     .frames-row .fr-fps span { color: #6b7a90; font-size: 11px; }
     .frames-row .fr-strip { display: flex; gap: 3px; flex: 1; overflow-x: auto; }
     .frames-row .fr-strip img { height: 42px; width: auto; background: #0a0e14; border: 1px solid #2a3446; border-radius: 4px; }
+    /* "+" at the end of the strip: another batch of frames, written after these */
+    .frames-row .fr-strip .fr-add { flex: 0 0 auto; }
+    .frames-row .fr-strip .fr-add .plus {
+      display: flex; align-items: center; justify-content: center;
+      height: 42px; width: 34px; box-sizing: border-box;
+      border: 1px dashed #3d4c66; border-radius: 4px; background: #0d131c;
+      color: #6b7a90; font-size: 20px; line-height: 1; cursor: pointer;
+    }
+    .frames-row .fr-strip .fr-add .plus:hover { border-color: #4da6ff; color: #4da6ff; }
     .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
     .portraitvid .lbl { font-size: 10px; color: #b58fff; text-transform: uppercase; letter-spacing: 1px; }
     .portraitvid .pv-row { display: flex; align-items: center; gap: 14px; margin: 6px 0 12px; }
@@ -2472,9 +2508,11 @@ if ($authed && $action === 'deletebarover') {
         <p class="frames-hint">Alege deodată TOATE cadrele unei animații. Se numerotează singure în ordinea numelui
           (<code>walk_0001.png</code>, <code>walk_0002.png</code>…), deci exportă-le din Blender cu nume în ordine.
           Primele două cadre sunt aceleași fișiere cu sloturile de mai sus.<br>
-          <b>Maxim <?= $upMax ?> cadre pe animație</b>
-          <?php if ($upMax < MAX_ANIM_FRAMES): ?>(limita serverului — <code>max_file_uploads=<?= (int)ini_get('max_file_uploads') ?></code> în <code>php.ini</code>; jocul poate ține <?= MAX_ANIM_FRAMES ?>)<?php endif; ?>,
-          iar toate pozele la un loc trebuie să încapă în <?= $postMax > 0 ? round($postMax / 1048576, 1) . ' MB' : 'limita POST a serverului' ?>.
+          Serverul primește <b>maxim <?= $upMax ?> fișiere odată</b>
+          <?php if ($upMax < MAX_ANIM_FRAMES): ?>(<code>max_file_uploads=<?= (int)ini_get('max_file_uploads') ?></code> în <code>php.ini</code>)<?php endif; ?>
+          și <?= $postMax > 0 ? round($postMax / 1048576, 1) . ' MB' : 'un POST' ?> pe transfer. Pentru animații mai lungi,
+          încarcă prima tranșă aici și adaugă restul cu <b>„+"</b> de la capătul șirului de cadre — se scriu DUPĂ cele
+          existente. Total <b>maxim <?= MAX_ANIM_FRAMES ?> cadre</b> pe animație.<br>
           Recomandat <b>8–12 cadre</b> la 128×128: arată fluid și rămâne ușor la memorie (fiecare cadru în plus
           se încarcă pentru fiecare unitate a fiecărei rase).</p>
         <?php
@@ -2484,6 +2522,8 @@ if ($authed && $action === 'deletebarover') {
         <?php foreach ($animBases as $anim):
           $frames = scanFrames($assetsDir, $race, $ent, $anim);
           $have = count(array_filter($frames));
+          $next = 0; foreach ($frames as $i => $p) if ($p) $next = $i + 1; // where "+" writes
+          $room = MAX_ANIM_FRAMES - $next;
           $isAtk = str_ends_with($anim, 'attack') || $anim === 'acid';
           $knobs = [
             ['fps', animOpt($optMap, $anim, 'fps'), 0.0, 'cadre/s', 0, 60, 0.5, $isAtk
@@ -2514,6 +2554,20 @@ if ($authed && $action === 'deletebarover') {
             <?php foreach ($frames as $i => $present): if (!$present) continue; ?>
               <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $anim ?>_<?= $i ?>.png?t=<?= filemtime("$assetsDir/$race/$ent/{$anim}_{$i}.png") ?>" alt="<?= $i ?>">
             <?php endforeach; ?>
+            <?php // one more batch, written after the frames above — the way past max_file_uploads
+              if ($next > 0 && $room > 0): ?>
+            <form method="post" enctype="multipart/form-data" class="fr-add">
+              <input type="hidden" name="action" value="appendframes">
+              <input type="hidden" name="csrf" value="<?= $csrf ?>">
+              <input type="hidden" name="race" value="<?= $race ?>">
+              <input type="hidden" name="entity" value="<?= $ent ?>">
+              <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+              <label class="pick plus" title="Adaugă cadre după cele de aici (mai încap <?= $room ?>). Alege următoarea tranșă, maxim <?= min($upMax, $room) ?> odată.">+<input
+                type="file" name="frames[]" accept="image/png" multiple hidden
+                data-max="<?= min($upMax, $room) ?>" <?= $room < $upMax ? 'data-room="1"' : '' ?>
+                data-bytes="<?= $postMax ?>" onchange="pickFrames(this)"></label>
+            </form>
+            <?php endif; ?>
           </div>
           <form method="post" enctype="multipart/form-data">
             <input type="hidden" name="action" value="uploadframes">
@@ -2667,8 +2721,10 @@ if ($authed && $action === 'deletebarover') {
       var max = +input.dataset.max || 32, bytes = +input.dataset.bytes || 0;
       var n = input.files.length;
       if (n > max) {
-        alert('Ai ales ' + n + ' cadre, dar serverul acceptă maxim ' + max + ' odată.\n'
-          + 'Randează din nou animația cu mai puține cadre (Frame Step mai mare) — 8-12 sunt de ajuns.');
+        alert(input.dataset.room
+          ? 'Ai ales ' + n + ' cadre, dar în animație mai încap doar ' + max + '.'
+          : 'Ai ales ' + n + ' cadre, dar serverul acceptă maxim ' + max + ' odată.\n'
+            + 'Trimite-le în tranșe: astea ' + max + ' acum, restul cu butonul "+" de la capătul șirului de cadre.');
         input.value = '';
         return;
       }
