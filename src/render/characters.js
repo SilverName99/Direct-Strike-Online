@@ -4,10 +4,10 @@
 
 import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
-import { unitSizeOf, buildingSizeOf, statsBuilding, statsUnit } from '../ui/balance.js';
+import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
 import {
   getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile, getFireProjectile,
-  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf, frameCount,
+  drawSprite, drawSpriteScaled, maxFrameHeight, raceOf, frameCount, animFpsOf,
 } from './sprites.js';
 
 export { setTeamRaces } from './sprites.js';
@@ -40,27 +40,12 @@ export function animFrames(type, team, anim) {
   return Math.max(2, frameCount(raceOf(team), type, anim));
 }
 
-// Which per-animation speed knob covers this animation name. The prefixed
-// variants (foot-walk, beast-die, wolf-attack, fire-walk, morph-idle…) follow
-// the same knob as the plain animation they are a version of.
-function fpsKeyFor(anim) {
-  if (anim.endsWith('idle')) return 'fpsIdle';
-  if (anim.endsWith('walk') || anim === 'run') return 'fpsWalk';
-  if (anim.endsWith('attack') || anim === 'acid') return 'fpsAttack';
-  if (anim.endsWith('die')) return 'fpsDie';
-  return null;
-}
-
-// The admin-set playback rate for one animation, in frames per second.
-// 0 (the default) means "automatic" — every caller then keeps the behaviour it
-// had before this knob existed.
+// The admin-set playback rate for one animation, in frames per second, as typed
+// on that animation's row in the sprite page. 0 (the default) means
+// "automatic" — every caller then keeps the behaviour it had before this knob
+// existed. It rides along in the sprite manifest, next to the frames it times.
 export function animFps(type, team, anim) {
-  if (!UNITS[type]) return 0;
-  const key = fpsKeyFor(anim);
-  if (!key) return 0;
-  const s = statsUnit(raceOf(team), type);
-  const v = s && s[key];
-  return v > 0 ? v : 0;
+  return animFpsOf(raceOf(team), type, anim);
 }
 
 // The frame to show for a LOOPING animation (idle / walk).

@@ -237,12 +237,6 @@ function baseUnits(race) {
       ...u, size: 1, projSize: 1,
       cw: 1, ch: 1,        // footprint in grid cells (drives the unit's physical size)
       animSpeed: 5,        // idle/walk frame flips per second (attack anim follows the Attack period)
-      // Per-animation playback rate, in FRAMES PER SECOND, for art uploaded with
-      // more than the classic two frames. 0 = leave that animation exactly as it
-      // behaves today: idle/walk keep the animSpeed cycle length whatever the
-      // frame count, attack stays welded to the unit's real swing (so the hit
-      // always lands on the middle frame), die plays in its default window.
-      fpsIdle: 0, fpsWalk: 0, fpsAttack: 0, fpsDie: 0,
       // Blank default: every special behavior is OFF; build any unit up from a
       // clean slate. Numeric stats (hp/damage/range/…) still come from units.js.
       ranged: false, projectile: false,
@@ -420,7 +414,6 @@ function raceUnitsSnapshot(race) {
   for (const [id, u] of Object.entries(resolvedUnits[race])) {
     out[id] = {
       name: u.name, size: u.size, projSize: u.projSize, cw: u.cw, ch: u.ch, animSpeed: u.animSpeed,
-      fpsIdle: u.fpsIdle, fpsWalk: u.fpsWalk, fpsAttack: u.fpsAttack, fpsDie: u.fpsDie,
       ranged: !!u.ranged, projSpeed: u.projSpeed, splash: u.splash,
       heal: !!u.heal, buildingDamage: u.buildingDamage,
       isAir: !!u.isAir, targetsAir: !!u.targetsAir, targetsGround: u.targetsGround !== false,
@@ -692,10 +685,6 @@ function applyRaceUnits(race, unitsData) {
     if (num(vals.cw) !== undefined) u.cw = Math.round(clamp(vals.cw, 1, 20));
     if (num(vals.ch) !== undefined) u.ch = Math.round(clamp(vals.ch, 1, 20));
     if (num(vals.animSpeed) !== undefined) u.animSpeed = clamp(vals.animSpeed, 0.2, 30);
-    // per-animation frames/second (0 = automatic, i.e. today's behaviour)
-    for (const k of ['fpsIdle', 'fpsWalk', 'fpsAttack', 'fpsDie']) {
-      if (num(vals[k]) !== undefined) u[k] = clamp(vals[k], 0, 60);
-    }
     if (num(vals.splash) !== undefined) u.splash = clamp(vals.splash, 0, 2000);
     if (typeof vals.heal === 'boolean') u.heal = vals.heal;
     if (typeof vals.building === 'string' && (vals.building === '' || TECH_BUILDINGS.includes(vals.building))) u.building = vals.building;
@@ -828,8 +817,7 @@ export function currentBalance() {
 // never clobber: visual size, grid footprint, shop-grid slot, animation speeds,
 // food, hero-XP bounty, and the hero's assigned ability kit. An import brings
 // BALANCE numbers (cost/hp/damage/...); these stay exactly as configured here.
-const IMPORT_KEEP_UNIT = ['name', 'tip', 'speed', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed',
-  'fpsIdle', 'fpsWalk', 'fpsAttack', 'fpsDie', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
+const IMPORT_KEEP_UNIT = ['name', 'tip', 'speed', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
 const IMPORT_KEEP_BUILDING = ['name', 'tip', 'size', 'cw', 'ch', 'slot', 'idleSpeed',
   'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed',
   'campSize', 'campSize2', 'campSize3', 'campSpeed', 'campfireDelay', 'attackHold'];

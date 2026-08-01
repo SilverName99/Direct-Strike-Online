@@ -19,6 +19,7 @@ const abilityFx = new Map(); // `${race}/${ent}/${abilityId}` -> Image (AoE effe
 const acidProjectiles = new Map();    // `${race}/${ent}` -> entry (Acid Spit projectile)
 const fireProjectiles = new Map();    // `${race}/${ent}` -> entry (Fireball projectile)
 const maxFrameH = new Map(); // `${race}/${ent}` -> tallest animation frame (px)
+const animFpsMap = new Map(); // `${race}/${ent}/${anim}` -> frames per second (admin-set)
 const backgrounds = new Map(); // race -> Image
 const backgrounds2 = new Map(); // race -> Image (corrupt "blight" overlay terrain)
 const middleImgs = [];         // GLOBAL middle-of-map strip variants (by slot index); which one shows is chosen in the sim
@@ -141,6 +142,12 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
             load(`${base}${race}/${ent}/${slot}.png?v=${man.v || 0}`, (img) => {
               abilityFx.set(`${race}/${ent}/${aid}`, img);
             });
+          }
+          // per-animation playback rates set next to the frames in admin
+          if (slots.fps && typeof slots.fps === 'object') {
+            for (const [anim, v] of Object.entries(slots.fps)) {
+              if (v > 0) animFpsMap.set(`${race}/${ent}/${anim}`, v);
+            }
           }
           for (const [anim, frames] of Object.entries(slots)) {
             if (anim === 'thumb' || !Array.isArray(frames)) continue;
@@ -425,6 +432,12 @@ export function getSprite(race, ent, anim, frame) {
     if (rec[frame + d]) return rec[frame + d];
   }
   return null;
+}
+
+// The admin-set playback rate for one animation, in frames per second, or 0
+// when it was left on "automatic".
+export function animFpsOf(race, ent, anim) {
+  return animFpsMap.get(`${race}/${ent}/${anim}`) || 0;
 }
 
 // How many frames this animation was uploaded with (0 = none). Every cycling

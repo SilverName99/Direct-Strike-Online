@@ -687,6 +687,28 @@ function scanFrames(string $assetsDir, string $race, string $ent, string $anim):
   return $frames;
 }
 
+// ---- per-animation playback rate ------------------------------------------
+// How fast one animation runs, in FRAMES PER SECOND. It belongs next to the
+// frames themselves (it only means anything for art with more than two), so it
+// lives in its own small file here rather than in the balance — one owner, no
+// chance of the two overwriting each other. 0 / missing = automatic.
+function animFpsFile(string $assetsDir): string { return "$assetsDir/anim-fps.json"; }
+
+function animFpsAll(string $assetsDir, bool $reload = false): array {
+  static $cache = null;
+  if ($cache === null || $reload) {
+    $f = animFpsFile($assetsDir);
+    $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : [];
+    $cache = is_array($j) ? $j : [];
+  }
+  return $cache;
+}
+
+function animFpsFor(string $assetsDir, string $race, string $ent): array {
+  $v = animFpsAll($assetsDir)["$race/$ent"] ?? [];
+  return is_array($v) ? $v : [];
+}
+
 // Every animation this entity has slots for, in slot order (no duplicates).
 function animBasesFor(string $ent, string $race): array {
   $out = [];
@@ -723,6 +745,10 @@ function regenManifest(string $assetsDir): void {
       foreach ($entData as $k => $v) {
         if (is_array($v) && !in_array(true, $v, true)) unset($entData[$k]);
       }
+      // per-animation playback rates ride along in the manifest the client
+      // already fetches (added AFTER the filter above, which would drop it)
+      $fps = animFpsFor($assetsDir, $r, $ent);
+      if ($fps) $entData['fps'] = $fps;
       if ($entData) $races[$r][$ent] = $entData;
     }
   }
@@ -944,6 +970,34 @@ if ($authed && $action === 'uploadframes') {
       $msg = $ok ? "Animație încărcată: $race · $ent · $anim (" . count($picked) . ' cadre)'
                  : 'Nu pot salva toate fișierele — verifică permisiunile assets/units.';
       if (!$ok) { $err = $msg; $msg = ''; }
+    }
+  }
+}
+
+// How fast one animation plays, in frames per second. 0 clears the setting and
+// the animation goes back to its automatic timing.
+if ($authed && $action === 'animfps') {
+  $ent = $_POST['entity'] ?? '';
+  $anim = $_POST['anim'] ?? '';
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!in_array($race, RACES, true)
+      || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+      || !in_array($anim, animBasesFor($ent, $race), true)) {
+    $err = 'Țintă invalidă.';
+  } else {
+    $val = max(0.0, min(60.0, (float)($_POST['fps'] ?? 0)));
+    $all = animFpsAll($assetsDir, true);
+    $key = "$race/$ent";
+    if (!isset($all[$key]) || !is_array($all[$key])) $all[$key] = [];
+    if ($val > 0) $all[$key][$anim] = $val; else unset($all[$key][$anim]);
+    if (!$all[$key]) unset($all[$key]);
+    if (file_put_contents(animFpsFile($assetsDir), json_encode($all, JSON_PRETTY_PRINT)) === false) {
+      $err = 'Nu pot scrie assets/units/anim-fps.json — verifică permisiunile.';
+    } else {
+      animFpsAll($assetsDir, true); // refresh the cache before the manifest
+      regenManifest($assetsDir);
+      $msg = "Viteză animație: $race · $ent · $anim = " . ($val > 0 ? rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.') . ' cadre/s' : 'automat');
     }
   }
 }
@@ -1684,6 +1738,11 @@ if ($authed && $action === 'deletebarover') {
     .frames-row .fr-name { min-width: 132px; color: #cfd8e6; font-size: 12px; }
     .frames-row .fr-count { min-width: 62px; color: #6b7a90; font-size: 11px; }
     .frames-row .fr-count.many { color: #7ee0a8; }
+    .frames-row .fr-fps { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+    .frames-row .fr-fps input { width: 54px; padding: 3px 6px; font-size: 12px;
+      background: #0a0e14; color: #9fb0c8; border: 1px solid #2a3446; border-radius: 6px; }
+    .frames-row .fr-fps input.set { color: #7ee0a8; border-color: #2f6a4a; }
+    .frames-row .fr-fps span { color: #6b7a90; font-size: 11px; }
     .frames-row .fr-strip { display: flex; gap: 3px; flex: 1; overflow-x: auto; }
     .frames-row .fr-strip img { height: 42px; width: auto; background: #0a0e14; border: 1px solid #2a3446; border-radius: 4px; }
     .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
@@ -2344,13 +2403,29 @@ if ($authed && $action === 'deletebarover') {
         <p class="frames-hint">Alege deodată TOATE cadrele unei animații. Se numerotează singure în ordinea numelui
           (<code>walk_0001.png</code>, <code>walk_0002.png</code>…), deci exportă-le din Blender cu nume în ordine.
           Primele două cadre sunt aceleași fișiere cu sloturile de mai sus. Maxim <?= MAX_ANIM_FRAMES ?> cadre.</p>
+        <?php $fpsMap = animFpsFor($assetsDir, $race, $ent); ?>
         <?php foreach ($animBases as $anim):
           $frames = scanFrames($assetsDir, $race, $ent, $anim);
           $have = count(array_filter($frames));
+          $fpsVal = (float)($fpsMap[$anim] ?? 0);
+          $isAtk = str_ends_with($anim, 'attack') || $anim === 'acid';
         ?>
         <div class="frames-row">
           <span class="fr-name"><?= htmlspecialchars($anim) ?></span>
           <span class="fr-count <?= $have > 2 ? 'many' : '' ?>"><?= $have ?> cadre</span>
+          <form method="post" class="fr-fps" title="<?= $isAtk
+            ? 'Cadre pe secundă. 0 = legat de ritmul real de atac (impactul cade pe cadrul din mijloc) — recomandat.'
+            : 'Cadre pe secundă. 0 = automat (păstrează durata ciclului dată de „Viteză animație mers/idle").' ?>">
+            <input type="hidden" name="action" value="animfps">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+            <input type="number" name="fps" min="0" max="60" step="0.5"
+              value="<?= $fpsVal > 0 ? rtrim(rtrim(number_format($fpsVal, 2, '.', ''), '0'), '.') : '0' ?>"
+              class="<?= $fpsVal > 0 ? 'set' : '' ?>" onchange="this.form.submit()">
+            <span>cadre/s</span>
+          </form>
           <div class="fr-strip">
             <?php foreach ($frames as $i => $present): if (!$present) continue; ?>
               <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $anim ?>_<?= $i ?>.png?t=<?= filemtime("$assetsDir/$race/$ent/{$anim}_{$i}.png") ?>" alt="<?= $i ?>">

@@ -160,20 +160,6 @@ function fieldsFor(ent, kind) {
       group: G, label: 'Viteză animație mers/idle (flip/s)', type: 'num', value: u.animSpeed ?? 5,
       apply: (v) => { u.animSpeed = clamp(v, 0.2, 30); },
     });
-    // Per-animation playback rate, for art uploaded with more than two frames.
-    // 0 keeps each animation exactly as it behaves today, so nothing that
-    // already looks right can change by accident.
-    for (const [key, label] of [
-      ['fpsIdle', 'Idle: cadre/s (0 = automat)'],
-      ['fpsWalk', 'Mers: cadre/s (0 = automat)'],
-      ['fpsAttack', 'Atac: cadre/s (0 = legat de ritmul de atac)'],
-      ['fpsDie', 'Moarte: cadre/s (0 = automat)'],
-    ]) {
-      out.push({
-        group: G, label, type: 'num', value: u[key] ?? 0,
-        apply: (v) => { u[key] = clamp(v, 0, 60); },
-      });
-    }
     // XP this unit grants to the ENEMY hero when it dies
     out.push({
       group: G, label: 'XP dat eroului inamic la moarte', type: 'num', value: u.xp ?? 1,
