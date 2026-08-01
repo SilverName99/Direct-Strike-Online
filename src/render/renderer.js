@@ -214,18 +214,27 @@ export class Renderer {
   // after the hit". `hitAt` is a render-only clock for the follow-through.
   attackFrame(u, anim = 'attack') {
     const wmax = u.windupMax > 0 ? u.windupMax : 0.2;
+    const clamp = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x);
     let sinceStart; // seconds since this swing began
+    let after;      // 0..1 through the follow-through (0 while still winding up)
     if (u.windup > 0) {
       this.hitAt.delete(u.id); // a fresh swing is under way
       sinceStart = wmax - u.windup;
+      after = 0;
     } else {
-      let t0 = this.hitAt.get(u.id);
-      if (t0 == null) {
-        t0 = this.now;
+      let hit = this.hitAt.get(u.id);
+      if (hit == null) {
+        // The hit has just landed. `u.cooldown` is what's left of the attack
+        // period, i.e. exactly how long until the next swing — so that is how
+        // long the follow-through has to play in. Recovery used to be assumed
+        // equal to the wind-up, which left a slow attacker frozen on its last
+        // frame for the rest of the period.
+        hit = { t: this.now, recover: Math.max(0.05, u.cooldown || wmax) };
         if (this.hitAt.size > 4000) this.hitAt.clear(); // bound the map
-        this.hitAt.set(u.id, t0);
+        this.hitAt.set(u.id, hit);
       }
-      sinceStart = wmax + (this.now - t0);
+      sinceStart = wmax + (this.now - hit.t);
+      after = clamp((this.now - hit.t) / hit.recover);
     }
     // An explicit rate ("Atac: cadre/s") plays the swing at that speed and then
     // holds the last frame until the next one. Careful: it no longer tracks the
@@ -236,10 +245,10 @@ export class Renderer {
       return Math.max(0, Math.min(n - 1, Math.floor(sinceStart * fps)));
     }
     // wind-up fills the first half of the frames, follow-through the second, so
-    // the hit always lands on the middle frame whatever the frame count
-    const phase = sinceStart <= wmax
-      ? 0.5 * Math.max(0, Math.min(1, sinceStart / wmax))
-      : 0.5 + 0.5 * Math.max(0, Math.min(1, (sinceStart - wmax) / wmax));
+    // the hit always lands on the middle frame whatever the frame count — and
+    // the two halves together cover the WHOLE period, with nothing left over to
+    // stand frozen through
+    const phase = u.windup > 0 ? 0.5 * clamp(sinceStart / wmax) : 0.5 + 0.5 * after;
     return phaseFrame(u.type, artOf(u), anim, phase);
   }
 

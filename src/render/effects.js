@@ -7,9 +7,34 @@ import { raceOf, getAbilityFx } from './sprites.js';
 import { ABILITIES } from '../abilities.js';
 import { drawExpandingRing } from './vfx.js';
 
-const CORPSE_LIFE = 1.2;
+const CORPSE_FADE = 0.7; // how long a body takes to melt away once it has fallen
+const CORPSE_LIFE = 1.2; // classic two-frame death: 0.5 s of falling + the fade
 const STRUCT_CORPSE_LIFE = 1.6; // rubble lingers a touch longer than a body
 const BLAST_LIFE = 0.5; // Kamikaze detonation sprite flashes briefly
+
+// Which "die" animation a corpse plays — summons and the split forms have their
+// own, everything else uses the plain one.
+function dieAnimOf(c) {
+  const art = c.art != null ? c.art : c.team;
+  if (c.summonKind) return `${c.summonKind}-die`;
+  if (c.beast && hasBeastAnim(c.type, art, 'die')) return 'beast-die';
+  if (c.dismounted && hasFootAnim(c.type, art, 'die')) return 'foot-die';
+  return 'die';
+}
+
+// How long the fall takes to play, and how long the body then stays on the
+// field. The corpse used to live a flat 1.2 s whatever its art, so a 20-frame
+// death (1.7 s at the automatic rate) was cut off half way down and was already
+// nearly invisible by then. Now the animation always finishes and the fade
+// starts after it. Two frames keep the historical 0.5 s + 0.7 s exactly.
+function corpseTiming(c) {
+  const art = c.art != null ? c.art : c.team;
+  const anim = dieAnimOf(c);
+  const n = animFrames(c.type, art, anim);
+  const fps = animFps(c.type, art, anim);
+  const dur = fps > 0 ? n / fps : (n <= 2 ? 0.5 : n / 12);
+  return { anim, dur, life: dur + CORPSE_FADE };
+}
 
 export class Effects {
   constructor() {
@@ -48,7 +73,9 @@ export class Effects {
             ? hasSummonAnim(e.unitType, art, e.summonKind, 'die')
             : hasDeathAnim(e.unitType, art);
           if (hasDie) {
-            this.corpses.push({ type: e.unitType, team: e.team, art, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, summonKind: e.summonKind || null, footScale: e.footScale });
+            const corpse = { type: e.unitType, team: e.team, art, x: e.x, y: e.y, t: 0, dismounted: !!e.dismounted, beast: !!e.beast, summonKind: e.summonKind || null, footScale: e.footScale };
+            Object.assign(corpse, corpseTiming(corpse)); // anim + dur + life
+            this.corpses.push(corpse);
             this.burst(e.x, e.y, 4, TEAM_COLORS[e.team], 90, 0.3, 2.5);
           } else {
             this.burst(e.x, e.y, 8, TEAM_COLORS[e.team], 120, 0.45, 3);
@@ -182,7 +209,7 @@ export class Effects {
       alive.push(p);
     }
     this.particles = alive;
-    this.corpses = this.corpses.filter((c) => (c.t += dt) < CORPSE_LIFE);
+    this.corpses = this.corpses.filter((c) => (c.t += dt) < (c.life || CORPSE_LIFE));
     this.structCorpses = this.structCorpses.filter((c) => (c.t += dt) < STRUCT_CORPSE_LIFE);
     this.blasts = this.blasts.filter((b) => (b.t += dt) < BLAST_LIFE);
     this.rings = this.rings.filter((r) => (r.life -= dt) > 0);
@@ -276,20 +303,16 @@ export class Effects {
   drawCorpses(ctx) {
     for (const c of this.corpses) {
       ctx.save();
-      ctx.globalAlpha = c.t < 0.5 ? 1 : Math.max(0, 1 - (c.t - 0.5) / (CORPSE_LIFE - 0.5));
+      // The death PLAYS: the uploaded die frames run once (that length is
+      // `c.dur`, fixed when the corpse appeared) and the body only starts
+      // fading once it has landed, so the fall is never cut short.
+      const dur = c.dur || 0.5;
+      const life = c.life || CORPSE_LIFE;
+      ctx.globalAlpha = c.t < dur ? 1 : Math.max(0, 1 - (c.t - dur) / (life - dur));
       ctx.translate(c.x, c.y);
       if (c.team === 1) ctx.scale(-1, 1);
       const art = c.art != null ? c.art : c.team;
-      const anim = c.summonKind ? `${c.summonKind}-die`
-        : c.beast && hasBeastAnim(c.type, art, 'die') ? 'beast-die'
-        : c.dismounted && hasFootAnim(c.type, art, 'die') ? 'foot-die' : 'die';
-      // The death PLAYS: the uploaded die frames run once and then hold the
-      // last pose while the body fades. An explicit rate ("Moarte: cadre/s")
-      // sets the length; without one, two frames keep the historical
-      // 0.25s-then-flip timing exactly and more frames run at ~12 fps.
-      const n = animFrames(c.type, art, anim);
-      const fps = animFps(c.type, art, anim);
-      const dur = fps > 0 ? n / fps : (n <= 2 ? 0.5 : n / 12);
+      const anim = c.anim || dieAnimOf(c);
       const frame = phaseFrame(c.type, art, anim, c.t / dur);
       // A corpse that carries its own scale uses it: the on-foot rider, the
       // split beast — and every SUMMON, whose sprites are hosted on the caster
