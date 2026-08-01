@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { animFrames, loopFrame, phaseFrame, hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { animFrames, animFps, loopFrame, phaseFrame, hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
 import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon, getAbilityFx, frameCount } from './sprites.js';
 import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
@@ -214,10 +214,10 @@ export class Renderer {
   // after the hit". `hitAt` is a render-only clock for the follow-through.
   attackFrame(u, anim = 'attack') {
     const wmax = u.windupMax > 0 ? u.windupMax : 0.2;
-    let phase;
+    let sinceStart; // seconds since this swing began
     if (u.windup > 0) {
       this.hitAt.delete(u.id); // a fresh swing is under way
-      phase = 0.5 * (1 - Math.max(0, Math.min(1, u.windup / wmax)));
+      sinceStart = wmax - u.windup;
     } else {
       let t0 = this.hitAt.get(u.id);
       if (t0 == null) {
@@ -225,8 +225,21 @@ export class Renderer {
         if (this.hitAt.size > 4000) this.hitAt.clear(); // bound the map
         this.hitAt.set(u.id, t0);
       }
-      phase = 0.5 + 0.5 * Math.max(0, Math.min(1, (this.now - t0) / wmax));
+      sinceStart = wmax + (this.now - t0);
     }
+    // An explicit rate ("Atac: cadre/s") plays the swing at that speed and then
+    // holds the last frame until the next one. Careful: it no longer tracks the
+    // unit's attack period, so the visual hit can drift from the real one.
+    const fps = animFps(u.type, artOf(u), anim);
+    if (fps > 0) {
+      const n = animFrames(u.type, artOf(u), anim);
+      return Math.max(0, Math.min(n - 1, Math.floor(sinceStart * fps)));
+    }
+    // wind-up fills the first half of the frames, follow-through the second, so
+    // the hit always lands on the middle frame whatever the frame count
+    const phase = sinceStart <= wmax
+      ? 0.5 * Math.max(0, Math.min(1, sinceStart / wmax))
+      : 0.5 + 0.5 * Math.max(0, Math.min(1, (sinceStart - wmax) / wmax));
     return phaseFrame(u.type, artOf(u), anim, phase);
   }
 
@@ -1720,7 +1733,7 @@ export class Renderer {
           // ghost character breathing in the build zone (art by OWNER, facing by side)
           ctx.globalAlpha = hot ? Math.max(ghost, 0.95) : ghost;
           if (side === 1) ctx.scale(-1, 1);
-          drawCharacter(ctx, tpl.type, 'idle', loopFrame(tpl.type, p, 'idle', this.now, 2, i), p, sizeOf(raceOf(p), tpl.type));
+          drawCharacter(ctx, tpl.type, 'idle', loopFrame(tpl.type, p, 'idle', this.now, 2, i, animFps(tpl.type, p, 'idle')), p, sizeOf(raceOf(p), tpl.type));
         } else {
           ctx.globalAlpha = (hot ? Math.max(ghost, 0.9) : ghost) * 0.7; // vector marker: a touch softer
           ctx.rotate(rot);
@@ -1872,7 +1885,7 @@ export class Renderer {
         } else if (u.running) {
           // Kamikaze charging an in-range enemy: its "Fugă" (run) frames, else walk
           anim = hasRunAnim(u.type, artOf(u)) ? 'run' : 'walk';
-          frame = loopFrame(u.type, artOf(u), anim, this.now, (rstats.animSpeed || 5) * 1.6, u.id);
+          frame = loopFrame(u.type, artOf(u), anim, this.now, (rstats.animSpeed || 5) * 1.6, u.id, animFps(u.type, artOf(u), anim));
         } else if (u.dashing) {
           // charging in: show the uploaded "Dash" frame, else fall back to walk
           anim = hasDashAnim(u.type, artOf(u)) ? 'dash' : 'walk';
@@ -1883,7 +1896,7 @@ export class Renderer {
           // it breathes in its idle frames instead of moon-walking in place.
           const stuck = game.isHeld && game.isHeld(artOf(u), u.type);
           anim = (u.state === 'march' && !stuck) ? 'walk' : 'idle';
-          frame = loopFrame(u.type, artOf(u), anim, this.now, rstats.animSpeed || 5, u.id);
+          frame = loopFrame(u.type, artOf(u), anim, this.now, rstats.animSpeed || 5, u.id, animFps(u.type, artOf(u), anim));
         }
         // fireball upgrade: swap walk/attack for the uploaded "Foc" sprite set
         if (u.fireAttacker && (anim === 'walk' || anim === 'attack') && hasFireAnim(u.type, artOf(u), anim)) {

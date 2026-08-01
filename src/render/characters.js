@@ -4,7 +4,7 @@
 
 import { UNITS } from '../units.js';
 import { PUPPETS, PALETTES, drawPuppet } from './puppets.js';
-import { unitSizeOf, buildingSizeOf, statsBuilding } from '../ui/balance.js';
+import { unitSizeOf, buildingSizeOf, statsBuilding, statsUnit } from '../ui/balance.js';
 import {
   getSprite, getFrame, getAnySprite, hasSpriteAnim, getThumb, getProjectile, getAbilityProjectile, getAcidProjectile, getFireProjectile,
   drawSprite, drawSpriteScaled, maxFrameHeight, raceOf, frameCount,
@@ -40,17 +40,44 @@ export function animFrames(type, team, anim) {
   return Math.max(2, frameCount(raceOf(team), type, anim));
 }
 
+// Which per-animation speed knob covers this animation name. The prefixed
+// variants (foot-walk, beast-die, wolf-attack, fire-walk, morph-idle…) follow
+// the same knob as the plain animation they are a version of.
+function fpsKeyFor(anim) {
+  if (anim.endsWith('idle')) return 'fpsIdle';
+  if (anim.endsWith('walk') || anim === 'run') return 'fpsWalk';
+  if (anim.endsWith('attack') || anim === 'acid') return 'fpsAttack';
+  if (anim.endsWith('die')) return 'fpsDie';
+  return null;
+}
+
+// The admin-set playback rate for one animation, in frames per second.
+// 0 (the default) means "automatic" — every caller then keeps the behaviour it
+// had before this knob existed.
+export function animFps(type, team, anim) {
+  if (!UNITS[type]) return 0;
+  const key = fpsKeyFor(anim);
+  if (!key) return 0;
+  const s = statsUnit(raceOf(team), type);
+  const v = s && s[key];
+  return v > 0 ? v : 0;
+}
+
 // The frame to show for a LOOPING animation (idle / walk).
 //
-// `speed` (the unit's animSpeed) was authored as FLIPS PER SECOND of a
-// two-frame cycle, so one full cycle has always lasted 2/speed seconds. That
-// length is what every unit was tuned to — a Footman's step matches how fast he
-// walks. So the cycle keeps its duration whatever the frame count: eight frames
-// make the same motion SMOOTHER, not four times slower. With two frames the
-// rate is `speed` exactly, as before.
-export function loopFrame(type, team, anim, clock, speed, offset = 0) {
+// With an explicit rate (admin: "cadre/s") the animation plays literally at
+// that many frames per second, so a 20-frame idle at 6 fps takes 3.3 s to loop.
+//
+// Without one, `speed` (the unit's animSpeed) applies. It was authored as FLIPS
+// PER SECOND of a two-frame cycle, so one full cycle has always lasted 2/speed
+// seconds — and that length is what every unit was tuned to (a Footman's step
+// matches how fast he walks). So the cycle keeps its duration whatever the
+// frame count: eight frames make the same motion SMOOTHER, not four times
+// slower. With two frames the rate is `speed` exactly, as before.
+export function loopFrame(type, team, anim, clock, speed, offset = 0, fps = 0) {
   const n = animFrames(type, team, anim);
-  return (Math.floor(clock * speed * n / 2) + offset) % n;
+  const rate = fps > 0 ? fps : speed * n / 2;
+  return (Math.floor(clock * rate) + offset) % n;
 }
 
 // The frame to show for a ONE-SHOT animation played over `phase` (0…1):

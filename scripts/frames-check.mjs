@@ -134,7 +134,24 @@ try {
     sig['swing-half'] = shot(2.0, swingMid);
     sig['swing-hit'] = shot(2.0, swingHit);
     sig['swing-after'] = shot(2.4, swingHit); // 0.4 s past the hit
-    return { sig, errors: [] };
+
+    // "Mers: cadre/s" — an explicit rate must be taken LITERALLY: at 4 fps a
+    // frame lasts 0.25 s, whatever animSpeed says.
+    const fps = {};
+    try {
+      const { statsUnit } = await import('/src/ui/balance.js');
+      const st = statsUnit('humans', 'grunt');
+      if (st) {
+        // the swing samples above left an attack-hold behind; clear it or the
+        // unit keeps drawing its attack pose instead of walking
+        if (r.attackHold) r.attackHold.clear();
+        if (r.hitAt) r.hitAt.clear();
+        st.fpsWalk = 4; // 4 frames per second -> a new frame every 0.25 s
+        for (const t of [0, 0.13, 0.26, 0.39, 0.52]) fps[`walk@${t}`] = shot(t, march);
+        st.fpsWalk = 0;
+      }
+    } catch (e) { fps.error = String(e); }
+    return { sig, fps, errors: [] };
   });
 
   console.log(JSON.stringify({ eightFrames: EIGHT, ...out, errors }, null, 2));
