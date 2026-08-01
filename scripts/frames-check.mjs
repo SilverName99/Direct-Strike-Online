@@ -170,7 +170,43 @@ try {
       return maxY >= minY ? maxY - minY + 1 : 0;
     };
     const walkHeight = measure(march);
-    return { sig, fps, walkHeight, errors: [] };
+
+    // The DEATH, on the corpse. A die uploaded with a single frame must show
+    // that frame for its whole life — never fall through to another animation
+    // (which would stand the unit back up while it is dying).
+    const death = {};
+    {
+      const { applyDamage } = await import('/src/sim/combat.js');
+      const victim = spawnUnit(g, 0, 'grunt', 1000, 500);
+      applyDamage(g, victim, 99999, 'normal');
+      const ev = g.drainEvents().find((e) => e.type === 'death');
+      fx.corpses.length = 0;
+      if (ev) fx.spawnFromEvents([ev]);
+      const c = fx.corpses[0];
+      for (const t of [0, 0.2, 0.4, 0.9]) {
+        if (!c) { death[`t=${t}`] = 'no corpse'; continue; }
+        c.t = t;
+        const cv = document.createElement('canvas');
+        cv.width = 300; cv.height = 300;
+        const cx = cv.getContext('2d');
+        const keep = { x: c.x, y: c.y, team: c.team };
+        c.x = 150; c.y = 150; c.team = 0;
+        fx.drawCorpses(cx);
+        Object.assign(c, keep);
+        const d2 = cx.getImageData(0, 0, 300, 300).data;
+        const tally = new Map();
+        for (let i = 0; i < d2.length; i += 4) {
+          if (d2[i + 3] < 200) continue;
+          const k = `${d2[i]},${d2[i + 1]},${d2[i + 2]}`;
+          if (NAMES[k]) tally.set(k, (tally.get(k) || 0) + 1);
+        }
+        let best = null, n2 = 0;
+        for (const [k, v] of tally) if (v > n2) { n2 = v; best = k; }
+        death[`t=${t}`] = best ? NAMES[best] : 'none';
+      }
+      fx.corpses.length = 0;
+    }
+    return { sig, fps, walkHeight, death, errors: [] };
   });
 
   console.log(JSON.stringify({ eightFrames: EIGHT, walkFps: FPS, walkSize: SIZE, ...out, errors }, null, 2));

@@ -431,11 +431,14 @@ export function getSprite(race, ent, anim, frame) {
   const rec = anims.get(`${race}/${ent}/${anim}`);
   if (!rec) return null;
   if (rec[frame]) return rec[frame];
-  // tolerate a hole: fall back to the NEAREST uploaded frame (with two frames
-  // this is the old "show the twin" behaviour, e.g. a die with a single frame)
-  for (let d = 1; d < rec.length; d++) {
-    if (rec[frame - d]) return rec[frame - d];
-    if (rec[frame + d]) return rec[frame + d];
+  // Tolerate a hole OR an index past the end: fall back to the NEAREST uploaded
+  // frame, walking outward until BOTH ends of the record are exhausted. The
+  // bound matters — a one-frame die asked for frame 1 has nothing to its right
+  // and must still find frame 0, or the caller would fall through to "any
+  // sprite" and draw the unit standing up in the middle of its own death.
+  for (let i = frame - 1, j = frame + 1; i >= 0 || j < rec.length; i--, j++) {
+    if (i >= 0 && rec[i]) return rec[i];
+    if (j < rec.length && rec[j]) return rec[j];
   }
   return null;
 }
