@@ -669,6 +669,29 @@ function checkCsrf(): bool {
 // about the existing screens or the existing art changes.
 const MAX_ANIM_FRAMES = 32;
 
+// …but PHP refuses to hand over more than `max_file_uploads` files from one
+// POST (20 by default) and drops the rest SILENTLY — a 25-frame pick arrives as
+// 20 without a word of warning. So the form is capped at what the server really
+// accepts, and the hint states that number instead of the storage maximum.
+function maxUploadFrames(): int {
+  $ini = (int)ini_get('max_file_uploads');
+  if ($ini <= 0) return MAX_ANIM_FRAMES;
+  return max(1, min(MAX_ANIM_FRAMES, $ini));
+}
+
+// "8M" -> 8388608, for saying out loud how big one batch may be
+function iniBytes(string $key): int {
+  $v = trim((string)ini_get($key));
+  if ($v === '') return 0;
+  $n = (int)$v;
+  switch (strtolower(substr($v, -1))) {
+    case 'g': $n *= 1024; // fallthrough
+    case 'm': $n *= 1024; // fallthrough
+    case 'k': $n *= 1024;
+  }
+  return $n;
+}
+
 // 'walk_0' -> 'walk', 'tier2-idle_1' -> 'tier2-idle', 'cast-heal_0' -> 'cast-heal'
 function animBaseOf(string $slot): string {
   $parts = explode('_', $slot);
@@ -870,6 +893,15 @@ function regenManifest(string $assetsDir): void {
 
 // ---------------------------------------------------------------- actions
 $action = $_POST['action'] ?? '';
+
+// A POST bigger than `post_max_size` reaches PHP with $_POST AND $_FILES both
+// empty: no action, no error, the page just reloads and the upload seems to
+// have evaporated. Say what actually happened.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$_POST && !$_FILES && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+  $err = 'Fișierele trimise (' . round(((int)$_SERVER['CONTENT_LENGTH']) / 1048576, 1)
+       . ' MB) depășesc limita serverului (post_max_size = ' . ini_get('post_max_size')
+       . '). Încarcă mai puține cadre odată sau randează-le mai mici.';
+}
 
 if ($action === 'setup' && !file_exists($configFile)) {
   $p1 = $_POST['password'] ?? '';
@@ -2436,9 +2468,15 @@ if ($authed && $action === 'deletebarover') {
       <?php $animBases = animBasesFor($ent, $race); if ($animBases): ?>
       <details class="frames">
         <summary>🎞 Cadre suplimentare de animație <span>(opțional — pentru animații fluide, randate din 3D)</span></summary>
+        <?php $upMax = maxUploadFrames(); $postMax = iniBytes('post_max_size'); ?>
         <p class="frames-hint">Alege deodată TOATE cadrele unei animații. Se numerotează singure în ordinea numelui
           (<code>walk_0001.png</code>, <code>walk_0002.png</code>…), deci exportă-le din Blender cu nume în ordine.
-          Primele două cadre sunt aceleași fișiere cu sloturile de mai sus. Maxim <?= MAX_ANIM_FRAMES ?> cadre.</p>
+          Primele două cadre sunt aceleași fișiere cu sloturile de mai sus.<br>
+          <b>Maxim <?= $upMax ?> cadre pe animație</b>
+          <?php if ($upMax < MAX_ANIM_FRAMES): ?>(limita serverului — <code>max_file_uploads=<?= (int)ini_get('max_file_uploads') ?></code> în <code>php.ini</code>; jocul poate ține <?= MAX_ANIM_FRAMES ?>)<?php endif; ?>,
+          iar toate pozele la un loc trebuie să încapă în <?= $postMax > 0 ? round($postMax / 1048576, 1) . ' MB' : 'limita POST a serverului' ?>.
+          Recomandat <b>8–12 cadre</b> la 128×128: arată fluid și rămâne ușor la memorie (fiecare cadru în plus
+          se încarcă pentru fiecare unitate a fiecărei rase).</p>
         <?php
         $optMap = animOptFor($assetsDir, $race, $ent);
         $num = fn(float $v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
@@ -2483,7 +2521,8 @@ if ($authed && $action === 'deletebarover') {
             <input type="hidden" name="race" value="<?= $race ?>">
             <input type="hidden" name="entity" value="<?= $ent ?>">
             <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
-            <label class="pick">încarcă cadrele<input type="file" name="frames[]" accept="image/png" multiple onchange="this.form.submit()"></label>
+            <label class="pick">încarcă cadrele<input type="file" name="frames[]" accept="image/png" multiple
+              data-max="<?= $upMax ?>" data-bytes="<?= $postMax ?>" onchange="pickFrames(this)"></label>
           </form>
           <?php if ($have > 2): ?>
           <form method="post">
@@ -2620,6 +2659,29 @@ if ($authed && $action === 'deletebarover') {
   </div>
 
   <script>
+    // PHP drops everything past `max_file_uploads` without saying a word, and a
+    // batch over `post_max_size` arrives as an empty request. Both look like the
+    // upload simply worked with fewer frames, so stop them here where we still
+    // know exactly how many files were picked.
+    function pickFrames(input) {
+      var max = +input.dataset.max || 32, bytes = +input.dataset.bytes || 0;
+      var n = input.files.length;
+      if (n > max) {
+        alert('Ai ales ' + n + ' cadre, dar serverul acceptă maxim ' + max + ' odată.\n'
+          + 'Randează din nou animația cu mai puține cadre (Frame Step mai mare) — 8-12 sunt de ajuns.');
+        input.value = '';
+        return;
+      }
+      var total = 0;
+      for (var i = 0; i < n; i++) total += input.files[i].size;
+      if (bytes > 0 && total > bytes * 0.95) {
+        alert('Cele ' + n + ' cadre au ' + (total / 1048576).toFixed(1) + ' MB, peste limita de '
+          + (bytes / 1048576).toFixed(1) + ' MB a serverului.\nRandează-le mai mici (128x128) sau alege mai puține.');
+        input.value = '';
+        return;
+      }
+      input.form.submit();
+    }
     (function () {
       var btns = document.querySelectorAll('.utab');
       btns.forEach(function (b) {
