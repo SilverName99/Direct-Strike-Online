@@ -1860,6 +1860,22 @@ if ($authed && $action === 'deletebarover') {
       color: #6b7a90; font-size: 20px; line-height: 1; cursor: pointer;
     }
     .frames-row .fr-strip .fr-add .plus:hover { border-color: #4da6ff; color: #4da6ff; }
+    .frames-row .mini.play { flex: 0 0 auto; color: #7ee0a8; border-color: #2f6a4a; }
+    /* Plays an animation at its real rate. The point is to tell "the game isn't
+       animating" apart from "all my frames are the same picture" — from the
+       42px strip you cannot see the difference. */
+    #playbox {
+      position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: rgba(4, 7, 12, 0.82); cursor: pointer;
+    }
+    #playbox img {
+      height: 320px; width: auto; image-rendering: pixelated;
+      background: #0a0e14; border: 1px solid #2a3446; border-radius: 8px;
+    }
+    #playbox .cap { color: #9fb0c8; font-size: 12px; text-align: center; line-height: 1.7; }
+    #playbox .cap b { color: #7ee0a8; }
+    #playbox .cap .hint { color: #6b7a90; }
     .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
     .portraitvid .lbl { font-size: 10px; color: #b58fff; text-transform: uppercase; letter-spacing: 1px; }
     .portraitvid .pv-row { display: flex; align-items: center; gap: 14px; margin: 6px 0 12px; }
@@ -2589,6 +2605,11 @@ if ($authed && $action === 'deletebarover') {
             <label class="pick">încarcă cadrele<input type="file" name="frames[]" accept="image/png" multiple
               data-max="<?= $upMax ?>" data-bytes="<?= $postMax ?>" onchange="pickFrames(this)"></label>
           </form>
+          <?php if ($have > 1): ?>
+          <button type="button" class="mini play" data-fps="<?= $num(animOpt($optMap, $anim, 'fps')) ?>"
+            data-anim="<?= htmlspecialchars($anim) ?>" onclick="playFrames(this)"
+            title="Redă cadrele mari, la ritmul setat — așa vezi dacă arta chiar se mișcă">▶ redă</button>
+          <?php endif; ?>
           <?php if ($have > 2): ?>
           <form method="post">
             <input type="hidden" name="action" value="trimframes">
@@ -2748,6 +2769,35 @@ if ($authed && $action === 'deletebarover') {
         return;
       }
       input.form.submit();
+    }
+    // Play one animation big, at the rate the game will use. A 42px strip of
+    // thumbnails cannot tell you whether the character actually moves — so when
+    // a walk "doesn't animate in game", this says in two seconds whether the
+    // frames differ at all or whether every render came out the same pose.
+    function playFrames(btn) {
+      var row = btn.closest('.frames-row');
+      var srcs = [].map.call(row.querySelectorAll('.fr-strip img'), function (i) { return i.src; });
+      if (!srcs.length) return;
+      var fps = +btn.dataset.fps;
+      var rate = fps > 0 ? fps : 12;
+      var box = document.createElement('div');
+      box.id = 'playbox';
+      var img = document.createElement('img');
+      img.src = srcs[0];
+      var cap = document.createElement('div');
+      cap.className = 'cap';
+      box.appendChild(img); box.appendChild(cap);
+      document.body.appendChild(box);
+      var i = 0;
+      var timer = setInterval(function () {
+        i = (i + 1) % srcs.length;
+        img.src = srcs[i];
+        cap.innerHTML = '<b>' + btn.dataset.anim + '</b> · cadrul ' + (i + 1) + '/' + srcs.length
+          + ' · ' + rate + ' cadre/s' + (fps > 0 ? '' : ' (ritm automat, aproximat)')
+          + '<br><span class="hint">Dacă poza nu se schimbă, cadrele randate sunt identice — nu jocul e de vină.'
+          + ' Click oriunde pentru a închide.</span>';
+      }, 1000 / rate);
+      box.onclick = function () { clearInterval(timer); box.remove(); };
     }
     (function () {
       var btns = document.querySelectorAll('.utab');
