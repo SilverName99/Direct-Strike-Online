@@ -1772,6 +1772,17 @@ if ($authed && $action === 'deletebarover') {
     h1 .accent { color: #4da6ff; }
     h2 { font-size: 13px; letter-spacing: 2px; color: #7c8ba1; text-transform: uppercase; margin: 26px 0 10px; }
     .sub { color: #7c8ba1; font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+    /* the only thing that still says "something happened", now that actions no
+       longer reload the page — the flash banner is at the top and you are
+       usually scrolled far below it */
+    #toast {
+      position: fixed; right: 18px; bottom: 18px; z-index: 60; max-width: 460px;
+      padding: 9px 14px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    #toast.work { background: #16202e; border: 1px solid #2a3446; color: #9fb0c8; }
+    #toast.ok { background: #12331f; border: 1px solid #2a6b42; color: #58d68d; }
+    #toast.bad { background: #3a1519; border: 1px solid #7a2a33; color: #ff8090; }
     .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
     .flash.ok { background: #12331f; border: 1px solid #2a6b42; color: #58d68d; }
     .flash.bad { background: #3a1519; border: 1px solid #7a2a33; color: #ff8090; }
@@ -1889,7 +1900,7 @@ if ($authed && $action === 'deletebarover') {
       <b>Thumb</b> = iconița din shop. Varianta echipei roșii și oglindirea se generează automat.</div>
     </div>
     <?php if ($authed): ?>
-    <form method="post"><input type="hidden" name="action" value="logout"><button class="mini">Logout</button></form>
+    <form method="post" data-full><input type="hidden" name="action" value="logout"><button class="mini">Logout</button></form>
     <?php endif; ?>
   </div>
 
@@ -1900,7 +1911,7 @@ if ($authed && $action === 'deletebarover') {
   <div class="panel">
     <h1 style="font-size:16px">Prima configurare</h1>
     <div class="sub" style="margin-top:6px">Setează parola de admin (minim 8 caractere).</div>
-    <form method="post">
+    <form method="post" data-full>
       <input type="hidden" name="action" value="setup">
       <label>Parolă</label><input type="password" name="password" required minlength="8">
       <label>Confirmă parola</label><input type="password" name="password2" required minlength="8">
@@ -1909,7 +1920,7 @@ if ($authed && $action === 'deletebarover') {
   </div>
 <?php elseif (!$authed): ?>
   <div class="panel">
-    <form method="post">
+    <form method="post" data-full>
       <input type="hidden" name="action" value="login">
       <label>Parolă</label><input type="password" name="password" autofocus required>
       <button>Intră</button>
@@ -2768,5 +2779,104 @@ if ($authed && $action === 'deletebarover') {
   <script type="module" src="../src/ui/admin-stats.js?v=<?= time() ?>"></script>
   <?php endif; // view ?>
 <?php endif; // authed ?>
+
+  <script id="no-reload">
+    // Every action here is a POST, and a POST used to reload the whole page:
+    // the browser jumped back to the top, folded the frame blocks away and you
+    // lost your place after every single upload or number typed. Forms now go
+    // out through fetch and the response replaces the body in place, keeping
+    // the scroll position, the open blocks and the active tab.
+    //
+    // Nothing on the server changed — the same POST, the same rendered page.
+    // With JS off (or if fetch fails) the forms submit the classic way.
+    (function () {
+      if (!window.fetch || !window.DOMParser || !window.FormData) return;
+      const nativeSubmit = HTMLFormElement.prototype.submit;
+
+      const snapshot = () => ({
+        scroll: window.scrollY,
+        open: [...document.querySelectorAll('details')].map((d) => d.open),
+        tab: [...document.querySelectorAll('.unit-tabs .utab')].findIndex((b) => b.classList.contains('active')),
+      });
+
+      const restore = (s) => {
+        const ds = document.querySelectorAll('details');
+        s.open.forEach((open, i) => { if (ds[i]) ds[i].open = open; });
+        const tabs = document.querySelectorAll('.unit-tabs .utab');
+        if (s.tab >= 0 && tabs[s.tab] && !tabs[s.tab].classList.contains('active')) tabs[s.tab].click();
+        window.scrollTo(0, s.scroll);
+        // images in the swapped page have no intrinsic size yet; land again once
+        // the layout has settled
+        requestAnimationFrame(() => window.scrollTo(0, s.scroll));
+      };
+
+      // Scripts parsed out of a fetched document are inert — re-create them so
+      // the page behaves exactly as it would after a real load. This one is
+      // dropped instead: its listener sits on `document` and survives the swap,
+      // so re-running it would double every submit.
+      const runScripts = (root) => {
+        for (const old of root.querySelectorAll('script')) {
+          if (old.id === 'no-reload') { old.remove(); continue; }
+          const s = document.createElement('script');
+          for (const a of old.attributes) s.setAttribute(a.name, a.value);
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        }
+      };
+
+      const toast = document.createElement('div');
+      toast.id = 'toast';
+      let toastTimer = 0;
+      const say = (text, cls) => {
+        toast.textContent = text;
+        toast.className = cls;
+        document.body.appendChild(toast);
+        clearTimeout(toastTimer);
+        if (cls !== 'work') toastTimer = setTimeout(() => toast.remove(), 4000);
+      };
+
+      const post = async (data, form) => {
+        const state = snapshot();
+        say('se salvează…', 'work');
+        let html = null;
+        try {
+          const res = await fetch(location.href, { method: 'POST', body: data });
+          html = await res.text();
+        } catch (e) { /* handled below */ }
+        if (html == null) { toast.remove(); nativeSubmit.call(form); return; }
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        if (!doc.body) { location.reload(); return; }
+        document.body.replaceWith(document.adoptNode(doc.body));
+        runScripts(document.body);
+        restore(state);
+        const flash = document.querySelector('.flash');
+        if (flash) say(flash.textContent, flash.classList.contains('bad') ? 'bad' : 'ok');
+        else toast.remove();
+      };
+
+      // One at a time, in the order they were made: the fields are read the
+      // moment the action happens, so a second change while the first is still
+      // in flight can't be lost or sent against a stale page.
+      let chain = Promise.resolve();
+      const send = (form) => {
+        const data = new FormData(form);
+        chain = chain.then(() => post(data, form)).catch(() => {});
+      };
+
+      // A form.submit() call from JS does NOT fire a submit event, and nearly
+      // every control on this page saves with onchange="this.form.submit()" —
+      // so both doors need watching.
+      HTMLFormElement.prototype.submit = function () {
+        if (this.hasAttribute('data-full')) return nativeSubmit.call(this);
+        send(this);
+      };
+      document.addEventListener('submit', (e) => {
+        const f = e.target;
+        if (!(f instanceof HTMLFormElement) || f.hasAttribute('data-full')) return;
+        e.preventDefault();
+        send(f);
+      });
+    })();
+  </script>
 </body>
 </html>
