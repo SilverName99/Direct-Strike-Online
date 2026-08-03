@@ -1840,7 +1840,8 @@ if ($authed && $action === 'deletebarover') {
     .frames > summary span { color: #6b7a90; letter-spacing: 0; }
     .frames-hint { color: #7d8ca3; font-size: 11px; line-height: 1.6; margin: 8px 0 10px; max-width: 760px; }
     .frames-hint code { color: #9fb0c8; background: #10151d; padding: 1px 4px; border-radius: 3px; }
-    .frames-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-top: 1px solid #1b2331; }
+    .frames-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-top: 1px solid #1b2331; min-width: 0; }
+    .frames { min-width: 0; max-width: 100%; overflow: hidden; }
     .frames-row .fr-name { min-width: 132px; color: #cfd8e6; font-size: 12px; }
     .frames-row .fr-count { min-width: 62px; color: #6b7a90; font-size: 11px; }
     .frames-row .fr-count.many { color: #7ee0a8; }
@@ -1849,7 +1850,16 @@ if ($authed && $action === 'deletebarover') {
       background: #0a0e14; color: #9fb0c8; border: 1px solid #2a3446; border-radius: 6px; }
     .frames-row .fr-fps input.set { color: #7ee0a8; border-color: #2f6a4a; }
     .frames-row .fr-fps span { color: #6b7a90; font-size: 11px; }
-    .frames-row .fr-strip { display: flex; gap: 3px; flex: 1; overflow-x: auto; }
+    /* min-width:0 is what makes the internal scroll actually work: a flex item
+       refuses to shrink below its content by default, so 32 thumbnails pushed
+       the whole row (and the page) sideways instead of scrolling in place. */
+    .frames-row .fr-strip {
+      display: flex; gap: 3px; flex: 1 1 0; min-width: 0; overflow-x: auto;
+      padding-bottom: 4px; scrollbar-width: thin;
+    }
+    .frames-row .fr-strip::-webkit-scrollbar { height: 7px; }
+    .frames-row .fr-strip::-webkit-scrollbar-thumb { background: #2a3446; border-radius: 4px; }
+    .frames-row .fr-strip::-webkit-scrollbar-track { background: #0d131c; border-radius: 4px; }
     .frames-row .fr-strip img { height: 42px; width: auto; background: #0a0e14; border: 1px solid #2a3446; border-radius: 4px; }
     /* "+" at the end of the strip: another batch of frames, written after these */
     .frames-row .fr-strip .fr-add { flex: 0 0 auto; }

@@ -252,6 +252,23 @@ export class Renderer {
     return phaseFrame(u.type, artOf(u), anim, phase);
   }
 
+  // When a building's idle animation starts, and whether it is nudged out of
+  // step with its neighbours.
+  //
+  // A structure that actually SPENT time being built starts its idle at frame 0
+  // the moment it finishes — a 32-frame animation (a smith swinging at a dummy)
+  // that joined mid-stroke read as broken. Instant and pre-placed structures
+  // have no such moment, so they keep the per-id offset that stops a row of
+  // identical walls from pulsing in unison; `buildDone` still gives each one its
+  // own zero, so two walls placed seconds apart are naturally out of phase.
+  idleClock(game, s) {
+    const built = (s.buildDone || 0) > (s.buildStart || 0);
+    return {
+      clock: Math.max(0, game.time - (s.buildDone || 0)),
+      seed: built ? 0 : s.id,
+    };
+  }
+
   // Which way a character should face: its live target while fighting, its
   // horizontal movement while walking, else whatever it faced last (default:
   // toward the enemy base). Sticky so per-tick jitter can't flip it around.
@@ -1249,7 +1266,8 @@ export class Renderer {
       return drawn;
     }
     const tn = Math.max(2, frameCount(raceOf(artOf(s)), 'tower', `tier${tier}-idle`));
-    const frame = (Math.floor(this.now * buildingIdleRate(raceOf(artOf(s)), 'tower', `tier${tier}-idle`)) + s.id) % tn;
+    const ic = this.idleClock(game, s);
+    const frame = (Math.floor(ic.clock * buildingIdleRate(raceOf(artOf(s)), 'tower', `tier${tier}-idle`)) + ic.seed) % tn;
     return drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'idle', frame);
   }
 
@@ -1397,7 +1415,8 @@ export class Renderer {
         }
         if (!spriteDrawn && s.kind === 'wall') {
           // walls show a per-base-tier idle look (falls back to plain idle art)
-          spriteDrawn = drawWallSprite(ctx, artOf(s), game.tier[artOf(s)], hw, hh, this.now, s.id);
+          const wc = this.idleClock(game, s);
+          spriteDrawn = drawWallSprite(ctx, artOf(s), game.tier[artOf(s)], hw, hh, wc.clock, wc.seed);
         }
         if (!spriteDrawn) {
           if (s.kind === 'main') {
@@ -1408,7 +1427,8 @@ export class Renderer {
             if (upgrading) ctx.globalAlpha *= 0.5;
             spriteDrawn = drawMainTierSprite(ctx, artOf(s), showTier, hw, hh); // per-upgrade image
           } else {
-            spriteDrawn = drawStructureSprite(ctx, s.kind, artOf(s), hw, hh, this.now, s.id);
+            const sc = this.idleClock(game, s);
+            spriteDrawn = drawStructureSprite(ctx, s.kind, artOf(s), hw, hh, sc.clock, sc.seed);
           }
         }
         ctx.restore();
