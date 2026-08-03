@@ -817,6 +817,11 @@ html, body {
 .has-musicnext-skin #music-next:hover { filter: brightness(1.13); background: var(--menu-musicnext) center / 100% 100% no-repeat; }
 
 #menu-fs-corner { position: absolute; top: 18px; right: 18px; z-index: 3; }
+/* language switch: shows the language you would switch TO */
+#menu-lang {
+  position: absolute; top: 18px; right: 64px; z-index: 3;
+  font: 700 13px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
+}
 /* player name box (top-left of the menu) — reads as a plaque, edits in place */
 #menu-name {
   position: absolute; top: 18px; left: 18px; z-index: 3;

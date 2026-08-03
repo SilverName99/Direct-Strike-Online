@@ -5,6 +5,7 @@
 import { CONFIG, RACES, VERSION } from '../config.js';
 import { getLoadingScreens, spritesReady, spriteProgress } from '../render/sprites.js';
 import { HOTKEY_ACTIONS, hotkeyOf, keyLabel, setHotkey, resetHotkeys, loadHotkeys } from './hotkeys.js';
+import { t, translateDom, getLang, setLang } from '../i18n.js';
 
 // Player name: shown top-left in the menu, carried into the lobby and matches.
 // Persisted per browser; a themed default is rolled on the very first visit.
@@ -15,7 +16,7 @@ export function loadPlayerName() {
     const saved = (localStorage.getItem(NAME_KEY) || '').trim();
     if (saved) return saved.slice(0, 16);
   } catch { /* private mode */ }
-  const n = `${NAME_TITLES[Math.floor(Math.random() * NAME_TITLES.length)]}${100 + Math.floor(Math.random() * 900)}`;
+  const n = `${t(NAME_TITLES[Math.floor(Math.random() * NAME_TITLES.length)])}${100 + Math.floor(Math.random() * 900)}`;
   try { localStorage.setItem(NAME_KEY, n); } catch { /* private mode */ }
   return n;
 }
@@ -39,6 +40,7 @@ export function saveTesting(on) {
 // Lobby helpers: chat + names come from other players, so everything that
 // lands in innerHTML goes through esc() first.
 const RACE_RO = { humans: 'Oameni', orcs: 'Orci', undead: 'Undead' };
+const raceLabel = (race) => t(RACE_RO[race] || race);
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -75,6 +77,19 @@ export class Menu {
 
   build() {
     this.el.innerHTML = TEMPLATE;
+    translateDom(this.el); // static texts: the dictionary pass, before anything dynamic runs
+    // the help paragraph mixes <b> tags into its text, so the text-node walker
+    // sees only fragments — swap the whole block through the dictionary instead
+    if (getLang() === 'en') {
+      const hf = this.el.querySelector('#help-fallback');
+      if (hf) hf.innerHTML = t('Construiește-ți baza — <b>ziduri, turnuri, generatoare</b> — în zona de construcție, și <b>formația de armată</b> în banda din față. La fiecare val, toată armata ta reînvie și mărșăluiește spre <b>Baza inamică</b> — distruge-o pe a lui ca să câștigi. <b>Upgrade la Baza principală</b> deblochează tieruri superioare de unități. Generatoarele sunt economia ta — protejează-le!')
+        + '<br><br>' + t('<b>Cameră:</b> mișcă mouse-ul la margini sau folosește <b>săgeți / WASD</b> · <b>rotița</b> face zoom · <b>Space</b> sare la baza ta · click pe <b>minimap</b>. Cursorul e cel real (fără delay).');
+    }
+    const langBtn = this.el.querySelector('#menu-lang');
+    if (langBtn) {
+      langBtn.textContent = getLang() === 'en' ? 'RO' : 'EN'; // the language you would SWITCH TO
+      langBtn.addEventListener('click', () => setLang(getLang() === 'en' ? 'ro' : 'en'));
+    }
     this.bg = this.el.querySelector('#menu-bg');
     this.root = this.el.querySelector('#menu-root');
     this.cd = this.el.querySelector('#menu-cd');
@@ -178,7 +193,7 @@ export class Menu {
   // ---- room browser ("Join a room") ----
   requestRooms() {
     const box = this.el.querySelector('#mp-rooms');
-    if (box && !box.children.length) box.innerHTML = '<p class="mp-rooms-empty">Se caută camere…</p>';
+    if (box && !box.children.length) box.innerHTML = `<p class="mp-rooms-empty">${t('Se caută camere…')}</p>`;
     if (this.hooks.onNet) this.hooks.onNet({ action: 'rooms' });
   }
   // main.js pushes the server's list here; every row is one joinable room
@@ -187,14 +202,14 @@ export class Menu {
     if (!box) return;
     const rooms = Array.isArray(list) ? list : [];
     if (!rooms.length) {
-      box.innerHTML = '<p class="mp-rooms-empty">Nicio cameră publică deschisă. Creează tu una!</p>';
+      box.innerHTML = `<p class="mp-rooms-empty">${t('Nicio cameră publică deschisă. Creează tu una!')}</p>`;
       return;
     }
     box.innerHTML = rooms.map((r) => `
       <div class="mp-room">
         <span class="mp-room-host">${esc(r.host)}</span>
-        <span class="mp-room-fill">${(r.players | 0) + (r.bots | 0)}/${r.max | 0} jucători${r.bots ? ` <small>(${r.bots} 🤖)</small>` : ''}</span>
-        <button class="m-btn small" data-mp="join-code" data-code="${esc(r.code)}">Intră</button>
+        <span class="mp-room-fill">${t('{n} jucători', { n: `${(r.players | 0) + (r.bots | 0)}/${r.max | 0}` })}${r.bots ? ` <small>(${r.bots} 🤖)</small>` : ''}</span>
+        <button class="m-btn small" data-mp="join-code" data-code="${esc(r.code)}">${t('Intră')}</button>
       </div>`).join('');
   }
   // waiting screen: matchmaking / room code / connection errors
@@ -234,7 +249,7 @@ export class Menu {
     this.seatTimer = setTimeout(() => {
       if (!this.seatWant) return;
       this.seatWant = null;
-      this.lobbyNote('Serverul camerei nu cunoaște mutarea pe alt loc — rulează o versiune mai veche și trebuie repornit.');
+      this.lobbyNote(t('Serverul camerei nu cunoaște mutarea pe alt loc — rulează o versiune mai veche și trebuie repornit.'));
     }, 1800);
   }
   // a client-side line in the room log (never sent to anyone)
@@ -416,7 +431,7 @@ export class Menu {
     const code = this.el.querySelector('#lb-code');
     if (code) code.textContent = r.code || '';
     const headT = this.el.querySelector('.lb-head-t');
-    if (headT) headT.textContent = solo ? 'Cameră de antrenament' : 'Cod cameră';
+    if (headT) headT.textContent = solo ? t('Cameră de antrenament') : t('Cod cameră');
     const host = this.isHost();
     const mine = this.mySlot();
     const seated = [];
@@ -427,7 +442,7 @@ export class Menu {
     if (box) {
       box.innerHTML = [0, 1].map((side) => `
         <div class="lb-col ${side === (mine ? mine.side : 0) ? 'ours' : 'theirs'}">
-          <div class="lb-col-h">Tabăra ${side + 1} <span class="lb-count">${n[side]}</span></div>
+          <div class="lb-col-h">${t('Tabăra {n}', { n: side + 1 })} <span class="lb-count">${n[side]}</span></div>
           ${r.slots[side].map((sl) => this.slotHtml(sl, host, mine)).join('')}
         </div>`).join('<div class="lb-vs">VS</div>');
     }
@@ -444,7 +459,7 @@ export class Menu {
     if (ready) {
       const on = this.myReady();
       ready.classList.toggle('on', on);
-      ready.innerHTML = on ? '✔&nbsp;&nbsp;Sunt gata' : '✔&nbsp;&nbsp;Gata';
+      ready.innerHTML = on ? `✔&nbsp;&nbsp;${t('Sunt gata')}` : `✔&nbsp;&nbsp;${t('Gata')}`;
     }
     // START is the host's alone, and only once every HUMAN is ready and both
     // sides have someone (bots count as always ready)
@@ -456,7 +471,7 @@ export class Menu {
     if (start) {
       start.classList.toggle('hidden', !host);
       start.disabled = !(host && ok);
-      start.title = ok ? `Pornește ${n[0]}v${n[1]}` : 'Toți jucătorii umani trebuie să fie GATA';
+      start.title = ok ? t('Pornește {a}v{b}', { a: n[0], b: n[1] }) : t('Toți jucătorii umani trebuie să fie GATA');
       start.innerHTML = ok ? `▶&nbsp;&nbsp;START ${n[0]}v${n[1]}` : '▶&nbsp;&nbsp;START';
     }
     // ...and say out loud what's still missing (the host can't guess otherwise)
@@ -465,13 +480,13 @@ export class Menu {
       let msg = '';
       const wrongVer = seated.filter((sl) => sl.kind === 'player' && sl.version && r.version && sl.version !== r.version);
       if (wrongVer.length) {
-        msg = `Versiuni diferite (${wrongVer.map((sl) => `${esc(sl.name)}: ${esc(sl.version)}`).join(', ')}) — camera merge pe ${esc(r.version)}. Reîmprospătați pagina cu Ctrl+Shift+R.`;
+        msg = t('Versiuni diferite ({list}) — camera merge pe {v}. Reîmprospătați pagina cu Ctrl+Shift+R.', { list: wrongVer.map((sl) => `${esc(sl.name)}: ${esc(sl.version)}`).join(', '), v: esc(r.version) });
       }
-      else if (!bothSides) msg = `Tabăra ${n[0] ? 2 : 1} e goală — pune un bot${solo ? '.' : ' sau așteaptă un jucător.'}`;
+      else if (!bothSides) msg = t(solo ? 'Tabăra {n} e goală — pune un bot.' : 'Tabăra {n} e goală — pune un bot sau așteaptă un jucător.', { n: n[0] ? 2 : 1 });
       else if (solo) msg = ''; // offline: the START label already says the format
-      else if (waiting.length) msg = `Se așteaptă: ${waiting.map((sl) => esc(sl.name || 'Player')).join(', ')}`;
-      else if (!host) msg = 'Gazda pornește meciul.';
-      else msg = `Sloturile goale dispar — pornești ${n[0]}v${n[1]}${n[0] !== n[1] ? ' (asimetric: tabăra mică primește bonus de venit)' : ''}.`;
+      else if (waiting.length) msg = t('Se așteaptă: {who}', { who: waiting.map((sl) => esc(sl.name || 'Player')).join(', ') });
+      else if (!host) msg = t('Gazda pornește meciul.');
+      else msg = t(n[0] !== n[1] ? 'Sloturile goale dispar — pornești {a}v{b} (asimetric: tabăra mică primește bonus de venit).' : 'Sloturile goale dispar — pornești {a}v{b}.', { a: n[0], b: n[1] });
       hint.innerHTML = msg;
     }
   }
@@ -481,11 +496,11 @@ export class Menu {
   // `attrs` carries whatever click routing that slot needs (own race vs a bot's).
   racePill(race, on, attrs = '') {
     const tag = attrs ? 'button' : 'span';
-    return `<${tag} class="m-pill lb-pill${on ? ' on' : ''}" data-race="${race}" ${attrs}>${RACE_RO[race] || race}</${tag}>`;
+    return `<${tag} class="m-pill lb-pill${on ? ' on' : ''}" data-race="${race}" ${attrs}>${raceLabel(race)}</${tag}>`;
   }
 
   slotHtml(sl, host, mine) {
-    const DEPTHS = ['Spate', 'Mijloc', 'Față'];
+    const DEPTHS = [t('Spate'), t('Mijloc'), t('Față')];
     const pos = `${DEPTHS[sl.depth] || `#${sl.depth + 1}`}`;
     const isMe = sl.id != null && sl.id === this.myId;
     const s = sl.side, d = sl.depth;
@@ -497,17 +512,17 @@ export class Menu {
       const badVer = !!(sl.version && roomVer && sl.version !== roomVer);
       const tag = [sl.id === this.lobby.hostId ? '<span class="lb-tag host">HOST</span>' : '',
         isMe ? '<span class="lb-tag me">TU</span>' : '',
-        badVer ? `<span class="lb-tag bad" title="Versiune diferită de a camerei (${esc(roomVer)})">⚠ ${esc(sl.version)}</span>` : ''].join('');
+        badVer ? `<span class="lb-tag bad" title="${t('Versiune diferită de a camerei ({v})', { v: esc(roomVer) })}">⚠ ${esc(sl.version)}</span>` : ''].join('');
       body = `<span class="lb-name">${esc(sl.name || 'Player')}</span>${tag}
-        <span class="lb-ready ${sl.ready ? 'on' : ''}">${sl.ready ? '✔ gata' : '… așteaptă'}</span>`;
+        <span class="lb-ready ${sl.ready ? 'on' : ''}">${sl.ready ? t('✔ gata') : t('… așteaptă')}</span>`;
       // your own race is yours to pick; everyone else's is just shown
       body += isMe
         ? `<div class="lb-races">${RACES.map((rc) => this.racePill(rc, sl.race === rc, `data-lb="race" data-r="${rc}"`)).join('')}</div>`
         : `<div class="lb-races">${this.racePill(sl.race, true)}</div>`;
       // offline you shuffle your own seat freely; online you must ASK the other
       if (isMe && this.lobby.local) ctl += this.moveBtns(sl);
-      if (!isMe) ctl += `<button class="lb-mini" title="Cere schimb de poziție" data-lb="swap" data-id="${sl.id}">⇄</button>`;
-      if (host && !isMe) ctl += `<button class="lb-mini bad" title="Dă afară" data-lb="kick" data-id="${sl.id}">✖</button>`;
+      if (!isMe) ctl += `<button class="lb-mini" title="${t('Cere schimb de poziție')}" data-lb="swap" data-id="${sl.id}">⇄</button>`;
+      if (host && !isMe) ctl += `<button class="lb-mini bad" title="${t('Dă afară')}" data-lb="kick" data-id="${sl.id}">✖</button>`;
     } else if (sl.kind === 'bot') {
       // the host owns a bot completely: its race AND its difficulty
       const botRaces = host
@@ -516,28 +531,28 @@ export class Menu {
       const botDiffs = host
         ? ['easy', 'normal', 'hard'].map((df) => `<button class="lb-diff ${sl.difficulty === df ? 'sel' : ''}" data-lb="diff" data-s="${s}" data-d="${d}" data-df="${df}" data-r="${sl.race}">${df[0].toUpperCase()}</button>`).join('')
         : `<span class="lb-diff sel">${(sl.difficulty || 'normal')[0].toUpperCase()}</span>`;
-      body = `<span class="lb-name bot">🤖 BOT</span><span class="lb-ready on">✔ gata</span>
+      body = `<span class="lb-name bot">🤖 BOT</span><span class="lb-ready on">${t('✔ gata')}</span>
         <div class="lb-races">${botRaces}${botDiffs}</div>`;
       if (host) {
         // the host shuffles BOTS freely — no accept needed (humans must ask)
         ctl += this.moveBtns(sl);
-        ctl += `<button class="lb-mini bad" title="Golește slotul" data-lb="slot" data-s="${s}" data-d="${d}" data-k="open">✖</button>`;
+        ctl += `<button class="lb-mini bad" title="${t('Golește slotul')}" data-lb="slot" data-s="${s}" data-d="${d}" data-k="open">✖</button>`;
       }
     } else {
       const closed = sl.kind === 'closed';
-      body = `<span class="lb-name empty">${closed ? '🔒 Închis' : '— Liber —'}</span>
-        <span class="lb-ready">${closed ? 'nu intră nimeni' : 'așteaptă un jucător'}</span>`;
+      body = `<span class="lb-name empty">${closed ? `🔒 ${t('Închis')}` : `— ${t('Liber')} —`}</span>
+        <span class="lb-ready">${closed ? t('nu intră nimeni') : t('așteaptă un jucător')}</span>`;
       // Anyone seated may walk over to an EMPTY seat — the other camp included.
       // No host, no asking: only a swap with a real player needs consent.
       if (!closed && mine && !(mine.side === s && mine.depth === d)) {
         const other = mine.side !== s;
-        ctl += `<button class="lb-mini go" title="${other ? 'Treci în tabăra asta' : 'Mută-te aici'}" data-lb="seat" data-s="${s}" data-d="${d}">➜</button>`;
+        ctl += `<button class="lb-mini go" title="${other ? t('Treci în tabăra asta') : t('Mută-te aici')}" data-lb="seat" data-s="${s}" data-d="${d}">➜</button>`;
       }
       if (host) {
-        ctl += `<button class="lb-mini" title="Pune un bot" data-lb="slot" data-s="${s}" data-d="${d}" data-k="bot" data-r="${sl.race}">🤖</button>`;
+        ctl += `<button class="lb-mini" title="${t('Pune un bot')}" data-lb="slot" data-s="${s}" data-d="${d}" data-k="bot" data-r="${sl.race}">🤖</button>`;
         ctl += closed
-          ? `<button class="lb-mini" title="Deschide slotul" data-lb="slot" data-s="${s}" data-d="${d}" data-k="open">🔓</button>`
-          : `<button class="lb-mini" title="Închide slotul" data-lb="slot" data-s="${s}" data-d="${d}" data-k="closed">🔒</button>`;
+          ? `<button class="lb-mini" title="${t('Deschide slotul')}" data-lb="slot" data-s="${s}" data-d="${d}" data-k="open">🔓</button>`
+          : `<button class="lb-mini" title="${t('Închide slotul')}" data-lb="slot" data-s="${s}" data-d="${d}" data-k="closed">🔒</button>`;
       }
     }
     return `<div class="lb-slot ${sl.kind}${isMe ? ' me' : ''}">
@@ -556,12 +571,12 @@ export class Menu {
       return t && t.kind !== 'player';
     };
     let out = '';
-    if (sl.depth > 0 && free(sl.side, sl.depth - 1)) out += `<button class="lb-mini" title="Mai în spate" data-lb="move" data-s="${sl.side}" data-d="${sl.depth}" data-ts="${sl.side}" data-td="${sl.depth - 1}">↑</button>`;
-    if (sl.depth < max && free(sl.side, sl.depth + 1)) out += `<button class="lb-mini" title="Mai în față" data-lb="move" data-s="${sl.side}" data-d="${sl.depth}" data-ts="${sl.side}" data-td="${sl.depth + 1}">↓</button>`;
+    if (sl.depth > 0 && free(sl.side, sl.depth - 1)) out += `<button class="lb-mini" title="${t('Mai în spate')}" data-lb="move" data-s="${sl.side}" data-d="${sl.depth}" data-ts="${sl.side}" data-td="${sl.depth - 1}">↑</button>`;
+    if (sl.depth < max && free(sl.side, sl.depth + 1)) out += `<button class="lb-mini" title="${t('Mai în față')}" data-lb="move" data-s="${sl.side}" data-d="${sl.depth}" data-ts="${sl.side}" data-td="${sl.depth + 1}">↓</button>`;
     const other = sl.side ? 0 : 1;
     for (let d = 0; d <= max; d++) {
       if (free(other, d) && this.lobby.slots[other][d].kind === 'open') {
-        out += `<button class="lb-mini" title="Mută în cealaltă tabără" data-lb="move" data-s="${sl.side}" data-d="${sl.depth}" data-ts="${other}" data-td="${d}">⇄</button>`;
+        out += `<button class="lb-mini" title="${t('Mută în cealaltă tabără')}" data-lb="move" data-s="${sl.side}" data-d="${sl.depth}" data-ts="${other}" data-td="${d}">⇄</button>`;
         break;
       }
     }
@@ -577,11 +592,11 @@ export class Menu {
     let html = '';
     let group = null;
     for (const a of HOTKEY_ACTIONS) {
-      if (a.group !== group) { group = a.group; html += `<div class="m-keys-g">${esc(group)}</div>`; }
+      if (a.group !== group) { group = a.group; html += `<div class="m-keys-g">${esc(t(group))}</div>`; }
       const live = this.rebinding === a.id;
-      html += `<div class="m-key-row"><span>${esc(a.label)}</span>`
+      html += `<div class="m-key-row"><span>${esc(t(a.label))}</span>`
         + `<button class="m-key${live ? ' live' : ''}" data-key="${a.id}">`
-        + `${live ? 'apasă…' : esc(keyLabel(hotkeyOf(a.id)))}</button></div>`;
+        + `${live ? t('apasă…') : esc(keyLabel(hotkeyOf(a.id)))}</button></div>`;
     }
     box.innerHTML = html;
   }
@@ -978,7 +993,7 @@ export class Menu {
     const tip = this.load.querySelector('.load-tip');
     const note = this.load.querySelector('.load-note');
     const tips = (Array.isArray(CONFIG.LOADING_TIPS) && CONFIG.LOADING_TIPS.length) ? CONFIG.LOADING_TIPS : TIPS;
-    tip.textContent = '💡 ' + tips[Math.floor(this.mix() * tips.length) % tips.length];
+    tip.textContent = '💡 ' + t(tips[Math.floor(this.mix() * tips.length) % tips.length]);
     fill.style.transition = 'none'; fill.style.width = '0%';
     void fill.offsetWidth;
     fill.style.transition = 'width 0.3s ease-out';
@@ -1015,8 +1030,8 @@ export class Menu {
         if (note && p.loaded < p.total) {
           const stuck = now - lastMove >= 2500; // nothing for a moment -> say so
           note.classList.toggle('slow', stuck);
-          note.innerHTML = `<b>${p.loaded}/${p.total}</b> imagini · ${this.esc(p.label)}`
-            + (stuck ? ' · conexiune lentă…' : '');
+          note.innerHTML = `<b>${p.loaded}/${p.total}</b> ${t('imagini')} · ${this.esc(p.label)}`
+            + (stuck ? ` · ${t('conexiune lentă…')}` : '');
         }
       } else if (elapsed < MIN_MS * 2) {
         fill.style.width = '92%'; // no manifest to measure — the old timed feel
@@ -1045,12 +1060,11 @@ export class Menu {
 
   showGameOver(game, playerWon, team = 0, isNet = false) {
     this.clearTimers();
-    const t = this.el.querySelector('#over-title');
-    t.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
-    t.className = 'm-title ' + (playerWon ? 'victory' : 'defeat');
-    this.el.querySelector('#over-stats').innerHTML =
-      `Valuri: <b>${game.waveCount}</b> · Aur cheltuit: <b>${Math.floor(game.spent[team])}</b> · ` +
-      `Tier atins: <b>${'I'.repeat(game.tier[team])}</b>`;
+    const titleEl = this.el.querySelector('#over-title');
+    titleEl.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
+    titleEl.className = 'm-title ' + (playerWon ? 'victory' : 'defeat');
+    this.el.querySelector('#over-stats').innerHTML = t('Valuri: <b>{w}</b> · Aur cheltuit: <b>{g}</b> · Tier atins: <b>{t}</b>',
+      { w: game.waveCount, g: Math.floor(game.spent[team]), t: 'I'.repeat(game.tier[team]) });
     // no instant rematch online (the opponent is gone) — back to the menu
     const rematch = this.el.querySelector('.m-screen[data-screen="over"] [data-play]');
     if (rematch) rematch.classList.toggle('hidden', !!isNet);
@@ -1075,6 +1089,7 @@ const TEMPLATE = `
   </div>
   <div id="menu-version" title="Versiunea jocului — toți jucătorii dintr-un meci trebuie s-o aibă pe aceeași"></div>
   <button id="menu-fs-corner" class="corner-btn fs-btn" title="Ecran complet" data-opt-fs>⛶</button>
+  <button id="menu-lang" class="corner-btn lang-btn" title="Schimbă limba / Switch language"></button>
   <div id="menu-sound">
     <div id="music-title" class="hidden"></div>
     <div id="menu-sound-row">

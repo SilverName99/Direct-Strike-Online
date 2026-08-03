@@ -12,6 +12,7 @@
 // Pure UI: every mutation goes through game.issueCommand.
 
 import { CONFIG } from '../config.js';
+import { t, pickText } from '../i18n.js';
 import { cellKeyLabel } from './hotkeys.js';
 import { UNIT_IDS } from '../units.js';
 import { UPGRADE_IDS, ABILITY_UNLOCK_UPGRADE } from '../upgrades.js';
@@ -417,10 +418,10 @@ export class BottomBar {
     btn.classList.toggle('hidden', !sell);
     if (sell) {
       const cost = document.getElementById('bb-sell-cost');
-      if (cost) cost.textContent = `Vinde ◆ ${sell.cost}`;
+      if (cost) cost.textContent = `${t('Vinde')} ◆ ${sell.cost}`;
       btn.title = sell.what === 'unit'
-        ? `Vinde acest șablon de unitate — primești ◆ ${sell.cost}${sell.full ? ' (100%, nespawnat)' : ''}`
-        : `Vinde această clădire — primești ◆ ${sell.cost}`;
+        ? t('Vinde acest șablon de unitate — primești ◆ {n}', { n: sell.cost }) + (sell.full ? t(' (100%, nespawnat)') : '')
+        : t('Vinde această clădire — primești ◆ {n}', { n: sell.cost });
     }
   }
 
@@ -459,10 +460,10 @@ export class BottomBar {
     btn.classList.toggle('armed', armed);
     if (movable) {
       const label = btn.querySelector('span:last-child');
-      if (label) label.textContent = armed ? 'Alege loc…' : 'Mută';
+      if (label) label.textContent = armed ? t('Alege loc…') : t('Mută');
       btn.title = armed
-        ? 'Click pe teren ca să muți clădirea (se reconstruiește 30s). Click din nou aici sau ESC = anulează.'
-        : 'Mută clădirea în alt loc (se reconstruiește 30s).';
+        ? t('Click pe teren ca să muți clădirea (se reconstruiește 30s). Click din nou aici sau ESC = anulează.')
+        : t('Mută clădirea în alt loc (se reconstruiește 30s).');
     }
   }
 
@@ -472,7 +473,7 @@ export class BottomBar {
     ctx.clearRect(0, 0, 112, 112);
     if (!info || !game) {
       this.setPortraitVideo(null);
-      this.details.innerHTML = '<div class="bb-empty">Selectează o unitate sau o clădire.</div>';
+      this.details.innerHTML = `<div class="bb-empty">${t('Selectează o unitate sau o clădire.')}</div>`;
       return;
     }
     // a selected gold-miner: its own idle clip in the portrait, a short blurb
@@ -491,8 +492,8 @@ export class BottomBar {
       const own = info.team === this.team;
       const inc = game.bstat(info.team, 'generator').income;
       this.details.innerHTML = `
-        <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">Muncitor</span><span class="d-sub">Miner${own ? '' : ' · INAMIC'}</span></div>
-        <div class="d-stats"><span>⛏ cară aur la bază</span>${inc ? `<span>◆ +<b>${inc}</b> aur/20s</span>` : ''}</div>`;
+        <div class="d-title"><span class="d-name ${own ? '' : 'enemy'}">${t('Muncitor')}</span><span class="d-sub">${t('Miner')}${own ? '' : ` · ${t('INAMIC')}`}</span></div>
+        <div class="d-stats"><span>${t('⛏ cară aur la bază')}</span>${inc ? `<span>${t('◆ +<b>{n}</b> aur/20s', { n: inc })}</span>` : ''}</div>`;
       return;
     }
     // an uploaded idle clip (mp4/webm) takes over the portrait box; otherwise
@@ -525,13 +526,13 @@ export class BottomBar {
       sub = info.type === 'main'
         ? `Tier ${'I'.repeat(game.tier[info.team])}`
         : info.type === 'tower'
-          ? `Clădire · Tier ${'I'.repeat(Math.max(1, game.tier[info.team]))}${stats.cost ? ` · ◆ ${stats.cost}` : ''}`
-          : `Clădire${stats.cost ? ` · ◆ ${stats.cost}` : ''}`;
+          ? `${t('Clădire')} · Tier ${'I'.repeat(Math.max(1, game.tier[info.team]))}${stats.cost ? ` · ◆ ${stats.cost}` : ''}`
+          : `${t('Clădire')}${stats.cost ? ` · ◆ ${stats.cost}` : ''}`;
     } else if (info.kind === 'entity' && info.u.summon) {
-      sub = 'Animal invocat';
+      sub = t('Animal invocat');
     } else {
       // units: no "Tier X · ◆ cost" subtitle — the stats sit in the emoji line
-      sub = info.kind === 'template' && !info.tpl.spawned ? 'nou (100% la vânzare)' : '';
+      sub = info.kind === 'template' && !info.tpl.spawned ? t('nou (100% la vânzare)') : '';
     }
 
     // live numbers
@@ -567,9 +568,9 @@ export class BottomBar {
       const dmg = tst ? tst.damage : stats.damage;
       const per = tst ? tst.period : stats.period;
       if (dmg) rows.push(`⚔ <b>${dmg}</b> · <b>${(dmg / Math.max(0.1, per || 1)).toFixed(1)}</b> DPS`, `➹ <b>${stats.range}</b>`);
-      if (stats.income) rows.push(`◆ +<b>${stats.income}</b> aur/20s`);
+      if (stats.income) rows.push(t('◆ +<b>{n}</b> aur/20s', { n: stats.income }));
       if (stats.regen) rows.push(`✚ +<b>${stats.regen}</b> HP/s`);
-      if (info.type === 'main') rows.push('🏰 obiectivul principal');
+      if (info.type === 'main') rows.push(t('🏰 obiectivul principal'));
     }
 
     // status + live happenings
@@ -579,13 +580,13 @@ export class BottomBar {
         for (const e of info.u.effects) {
           const m = STATUS_LABELS[e.kind];
           if (!m || e.until <= game.time) continue;
-          chips += `<span class="d-chip" style="border-color:${m[2]};color:${m[2]}">${m[0]} ${m[1]} · ${Math.ceil(e.until - game.time)}s</span>`;
+          chips += `<span class="d-chip" style="border-color:${m[2]};color:${m[2]}">${m[0]} ${t(m[1])} · ${Math.ceil(e.until - game.time)}s</span>`;
         }
       }
-      if (info.u.dismounted) chips += '<span class="d-chip" style="border-color:#ffb35c;color:#ffb35c">🐗 pe jos</span>';
+      if (info.u.dismounted) chips += `<span class="d-chip" style="border-color:#ffb35c;color:#ffb35c">${t('🐗 pe jos')}</span>`;
       if (info.u.morph && info.u.morphUntil > game.time) chips += `<span class="d-chip" style="border-color:#ff8a3c;color:#ff8a3c">🪨 Elemental Form · ${Math.ceil(info.u.morphUntil - game.time)}s</span>`;
       if (info.u.vortexUntil > game.time) chips += `<span class="d-chip" style="border-color:#fff2b0;color:#fff2b0">🌀 Vortex of Light · ${Math.ceil(info.u.vortexUntil - game.time)}s</span>`;
-      if (info.u.castState) chips += '<span class="d-chip" style="border-color:#c9a7ff;color:#c9a7ff">✨ castează</span>';
+      if (info.u.castState) chips += `<span class="d-chip" style="border-color:#c9a7ff;color:#c9a7ff">${t('✨ castează')}</span>`;
       const tgt = info.u.targetId != null ? game.byId.get(info.u.targetId) : null;
       if (tgt && tgt.hp > 0) {
         const ts = game.ustat(tgt.team, tgt.type);
@@ -595,7 +596,7 @@ export class BottomBar {
 
     const soulBar = soulKit;
     const manaBar = manaMax > 0
-      ? `<div class="d-bar${soulBar ? ' souls' : ''}"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${soulBar ? 'Suflete ' : ''}${Math.floor(mana)} / ${manaMax}</span></div>`
+      ? `<div class="d-bar${soulBar ? ' souls' : ''}"><div class="mana" style="width:${Math.max(0, (mana / manaMax) * 100)}%"></div><span>${soulBar ? t('Suflete ') : ''}${Math.floor(mana)} / ${manaMax}</span></div>`
       : '';
     // units with a limited lifetime (summons/totems given a "Durată viață"):
     // a depleting timer bar under the HP, matching the in-world life bar
@@ -614,13 +615,13 @@ export class BottomBar {
         const need = (stats.levelXp || [])[lvl - 1] || 0;
         const pct = lvl >= 10 || !need ? 100 : Math.max(0, ((tpl.xp || 0) / need) * 100);
         const label = lvl >= 10 ? 'MAX' : `${Math.floor(tpl.xp || 0)} / ${need} XP`;
-        const pts = tpl.points ? `<span class="d-chip" style="border-color:#ffd35c;color:#ffd35c">★ ${tpl.points} punct${tpl.points > 1 ? 'e' : ''}</span>` : '';
-        heroBar = `<div class="d-sub" style="margin:2px 0">Nivel ${lvl}${own ? '' : ''} ${pts}</div>
+        const pts = tpl.points ? `<span class="d-chip" style="border-color:#ffd35c;color:#ffd35c">★ ${tpl.points} ${tpl.points > 1 ? t('puncte') : t('punct')}</span>` : '';
+        heroBar = `<div class="d-sub" style="margin:2px 0">${t('Nivel {n}', { n: lvl })}${own ? '' : ''} ${pts}</div>
           <div class="d-bar"><div class="mana" style="width:${pct}%;background:#ffd35c"></div><span>${label}</span></div>`;
       }
     }
     this.details.innerHTML = `
-      <div class="d-title"><span class="d-name ${foe ? 'enemy' : ''}">${name}</span><span class="d-sub">${sub}${foe ? ' · INAMIC' : (own ? '' : ' · ALIAT')}</span></div>
+      <div class="d-title"><span class="d-name ${foe ? 'enemy' : ''}">${name}</span><span class="d-sub">${sub}${foe ? ` · ${t('INAMIC')}` : (own ? '' : ` · ${t('ALIAT')}`)}</span></div>
       <div class="d-bar"><div class="hp ${foe ? 'enemy' : ''}" style="width:${Math.max(0, (hp / maxHp) * 100)}%"></div><span>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</span></div>
       ${lifeBar}
       ${manaBar}
@@ -1486,7 +1487,7 @@ export class BottomBar {
       const reqNote = req.length ? ` <span class="p-req">(Requires: ${req.join(' & ')})</span>` : '';
       // name → editable description → a clean emoji stat line
       return `<div class="p-title">${u.name}${reqNote}</div>
-        <div>${u.tip || ''}</div>
+        <div>${pickText(u.tip, u.tipEn)}</div>
         <div class="p-dim">${unitStatBits(u).join(' · ')}</div>`;
     }
     if (d.kind === 'building') {
@@ -1498,24 +1499,24 @@ export class BottomBar {
           .filter((id) => (statsUnit(race, id) || {}).building === d.id)
           .map((id) => (statsUnit(race, id) || {}).name || id);
         unlocks = names.length
-          ? `<div class="p-dim">Deblochează: ${names.join(', ')}</div>`
-          : '<div class="p-dim">(nicio unitate asignată — vezi /admin)</div>';
+          ? `<div class="p-dim">${t('Deblochează: {names}', { names: names.join(', ') })}</div>`
+          : `<div class="p-dim">${t('(nicio unitate asignată — vezi /admin)')}</div>`;
       }
       const req = s.tier || 1;
       const tierNote = req > 1
         ? (game && game.tier[this.team] < req
-            ? `<div class="p-dim" style="color:#ff9a6a">Se construiește de la Tier ${'I'.repeat(req)}</div>`
-            : `<div class="p-dim">Necesită Tier ${'I'.repeat(req)}</div>`)
+            ? `<div class="p-dim" style="color:#ff9a6a">${t('Se construiește de la Tier {t}', { t: 'I'.repeat(req) })}</div>`
+            : `<div class="p-dim">${t('Necesită Tier {t}', { t: 'I'.repeat(req) })}</div>`)
         : '';
       // name → editable description → a clean emoji stat line (cost lives on the
       // card thumbnail badge now, not here)
       const bits = [`${s.hp} ❤️`];
       if (d.id === 'tower') bits.push(`${s.damage} ⚔️`);
-      if (d.id === 'generator') bits.push(`+${s.income} aur/20s`);
-      if (d.id === 'generator' && (s.costStep || 0) > 0) bits.push(`+${s.costStep}/mină`);
+      if (d.id === 'generator') bits.push(`+${s.income} ${t('aur/20s')}`);
+      if (d.id === 'generator' && (s.costStep || 0) > 0) bits.push(t('+{n}/mină', { n: s.costStep }));
       if (d.id === 'farm') bits.push(`+${s.food} food`);
       return `<div class="p-title">${buildingNameOf(race, d.id)}</div>
-        <div>${s.tip || (b ? b.tip : '')}</div>
+        <div>${pickText(s.tip, s.tipEn) || (b ? t(b.tip) : '')}</div>
         ${unlocks}
         ${tierNote}
         <div class="p-dim">${bits.join(' · ')}</div>`;
@@ -1525,17 +1526,17 @@ export class BottomBar {
       const busy = game && game.baseUpgrading(this.team);
       const cost = game ? (maxed ? 'MAX' : `◆ ${game.tierUpCost(this.team)}`) : `◆ ${CONFIG.TIER_COSTS[2]}`;
       const next = !game || game.tier[this.team] === 1
-        ? 'Tier 2 deblochează unitățile de tier 2'
-        : 'Tier 3 deblochează unitățile de tier 3';
+        ? t('Tier 2 deblochează unitățile de tier 2')
+        : t('Tier 3 deblochează unitățile de tier 3');
       const wait = game ? game.baseUpgradeDuration(this.team) : 0;
-      const timing = wait > 0 ? `Durează ${wait}s (baza e ocupată în timpul upgrade-ului).` : 'Instant.';
+      const timing = wait > 0 ? t('Durează {n}s (baza e ocupată în timpul upgrade-ului).', { n: wait }) : t('Instant.');
       if (busy) {
-        return `<div class="p-title">Upgrade Bază — în curs…</div>
-          <div>Baza se îmbunătățește. Mai sunt ${Math.ceil(game.baseUpgradeLeft(this.team))}s.</div>
-          <div class="p-dim">Noul tier se activează când se termină timpul.</div>`;
+        return `<div class="p-title">${t('Upgrade Bază — în curs…')}</div>
+          <div>${t('Baza se îmbunătățește. Mai sunt {n}s.', { n: Math.ceil(game.baseUpgradeLeft(this.team)) })}</div>
+          <div class="p-dim">${t('Noul tier se activează când se termină timpul.')}</div>`;
       }
-      return `<div class="p-title">Upgrade Bază · ${cost}</div>
-        <div>Deblochează următorul tier de unități și adaugă +1000 HP bazei. ${timing}</div>
+      return `<div class="p-title">${t('Upgrade Bază · {cost}', { cost })}</div>
+        <div>${t('Deblochează următorul tier de unități și adaugă +1000 HP bazei. {timing}', { timing })}</div>
         <div class="p-dim">${maxed ? 'Toate tier-ele deblocate' : next}</div>`;
     }
     if (d.kind === 'buySkelCap') {
@@ -1546,8 +1547,8 @@ export class BottomBar {
       const step = CONFIG.SKEL_CAP_STEP || 0;
       const priceLine = maxed ? 'Plafon la maxim' : `◆ ${cost} — click: +${step} plafon`;
       return `<div class="p-title">💀 Plafon schelete · ${priceLine}</div>
-        <div>Crește câte schelete de Necromancer poate menține echipa ta vii în același timp.</div>
-        <div class="p-dim">Acum: ${cap}/${max}${maxed ? '' : ` · fiecare cumpărare crește costul cu ◆ ${CONFIG.SKEL_CAP_COST_STEP || 0}`}</div>`;
+        <div>${t('Crește câte schelete de Necromancer poate menține echipa ta vii în același timp.')}</div>
+        <div class="p-dim">${t('Acum: {a}/{b}', { a: cap, b: max })}${maxed ? '' : t(' · fiecare cumpărare crește costul cu ◆ {n}', { n: CONFIG.SKEL_CAP_COST_STEP || 0 })}</div>`;
     }
     if (d.kind === 'ability') {
       const ab = resolvedAbility(d.id);
@@ -1556,13 +1557,13 @@ export class BottomBar {
       const req = Math.max(1, p.tier || 1);
       const bits = [`💧 ${p.manaCost || 0} mana`];
       if (p.cooldown != null) bits.push(`⏳ ${p.cooldown}s cooldown`);
-      if (p.duration) bits.push(`durată ${p.duration}s`);
-      if (req > 1) bits.push(`necesită Tier ${req}`);
-      const state = game && game.abilityOff[d.team]?.has(`${d.unit}/${d.id}`) ? 'OPRIT' : 'PORNIT';
+      if (p.duration) bits.push(t('durată {n}s', { n: p.duration }));
+      if (req > 1) bits.push(t('necesită Tier {n}', { n: req }));
+      const state = game && game.abilityOff[d.team]?.has(`${d.unit}/${d.id}`) ? t('OPRIT') : t('PORNIT');
       return `<div class="p-title" style="color:${ab.color || '#ffd35c'}">${ab.name} — autocast ${state}</div>
-        <div>${ab.desc || ''}</div>
+        <div>${pickText(ab.desc, ab.descEn)}</div>
         <div class="p-dim">${bits.join(' · ')}</div>
-        ${d.own ? '<div class="p-dim">Click: pornește/oprește pentru TOATE unitățile de acest tip.</div>' : ''}`;
+        ${d.own ? `<div class="p-dim">${t('Click: pornește/oprește pentru TOATE unitățile de acest tip.')}</div>` : ''}`;
     }
     if (d.kind === 'upgrade' || d.kind === 'buyUpgrade') {
       const up = resolvedUpgrade(d.id);
@@ -1581,16 +1582,16 @@ export class BottomBar {
       const state = owned
         ? (off ? 'DEZACTIVAT' : 'ACTIV')
         : tierLocked
-          ? `blocat — necesită Tier ${'I'.repeat(unitTier)}`
+          ? t('blocat — necesită Tier {t}', { t: 'I'.repeat(unitTier) })
           : missing.length
-            ? `blocat — necesită întâi: ${reqNames}`
+            ? t('blocat — necesită întâi: {names}', { names: reqNames })
             : d.kind === 'buyUpgrade'
-              ? `◆ ${up.params.cost || 0} — click pentru a cumpăra`
-              : `necumpărat — ◆ ${up.params.cost || 0} din Bază`;
+              ? t('◆ {n} — click pentru a cumpăra', { n: up.params.cost || 0 })
+              : t('necumpărat — ◆ {n} din Bază', { n: up.params.cost || 0 });
       return `<div class="p-title">🐗 ${up.name} — ${state}</div>
-        <div>${up.desc || ''}</div>
-        <div class="p-dim">Unitate: ${uname} (Tier ${'I'.repeat(unitTier)})</div>
-        ${owned && (d.own || d.kind === 'buyUpgrade') ? '<div class="p-dim">Click: activează/dezactivează.</div>' : ''}`;
+        <div>${pickText(up.desc, up.descEn)}</div>
+        <div class="p-dim">${t('Unitate')}: ${uname} (Tier ${'I'.repeat(unitTier)})</div>
+        ${owned && (d.own || d.kind === 'buyUpgrade') ? `<div class="p-dim">${t('Click: activează/dezactivează.')}</div>` : ''}`;
     }
     if (d.kind === 'heroAbility') {
       const ab = resolvedAbility(d.id);
@@ -1601,10 +1602,10 @@ export class BottomBar {
       const lvl = (tpl && tpl.level) || 1;
       const pts = (tpl && tpl.points) || 0;
       let status;
-      if (d.ult && lvl < 6) status = 'Ultima — se deblochează la nivel 6';
-      else if (rank >= max) status = `Rang MAXIM (${rank}/${max})`;
-      else if (pts > 0) status = `Rang ${rank}/${max} — click-stânga pentru +1 rang (${pts} pct.)`;
-      else status = `Rang ${rank}/${max} — n-ai puncte de talent`;
+      if (d.ult && lvl < 6) status = t('Ultima — se deblochează la nivel 6');
+      else if (rank >= max) status = t('Rang MAXIM ({a}/{b})', { a: rank, b: max });
+      else if (pts > 0) status = t('Rang {a}/{b} — click-stânga pentru +1 rang ({p} pct.)', { a: rank, b: max, p: pts });
+      else status = t('Rang {a}/{b} — n-ai puncte de talent', { a: rank, b: max });
       // once learned, the ability carries a cast mode you cycle with right-click
       let modeLine = '';
       if (rank > 0) {
@@ -1612,29 +1613,29 @@ export class BottomBar {
         const isOff = game && game.abilityOff[this.team].has(key);
         const isManual = game && game.abilityManual[this.team].has(key);
         const active = isActiveAbility(d.id);
-        const modeName = isOff ? 'OPRIT ✖' : (isManual ? 'MANUAL M' : 'AUTO A');
+        const modeName = isOff ? t('OPRIT ✖') : (isManual ? t('MANUAL M') : t('AUTO A'));
         if (active) {
-          modeLine = `<div class="p-dim">Mod: <b>${modeName}</b> — click-dreapta ciclează Auto → Manual → Oprit.</div>` +
-            (isManual ? '<div class="p-dim">Manual: click-stânga o aruncă acum (dacă e gata).</div>' : '');
+          modeLine = `<div class="p-dim">${t('Mod: <b>{m}</b> — click-dreapta ciclează Auto → Manual → Oprit.', { m: modeName })}</div>` +
+            (isManual ? `<div class="p-dim">${t('Manual: click-stânga o aruncă acum (dacă e gata).')}</div>` : '');
         } else {
           // passive/aura: only On (Auto) or Off — nothing to trigger by hand
-          modeLine = `<div class="p-dim">Pasivă: <b>${isOff ? 'OPRITĂ ✖' : 'ACTIVĂ A'}</b> — click-dreapta pornește/oprește.</div>`;
+          modeLine = `<div class="p-dim">${t('Pasivă: <b>{s}</b> — click-dreapta pornește/oprește.', { s: isOff ? t('OPRITĂ ✖') : t('ACTIVĂ A') })}</div>`;
         }
       }
       return `<div class="p-title" style="color:${ab.color || '#ffd35c'}">${d.ult ? '★ ' : ''}${ab.name}</div>
-        <div>${ab.desc || ''}</div>
+        <div>${pickText(ab.desc, ab.descEn)}</div>
         <div class="p-dim">${status}</div>
         ${modeLine}
-        <div class="p-dim">Efectul crește cu rangul.</div>`;
+        <div class="p-dim">${t('Efectul crește cu rangul.')}</div>`;
     }
     if (d.kind === 'sell') {
-      return `<div class="p-title">Vinde — ◆ ${d.cost}${d.full ? ' (100%, nespawnat)' : ''}</div>
-        <div class="p-dim">${d.what === 'unit' ? 'Vinde acest șablon de unitate.' : 'Vinde această clădire.'}</div>`;
+      return `<div class="p-title">${t('Vinde')} — ◆ ${d.cost}${d.full ? t(' (100%, nespawnat)') : ''}</div>
+        <div class="p-dim">${d.what === 'unit' ? t('Vinde acest șablon de unitate.') : t('Vinde această clădire.')}</div>`;
     }
     if (d.kind === 'bldgView') {
       return d.to === 'upgrades'
-        ? `<div class="p-title">⬆ Upgrade-uri</div><div>Arată upgrade-urile unităților acestei clădiri.</div>`
-        : `<div class="p-title">⬇ Unități</div><div>Înapoi la unitățile clădirii.</div>`;
+        ? `<div class="p-title">⬆ ${t('Upgrade-uri')}</div><div>${t('Arată upgrade-urile unităților acestei clădiri.')}</div>`
+        : `<div class="p-title">⬇ ${t('Unități')}</div><div>${t('Înapoi la unitățile clădirii.')}</div>`;
     }
     return '';
   }

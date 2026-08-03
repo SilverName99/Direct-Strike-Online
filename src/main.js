@@ -16,6 +16,7 @@ import { NetClient } from './net/netclient.js';
 import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
 import { teamLayout, applyModeLayout } from './sim/layout.js';
+import { t, translateDom } from './i18n.js';
 import { setExtraBuildZones, setLocalZones } from './ui/grid.js';
 import { actionForKey } from './ui/hotkeys.js';
 
@@ -66,6 +67,7 @@ const pointer = new PointerManager(canvas);
 
 console.log(`Fangs & Honor ${VERSION}`);
 document.getElementById('version').textContent = VERSION;
+translateDom(document.body); // index.html titles/labels through the dictionary
 
 // user-uploaded unit sprites (via /admin) override the built-in art. Once the
 // manifest is in, the custom cursors exist too, so roll the random menu cursor.
@@ -97,12 +99,12 @@ function hideBoot() {
 // A spinner alone can't tell "working" from "stuck" — on a thin connection you
 // end up staring at it with no idea whether anything is happening. Say what is
 // being waited on, count the art as it lands, and give something to read.
-let bootPhase = 'pornesc jocul…';
+let bootPhase = t('pornesc jocul…');
 {
   const note = bootEl && bootEl.querySelector('.boot-note');
   const tipEl = bootEl && bootEl.querySelector('.boot-tip');
   if (tipEl && TIPS.length) {
-    tipEl.textContent = '💡 ' + TIPS[Math.floor(Math.random() * TIPS.length) % TIPS.length];
+    tipEl.textContent = '💡 ' + t(TIPS[Math.floor(Math.random() * TIPS.length) % TIPS.length]);
     setTimeout(() => tipEl.classList.add('on'), 400); // fade in, so a fast boot never flashes it
   }
   if (note) {
@@ -114,10 +116,10 @@ let bootPhase = 'pornesc jocul…';
       const p = spriteProgress();
       if (p.total > 0 && p.loaded !== lastCount) { lastCount = p.loaded; lastMove = now; }
       // the art is the big download, so it's the number worth showing
-      const art = p.total > 0 && p.loaded < p.total ? ` · <b>${p.loaded}/${p.total}</b> imagini` : '';
+      const art = p.total > 0 && p.loaded < p.total ? ` · <b>${p.loaded}/${p.total}</b> ${t('imagini')}` : '';
       const slow = now - lastMove > 6000 && now - bootStart > 6000;
       note.classList.toggle('slow', slow);
-      note.innerHTML = bootPhase + art + (slow ? ' · durează mai mult ca de obicei…' : '');
+      note.innerHTML = bootPhase + art + (slow ? ` · ${t('durează mai mult ca de obicei…')}` : '');
       setTimeout(tick, 180);
     };
     tick();
@@ -125,7 +127,7 @@ let bootPhase = 'pornesc jocul…';
 }
 
 // apply the balance published from /admin (edit it there, not in-game)
-bootPhase = 'setările de joc…';
+bootPhase = t('setările de joc…');
 loadBalance().then((loaded) => {
   if (loaded) {
     bottombar.refresh();
@@ -133,7 +135,7 @@ loadBalance().then((loaded) => {
   }
 }).catch((e) => console.warn('balance load failed', e)).finally(() => {
   menu.applyTheme(); // logo + menu/loading backgrounds live in balance.json
-  bootPhase = 'pregătesc meniul…';
+  bootPhase = t('pregătesc meniul…');
   // warm the decode cache for the menu art AND buffer the menu music, then
   // reveal the finished menu (both capped so a slow asset never hangs boot)
   Promise.all([
@@ -172,7 +174,7 @@ uiScaleBtn.addEventListener('click', () => {
   const s = UI_SCALES[uiScaleIdx];
   try { localStorage.setItem('ds-bb-scale', String(s)); } catch { /* private mode */ }
   applyUiScale();
-  toast(`Bară de jos: ${s}×`);
+  toast(t('Bară de jos: {s}×', { s }));
 });
 applyUiScale();
 // Mouse capture (pointer lock) keeps the OS cursor inside the window so a
@@ -440,14 +442,14 @@ const NET_ERRORS = {
   'in-match': 'Ești deja într-un meci.',
   'room-full': 'Camera e plină.',
   'not-ready': 'Nu toți jucătorii sunt gata.',
-  version: `Versiuni diferite de joc. Tu ai ${VERSION} — reîmprospătați pagina (Ctrl+Shift+R) ca să aveți toți aceeași versiune.`,
+  version: t('Versiuni diferite de joc. Tu ai {v} — reîmprospătați pagina (Ctrl+Shift+R) ca să aveți toți aceeași versiune.', { v: VERSION }),
 };
 async function ensureNet() {
   if (net && net.ws && net.ws.readyState === 1) return net;
   net = new NetClient(netUrl(), VERSION);
-  net.on('queued', () => menu.netWaiting('Se caută adversar…', 'Ține pagina deschisă'));
-  net.on('room', (m) => menu.netWaiting('Se deschide camera…', 'Cod:', m.code));
-  net.on('error', (m) => menu.netError(NET_ERRORS[m.reason] || `Eroare: ${m.reason}`));
+  net.on('queued', () => menu.netWaiting(t('Se caută adversar…'), t('Ține pagina deschisă')));
+  net.on('room', (m) => menu.netWaiting(t('Se deschide camera…'), t('Cod:'), m.code));
+  net.on('error', (m) => menu.netError(NET_ERRORS[m.reason] ? t(NET_ERRORS[m.reason]) : `${t('Eroare')}: ${m.reason}`));
   net.on('start', (m) => startNetMatch(m));
   // ---- the lobby ("cameră") ----
   net.on('lobby', (m) => menu.showLobby(m.room, net.id));
@@ -457,12 +459,12 @@ async function ensureNet() {
   net.on('desync', () => {
     if (!netmatch || netmatch._warnedDesync) return;
     netmatch._warnedDesync = true;
-    toast('⚠ Meciul s-a desincronizat — ce vedeți nu mai e identic');
+    toast(t('⚠ Meciul s-a desincronizat — ce vedeți nu mai e identic'));
   });
   net.on('swap_req', (m) => menu.showSwapAsk(m.from, m.name));
-  net.on('swap_declined', (m) => toast(`${m.name} nu vrea să schimbe poziția`));
-  net.on('kicked', () => { menu.hideSwapAsk(); menu.netError('Ai fost dat afară din cameră.'); });
-  net.on('player_left', (m) => toast(`${(m.name || `Jucătorul ${m.index + 1}`)} a părăsit meciul — echipa lui primește bonusul asimetric`));
+  net.on('swap_declined', (m) => toast(t('{name} nu vrea să schimbe poziția', { name: m.name })));
+  net.on('kicked', () => { menu.hideSwapAsk(); menu.netError(t('Ai fost dat afară din cameră.')); });
+  net.on('player_left', (m) => toast(t('{name} a părăsit meciul — echipa lui primește bonusul asimetric', { name: m.name || t('Jucătorul {n}', { n: m.index + 1 }) })));
   await net.connect(menu.playerName);
   return net;
 }
@@ -486,7 +488,7 @@ function lobbyAction(a) {
 }
 async function netAction({ action, race, code, private: isPrivate }) {
   // the room browser refreshes in place — no "connecting…" screen for it
-  if (action !== 'rooms') menu.netWaiting('Mă conectez…');
+  if (action !== 'rooms') menu.netWaiting(t('Mă conectez…'));
   try {
     const n = await ensureNet();
     if (action === 'quick') n.quickmatch(race);
@@ -495,7 +497,7 @@ async function netAction({ action, race, code, private: isPrivate }) {
     else if (action === 'rooms') n.listRooms();
   } catch {
     if (action === 'rooms') menu.showRooms([]);
-    else menu.netError('Nu mă pot conecta la serverul de joc. Încearcă din nou.');
+    else menu.netError(t('Nu mă pot conecta la serverul de joc. Încearcă din nou.'));
   }
 }
 // Opponent found: build the SAME deterministic Game on both clients and start
@@ -549,14 +551,14 @@ function startNetMatch(m) {
       state = 'over';
       stopMusic();
       battleSfx.stop();
-      toast('Adversarul a părăsit meciul');
+      toast(t('Adversarul a părăsit meciul'));
       endNetMatch();
       setTimeout(() => menu.showGameOver(game, true, uiState.myTeam, true), 600);
     } else if (kind === 'closed' && state !== 'over') {
       // dropped mid-match OR mid-countdown — back to the menu either way
       stopMusic();
       battleSfx.stop();
-      toast('Conexiune pierdută cu serverul');
+      toast(t('Conexiune pierdută cu serverul'));
       endNetMatch();
       state = 'menu';
       menu.show();

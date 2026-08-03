@@ -101,6 +101,7 @@ function render() {
         <div class="ab-info">
           <h3 style="color:${base.color}">${base.name}<span class="kind ${base.kind}">${kindLabel}</span></h3>
           <textarea class="desc-edit" data-abdesc="${id}" rows="2" title="Descrierea afișată la hover în joc (gol = textul din cod)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#b9c4d4;border:1px solid #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(ab.desc || base.desc || '').replace(/</g, '')}</textarea>
+          <textarea class="desc-edit" data-abdescen="${id}" rows="2" title="English description (empty = the Romanian one)" placeholder="🇬🇧 English (gol = textul românesc)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#8fa3be;border:1px dashed #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(ab.descEn || '').replace(/</g, '')}</textarea>
         </div>
         <canvas class="ab-preview" data-ab="${id}" title="Preview VFX"></canvas>
       </div>
@@ -134,6 +135,10 @@ function collect() {
   for (const el of app.querySelectorAll('textarea[data-abdesc]')) {
     const ab = resolvedAbility(el.dataset.abdesc);
     if (ab) ab.desc = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
+  }
+  for (const el of app.querySelectorAll('textarea[data-abdescen]')) {
+    const ab = resolvedAbility(el.dataset.abdescen);
+    if (ab) ab.descEn = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
   }
 }
 

@@ -48,6 +48,7 @@ function render() {
     html += `<div class="group">
       <h3>${base.name}</h3>
       <textarea class="desc-edit" data-updesc="${id}" rows="2" title="Descrierea afișată la hover în joc (gol = textul din cod)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#b9c4d4;border:1px solid #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(up.desc || base.desc || '').replace(/</g, '')}</textarea>
+      <textarea class="desc-edit" data-updescen="${id}" rows="2" title="English description (empty = the Romanian one)" placeholder="🇬🇧 English (gol = textul românesc)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#8fa3be;border:1px dashed #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(up.descEn || '').replace(/</g, '')}</textarea>
       <div class="unit-row"><span>Se aplică unității:</span>
         <select data-up="${id}" data-unit="1">${opts}</select></div>
       <div class="unit-row"><span>Poziție grilă clădire:</span>
@@ -68,6 +69,10 @@ function collect() {
   for (const el of app.querySelectorAll('textarea[data-updesc]')) {
     const up = resolvedUpgrade(el.dataset.updesc);
     if (up) up.desc = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
+  }
+  for (const el of app.querySelectorAll('textarea[data-updescen]')) {
+    const up = resolvedUpgrade(el.dataset.updescen);
+    if (up) up.descEn = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
   }
   for (const sel of app.querySelectorAll('select[data-unit]')) {
     const up = resolvedUpgrade(sel.dataset.up);

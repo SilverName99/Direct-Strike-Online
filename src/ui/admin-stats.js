@@ -669,6 +669,7 @@ let descTarget = null; // { obj } while the description editor is open
 modal.querySelector('[data-a="save"]').onclick = async () => {
   if (descTarget) {
     descTarget.obj.tip = bodyEl.querySelector('#sm-desc').value.replace(/[<>]/g, '').trim().slice(0, 300);
+    descTarget.obj.tipEn = bodyEl.querySelector('#sm-desc-en').value.replace(/[<>]/g, '').trim().slice(0, 300);
   } else {
     writeInputs();
   }
@@ -682,6 +683,7 @@ modal.querySelector('[data-a="save"]').onclick = async () => {
 modal.querySelector('[data-a="reset"]').onclick = () => {
   if (descTarget) {
     bodyEl.querySelector('#sm-desc').value = '';
+    bodyEl.querySelector('#sm-desc-en').value = '';
     setStatus('Golit — apasă Salvează ca să revii la textul din cod.');
     return;
   }
@@ -772,11 +774,16 @@ function openDesc(ent, kind) {
   titleEl.textContent = `📝 ${obj.name || ent}`;
   subEl.textContent = ` — ${RACE} · descriere (tooltip în joc)`;
   bodyEl.innerHTML = `
-    <div class="sm-sec"><div class="sm-sec-h">Descriere la hover</div>
-      <textarea id="sm-desc" rows="5" style="width:100%;box-sizing:border-box;padding:8px 10px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:7px;font-size:13px;resize:vertical"></textarea>
+    <div class="sm-sec"><div class="sm-sec-h">Descriere la hover 🇷🇴</div>
+      <textarea id="sm-desc" rows="4" style="width:100%;box-sizing:border-box;padding:8px 10px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:7px;font-size:13px;resize:vertical"></textarea>
       <p class="sm-note">Textul apare în chenarul de descriere când ții mouse-ul peste card în joc. Gol = textul standard din cod. Max 300 caractere.</p>
+    </div>
+    <div class="sm-sec"><div class="sm-sec-h">Descriere la hover 🇬🇧 (English)</div>
+      <textarea id="sm-desc-en" rows="4" style="width:100%;box-sizing:border-box;padding:8px 10px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:7px;font-size:13px;resize:vertical"></textarea>
+      <p class="sm-note">Se arată jucătorilor cu jocul pe engleză. Gol = se folosește textul românesc.</p>
     </div>`;
   bodyEl.querySelector('#sm-desc').value = obj.tip || '';
+  bodyEl.querySelector('#sm-desc-en').value = obj.tipEn || '';
   statusEl.textContent = '';
   statusEl.className = 'sm-status';
   modal.classList.add('on');

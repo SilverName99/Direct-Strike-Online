@@ -428,6 +428,7 @@ function raceUnitsSnapshot(race) {
       slot: Number.isInteger(u.slot) ? u.slot : -1,
       xp: u.xp, food: u.food, vision: u.vision,
       tip: u.tip || '', // hover description (admin-editable)
+      tipEn: u.tipEn || '', // English hover description (empty = fall back to `tip`)
     };
     out[id].isHero = !!u.isHero; // admin can flag up to 3 heroes per race
     if (u.isHero) {
@@ -449,7 +450,7 @@ function raceBuildingsSnapshot(race) {
   const out = {};
   for (const kind of BUILDING_ENTS) {
     const b = resolvedBuildings[race][kind];
-    const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed, projSize: b.projSize, tip: b.tip || '' };
+    const o = { name: b.name, size: b.size, idleSpeed: b.idleSpeed, projSize: b.projSize, tip: b.tip || '', tipEn: b.tipEn || '' };
     if (kind === 'main') {
       o.hp = [...b.hp];
       if (Array.isArray(b.upgradeTime)) o.upgradeTime = [...b.upgradeTime];
@@ -469,9 +470,9 @@ function snapshot() {
   const races = {};
   for (const r of RACES) races[r] = { units: raceUnitsSnapshot(r), buildings: raceBuildingsSnapshot(r) };
   const abilities = {};
-  for (const [id, ab] of Object.entries(resolvedAbilities)) abilities[id] = { ...ab.params, desc: ab.desc || '' };
+  for (const [id, ab] of Object.entries(resolvedAbilities)) abilities[id] = { ...ab.params, desc: ab.desc || '', descEn: ab.descEn || '' };
   const upgrades = {};
-  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { race: up.race || '', unit: up.unit || '', slot: Number.isInteger(up.slot) ? up.slot : -1, desc: up.desc || '', params: { ...up.params } };
+  for (const [id, up] of Object.entries(resolvedUpgrades)) upgrades[id] = { race: up.race || '', unit: up.unit || '', slot: Number.isInteger(up.slot) ? up.slot : -1, desc: up.desc || '', descEn: up.descEn || '', params: { ...up.params } };
   return {
     general,
     middles: CONFIG.MIDDLES.map((m) => ({ ...m })),
@@ -636,6 +637,7 @@ export function applyBalance(data) {
       const ab = resolvedAbilities[id];
       if (!ab || typeof vals !== 'object') continue;
       if (typeof vals.desc === 'string') ab.desc = cleanDesc(vals.desc); // hover description
+      if (typeof vals.descEn === 'string') ab.descEn = cleanDesc(vals.descEn);
       for (const k of Object.keys(ab.params)) {
         if (num(vals[k]) !== undefined) ab.params[k] = clamp(vals[k], 0, 100000);
       }
@@ -650,6 +652,7 @@ export function applyBalance(data) {
       if (typeof vals.race === 'string' && (vals.race === '' || RACES.includes(vals.race))) up.race = vals.race;
       if (typeof vals.unit === 'string' && (vals.unit === '' || UNITS[vals.unit])) up.unit = vals.unit;
       if (typeof vals.desc === 'string') up.desc = cleanDesc(vals.desc); // hover description
+      if (typeof vals.descEn === 'string') up.descEn = cleanDesc(vals.descEn);
       if (num(vals.slot) !== undefined) up.slot = Math.round(clamp(vals.slot, -1, 8));
       const params = vals.params || {};
       for (const k of Object.keys(up.params)) {
@@ -680,6 +683,7 @@ function applyRaceUnits(race, unitsData) {
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) if (u[f] !== undefined && opts.includes(vals[f])) u[f] = vals[f];
     if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
     if (typeof vals.tip === 'string') u.tip = cleanDesc(vals.tip); // hover description
+  if (typeof vals.tipEn === 'string') u.tipEn = cleanDesc(vals.tipEn);
     if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
     if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
     if (num(vals.cw) !== undefined) u.cw = Math.round(clamp(vals.cw, 1, 20));
@@ -769,6 +773,7 @@ function applyBuilding(b, kind, vals) {
   if (!b || typeof vals !== 'object') return;
   if (typeof vals.name === 'string' && cleanName(vals.name)) b.name = cleanName(vals.name);
   if (typeof vals.tip === 'string') b.tip = cleanDesc(vals.tip); // hover description
+  if (typeof vals.tipEn === 'string') b.tipEn = cleanDesc(vals.tipEn);
   if (num(vals.size) !== undefined) b.size = clamp(vals.size, 0.2, 4);
   if (num(vals.idleSpeed) !== undefined) b.idleSpeed = clamp(vals.idleSpeed, 0.2, 10);
   if (num(vals.projSize) !== undefined) b.projSize = clamp(vals.projSize, 0.1, 6);
@@ -817,8 +822,8 @@ export function currentBalance() {
 // never clobber: visual size, grid footprint, shop-grid slot, animation speeds,
 // food, hero-XP bounty, and the hero's assigned ability kit. An import brings
 // BALANCE numbers (cost/hp/damage/...); these stay exactly as configured here.
-const IMPORT_KEEP_UNIT = ['name', 'tip', 'speed', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
-const IMPORT_KEEP_BUILDING = ['name', 'tip', 'size', 'cw', 'ch', 'slot', 'idleSpeed',
+const IMPORT_KEEP_UNIT = ['name', 'tip', 'tipEn', 'speed', 'size', 'projSize', 'cw', 'ch', 'slot', 'animSpeed', 'food', 'xp', 'heroAbilities', 'heroUltimate'];
+const IMPORT_KEEP_BUILDING = ['name', 'tip', 'tipEn', 'size', 'cw', 'ch', 'slot', 'idleSpeed',
   'workerSize', 'workerSpeed', 'workerCount', 'workerPause', 'workerAnimSpeed',
   'campSize', 'campSize2', 'campSize3', 'campSpeed', 'campfireDelay', 'attackHold'];
 
@@ -845,9 +850,9 @@ export function importBalance(data) {
   }
   // hover descriptions on abilities/upgrades are the admin's own texts too
   const keepAbDesc = {};
-  for (const [id, ab] of Object.entries(resolvedAbilities)) keepAbDesc[id] = ab.desc;
+  for (const [id, ab] of Object.entries(resolvedAbilities)) keepAbDesc[id] = [ab.desc, ab.descEn];
   const keepUpDesc = {};
-  for (const [id, up] of Object.entries(resolvedUpgrades)) keepUpDesc[id] = up.desc;
+  for (const [id, up] of Object.entries(resolvedUpgrades)) keepUpDesc[id] = [up.desc, up.descEn];
   // the custom gold icon is this install's own cosmetic — an imported design
   // file (which won't carry one) must not wipe it
   const keepGoldIcon = CONFIG.GOLD_ICON;
@@ -896,8 +901,8 @@ export function importBalance(data) {
       if (resolvedBuildings[race][kind]) Object.assign(resolvedBuildings[race][kind], k);
     }
   }
-  for (const [id, d] of Object.entries(keepAbDesc)) if (resolvedAbilities[id] && d !== undefined) resolvedAbilities[id].desc = d;
-  for (const [id, d] of Object.entries(keepUpDesc)) if (resolvedUpgrades[id] && d !== undefined) resolvedUpgrades[id].desc = d;
+  for (const [id, d] of Object.entries(keepAbDesc)) if (resolvedAbilities[id] && d !== undefined) { resolvedAbilities[id].desc = d[0]; resolvedAbilities[id].descEn = d[1]; }
+  for (const [id, d] of Object.entries(keepUpDesc)) if (resolvedUpgrades[id] && d !== undefined) { resolvedUpgrades[id].desc = d[0]; resolvedUpgrades[id].descEn = d[1]; }
   // cache the MERGED result (what a subsequent Save writes), not the raw file
   cacheBalanceText(JSON.stringify(currentBalance()));
   balanceLoadFailed = false;
