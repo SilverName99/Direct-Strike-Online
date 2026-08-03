@@ -226,10 +226,17 @@ export function drawThumb(ctx, ent, team = 0, targetH = 34, form = 'base') {
 }
 
 // Per-building idle frame flip rate (Hz), per race; higher = faster idle 1↔2.
-function idleSpeedOf(race, kind) {
+// The per-animation "cadre/s" from the sprite page wins when it is set, so a
+// building with a dozen rendered idle frames is timed the same way a unit is —
+// without it, `idleSpeed` (tuned for the classic 2-frame pulse) would crawl
+// through them at 2 frames a second.
+export function buildingIdleRate(race, kind, anim = 'idle') {
+  const fps = animFpsOf(race, kind, anim);
+  if (fps > 0) return fps;
   const b = statsBuilding(race, kind);
   return (b && b.idleSpeed) || 2;
 }
+function idleSpeedOf(race, kind) { return buildingIdleRate(race, kind); }
 
 // Draw a building's idle frame sized to its footprint. Footprint buildings
 // (wall/tower/generator, given hw/hh from their cw×ch cells) contain-fit the
@@ -301,7 +308,9 @@ export function drawWallSprite(ctx, team, tier, hw, hh, clock, idSeed = 0) {
   const race = raceOf(team);
   const n = Math.max(2, frameCount(race, 'wall', `tier${tier < 1 ? 1 : tier > 3 ? 3 : tier}-idle`)
     || frameCount(race, 'wall', 'idle'));
-  const frame = (Math.floor(clock * idleSpeedOf(race, 'wall')) + idSeed) % n;
+  const tierAnim = `tier${tier < 1 ? 1 : tier > 3 ? 3 : tier}-idle`;
+  const rate = animFpsOf(race, 'wall', tierAnim) > 0 ? animFpsOf(race, 'wall', tierAnim) : buildingIdleRate(race, 'wall');
+  const frame = (Math.floor(clock * rate) + idSeed) % n;
   const entry = wallEntry(race, tier, frame);
   if (!entry) return false;
   drawBuildingScaled(ctx, race, 'wall', entry, hw, hh, team);

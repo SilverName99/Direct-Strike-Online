@@ -1,6 +1,6 @@
 import { CONFIG } from '../config.js';
 import { UNITS } from '../units.js';
-import { animFrames, animFps, loopFrame, phaseFrame, hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf } from './characters.js';
+import { animFrames, animFps, loopFrame, phaseFrame, hasCharacter, drawCharacter, drawStructureSprite, drawBuildingSprite, drawConstructSprite, drawProjectileSprite, drawAbilityProjectileSprite, drawAcidProjectileSprite, drawFireProjectileSprite, hasStructureAttack, drawStructureAttack, drawMainTierSprite, hasTowerTierArt, drawTowerSprite, drawWallSprite, castAnimOf, hasPrepareAnim, hasDashAnim, hasRunAnim, hasAcidAnim, hasFireAnim, hasShieldAnim, hasAttackCycle, hasFootAnim, hasBeastAnim, hasMorphAnim, hasGroundAnim, hasSummonAnim, sizeOf, buildingIdleRate } from './characters.js';
 import { getBackground, getBackground2, getMiddleImage, getSprite, raceOf, getViewerTeam, getViewerSide, getCorpseImage, getCorpseImageBig , getZoneIcon, getAbilityFx, frameCount } from './sprites.js';
 import { snapToZone, zoneFor, armyZoneFor } from '../ui/grid.js';
 
@@ -1249,7 +1249,7 @@ export class Renderer {
       return drawn;
     }
     const tn = Math.max(2, frameCount(raceOf(artOf(s)), 'tower', `tier${tier}-idle`));
-    const frame = (Math.floor(this.now * (bs.idleSpeed || 2)) + s.id) % tn;
+    const frame = (Math.floor(this.now * buildingIdleRate(raceOf(artOf(s)), 'tower', `tier${tier}-idle`)) + s.id) % tn;
     return drawTowerSprite(ctx, artOf(s), tier, hw, hh, 'idle', frame);
   }
 
