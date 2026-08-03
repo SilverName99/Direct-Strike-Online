@@ -26,7 +26,8 @@ export const ABILITIES = {
     name: 'Heal',
     kind: 'active',
     color: '#5be0a0',
-    desc: 'Spends mana to instantly heal the most-wounded nearby ally.',
+    desc: 'Consumă mană ca să vindece instant aliatul cel mai rănit din apropiere.',
+    descEn: 'Spends mana to instantly heal the most-wounded nearby ally.',
     params: {
       tier: 1,       // base tier required before this ability can be used
       cooldown: 3,   // seconds between casts
@@ -39,7 +40,8 @@ export const ABILITIES = {
     name: 'Dispel',
     kind: 'active',
     color: '#ffe9a8',
-    desc: 'Cleanses an area: allies lose debuffs and gain brief immunity; enemies lose buffs and cannot gain new ones.',
+    desc: 'Curăță o zonă: aliații scapă de debuff-uri și primesc imunitate scurtă; inamicii își pierd buff-urile și nu pot primi altele noi.',
+    descEn: 'Cleanses an area: allies lose debuffs and gain brief immunity; enemies lose buffs and cannot gain new ones.',
     params: {
       tier: 1,       // base tier required before this ability can be used
       cooldown: 8,   // seconds between casts
@@ -53,7 +55,8 @@ export const ABILITIES = {
     name: 'Slow Aura',
     kind: 'castaura',
     color: '#7fb4ff',
-    desc: 'Cast to raise a zone that makes nearby enemies attack slower for a duration (Shaman).',
+    desc: 'Ridică o zonă în care inamicii din jur atacă mai încet o vreme (Shaman).',
+    descEn: 'Cast to raise a zone that makes nearby enemies attack slower for a duration (Shaman).',
     params: {
       tier: 1,       // base tier required before this ability can be used
       radius: 140,
@@ -66,7 +69,8 @@ export const ABILITIES = {
     name: 'Haste Aura',
     kind: 'castaura',
     color: '#ffd35c',
-    desc: 'Cast to raise a zone that makes nearby allies attack faster for a duration.',
+    desc: 'Ridică o zonă în care aliații din jur atacă mai repede o vreme.',
+    descEn: 'Cast to raise a zone that makes nearby allies attack faster for a duration.',
     params: {
       tier: 1,       // base tier required before this ability can be used
       radius: 140,
@@ -79,7 +83,8 @@ export const ABILITIES = {
     name: 'Regeneration Aura',
     kind: 'castaura',
     color: '#58d68d',
-    desc: 'Cast to raise a zone that regenerates nearby allies for a duration (Priest aura).',
+    desc: 'Ridică o zonă care regenerează aliații din jur o vreme (aura Preotului).',
+    descEn: 'Cast to raise a zone that regenerates nearby allies for a duration (Priest aura).',
     params: {
       tier: 1,       // base tier required before this ability can be used
       radius: 140,
@@ -105,6 +110,7 @@ export const ABILITIES = {
     // another ally once the channel ends (duration up, mana out, or ally lost).
     channeled: true,
     desc: 'Se leagă de un singur aliat câteva secunde: atac mai rapid + damage redus primit, cât ține canalizarea. Consumă mană pe secundă și abia apoi trece la alt aliat.',
+    descEn: 'Latches onto a single ally for a few seconds: faster attacks + reduced damage taken while the channel lasts. Drains mana per second, then moves on to another ally.',
     params: {
       tier: 1, cooldown: 0, manaCost: 0,
       range: 170,
@@ -127,6 +133,7 @@ export const ABILITIES = {
     totem: true,      // stationary aura totem: no move, no attack
     color: '#7fb4ff',
     desc: 'Plantează un totem în față care încetinește inamicii din jur (atac + mișcare) cât trăiește. Are HP și un timer.',
+    descEn: 'Plants a totem up front that slows nearby enemies (attack + movement) while it stands. It has HP and a timer.',
     params: {
       tier: 1, manaCost: 40, cooldown: 12,
       cap: 1, life: 10,          // one totem at a time; 10s lifetime
@@ -143,6 +150,7 @@ export const ABILITIES = {
     animalName: 'Lup',
     color: '#c8d0da',
     desc: 'Invocă un lup rapid care luptă alături de shaman (deblocat la tier 1).',
+    descEn: 'Summons a fast wolf that fights alongside the shaman (unlocked at tier 1).',
     params: {
       tier: 1, manaCost: 30, cooldown: 5,
       cap: 2,         // max wolves this shaman keeps alive (0 = unlimited)
@@ -163,6 +171,7 @@ export const ABILITIES = {
     animalName: 'Vultur',
     color: '#ffe08a',
     desc: 'Invocă un vultur zburător (deblocat la tier 2).',
+    descEn: 'Summons a flying eagle (unlocked at tier 2).',
     params: {
       tier: 2, manaCost: 40, cooldown: 8,
       cap: 1, life: 12,
@@ -182,6 +191,7 @@ export const ABILITIES = {
     animalName: 'Urs',
     color: '#d8a86a',
     desc: 'Invocă un urs masiv și rezistent (deblocat la tier 3).',
+    descEn: 'Summons a massive, tough bear (unlocked at tier 3).',
     params: {
       tier: 3, manaCost: 60, cooldown: 10,
       cap: 1, life: 15,
@@ -208,6 +218,7 @@ export const ABILITIES = {
     // cast frame 2 = Transform (emerging, castHold secs), then the beast sprites
     castTwoPhase: true,
     desc: 'Ultimate: eroul se transformă într-un Colos de piatră câteva secunde — mult mai mult HP și damage, lovește corp la corp cu splash lat. Transformarea are un frame de pregătire și unul de ieșire, apoi apare colosul.',
+    descEn: 'Ultimate: the hero turns into a stone Colossus for a few seconds — far more HP and damage, wide melee splash. The transformation has a wind-up frame and an exit frame, then the colossus appears.',
     params: {
       tier: 1, cooldown: 40, manaCost: 100,
       duration: 10,   // seconds transformed
@@ -230,6 +241,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#e8a15a',
     desc: 'Lovește pământul: damage și încetinire tuturor inamicilor din jurul eroului.',
+    descEn: 'Slams the ground: damage and a slow to every enemy around the hero.',
     params: {
       tier: 1, cooldown: 8, manaCost: 40,
       radius: 150, damage: 60, moveSlow: 40, atkSlow: 30, duration: 3,
@@ -241,6 +253,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#ff6a6a',
     desc: 'Strigăt de război: TOATĂ armata ta atacă și se mișcă mai repede câteva secunde. (ultima Chieftain-ului)',
+    descEn: 'War cry: your WHOLE army attacks and moves faster for a few seconds. (the Chieftain\'s ultimate)',
     params: {
       tier: 1, cooldown: 40, manaCost: 80,
       haste: 40, moveHaste: 30, duration: 6,
@@ -253,7 +266,8 @@ export const ABILITIES = {
     kind: 'active',
     color: '#8fe3ff',
     projectile: true, // fires a projectile -> per-caster projectile image slot
-    desc: 'A projectile that damages the target and slows its movement and attacks for a duration.',
+    desc: 'Un proiectil care rănește ținta și îi încetinește mișcarea și atacurile o vreme.',
+    descEn: 'A projectile that damages the target and slows its movement and attacks for a duration.',
     params: {
       tier: 1,             // base tier required before this ability can be used
       cooldown: 6,
@@ -271,6 +285,7 @@ export const ABILITIES = {
     kind: 'passive', // not cast — modifies the hero's basic MELEE attack
     color: '#ff9a3c',
     desc: 'Pasiv: fiecare atac melee al eroului lovește și inamicii din jurul țintei (% din damage). Crește cu rangul.',
+    descEn: 'Passive: every melee hit of the hero also strikes the enemies around his target (a % of the damage). Grows with rank.',
     params: {
       tier: 1,
       radius: 130,     // splash radius around the struck target
@@ -282,6 +297,7 @@ export const ABILITIES = {
     kind: 'passive', // proximity-triggered gap-closer (reuses the dash mechanic)
     color: '#ffca55',
     desc: 'Eroul se aruncă spre un inamic din depărtare, la viteză mare; la impact face damage și îl stun-ează scurt. Cooldown.',
+    descEn: 'The hero hurls himself at a distant enemy at high speed; on impact he deals damage and briefly stuns it. Cooldown.',
     params: {
       tier: 1,
       range: 500,      // charges a target within this range (but out of melee)
@@ -297,6 +313,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#ffe9a8',
     desc: 'Vindecă instant aliatul cel mai rănit din jur (inclusiv pe sine) cu un % din HP-ul lui maxim. % crește cu rangul.',
+    descEn: 'Instantly heals the most-wounded nearby ally (himself included) for a % of its max HP. The % grows with rank.',
     params: {
       tier: 1, cooldown: 4, manaCost: 40,
       range: 180,     // how far it reaches an ally
@@ -311,6 +328,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#fff2b0',
     desc: 'Paladinul devine invulnerabil câteva secunde când e rănit. Durata crește cu rangul.',
+    descEn: 'The Paladin turns invulnerable for a few seconds when wounded. The duration grows with rank.',
     params: {
       tier: 1, cooldown: 18, manaCost: 60,
       duration: 2,    // seconds of invulnerability (scales with rank)
@@ -323,6 +341,7 @@ export const ABILITIES = {
     kind: 'passive', // always-on aura while the Paladin lives (not cast)
     color: '#9ecbff',
     desc: 'Pasiv: aliații din jurul Paladinului primesc mai puțin damage. Reducerea crește cu rangul.',
+    descEn: 'Passive: allies around the Paladin take less damage. The reduction grows with rank.',
     params: {
       tier: 1,
       radius: 160,     // aura radius
@@ -334,6 +353,7 @@ export const ABILITIES = {
     kind: 'active', // ultimate
     color: '#fff6cf',
     desc: 'Ultima: Paladinul devine invulnerabil și toți aliații din jur se vindecă foarte rapid câteva secunde.',
+    descEn: 'Ultimate: the Paladin turns invulnerable and every nearby ally heals very fast for a few seconds.',
     params: {
       tier: 1, cooldown: 60, manaCost: 100,
       duration: 5,    // seconds of self-invuln + ally fast-heal
@@ -349,6 +369,7 @@ export const ABILITIES = {
     // two-phase: cast frame 1 = prepare (wind-up), cast frame 2 = land
     castTwoPhase: true,
     desc: 'Se teleportează în față pe o distanță, sărind peste linia inamică spre casteri. Repoziționare pură (fără damage).',
+    descEn: 'Teleports forward over a distance, jumping past the enemy line toward the casters. Pure repositioning (no damage).',
     params: {
       tier: 1, cooldown: 12, manaCost: 40,
       distance: 240,    // how far it blinks (forward to engage, backward to retreat)
@@ -364,6 +385,7 @@ export const ABILITIES = {
     kind: 'passive', // always-on while learned (read in combat, not cast)
     color: '#ffd35c',
     desc: 'Pasiv: Sword Saint atacă mai repede și lovește mai puternic. Crește cu rangul.',
+    descEn: 'Passive: the Sword Saint attacks faster and hits harder. Grows with rank.',
     params: {
       tier: 1,
       haste: 20,        // % faster attacks
@@ -378,6 +400,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#58d68d',
     desc: 'Intră într-un stance câteva secunde: se oprește pe loc și regenerează masiv viață. Durata și regen-ul cresc cu rangul.',
+    descEn: 'Enters a stance for a few seconds: stands still and regenerates massive health. The duration and the regen grow with rank.',
     params: {
       tier: 1, cooldown: 20, manaCost: 50,
       hps: 70,        // HP/s regenerated while in the stance
@@ -394,6 +417,7 @@ export const ABILITIES = {
     kind: 'active', // ultimate
     color: '#fff2b0',
     desc: 'Ultima: canalizează un vârtej de lumină câteva secunde — damage AoE masiv în jur, imun la încetiniri și stun, se mișcă printre inamici.',
+    descEn: 'Ultimate: channels a vortex of light for a few seconds — massive AoE damage all around, immune to slows and stuns, walks through enemies.',
     params: {
       tier: 1, cooldown: 40, manaCost: 100,
       duration: 4,    // seconds the vortex spins
@@ -410,6 +434,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#7fd8ff',
     desc: 'Un proiectil mare de gheață care explodează la impact: damage într-o zonă și încetinește TOȚI inamicii prinși. Damage-ul crește cu rangul (setabil per rang).',
+    descEn: 'A big ice projectile that bursts on impact: area damage, and a slow on EVERY enemy caught. The damage grows with rank (settable per rank).',
     params: {
       tier: 1, cooldown: 6, manaCost: 45,
       range: 340,        // cast range (how far she can throw it)
@@ -428,6 +453,7 @@ export const ABILITIES = {
     animalName: 'Ice Chad Elemental',
     color: '#4aa3ff',
     desc: 'Invocă un elemental de apă care luptă în melee. HP-ul și damage-ul cresc cu rangul (setabile per rang).',
+    descEn: 'Summons a water elemental that fights in melee. HP and damage grow with rank (settable per rank).',
     params: {
       tier: 1, manaCost: 60, cooldown: 12,
       cap: 1, life: 20,
@@ -445,6 +471,7 @@ export const ABILITIES = {
     kind: 'passive', // always on while she lives (like Devotion Aura) — no cast
     color: '#6f8bff',
     desc: 'Pasivă: aliații din jurul ei primesc mana regen extra, permanent. Cantitatea crește cu rangul (setabilă per rang).',
+    descEn: 'Passive: allies around her get extra mana regen, permanently. The amount grows with rank (settable per rank).',
     params: {
       tier: 1,
       radius: 200,
@@ -459,6 +486,7 @@ export const ABILITIES = {
     kind: 'active', // ultimate
     color: '#aee8ff',
     desc: 'Ultima: cheamă o furtună de gheață peste inamici — o zonă care face damage pe secundă și îi încetinește câteva secunde.',
+    descEn: 'Ultimate: calls an ice storm over the enemy — a zone that deals damage per second and slows them for a few seconds.',
     params: {
       tier: 1, cooldown: 60, manaCost: 120,
       radius: 160,       // storm radius
@@ -476,6 +504,7 @@ export const ABILITIES = {
     kind: 'passive', // always on: each arrow poisons AND costs mana per shot
     color: '#8fd04a',
     desc: 'Pasivă: cât are mana, fiecare săgeată aplică poison (damage-over-time) și consumă mana per tragere. Fără mana → săgeți normale. Puterea otrăvii crește cu rangul (setabilă per rang).',
+    descEn: 'Passive: while she has mana, every arrow applies poison (damage over time) and spends mana per shot. Out of mana → normal arrows. The poison strength grows with rank (settable per rank).',
     params: {
       tier: 1,
       manaPerShot: 6,     // mana spent per poisoned arrow (0 = free)
@@ -488,6 +517,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#c94ccb',
     desc: 'Canalizează asupra unui inamic: îi fură viață în timp și se vindecă pe ea. Cât fură și cât primește cresc cu rangul (setabile per rang).',
+    descEn: 'Channels onto an enemy: steals its life over time and heals herself with it. Both the steal and the heal grow with rank (settable per rank).',
     params: {
       tier: 1, cooldown: 10, manaCost: 20,
       range: 260,
@@ -505,6 +535,7 @@ export const ABILITIES = {
     animalName: 'Schelet',
     color: '#b8c0c8',
     desc: 'Ridică un schelet-luptător dintr-un cadavru din apropiere (orice unitate lasă un cadavru câteva secunde după ce moare). HP-ul, damage-ul și durata scheletului cresc cu rangul.',
+    descEn: 'Raises a skeleton fighter from a nearby corpse (every unit leaves a corpse for a few seconds after dying). The skeleton\'s HP, damage and lifetime grow with rank.',
     params: {
       tier: 1, manaCost: 35, cooldown: 6,
       corpseRange: 220,   // how far she can reach a corpse to raise
@@ -533,6 +564,7 @@ export const ABILITIES = {
     animalName: 'Schelet melee',
     color: '#cdd3da',
     desc: 'Necromancer: ridică un schelet MELEE dintr-un cadavru din apropiere. Se deblochează cu upgrade-ul „Melee Skeleton" (tier 1). Limitat de cap-ul de schelete (upgrade la Bază).',
+    descEn: 'Necromancer: raises a MELEE skeleton from a nearby corpse. Unlocked by the "Melee Skeleton" upgrade (tier 1). Limited by the skeleton cap (Base upgrade).',
     params: {
       tier: 1, manaCost: 25, cooldown: 4,
       corpseRange: 220,
@@ -552,6 +584,7 @@ export const ABILITIES = {
     animalName: 'Schelet ranged',
     color: '#bcd0a8',
     desc: 'Necromancer: ridică un schelet RANGED (trage) dintr-un cadavru din apropiere. Se deblochează cu upgrade-ul „Ranged Skeleton" (tier 1). Limitat de cap-ul de schelete (upgrade la Bază).',
+    descEn: 'Necromancer: raises a RANGED (shooting) skeleton from a nearby corpse. Unlocked by the "Ranged Skeleton" upgrade (tier 1). Limited by the skeleton cap (Base upgrade).',
     params: {
       tier: 1, manaCost: 30, cooldown: 4,
       corpseRange: 220,
@@ -571,6 +604,7 @@ export const ABILITIES = {
     animalName: 'Frați schelete',
     color: '#e0c07a',
     desc: 'Necromancer: dintr-UN singur cadavru ridică un schelet melee ȘI unul ranged (statele lor vin din abilitățile Melee/Ranged Skeleton). Se deblochează cu upgrade-ul „Brothers Skeleton" (tier 2), doar dacă ai deja Melee + Ranged. Ocupă 2 din cap.',
+    descEn: 'Necromancer: from ONE corpse raises a melee skeleton AND a ranged one (their stats come from the Melee/Ranged Skeleton abilities). Unlocked by the "Brothers Skeleton" upgrade (tier 2), only once you own Melee + Ranged. Takes 2 of the cap.',
     params: {
       tier: 2, manaCost: 45, cooldown: 6,
       corpseRange: 220,
@@ -590,6 +624,7 @@ export const ABILITIES = {
     castTwoPhase: true,    // cadrul 1 = molia se pregătește, cadrul 2 = depune coconul
     color: '#b18cff',
     desc: 'Molia depune un cocon pe loc: o pungă imobilă, cu viață proprie și cronometru, din care ies larve pe rând — câte una sau câte mai multe deodată, cum setezi. Dacă îl spargi, restul larvelor nu mai apar; dacă îl lași să expire, ultimele eclozează deodată. Larvele atacă de aproape și trăiesc puțin. Numărul total de larve, câte ies odată, intervalul dintre eclozări și viața coconului se setează mai jos.',
+    descEn: 'The moth lays a cocoon in place: an immobile sac with its own health and timer, hatching larvae one by one — or several at once, as configured. Break it and the remaining larvae never appear; let it expire and the last ones hatch together. Larvae fight in melee and live briefly. Total larvae, hatch size, hatch interval and the cocoon\'s health are set below.',
     params: {
       tier: 3, manaCost: 60, cooldown: 25,
       castPrepare: 0.8,   // secunde pe cadrul 1 (molia se pregătește), înainte să apară coconul
@@ -615,6 +650,7 @@ export const ABILITIES = {
     kind: 'passive',
     color: '#7ef2a8',
     desc: 'Pasiv: de fiecare dată când moare o unitate (a ta SAU a inamicului) în raza lui, un suflet zboară spre el și îi umple bara. Fără niciun punct investit ia 1 suflet per mort; fiecare punct urcă valoarea (2 / 3 / 4). Sufletele SUNT mana lui — toate celelalte abilități le consumă.',
+    descEn: 'Passive: whenever a unit dies (yours OR the enemy\'s) inside his radius, a soul flies to him and fills his bar. With no points invested he takes 1 soul per death; each point raises it (2 / 3 / 4). Souls ARE his mana — every other ability spends them.',
     params: {
       radius: 550,   // morții din afara razei nu-i dau nimic
       souls1: 2, souls2: 3, souls3: 4, // per rang învățat (nelearnat = soulsBase)
@@ -631,6 +667,7 @@ export const ABILITIES = {
     totem: true,
     color: '#a06cff',
     desc: 'Înfige stindardul în pământ: cât stă acolo, aliații din rază se VINDECĂ. Are viață proprie și cronometru — inamicul îl poate sparge. Costă suflete.',
+    descEn: 'Plants the banner in the ground: while it stands, allies in its radius HEAL. It has its own health and a timer — the enemy can break it. Costs souls.',
     params: {
       tier: 1, manaCost: 35, cooldown: 20,
       cap: 1, life: 14,
@@ -647,6 +684,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#e8e2c8',
     desc: 'Presară un câmp de oase pe pământ: inamicii care stau pe el ATACĂ mai încet și se MIȘCĂ mai încet. Nu poate fi distrus — se stinge singur. Costă suflete.',
+    descEn: 'Scatters a field of bones on the ground: enemies standing on it ATTACK slower and MOVE slower. It cannot be destroyed — it fades on its own. Costs souls.',
     params: {
       tier: 1, manaCost: 45, cooldown: 16,
       range: 320,        // how far he can throw it
@@ -664,6 +702,7 @@ export const ABILITIES = {
     animalName: 'Gigant de oase',
     color: '#dcd6bd',
     desc: 'Ultima: ridică din oasele celor căzuți un gigant care luptă pentru tine. Mare, lent și greu de doborât. Costă un munte de suflete — apare abia după o măcelărie.',
+    descEn: 'Ultimate: raises from the bones of the fallen a giant that fights for you. Big, slow and hard to bring down. Costs a mountain of souls — it appears only after a massacre.',
     params: {
       tier: 1, manaCost: 120, cooldown: 70,
       cap: 1, life: 25,
@@ -679,6 +718,7 @@ export const ABILITIES = {
     kind: 'active', // ultimate
     color: '#d14b8f',
     desc: 'Ultima: se transformă (mărime setabilă) câteva secunde — drenează toți inamicii dintr-o zonă (damage/s, care o vindecă și pe ea) și în același timp vindecă aliații din altă zonă (HP/s).',
+    descEn: 'Ultimate: transforms (size settable) for a few seconds — drains every enemy in one zone (damage/s that also heals her) while healing the allies in another zone (HP/s).',
     params: {
       tier: 1, cooldown: 70, manaCost: 120,
       duration: 6,        // seconds the form lasts
@@ -693,6 +733,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#7fd44a',
     desc: 'Scuipă (consumă mană) o pastă verde care se lipește de pământ. Inamicii TERESTRI care stau pe ea primesc cu X% mai mult damage din orice sursă, cât timp sunt pe baltă (și puțin după). Se deblochează cu un upgrade — atașează abilitatea la o unitate marcată Caster.',
+    descEn: 'Spits (spends mana) a green paste that sticks to the ground. GROUND enemies standing on it take X% more damage from any source while on the puddle (and briefly after). Unlocked by an upgrade — attach the ability to a unit marked Caster.',
     params: {
       tier: 1,
       manaCost: 30,
@@ -712,6 +753,7 @@ export const ABILITIES = {
     kind: 'active',
     color: '#c0303a',
     desc: 'Secera un inamic sub un prag de viață: dacă ținta e sub X% HP, o execută instant. Merge pe unități normale, pe creaturile invocate de eroi (invocări/clone/schelete) ȘI pe eroii inamici — doar clădirile sunt imune. Pragul, cooldown-ul și raza sunt setabile; pragul crește pe rang.',
+    descEn: 'Reaps an enemy below a health threshold: if the target is under X% HP, it dies instantly. Works on normal units, on hero creations (summons/clones/skeletons) AND on enemy heroes — only buildings are immune. Threshold, cooldown and radius are settable; the threshold grows per rank.',
     params: {
       tier: 1, manaCost: 40, cooldown: 8, range: 70,
       threshold: 15, // % HP: țintele sub acest prag pot fi executate (fallback/auto)
@@ -724,6 +766,7 @@ export const ABILITIES = {
     kind: 'passive',
     color: '#9b2d3a',
     desc: 'Pasiv: loviturile eroului taie în jur (splash %, ca la Cleave) ȘI îi dau viață înapoi — se vindecă cu X% din tot damage-ul dat. Splash-ul și X% cresc pe rang (setabile).',
+    descEn: 'Passive: the hero\'s strikes cut all around (splash %, like Cleave) AND give life back — he heals for X% of all damage dealt. Splash and X% grow per rank (settable).',
     params: {
       cleavePct: 40, radius: 90,
       cleavePct1: 0, cleavePct2: 0, cleavePct3: 0, // splash explicit pe rang (0 = auto)
@@ -736,6 +779,7 @@ export const ABILITIES = {
     kind: 'passive',
     color: '#8a2e5a',
     desc: 'Aură: eroul ȘI aliații din jurul lui se vindecă cu X% din damage-ul pe care îl dau (la orice lovitură). Rază setabilă; X% crește pe rang. Se adună cu Reap Cleave.',
+    descEn: 'Aura: the hero AND the allies around him heal for X% of the damage they deal (on every hit). Radius settable; X% grows per rank. Stacks with Reap Cleave.',
     params: {
       radius: 220,
       lifestealPct: 12, // % din damage-ul dat de fiecare aliat din rază (crește pe rang)
@@ -747,6 +791,7 @@ export const ABILITIES = {
     kind: 'active', // ultimate
     color: '#6a3fb0',
     desc: 'Ultima: leagă până la N aliați aleatori din jur de erou (legături PERMANENTE, până moare aliatul). Cât e legat, damage-ul primit de erou se împarte: eroul ține doar X%, restul se împarte egal la aliații legați. Doar eroul e protejat. Re-cast alege alți N.',
+    descEn: 'Ultimate: links up to N random nearby allies to the hero (PERMANENT links, until the ally dies). While linked, damage taken by the hero is split: he keeps only X%, the rest is shared equally among the linked allies. Only the hero is protected. Re-cast picks another N.',
     params: {
       tier: 1, cooldown: 45, manaCost: 100,
       radius: 260,   // zona din care alege aliați
@@ -765,6 +810,7 @@ export const ABILITIES = {
     color: '#7a4fd0',
     // a single cast frame (the wind-up reuses the hero's shared "prepare" pose)
     desc: 'Se face invizibil și se năpustește prin inamici (fără coliziune) până în spatele liniei — un singur sens, nu se poate întoarce. Cât e invizibil nu poate fi țintit.',
+    descEn: 'Turns invisible and rushes through the enemies (no collision) to behind their line — one way only, no coming back. While invisible he cannot be targeted.',
     params: {
       tier: 1, cooldown: 12, manaCost: 40,
       distance: 260,     // how far forward he slips (past the line, into the backline)
@@ -782,6 +828,7 @@ export const ABILITIES = {
     color: '#5a3fa0',
     // a single cast frame (the wind-up reuses the hero's shared "prepare" pose)
     desc: 'Se face invizibil și se strecoară (mergând) spre cel mai apropiat erou inamic (dacă nu există erou, spre unitatea cu cea mai multă viață); când ajunge, dă un backstab critic — o singură lovitură. Cât e invizibil nu poate fi țintit și trece prin inamici.',
+    descEn: 'Turns invisible and sneaks (walking) toward the nearest enemy hero (no hero → the unit with the most health); on arrival he lands a critical backstab — a single strike. While invisible he cannot be targeted and walks through enemies.',
     params: {
       tier: 1, cooldown: 10, manaCost: 45,
       range: 480,          // how far he can seek a target to slip toward
@@ -801,6 +848,7 @@ export const ABILITIES = {
     kind: 'active', // spawns clones (uses the hero's own sprites, shadow-tinted)
     color: '#6a4fb0',
     desc: 'Invocă clone de umbră (1/2/3 după rang) care îi copiază atacurile (% din damage-ul lui). Au viață puțină și durată limitată; atacă cel mai apropiat inamic.',
+    descEn: 'Summons shadow clones (1/2/3 by rank) that copy his attacks (a % of his damage). They have little health and a limited lifetime; they attack the nearest enemy.',
     params: {
       tier: 1, cooldown: 16, manaCost: 50,
       clones: 1, clones1: 1, clones2: 2, clones3: 3, // number of clones by rank
@@ -823,6 +871,7 @@ export const ABILITIES = {
     color: '#9a5fd0',
     castTwoPhase: true, // cast 1 = channel, cast 2 = throw + hold while flying
     desc: 'Ultima: canalizează, apoi devine invincibil și aruncă pumnalul. Lama pleacă de la erou și sare din inamic în inamic (cel mai apropiat pe rând) prin toți cei din rază, lăsând o sfoară mov din unitate în unitate; apoi se întoarce la erou. Tot damage-ul absorbit cât e invincibil se adună și, plus un base damage setabil, se împarte inamicilor loviți când lama se întoarce.',
+    descEn: 'Ultimate: channels, then turns invincible and throws the dagger. The blade leaves the hero and leaps enemy to enemy (nearest first) through everyone in the radius, laying a purple thread from unit to unit; then it returns. All damage absorbed while invincible, plus a settable base damage, is split among the enemies struck when the blade returns.',
     params: {
       tier: 1, cooldown: 50, manaCost: 100,
       radius: 240,       // enemies inside are chained by the blade

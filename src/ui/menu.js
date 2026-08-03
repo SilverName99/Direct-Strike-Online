@@ -87,7 +87,6 @@ export class Menu {
     }
     const langBtn = this.el.querySelector('#menu-lang');
     if (langBtn) {
-      langBtn.textContent = getLang() === 'en' ? 'RO' : 'EN'; // the language you would SWITCH TO
       langBtn.addEventListener('click', () => setLang(getLang() === 'en' ? 'ro' : 'en'));
     }
     this.bg = this.el.querySelector('#menu-bg');
@@ -702,6 +701,8 @@ export class Menu {
       ['MENU_BACK', 'has-back-skin', '--menu-back'],
       ['MENU_SLIDE_FRAME', 'has-slide-skin', '--menu-slide'],
       ['MENU_FS_BTN', 'has-fs-skin', '--menu-fs'],
+      ['MENU_LANG_RO', 'has-langro-skin', '--menu-langro'],
+      ['MENU_LANG_EN', 'has-langen-skin', '--menu-langen'],
       ['MENU_SOUND_BTN', 'has-sound-skin', '--menu-sound'],
       ['MENU_PWF', 'has-pwf-skin', '--menu-pwf'],
       ['MENU_PLAY', 'has-play-skin', '--menu-play'],
@@ -726,6 +727,15 @@ export class Menu {
     const fsBtn = this.el.querySelector('#menu-fs-corner');
     if (fsBtn) fsBtn.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
     for (const b of this.el.querySelectorAll('.fs-btn')) if (b !== fsBtn) b.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
+    // language switch: the icon (or text) of the language you would switch TO
+    const langBtn2 = this.el.querySelector('#menu-lang');
+    if (langBtn2) {
+      const target = getLang() === 'en' ? 'ro' : 'en';
+      const skin = target === 'ro' ? CONFIG.MENU_LANG_RO : CONFIG.MENU_LANG_EN;
+      this.root.classList.toggle('lang-target-ro', target === 'ro');
+      this.root.classList.toggle('lang-target-en', target === 'en');
+      langBtn2.textContent = skin ? '' : target.toUpperCase();
+    }
     const sndBtn = this.el.querySelector('#snd-btn');
     if (sndBtn) sndBtn.textContent = CONFIG.MENU_SOUND_BTN ? '' : (this.musicVol === 0 ? '🔇' : '🔊');
     // menu-music prev/next arrows: shown only with 2+ tracks; glyph unless skinned

@@ -487,6 +487,8 @@ function snapshot() {
     menuBack: CONFIG.MENU_BACK || '',
     menuSlideFrame: CONFIG.MENU_SLIDE_FRAME || '',
     menuFsBtn: CONFIG.MENU_FS_BTN || '',
+    menuLangRo: CONFIG.MENU_LANG_RO || '',
+    menuLangEn: CONFIG.MENU_LANG_EN || '',
     menuSoundBtn: CONFIG.MENU_SOUND_BTN || '',
     menuPwf: CONFIG.MENU_PWF || '',
     menuPlay: CONFIG.MENU_PLAY || '',
@@ -560,6 +562,8 @@ export function applyBalance(data) {
   CONFIG.MENU_BACK = typeof data.menuBack === 'string' ? data.menuBack : '';
   CONFIG.MENU_SLIDE_FRAME = typeof data.menuSlideFrame === 'string' ? data.menuSlideFrame : '';
   CONFIG.MENU_FS_BTN = typeof data.menuFsBtn === 'string' ? data.menuFsBtn : '';
+  CONFIG.MENU_LANG_RO = typeof data.menuLangRo === 'string' ? data.menuLangRo : '';
+  CONFIG.MENU_LANG_EN = typeof data.menuLangEn === 'string' ? data.menuLangEn : '';
   CONFIG.MENU_SOUND_BTN = typeof data.menuSoundBtn === 'string' ? data.menuSoundBtn : '';
   CONFIG.MENU_PWF = typeof data.menuPwf === 'string' ? data.menuPwf : '';
   CONFIG.MENU_PLAY = typeof data.menuPlay === 'string' ? data.menuPlay : '';
@@ -636,7 +640,7 @@ export function applyBalance(data) {
     for (const [id, vals] of Object.entries(data.abilities)) {
       const ab = resolvedAbilities[id];
       if (!ab || typeof vals !== 'object') continue;
-      if (typeof vals.desc === 'string') ab.desc = cleanDesc(vals.desc); // hover description
+      if (typeof vals.desc === 'string' && vals.desc !== ab.descEn) ab.desc = cleanDesc(vals.desc); // hover description (echoes of the old EN default are skipped)
       if (typeof vals.descEn === 'string') ab.descEn = cleanDesc(vals.descEn);
       for (const k of Object.keys(ab.params)) {
         if (num(vals[k]) !== undefined) ab.params[k] = clamp(vals[k], 0, 100000);
@@ -651,7 +655,7 @@ export function applyBalance(data) {
       if (!up || typeof vals !== 'object') continue;
       if (typeof vals.race === 'string' && (vals.race === '' || RACES.includes(vals.race))) up.race = vals.race;
       if (typeof vals.unit === 'string' && (vals.unit === '' || UNITS[vals.unit])) up.unit = vals.unit;
-      if (typeof vals.desc === 'string') up.desc = cleanDesc(vals.desc); // hover description
+      if (typeof vals.desc === 'string' && vals.desc !== up.descEn) up.desc = cleanDesc(vals.desc); // hover description (echoes of the old EN default are skipped)
       if (typeof vals.descEn === 'string') up.descEn = cleanDesc(vals.descEn);
       if (num(vals.slot) !== undefined) up.slot = Math.round(clamp(vals.slot, -1, 8));
       const params = vals.params || {};
@@ -682,7 +686,7 @@ function applyRaceUnits(race, unitsData) {
     for (const [f] of UNIT_NUM_FIELDS) if (u[f] !== undefined && num(vals[f]) !== undefined) u[f] = vals[f];
     for (const [f, opts] of Object.entries(UNIT_SELECT_FIELDS)) if (u[f] !== undefined && opts.includes(vals[f])) u[f] = vals[f];
     if (typeof vals.name === 'string' && cleanName(vals.name)) u.name = cleanName(vals.name);
-    if (typeof vals.tip === 'string') u.tip = cleanDesc(vals.tip); // hover description
+    if (typeof vals.tip === 'string' && vals.tip !== u.tipEn) u.tip = cleanDesc(vals.tip); // hover description (echoes of the old EN default are skipped)
   if (typeof vals.tipEn === 'string') u.tipEn = cleanDesc(vals.tipEn);
     if (num(vals.size) !== undefined) u.size = clamp(vals.size, 0.2, 4);
     if (num(vals.projSize) !== undefined) u.projSize = clamp(vals.projSize, 0.1, 6);
@@ -772,7 +776,7 @@ function applyRaceBuildings(race, buildingsData) {
 function applyBuilding(b, kind, vals) {
   if (!b || typeof vals !== 'object') return;
   if (typeof vals.name === 'string' && cleanName(vals.name)) b.name = cleanName(vals.name);
-  if (typeof vals.tip === 'string') b.tip = cleanDesc(vals.tip); // hover description
+  if (typeof vals.tip === 'string' && vals.tip !== b.tipEn) b.tip = cleanDesc(vals.tip); // hover description (echoes of the old EN default are skipped)
   if (typeof vals.tipEn === 'string') b.tipEn = cleanDesc(vals.tipEn);
   if (num(vals.size) !== undefined) b.size = clamp(vals.size, 0.2, 4);
   if (num(vals.idleSpeed) !== undefined) b.idleSpeed = clamp(vals.idleSpeed, 0.2, 10);
@@ -859,6 +863,7 @@ export function importBalance(data) {
   const keepMenuLogo = CONFIG.MENU_LOGO, keepMenuBtn = CONFIG.MENU_BTN;
   const keepMenuCard = CONFIG.MENU_CARD, keepMenuBack = CONFIG.MENU_BACK;
   const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN, keepMenuPwf = CONFIG.MENU_PWF;
+  const keepMenuLangRo = CONFIG.MENU_LANG_RO, keepMenuLangEn = CONFIG.MENU_LANG_EN;
   const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRaceHumans = CONFIG.MENU_RACE_HUMANS, keepMenuRaceOrcs = CONFIG.MENU_RACE_ORCS, keepMenuRaceUndead = CONFIG.MENU_RACE_UNDEAD;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepMenuMusicVol = CONFIG.MENU_MUSIC_VOL, keepTips = CONFIG.LOADING_TIPS;
@@ -873,6 +878,8 @@ export function importBalance(data) {
   if (typeof data.menuBack !== 'string' || !data.menuBack) CONFIG.MENU_BACK = keepMenuBack;
   if (typeof data.menuSlideFrame !== 'string' || !data.menuSlideFrame) CONFIG.MENU_SLIDE_FRAME = keepMenuSlideFrame;
   if (typeof data.menuFsBtn !== 'string' || !data.menuFsBtn) CONFIG.MENU_FS_BTN = keepMenuFsBtn;
+  if (typeof data.menuLangRo !== 'string' || !data.menuLangRo) CONFIG.MENU_LANG_RO = keepMenuLangRo;
+  if (typeof data.menuLangEn !== 'string' || !data.menuLangEn) CONFIG.MENU_LANG_EN = keepMenuLangEn;
   if (typeof data.menuSoundBtn !== 'string' || !data.menuSoundBtn) CONFIG.MENU_SOUND_BTN = keepMenuSoundBtn;
   if (typeof data.menuPwf !== 'string' || !data.menuPwf) CONFIG.MENU_PWF = keepMenuPwf;
   if (typeof data.menuPlay !== 'string' || !data.menuPlay) CONFIG.MENU_PLAY = keepMenuPlay;
