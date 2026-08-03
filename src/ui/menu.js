@@ -44,7 +44,7 @@ function esc(s) {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-const TIPS = [
+export const TIPS = [
   'Generatoarele sunt economia ta — protejează-le cu ziduri și turnuri.',
   'Upgrade la Bază deblochează tieruri superioare de unități.',
   'Armata ta reînvie la fiecare val și mărșăluiește singură spre inamic.',

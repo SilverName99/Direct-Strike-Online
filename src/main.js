@@ -9,9 +9,9 @@ import { Minimap } from './ui/minimap.js';
 import { Hud } from './ui/hud.js';
 import { BottomBar } from './ui/bottombar.js';
 import { Input } from './ui/input.js';
-import { Menu } from './ui/menu.js';
+import { Menu, TIPS } from './ui/menu.js';
 import { PointerManager, toast } from './ui/pointer.js';
-import { loadSprites, setTeamRaces, setViewerTeam, getMusicUrl, getBattleSfxUrl, getCursorUrl } from './render/sprites.js';
+import { loadSprites, spriteProgress, setTeamRaces, setViewerTeam, getMusicUrl, getBattleSfxUrl, getCursorUrl } from './render/sprites.js';
 import { NetClient } from './net/netclient.js';
 import { NetMatch } from './net/netmatch.js';
 import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
@@ -88,12 +88,44 @@ function preload(urls, timeoutMs) {
 }
 function hideBoot() {
   if (!bootEl) return;
+  bootPhase = '';
   const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   const wait = Math.max(0, 700 - (now - bootStart)); // show for at least ~0.7s
   setTimeout(() => { bootEl.classList.add('done'); setTimeout(() => bootEl.remove(), 650); }, wait);
 }
 
+// A spinner alone can't tell "working" from "stuck" — on a thin connection you
+// end up staring at it with no idea whether anything is happening. Say what is
+// being waited on, count the art as it lands, and give something to read.
+let bootPhase = 'pornesc jocul…';
+{
+  const note = bootEl && bootEl.querySelector('.boot-note');
+  const tipEl = bootEl && bootEl.querySelector('.boot-tip');
+  if (tipEl && TIPS.length) {
+    tipEl.textContent = '💡 ' + TIPS[Math.floor(Math.random() * TIPS.length) % TIPS.length];
+    setTimeout(() => tipEl.classList.add('on'), 400); // fade in, so a fast boot never flashes it
+  }
+  if (note) {
+    let lastCount = -1;
+    let lastMove = bootStart;
+    const tick = () => {
+      if (!bootEl || !bootEl.isConnected || !bootPhase) return;
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const p = spriteProgress();
+      if (p.total > 0 && p.loaded !== lastCount) { lastCount = p.loaded; lastMove = now; }
+      // the art is the big download, so it's the number worth showing
+      const art = p.total > 0 && p.loaded < p.total ? ` · <b>${p.loaded}/${p.total}</b> imagini` : '';
+      const slow = now - lastMove > 6000 && now - bootStart > 6000;
+      note.classList.toggle('slow', slow);
+      note.innerHTML = bootPhase + art + (slow ? ' · durează mai mult ca de obicei…' : '');
+      setTimeout(tick, 180);
+    };
+    tick();
+  }
+}
+
 // apply the balance published from /admin (edit it there, not in-game)
+bootPhase = 'setările de joc…';
 loadBalance().then((loaded) => {
   if (loaded) {
     bottombar.refresh();
@@ -101,6 +133,7 @@ loadBalance().then((loaded) => {
   }
 }).catch((e) => console.warn('balance load failed', e)).finally(() => {
   menu.applyTheme(); // logo + menu/loading backgrounds live in balance.json
+  bootPhase = 'pregătesc meniul…';
   // warm the decode cache for the menu art AND buffer the menu music, then
   // reveal the finished menu (both capped so a slow asset never hangs boot)
   Promise.all([
