@@ -3,7 +3,7 @@
 // Owns the #overlay element (main menu AND the game-over screen).
 
 import { CONFIG, RACES, VERSION } from '../config.js';
-import { getLoadingScreens, spritesReady } from '../render/sprites.js';
+import { getLoadingScreens, spritesReady, spriteProgress } from '../render/sprites.js';
 import { HOTKEY_ACTIONS, hotkeyOf, keyLabel, setHotkey, resetHotkeys, loadHotkeys } from './hotkeys.js';
 
 // Player name: shown top-left in the menu, carried into the lobby and matches.
@@ -976,17 +976,20 @@ export class Menu {
     this.load.classList.remove('hidden');
     const fill = this.load.querySelector('.load-fill');
     const tip = this.load.querySelector('.load-tip');
+    const note = this.load.querySelector('.load-note');
     const tips = (Array.isArray(CONFIG.LOADING_TIPS) && CONFIG.LOADING_TIPS.length) ? CONFIG.LOADING_TIPS : TIPS;
     tip.textContent = '💡 ' + tips[Math.floor(this.mix() * tips.length) % tips.length];
     fill.style.transition = 'none'; fill.style.width = '0%';
     void fill.offsetWidth;
-    fill.style.transition = 'width 1.4s cubic-bezier(.4,.5,.2,1)';
-    fill.style.width = '92%'; // hold near the end until the sprites are actually ready
+    fill.style.transition = 'width 0.3s ease-out';
+    if (note) { note.textContent = ''; note.classList.remove('slow'); }
     const startLoad = this.nowMs();
-    const MIN_MS = 1550;   // minimum time on the loading screen (feels intentional)
-    const CAP_MS = 25000;  // hard cap so a stuck/failed load can't hang the menu
+    const MIN_MS = 1550;     // minimum time on the loading screen (feels intentional)
+    const STALL_MS = 12000;  // give up only when NOTHING has arrived for this long
+    const MAX_MS = 180000;   // absolute backstop, in case progress never settles
     const finish = () => {
       fill.style.transition = 'width 0.2s ease'; fill.style.width = '100%';
+      if (note) { note.textContent = ''; note.classList.remove('slow'); }
       this.later(() => {
         if (this.netPending) { this.netPending = false; if (this.hooks.onNetReveal) this.hooks.onNetReveal(); }
         // the roster is kept so "Rematch" replays the same room
@@ -995,15 +998,39 @@ export class Menu {
         this.hide();
       }, 200);
     };
-    // Wait for the sprite assets to finish loading (so a match never opens with
-    // placeholder shapes when you enter fast), but keep a minimum + a safety cap.
+    // Wait for the sprite assets to finish loading — a match must never open
+    // with placeholder shapes. The old flat 25 s cap couldn't tell a slow line
+    // from a broken one, so a weak wi-fi dropped you straight into a game of
+    // blue boxes. Now the bar follows the REAL count, and we only give up once
+    // nothing new has landed for STALL_MS: still trickling in = keep waiting.
+    let lastCount = -1;
+    let lastMove = startLoad;
     const step = () => {
-      const elapsed = this.nowMs() - startLoad;
-      const ready = spritesReady();
-      if (elapsed >= CAP_MS || (elapsed >= MIN_MS && ready)) { finish(); return; }
+      const now = this.nowMs();
+      const elapsed = now - startLoad;
+      const p = spriteProgress();
+      if (p.total > 0) {
+        if (p.loaded !== lastCount) { lastCount = p.loaded; lastMove = now; }
+        fill.style.width = `${Math.min(99, Math.round((100 * p.loaded) / p.total))}%`;
+        if (note && p.loaded < p.total) {
+          const stuck = now - lastMove >= 2500; // nothing for a moment -> say so
+          note.classList.toggle('slow', stuck);
+          note.innerHTML = `<b>${p.loaded}/${p.total}</b> imagini · ${this.esc(p.label)}`
+            + (stuck ? ' · conexiune lentă…' : '');
+        }
+      } else if (elapsed < MIN_MS * 2) {
+        fill.style.width = '92%'; // no manifest to measure — the old timed feel
+      }
+      const stalled = now - lastMove >= STALL_MS;
+      if (elapsed >= MAX_MS || (elapsed >= MIN_MS && (spritesReady() || stalled))) { finish(); return; }
       this.later(step, 120);
     };
-    this.later(step, MIN_MS);
+    this.later(step, 60);
+  }
+
+  // asset names come off the manifest; never inject them as markup
+  esc(s) {
+    return String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
   // wall-clock ms for the (UI-only) loading timer; falls back if performance is
@@ -1196,5 +1223,6 @@ const TEMPLATE = `
     <span class="menu-logo-txt">FANGS &amp; HONOR</span>
   </div>
   <div class="load-bar"><div class="load-fill"></div></div>
+  <div class="load-note"></div>
   <div class="load-tip"></div>
 </div>`;

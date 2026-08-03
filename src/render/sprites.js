@@ -42,6 +42,19 @@ let spritesLoaded = false;     // true once the manifest + all its images finish
 // Have the sprite assets finished loading? The loading screen waits on this so
 // a match never starts with placeholder shapes (entering too fast).
 export function spritesReady() { return spritesLoaded; }
+
+// ---- load progress ---------------------------------------------------------
+// What the loading screen shows, and — more importantly — how it tells a SLOW
+// connection apart from a DEAD one. A flat timeout can only do one of the two:
+// too short and a slow line drops you into the match with placeholder shapes,
+// too long and a broken asset hangs the menu. Watching `loaded` climb answers
+// it exactly: still arriving = keep waiting, nothing for a while = give up.
+let loadTotal = 0;   // images the manifest asked for
+let loadDone = 0;    // images that have finished (or failed — either way, settled)
+let loadLabel = '';  // the last one that landed, e.g. "grunt/walk_3.png"
+export function spriteProgress() {
+  return { loaded: loadDone, total: loadTotal, label: loadLabel };
+}
 const towerVideoUrls = new Map(); // `${race}/tier{1..3}` -> url of a tower's per-tier portrait clip
 // Art identity is PER PLAYER: each commander picks their own race in the lobby,
 // so two allies on the same side can look completely different. `teamRaces` is
@@ -76,14 +89,18 @@ export function loadSprites(base = 'assets/units/', onReady = null) {
       const done = () => {
         if (--pending === 0) { spritesLoaded = true; if (onReady) onReady(); }
       };
+      // the label comes off the URL, so every call site stays as it was
+      const nameOf = (url) => url.split('?')[0].split('/').slice(-2).join('/');
       const load = (url, cb) => {
         pending++;
+        loadTotal++;
+        const settled = () => { loadDone++; loadLabel = nameOf(url); done(); };
         const img = new Image();
         img.onload = () => {
           cb(img);
-          done();
+          settled();
         };
-        img.onerror = done;
+        img.onerror = settled;
         img.src = url;
       };
       for (const [race, ents] of Object.entries(man.races || {})) {
