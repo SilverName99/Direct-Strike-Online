@@ -111,8 +111,8 @@ function render() {
     ${uploaderRow('menuback', 'Design buton „Înapoi”', 'PNG pentru butonul de întoarcere')}
     ${uploaderRow('menuslide', 'Design cutie slide (How to play)', 'ramă PNG în jurul imaginii de tutorial')}
     ${uploaderRow('menufs', 'Design buton fullscreen', 'PNG pătrat — colțul din dreapta sus + „Ecran complet”')}
-    ${uploaderRow('menulangro', 'Iconiță limbă → RO', 'PNG pătrat — apare pe butonul de limbă când comută SPRE română')}
-    ${uploaderRow('menulangen', 'Iconiță limbă → EN', 'PNG pătrat — apare pe butonul de limbă când comută SPRE engleză')}
+    ${uploaderRow('menulangro', 'Iconiță limbă — Română', 'PNG pătrat — apare pe butonul de limbă cât timp jocul e în română')}
+    ${uploaderRow('menulangen', 'Iconiță limbă — English', 'PNG pătrat — apare pe butonul de limbă cât timp jocul e în engleză')}
     ${uploaderRow('menusnd', 'Design buton sonor', 'PNG pătrat — controlul de volum din dreapta jos')}
     ${uploaderRow('menupwf', 'Design „Play with friends”', 'PNG cu textul deja inclus (ecranul Multiplayer)')}
     ${uploaderRow('menuplay', 'Design buton PLAY', 'PNG buton (ecranul de setup) — la dimensiunea imaginii')}

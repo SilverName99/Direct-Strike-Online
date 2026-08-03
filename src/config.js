@@ -2,7 +2,7 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v24.1';
+export const VERSION = 'v24.2';
 
 // Playable races. Cosmetic for now (art sets uploaded via /admin, same
 // unit stats); stat divergence can come later. The AI plays the other one.
@@ -85,8 +85,8 @@ export const CONFIG = {
   MENU_BACK: '',        // "Înapoi" back-button skin; '' = plain text button
   MENU_SLIDE_FRAME: '', // frame around the tutorial slide image (the slide box); '' = plain
   MENU_FS_BTN: '',      // fullscreen button skin (top-right corner + Options toggle); '' = ⛶ glyph
-  MENU_LANG_RO: '',     // language-switch icon shown when the switch TARGET is Romanian; '' = 'RO' text
-  MENU_LANG_EN: '',     // language-switch icon shown when the switch TARGET is English; '' = 'EN' text
+  MENU_LANG_RO: '',     // language-switch icon shown while the game IS in Romanian; '' = 'RO' text
+  MENU_LANG_EN: '',     // language-switch icon shown while the game IS in English; '' = 'EN' text
   MENU_SOUND_BTN: '',   // sound/volume button skin (bottom-right control); '' = 🔊 glyph
   MENU_PWF: '',         // "Play with friends" card skin (text baked into the art); '' = plain card
   MENU_PLAY: '',        // setup-screen PLAY button skin (natural image size); '' = gold button

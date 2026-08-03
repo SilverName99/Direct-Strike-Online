@@ -37,8 +37,14 @@ export function setLang(next) {
   if (typeof location !== 'undefined') location.reload();
 }
 
+// Which map translates INTO the active language. Half the menu was authored in
+// English and half in Romanian, so the lookup has to work both ways: EN is
+// keyed by the Romanian source strings, RO by the English ones. A string that
+// reads the same in both languages simply isn't in either map.
+function dict() { return lang === 'en' ? EN : RO; }
+
 export function t(s, vars) {
-  let out = (lang === 'en' && EN[s]) || s;
+  let out = dict()[s] || s;
   if (vars) for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(v);
   return out;
 }
@@ -50,13 +56,14 @@ export function t(s, vars) {
 // non-letters ("◄ ", "⚔  ") is stripped before lookup and glued back after —
 // one dictionary entry serves the plain string everywhere it appears.
 export function translateDom(root) {
-  if (lang !== 'en' || !root) return;
+  if (!root) return;
+  const D = dict();
   const ATTRS = ['title', 'placeholder', 'aria-label'];
   for (const el of root.querySelectorAll('*')) {
     if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue;
     for (const a of ATTRS) {
       const v = el.getAttribute && el.getAttribute(a);
-      if (v && EN[v]) el.setAttribute(a, EN[v]);
+      if (v && D[v]) el.setAttribute(a, D[v]);
     }
   }
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -67,10 +74,10 @@ export function translateDom(root) {
     const raw = node.nodeValue;
     const text = raw.trim();
     if (!text) continue;
-    if (EN[text]) { node.nodeValue = raw.replace(text, EN[text]); continue; }
+    if (D[text]) { node.nodeValue = raw.replace(text, D[text]); continue; }
     // "◄ Înapoi" / "⚔  Caută meci" → prefix "◄ " + key "Înapoi"
     const m = text.match(/^([^\p{L}\p{N}]+)(.+)$/u);
-    if (m && EN[m[2]]) node.nodeValue = raw.replace(text, m[1] + EN[m[2]]);
+    if (m && D[m[2]]) node.nodeValue = raw.replace(text, m[1] + D[m[2]]);
   }
 }
 
@@ -186,6 +193,7 @@ const EN = {
   'Mută-te aici': 'Move here',
   'apasă…': 'press…',
   'Tabăra {n}': 'Side {n}',
+  'TU': 'YOU',
   'Sunt gata': "I'm ready",
   'Cere schimb de poziție': 'Ask to swap seats',
   'Dă afară': 'Kick',
@@ -362,4 +370,32 @@ const EN = {
   'Arată upgrade-urile unităților acestei clădiri.': "Shows this building's unit upgrades.",
   'Înapoi la unitățile clădirii.': "Back to the building's units.",
   'Baza se îmbunătățește. Mai sunt {n}s.': 'The base is upgrading. {n}s left.',
+};
+
+// ---------------------------------------------------------- English -> Romanian
+// Menu chrome, stat tags and lobby badges that were written in English in the
+// source. Anything that reads identically in both languages (Multiplayer, BOT,
+// START, VS, MAX, Caster, DPS, 1v1 Online) is deliberately absent.
+const RO = {
+  'Play vs AI': 'Joacă vs AI',
+  'Options': 'Opțiuni',
+  'OPTIONS': 'OPȚIUNI',
+  'How to play': 'Cum se joacă',
+  'Create room': 'Creează cameră',
+  'Create a room': 'Creează o cameră',
+  'Join a room': 'Intră într-o cameră',
+  'Music': 'Muzică',
+  'Fullscreen': 'Ecran complet',
+  'Block the mouse': 'Blochează mouse-ul',
+  'Recommended when using two screens': 'Recomandat când folosești două ecrane',
+  'Testing': 'Testare',
+  'Rematch': 'Revanșă',
+  'VICTORY': 'VICTORIE',
+  'DEFEAT': 'ÎNFRÂNGERE',
+  'HOST': 'GAZDĂ',
+  'Player': 'Jucător',
+  'UNITS': 'UNITĂȚI',
+  'Hits air': 'Lovește aerul',
+  'Requires: {list}': 'Necesită: {list}',
+  'Miner': 'Miner',
 };

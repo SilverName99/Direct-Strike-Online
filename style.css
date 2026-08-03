@@ -822,12 +822,12 @@ html, body {
   position: absolute; top: 18px; right: 104px; z-index: 3;
   font: 700 13px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
 }
-/* admin-uploaded language icons: one per switch target */
-.has-langro-skin.lang-target-ro #menu-lang,
-.has-langro-skin.lang-target-ro #menu-lang:hover { background: var(--menu-langro) center / 100% 100% no-repeat; border: none; }
-.has-langen-skin.lang-target-en #menu-lang,
-.has-langen-skin.lang-target-en #menu-lang:hover { background: var(--menu-langen) center / 100% 100% no-repeat; border: none; }
-.has-langro-skin.lang-target-ro #menu-lang:hover, .has-langen-skin.lang-target-en #menu-lang:hover { filter: brightness(1.13); }
+/* admin-uploaded language icons: the one for the language you are READING */
+.has-langro-skin.lang-is-ro #menu-lang,
+.has-langro-skin.lang-is-ro #menu-lang:hover { background: var(--menu-langro) center / 100% 100% no-repeat; border: none; }
+.has-langen-skin.lang-is-en #menu-lang,
+.has-langen-skin.lang-is-en #menu-lang:hover { background: var(--menu-langen) center / 100% 100% no-repeat; border: none; }
+.has-langro-skin.lang-is-ro #menu-lang:hover, .has-langen-skin.lang-is-en #menu-lang:hover { filter: brightness(1.13); }
 /* player name box (top-left of the menu) — reads as a plaque, edits in place */
 #menu-name {
   position: absolute; top: 18px; left: 18px; z-index: 3;

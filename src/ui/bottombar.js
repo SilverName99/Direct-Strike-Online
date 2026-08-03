@@ -86,7 +86,7 @@ function unitStatBits(s) {
   if (s.food) bits.push(`${s.food} 🍖`);
   if (s.armor) bits.push(`${s.armor} 🛡️`);
   if (s.dmgType) bits.push(`${s.dmgType} 🗡️`);
-  if (s.targetsAir) bits.push('Hits air');
+  if (s.targetsAir) bits.push(t('Hits air'));
   if (s.caster) bits.push('Caster');
   return bits;
 }
@@ -1484,7 +1484,7 @@ export class BottomBar {
       const req = [];
       if (u.building && game && !game.hasBuilding(this.team, u.building)) req.push(buildingNameOf(race, u.building));
       if (u.tier > (game ? game.tier[this.team] : 1)) req.push(`Tier ${u.tier}`);
-      const reqNote = req.length ? ` <span class="p-req">(Requires: ${req.join(' & ')})</span>` : '';
+      const reqNote = req.length ? ` <span class="p-req">(${t('Requires: {list}', { list: req.join(' & ') })})</span>` : '';
       // name → editable description → a clean emoji stat line
       return `<div class="p-title">${u.name}${reqNote}</div>
         <div>${pickText(u.tip, u.tipEn)}</div>

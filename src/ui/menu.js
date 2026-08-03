@@ -483,7 +483,7 @@ export class Menu {
       }
       else if (!bothSides) msg = t(solo ? 'Tabăra {n} e goală — pune un bot.' : 'Tabăra {n} e goală — pune un bot sau așteaptă un jucător.', { n: n[0] ? 2 : 1 });
       else if (solo) msg = ''; // offline: the START label already says the format
-      else if (waiting.length) msg = t('Se așteaptă: {who}', { who: waiting.map((sl) => esc(sl.name || 'Player')).join(', ') });
+      else if (waiting.length) msg = t('Se așteaptă: {who}', { who: waiting.map((sl) => esc(sl.name || t('Player'))).join(', ') });
       else if (!host) msg = t('Gazda pornește meciul.');
       else msg = t(n[0] !== n[1] ? 'Sloturile goale dispar — pornești {a}v{b} (asimetric: tabăra mică primește bonus de venit).' : 'Sloturile goale dispar — pornești {a}v{b}.', { a: n[0], b: n[1] });
       hint.innerHTML = msg;
@@ -509,10 +509,10 @@ export class Menu {
     if (sl.kind === 'player') {
       const roomVer = this.lobby.version;
       const badVer = !!(sl.version && roomVer && sl.version !== roomVer);
-      const tag = [sl.id === this.lobby.hostId ? '<span class="lb-tag host">HOST</span>' : '',
-        isMe ? '<span class="lb-tag me">TU</span>' : '',
+      const tag = [sl.id === this.lobby.hostId ? `<span class="lb-tag host">${t('HOST')}</span>` : '',
+        isMe ? `<span class="lb-tag me">${t('TU')}</span>` : '',
         badVer ? `<span class="lb-tag bad" title="${t('Versiune diferită de a camerei ({v})', { v: esc(roomVer) })}">⚠ ${esc(sl.version)}</span>` : ''].join('');
-      body = `<span class="lb-name">${esc(sl.name || 'Player')}</span>${tag}
+      body = `<span class="lb-name">${esc(sl.name || t('Player'))}</span>${tag}
         <span class="lb-ready ${sl.ready ? 'on' : ''}">${sl.ready ? t('✔ gata') : t('… așteaptă')}</span>`;
       // your own race is yours to pick; everyone else's is just shown
       body += isMe
@@ -727,14 +727,16 @@ export class Menu {
     const fsBtn = this.el.querySelector('#menu-fs-corner');
     if (fsBtn) fsBtn.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
     for (const b of this.el.querySelectorAll('.fs-btn')) if (b !== fsBtn) b.textContent = CONFIG.MENU_FS_BTN ? '' : '⛶';
-    // language switch: the icon (or text) of the language you would switch TO
+    // language switch: shows the language the game is CURRENTLY in — the "RO"
+    // icon means you are reading Romanian. Clicking it still flips to the other.
     const langBtn2 = this.el.querySelector('#menu-lang');
     if (langBtn2) {
-      const target = getLang() === 'en' ? 'ro' : 'en';
-      const skin = target === 'ro' ? CONFIG.MENU_LANG_RO : CONFIG.MENU_LANG_EN;
-      this.root.classList.toggle('lang-target-ro', target === 'ro');
-      this.root.classList.toggle('lang-target-en', target === 'en');
-      langBtn2.textContent = skin ? '' : target.toUpperCase();
+      const cur = getLang();
+      const skin = cur === 'ro' ? CONFIG.MENU_LANG_RO : CONFIG.MENU_LANG_EN;
+      this.root.classList.toggle('lang-is-ro', cur === 'ro');
+      this.root.classList.toggle('lang-is-en', cur === 'en');
+      langBtn2.textContent = skin ? '' : cur.toUpperCase();
+      langBtn2.title = cur === 'ro' ? 'Limba: Română — click pentru English' : 'Language: English — click for Română';
     }
     const sndBtn = this.el.querySelector('#snd-btn');
     if (sndBtn) sndBtn.textContent = CONFIG.MENU_SOUND_BTN ? '' : (this.musicVol === 0 ? '🔇' : '🔊');
@@ -1071,7 +1073,7 @@ export class Menu {
   showGameOver(game, playerWon, team = 0, isNet = false) {
     this.clearTimers();
     const titleEl = this.el.querySelector('#over-title');
-    titleEl.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
+    titleEl.textContent = playerWon ? t('VICTORY') : t('DEFEAT');
     titleEl.className = 'm-title ' + (playerWon ? 'victory' : 'defeat');
     this.el.querySelector('#over-stats').innerHTML = t('Valuri: <b>{w}</b> · Aur cheltuit: <b>{g}</b> · Tier atins: <b>{t}</b>',
       { w: game.waveCount, g: Math.floor(game.spent[team]), t: 'I'.repeat(game.tier[team]) });
