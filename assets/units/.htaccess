@@ -1,0 +1,4 @@
+# Uploaded content only — never execute anything from this directory.
+<FilesMatch "\.(php|phtml|php\d|pht|pl|py|cgi|sh|phar)$">
+  Require all denied
+</FilesMatch>

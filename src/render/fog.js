@@ -1,0 +1,192 @@
+// Fog of war (client-side, cosmetic — the deterministic sim is untouched). Each
+// viewer sees its own fog: a coarse vision grid is lit around the viewer team's
+// live units and structures. Three states per cell:
+//   visible   -> in sight now (clear)
+//   explored  -> seen before, not now (dim; terrain + remembered enemy buildings)
+//   unseen    -> never seen (black)
+// The renderer culls enemy units (need `visible`) and enemy structures (need
+// `explored`), then paints this overlay on top.
+
+const CELL = 20; // vision-grid cell size in sim units (fine grid -> smooth, round fog edges)
+
+// Fog darkness (alpha 0-255): a translucent veil, NOT solid black, so the
+// terrain still shows faintly underneath (Warcraft-style).
+const A_EXPLORED = 96;  // seen before, not now -> lightly dimmed
+const A_UNSEEN = 190;   // never seen -> dark but see-through
+// Fraction of the player's OWN half that's always revealed (measured from their
+// back edge), so they're never blind at home.
+const HOME_REVEAL = 2 / 3;
+// ...but never less than this far PAST the side's front-most build strip, so
+// team-mode vanguards aren't standing in the dark at the first whistle.
+const HOME_MARGIN = 160;
+// Softening: blow the tiny vision grid up onto a supersampled buffer and blur it
+// so the fog reads as round, organic patches instead of blocky cells.
+const SUPERSAMPLE = 5;
+const BLUR = 4;
+
+export class Fog {
+  constructor() {
+    this.cols = 0; this.rows = 0;
+    this.visible = null;   // Uint8Array 0/1 — currently in sight
+    this.explored = null;  // Uint8Array 0/1 — ever seen
+    this.canvas = null;    // tiny cols×rows canvas holding per-cell fog alpha
+    this.ctx = null;
+    this.img = null;       // reusable ImageData(cols, rows)
+    this._dirty = true;
+  }
+
+  // (Re)allocate for a field size and forget everything explored (new match).
+  reset(fieldW, fieldH) {
+    this.fieldW = fieldW; this.fieldH = fieldH;
+    this.cols = Math.max(1, Math.ceil(fieldW / CELL));
+    this.rows = Math.max(1, Math.ceil(fieldH / CELL));
+    const n = this.cols * this.rows;
+    this.visible = new Uint8Array(n);
+    this.explored = new Uint8Array(n);
+    if (typeof document !== 'undefined') {
+      this.canvas = document.createElement('canvas');
+      this.canvas.width = this.cols; this.canvas.height = this.rows;
+      this.ctx = this.canvas.getContext('2d');
+      this.img = this.ctx.createImageData(this.cols, this.rows);
+      // supersampled buffer for the blur pass (cheap: a few hundred px per side)
+      this.blur = document.createElement('canvas');
+      this.blur.width = this.cols * SUPERSAMPLE;
+      this.blur.height = this.rows * SUPERSAMPLE;
+      this.blurCtx = this.blur.getContext('2d');
+    }
+    this._dirty = true;
+  }
+
+  visibleAt(x, y) {
+    if (!this.visible) return true;
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return false;
+    return this.visible[cy * this.cols + cx] === 1;
+  }
+
+  exploredAt(x, y) {
+    if (!this.explored) return true;
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return false;
+    return this.explored[cy * this.cols + cx] === 1;
+  }
+
+  // Recompute `visible` from the viewer SIDE's living units + structures and
+  // accumulate into `explored`. Cheap: a handful of sources, a few cells each.
+  // `side` is the battlefield faction (0 = left, 1 = right) — NOT the player
+  // number: entities carry their side in `team`, and in team modes allies share
+  // vision, exactly as they share the battlefield.
+  update(game, side) {
+    const team = side ? 1 : 0;
+    if (!this.visible) return;
+    this.visible.fill(0);
+    const light = (x, y, r) => {
+      if (!(r > 0)) return;
+      const r2 = r * r;
+      const cx0 = Math.max(0, Math.floor((x - r) / CELL));
+      const cx1 = Math.min(this.cols - 1, Math.floor((x + r) / CELL));
+      const cy0 = Math.max(0, Math.floor((y - r) / CELL));
+      const cy1 = Math.min(this.rows - 1, Math.floor((y + r) / CELL));
+      for (let cy = cy0; cy <= cy1; cy++) {
+        const py = cy * CELL + CELL / 2;
+        for (let cx = cx0; cx <= cx1; cx++) {
+          const px = cx * CELL + CELL / 2;
+          const dx = px - x, dy = py - y;
+          if (dx * dx + dy * dy <= r2) {
+            const i = cy * this.cols + cx;
+            this.visible[i] = 1; this.explored[i] = 1;
+          }
+        }
+      }
+    };
+    for (const u of game.entities) {
+      if (u.hp > 0 && u.team === team) light(u.x, u.y, visionOfUnit(game, u));
+    }
+    for (const s of game.structures) {
+      if (s.hp > 0 && s.team === team) light(s.x, s.y, visionOfStructure(game, s));
+    }
+    // The side's own back field is always known: reveal the 2/3 of THEIR half
+    // nearest their bases (side 0 = left, side 1 = right), so home is never dark.
+    // In team modes that fraction can stop SHORT of the forward zones (the map
+    // is much longer), so the reveal always reaches past the front-most allied
+    // construction strip — every commander starts seeing their own base.
+    const W = this.fieldW || this.cols * CELL;
+    let span = (W / 2) * HOME_REVEAL; // depth revealed from the side's edge
+    if (game.zones && game.players) {
+      let front = 0;
+      for (let p = 0; p < game.players.length; p++) {
+        if (game.players[p].side !== team) continue;
+        const b = game.zones[p] && game.zones[p].build;
+        if (!b) continue;
+        const depth = team === 0 ? b.x1 : W - b.x0;
+        if (depth > front) front = depth;
+      }
+      if (front) span = Math.max(span, front + HOME_MARGIN);
+    }
+    const cxEdge = team === 0
+      ? Math.min(this.cols, Math.ceil(span / CELL))          // columns [0 .. span)
+      : Math.max(0, Math.floor((W - span) / CELL));          // columns [(W-span) .. end]
+    for (let cy = 0; cy < this.rows; cy++) {
+      const row = cy * this.cols;
+      if (team === 0) {
+        for (let cx = 0; cx < cxEdge; cx++) { this.visible[row + cx] = 1; this.explored[row + cx] = 1; }
+      } else {
+        for (let cx = cxEdge; cx < this.cols; cx++) { this.visible[row + cx] = 1; this.explored[row + cx] = 1; }
+      }
+    }
+    this._dirty = true;
+  }
+
+  // Repaint the tiny fog canvas (only when the grid changed).
+  _repaint() {
+    if (!this._dirty || !this.ctx) return;
+    const d = this.img.data, n = this.cols * this.rows;
+    for (let i = 0; i < n; i++) {
+      // clear where visible, lightly dim where explored, dark veil where unseen
+      const a = this.visible[i] ? 0 : (this.explored[i] ? A_EXPLORED : A_UNSEEN);
+      const p = i * 4;
+      d[p] = 6; d[p + 1] = 9; d[p + 2] = 16; d[p + 3] = a; // matches the dark backdrop
+    }
+    this.ctx.putImageData(this.img, 0, 0);
+    this._dirty = false;
+  }
+
+  // Paint the overlay over the whole field (world space). Upscaling the tiny
+  // canvas with smoothing gives soft, rounded fog edges for free.
+  draw(ctx, fieldW, fieldH) {
+    if (!this.canvas) return;
+    this._repaint();
+    const prev = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = true;
+    if (this.blurCtx) {
+      // blur the grid on the small supersampled buffer, then upscale to the field
+      const bw = this.blur.width, bh = this.blur.height;
+      this.blurCtx.clearRect(0, 0, bw, bh);
+      this.blurCtx.imageSmoothingEnabled = true;
+      this.blurCtx.filter = `blur(${BLUR}px)`;
+      this.blurCtx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, bw, bh);
+      this.blurCtx.filter = 'none';
+      ctx.drawImage(this.blur, 0, 0, bw, bh, 0, 0, fieldW, fieldH);
+    } else {
+      ctx.drawImage(this.canvas, 0, 0, this.cols, this.rows, 0, 0, fieldW, fieldH);
+    }
+    ctx.imageSmoothingEnabled = prev;
+  }
+}
+
+// A unit's sight radius: its `vision` stat, or (0 = auto) its attack range + a
+// bonus so even short-range melee can see a bit ahead.
+function visionOfUnit(game, u) {
+  const st = game.ustatOf ? game.ustatOf(u) : null;
+  const v = st && st.vision;
+  if (v && v > 0) return v;
+  return ((st && st.range) || 0) + 200;
+}
+
+// Structures see a little further than they shoot (and never less than a base).
+function visionOfStructure(game, s) {
+  const st = game.bstat ? game.bstat(s.owner != null ? s.owner : s.team, s.kind) : null;
+  const v = st && st.vision;
+  if (v && v > 0) return v;
+  return Math.max(340, ((st && st.range) || 0) + 140);
+}

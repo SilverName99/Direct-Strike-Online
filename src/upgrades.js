@@ -1,0 +1,324 @@
+// Upgrade catalog — the single source of truth for every buyable upgrade.
+// GLOBAL (shared by both races). Upgrades are bought IN-GAME from a player's
+// main base (one-off, permanent for the match) and change how a chosen unit
+// type behaves. Which unit an upgrade transforms is set in the admin
+// "Upgrades" editor (upgrade.unit); its numbers are balanced there too and
+// ship inside assets/balance.json under `upgrades`.
+//
+// Upgrade ids must stay lowercase-alphanumeric: they become balance keys and
+// sprite slot prefixes — do NOT rename existing ids or saved data breaks.
+
+export const UPGRADES = {
+  dashmount: {
+    name: 'Dashing & Fleeing mount',
+    desc: 'Un călăreț (ex. călărețul pe mistreț): când o unitate inamică Ranged, nezburătoare, intră în raza de declanșare, șarjează spre ea, animalul fuge, iar călărețul luptă pe jos de atunci încolo, cu statele lui de pedestru. Cumpărat o dată din Bază; permanent pe meci.',
+    descEn: 'A mounted rider (e.g. a boar rider): when an enemy Ranged, non-flying unit enters the trigger radius, it charges that unit, the mount flees, and the rider fights on foot from then on with its dismounted stats. Bought once from the base; permanent for the match.',
+    kind: 'mount',
+    race: '',   // which race's unit this targets (same type differs per race)
+    unit: '',   // which unit type this upgrade transforms (set in admin)
+    params: {
+      cost: 300,       // gold to buy from the base
+      radius: 260,     // enters -> a ranged non-flying enemy triggers the charge
+      dashSpeed: 720,  // charge speed toward the trigger
+      dmDamage: 22,    // on-foot (dismounted) damage
+      dmRange: 30,     // on-foot attack range
+      dmPeriod: 0.8,   // on-foot attack period (s)
+      dmSpeed: 95,     // on-foot move speed
+      dmSize: 100,     // on-foot visual size (%), independent of the mounted size
+    },
+  },
+  focusbuilding: {
+    name: 'Focus building',
+    desc: 'Unitatea ignoră complet trupele inamice și atacă doar STRUCTURILE (ziduri, turnuri, baza) — un spărgător de asediu dedicat (ex. Siege Cannon). Upgrade-ul schimbă DOAR țintirea; damage-ul special în clădiri e un stat per unitate („Damage în clădiri”) care se aplică mereu, cu sau fără upgrade. Cumpărat o dată din Bază; permanent pe meci.',
+    descEn: 'The unit ignores enemy troops entirely and attacks only STRUCTURES (walls, towers, the base) — a dedicated siege breaker (e.g. a Siege Cannon). This upgrade ONLY changes targeting; the special damage vs buildings is a per-unit stat ("Damage în clădiri") that always applies, upgrade or not. Bought once from the base; permanent for the match.',
+    kind: 'focusbuild',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type becomes buildings-only (set in admin)
+    params: {
+      cost: 200, // gold to buy from the base
+    },
+  },
+  groundattack: {
+    name: 'Attack ground units',
+    desc: 'Dă unei unități alese posibilitatea să lovească și ținte TERESTRE (pentru un zburător altfel doar-aer, ca Giant Eagle). Cumpărat o dată din Bază; permanent pe meci.',
+    descEn: 'Grants a chosen unit the ability to also hit GROUND targets (for an otherwise air-only flyer such as a Giant Eagle). Bought once from the base; permanent for the match.',
+    kind: 'ground',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains ground attack (set in admin)
+    params: {
+      cost: 200, // gold to buy from the base
+    },
+  },
+  aoedamage: {
+    name: 'AoE Damage',
+    desc: 'Arma aruncată a unității (ex. toporul Griffin Rider-ului) explodează la impact: ținta lovită ia damage-ul întreg, iar CEILALȚI inamici de pe ACELAȘI plan (țintă aeriană -> doar zburători, țintă terestră -> doar tereștri) prinși în raza de splash iau un procent din el. Cumpărat o dată din Bază; permanent pe meci.',
+    descEn: 'The unit\'s thrown weapon (e.g. a Griffin Rider\'s axe) bursts on impact: the struck target takes full damage, and every OTHER enemy on the SAME plane (air target -> air units only, ground target -> ground units only) caught in the splash radius takes a percentage of it. Bought once from the base; permanent for the match.',
+    kind: 'aoe',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the splash attack (set in admin)
+    params: {
+      cost: 250,        // gold to buy from the base
+      splashRadius: 80, // radius of the burst around the struck target
+      splashPower: 60,  // % of the damage dealt to the OTHERS in the radius
+    },
+  },
+  splitmount: {
+    name: 'Landing Split: beast & rider',
+    desc: 'Când un inamic TERESTRU intră în raza de declanșare, călărețul zburător ȘARJEAZĂ în el (damage-ul de dash la impact — doar la sol) și unitatea se desparte în DOUĂ: călărețul luptă pe jos (cu numerele de pedestru de mai jos; încă aruncă dacă „rider stays ranged” e 1), iar animalul devine o bestie melee separată, cu HP-ul ei. Amândoi luptă până mor (ex. Griffin Rider). Are nevoie de sprite-urile în plus „Dash”, „Pe jos” (călăreț) și „Bestie” (animal).',
+    descEn: 'When a GROUND enemy enters the trigger radius, the flying rider DASHES into it (dealing the dash damage on impact — ground only) and the one unit splits into TWO: the rider fights on foot (with the on-foot numbers below, still throwing if "rider stays ranged" is 1) and the mount becomes a separate melee beast with its own HP. Both fight until they die (e.g. a Griffin Rider). Needs the extra "Dash", "Pe jos" (rider) and "Bestie" (mount) sprites on the unit.',
+    kind: 'split',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type splits on landing (set in admin)
+    params: {
+      cost: 400,       // gold to buy from the base
+      radius: 240,     // a GROUND enemy this close triggers the dive
+      dashSpeed: 700,  // dive speed toward the trigger
+      dashDamage: 40,  // one-off impact damage on the dived ground unit
+      // the rider on foot (uses the unit's "Pe jos" sprite set)
+      dmDamage: 18,    // on-foot damage
+      dmRange: 160,    // on-foot attack range
+      dmPeriod: 1.0,   // on-foot attack period (s)
+      dmSpeed: 90,     // on-foot move speed
+      dmSize: 100,     // on-foot visual size (%)
+      dmRanged: 1,     // 1 = the rider keeps its ranged (thrown) attack, 0 = melee
+      // the beast (the mount), spawned beside the rider as its own unit
+      beastHp: 220,
+      beastDamage: 16,
+      beastRange: 30,
+      beastPeriod: 0.9,
+      beastSpeed: 120,
+      beastSize: 100,  // beast visual size (%)
+    },
+  },
+  fireball: {
+    name: 'Bile de foc',
+    desc: 'Catapulta aruncă bile de foc în loc de proiectilul normal: lovește pentru damage (cu bonus vs clădiri) și lasă o ZONĂ de foc pe pământ care arde inamicii din ea câteva secunde (damage per secundă). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de 2 frame-uri "Foc: mers", 2 "Foc: atac" și un proiectil de foc pe unitate.',
+    descEn: 'The catapult hurls fireballs instead of its normal projectile: it hits for damage (with the vs-building bonus) and leaves a fire ZONE on the ground that burns enemies inside for a few seconds (damage per second). Bought once from the Base; permanent for the match. Needs 2 "Fire: walk" frames, 2 "Fire: attack" frames and a fire projectile on the unit.',
+    kind: 'fire',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the fireball attack (set in admin)
+    params: {
+      cost: 350,           // gold to buy from the base
+      range: 300,          // how far the fireball is thrown
+      damage: 40,          // direct impact damage (splash center)
+      splashRadius: 80,    // radius of the immediate impact burst
+      buildingDamage: 60,  // damage vs STRUCTURES (replaces the normal damage on buildings)
+      zoneRadius: 110,     // radius of the burning ground left on impact
+      zoneDps: 16,         // damage per second inside the fire zone
+      zoneDuration: 4,     // seconds the fire keeps burning
+      projectileSpeed: 300,
+    },
+  },
+  acidspit: {
+    name: 'Acid Spit',
+    desc: 'Dragonul călărețului scuipă acid în locul atacului de bază: un proiectil ranged care explodează cu damage de SPLASH și lasă acid care arde în timp pe toți cei prinși în explozie (ex. Wyvern Rider). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de două sprite-uri de atac „Acid” în plus pe unitate.',
+    descEn: 'The rider\'s dragon spits acid instead of its basic attack: a ranged projectile that bursts for SPLASH damage and leaves acid that deals damage over time to everyone caught in the blast (e.g. a Wyvern Rider). Bought once from the base; permanent for the match. Needs two extra "Acid" attack sprites on the unit.',
+    kind: 'acid',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the acid attack (set in admin)
+    params: {
+      cost: 350,           // gold to buy from the base
+      range: 240,          // how far the acid can be spat
+      damage: 24,          // direct splash damage on impact
+      splashRadius: 90,    // radius of the acid burst
+      dotDamage: 12,       // extra damage per second (damage over time)
+      dotDuration: 4,      // seconds the acid keeps burning
+      projectileSpeed: 340,
+    },
+  },
+  frosttraining: {
+    name: 'Frost Bolt',
+    desc: 'Deblochează abilitatea Frost Bolt pentru unitatea aleasă: fără acest upgrade abilitatea e blocată; după ce îl cumperi o dată, unitatea poate arunca Frost Bolt. Setezi prețul și tier-ul de deblocare din admin. Cumpărat o dată din clădirea unității; permanent pe meci.',
+    descEn: 'Unlocks the Frost Bolt ability for the chosen unit: without this upgrade the ability is locked; buy it once and the unit can cast Frost Bolt. Price and unlock tier are set in the admin. Bought once from the unit\'s building; permanent for the match.',
+    kind: 'unlock',        // no combat effect on its own — gates ability `unlocks`
+    unlocks: 'frostbolt',  // the ability id this upgrade unlocks (see abilityUsable)
+    race: 'humans',        // ships assigned to the human caster; reassignable in admin
+    unit: 'bruiser',       // Priest slot (the frostbolt user)
+    params: {
+      cost: 250, // gold to buy from the unit's building
+      tier: 2,   // base tier required before it can be bought (settable)
+    },
+  },
+  totemtraining: {
+    name: 'Slowing Totem',
+    desc: 'Deblochează abilitatea Slowing Totem pentru Totemic Shaman: după ce o cumperi o dată, toți șamanii tăi pot planta totemul de încetinire. Fără acest upgrade, șamanii folosesc doar Empower. Cumpărat o dată din clădirea șamanului; permanent pe meci.',
+    descEn: 'Unlocks the Slowing Totem ability for the Totemic Shaman: buy it once and all your shamans can plant the slowing totem. Without it, shamans only use Empower. Bought once from the shaman\'s building; permanent for the match.',
+    kind: 'unlock',      // no combat effect on its own — gates ability `unlocks`
+    unlocks: 'slowingtotem', // the ability id this upgrade unlocks (see abilityUsable)
+    race: 'orcs',        // ships assigned to the Orc shaman; reassignable in admin
+    unit: 'dasher',      // Totemic Shaman slot
+    params: {
+      cost: 200, // gold to buy from the shaman's building
+    },
+  },
+  lightshield: {
+    name: 'Scut de lumină',
+    desc: 'Când viața unității scade sub un prag (%), invocă un scut de lumină și devine INVULNERABILĂ câteva secunde, apoi intră în cooldown înainte să se poată reactiva (ex. Lightblade Weaver). Scutul se pune și pe cei mai apropiați aliați (configurabil). Cumpărat o dată din Bază; permanent pe meci. Are nevoie de un frame „Scut" pe unitate (scutul de lumină propriu-zis e desenat automat).',
+    descEn: 'When the unit\'s health drops below a threshold (%), it summons a shield of light and turns INVULNERABLE for a few seconds, then goes on cooldown before it can trigger again (e.g. Lightblade Weaver). The shield also lands on the nearest allies (configurable). Bought once from the Base; permanent for the match. Needs one "Shield" frame on the unit (the light shield itself is drawn automatically).',
+    kind: 'shield',
+    race: '',   // which race's unit this targets
+    unit: '',   // which unit type gains the shield (set in admin)
+    params: {
+      cost: 300,       // gold to buy from the base
+      threshold: 50,   // % HP under which the shield triggers
+      duration: 3,     // seconds of invulnerability
+      cooldown: 12,    // seconds before it can trigger again (after it ends)
+      shieldSize: 100, // size of the light dome (%, 100 = default)
+      poseTime: 0.5,   // seconds the unit holds the "shield" activation pose
+      allies: 1,       // how many nearby allies also get the shield (0 = none)
+      allyRange: 250,  // radius to look for those allies (0 = whole field)
+    },
+  },
+  skeletonmeleeunlock: {
+    name: 'Melee Skeleton',
+    desc: 'Deblochează abilitatea Necromancer-ului de a ridica un schelet MELEE dintr-un cadavru. Se poate cumpăra de la tier 1. Preț/tier setabile în admin.',
+    descEn: 'Unlocks the Necromancer\'s ability to raise a MELEE skeleton from a corpse. Buyable from tier 1. Price/tier settable in the admin.',
+    kind: 'unlock',
+    unlocks: 'skeletonmelee',
+    race: 'undead',
+    unit: 'slinger', // Necromancer slot (unitatea 2)
+    params: { cost: 120, tier: 1 },
+  },
+  skeletonrangedunlock: {
+    name: 'Ranged Skeleton',
+    desc: 'Deblochează abilitatea Necromancer-ului de a ridica un schelet RANGED dintr-un cadavru. Se poate cumpăra de la tier 1. Preț/tier setabile în admin.',
+    descEn: 'Unlocks the Necromancer\'s ability to raise a RANGED skeleton from a corpse. Buyable from tier 1. Price/tier settable in the admin.',
+    kind: 'unlock',
+    unlocks: 'skeletonranged',
+    race: 'undead',
+    unit: 'slinger',
+    params: { cost: 140, tier: 1 },
+  },
+  skeletonbrothersunlock: {
+    name: 'Brothers Skeleton',
+    desc: 'Deblochează abilitatea de a ridica un schelet melee ȘI unul ranged dintr-un singur cadavru. Se cumpără de la tier 2, DOAR dacă ai deja Melee Skeleton și Ranged Skeleton. Preț/tier setabile în admin.',
+    descEn: 'Unlocks raising a melee skeleton AND a ranged one from a single corpse. Buyable from tier 2, ONLY once you already own Melee Skeleton and Ranged Skeleton. Price/tier settable in the admin.',
+    kind: 'unlock',
+    unlocks: 'skeletonbrothers',
+    race: 'undead',
+    unit: 'slinger',
+    requires: ['skeletonmeleeunlock', 'skeletonrangedunlock'], // prerechizite (ambele single-uri)
+    params: { cost: 260, tier: 2 },
+  },
+  acidpasteunlock: {
+    name: 'Acid Paste',
+    desc: 'Deblochează abilitatea Acid Paste pentru unitatea aleasă: fără upgrade abilitatea e blocată; după ce îl cumperi o dată, unitatea (marcată Caster, cu mană) scuipă pasta verde care amplifică damage-ul. Preț/tier și unitatea-țintă se setează din admin. Cumpărat o dată din clădirea unității; permanent pe meci.',
+    descEn: 'Unlocks the Acid Paste ability for the chosen unit: without the upgrade the ability is locked; buy it once and the unit (marked Caster, with mana) spits the green paste that amplifies damage. Price/tier and the target unit are set in the admin. Bought once from the unit\'s building; permanent for the match.',
+    kind: 'unlock',        // no combat effect on its own — gates ability `unlocks`
+    unlocks: 'acidpaste',  // the ability id this upgrade unlocks (see abilityUsable)
+    race: '',              // any race — reassignable in admin
+    unit: '',              // which unit gets it — set in admin
+    params: {
+      cost: 200, // gold to buy from the unit's building
+      tier: 1,   // base tier required before it can be bought (settable)
+    },
+  },
+  gravedigflee: {
+    name: 'Fugă (Groapar)',
+    desc: 'Groaparul Undead: când un inamic intră în raza lui de fugă, o ia la fugă spre baza ta, apoi revine să sape. Raza și viteza de fugă se setează în ⚙ stats la unitatea groapar. Se cumpără o dată din bază, ieftin.',
+    descEn: 'The Undead Grave Digger: when an enemy enters his flee radius, he runs toward your base, then comes back to dig. Flee radius and speed are set in the digger\'s ⚙ stats. Bought once from the base, cheap.',
+    kind: 'gravedigflee',
+    race: 'undead', // implicit pe rasa Undead
+    unit: 'dasher', // implicit pe slotul groaparului (unitatea 3)
+    params: {
+      cost: 60, // aur, din Bază
+    },
+  },
+  holdground: {
+    name: 'Stai pe loc (asediu)',
+    desc: 'Unitatea de asediu (Blight Rat) primește un buton de OPRIRE: apeși o dată și toate unitățile TALE de tipul ăsta se opresc pe loc (rămân în frame-ul de idle) maximum atâtea secunde cât setezi; apeși din nou și pornesc imediat. După ce pornesc — fie că le-ai repornit tu, fie că a expirat timpul — butonul intră în cooldown și nu-l mai poți apăsa până nu trece. Se folosește ca să nu plece asediul singur în fața valului. Nu costă mana — se cumpără o dată din Bază.',
+    descEn: 'The siege unit (Blight Rat) gets a HOLD button: press it once and all YOUR units of this type stop in place (frozen on their idle frame) for at most the seconds you set; press again and they move immediately. Once they move — released by you or timed out — the button goes on cooldown until it recovers. Use it so the siege doesn\'t march ahead of the wave on its own. Costs no mana — bought once from the Base.',
+    kind: 'hold',
+    race: 'undead',
+    unit: 'mender', // slotul de asediu (unitatea 9 — Blight Rat)
+    params: {
+      cost: 120,        // aur, din Bază
+      holdDuration: 10, // secunde maxime cât rămân oprite (apoi pornesc singure)
+      holdCooldown: 25, // secunde de așteptare după ce pornesc, până poți opri iar
+    },
+  },
+  cocoonunlock: {
+    name: 'Cocon (Molie)',
+    desc: 'Deblochează abilitatea Cocon pentru Molie: fără upgrade abilitatea e blocată; după ce îl cumperi o dată, moliile tale depun un cocon din care ies larve una câte una. Numărul de larve, intervalul dintre ele și viața coconului se setează la abilitatea „Cocon". Cumpărat o dată din clădirea moliei; permanent pe meci.',
+    descEn: 'Unlocks the Cocoon ability for the Moth: without the upgrade the ability is locked; buy it once and your moths lay a cocoon that hatches larvae one by one. Larva count, hatch interval and cocoon health are set on the "Cocoon" ability. Bought once from the moth\'s building; permanent for the match.',
+    kind: 'unlock',
+    unlocks: 'cocoon',
+    race: 'undead',
+    unit: 'archon', // slotul moliei (unitatea 8) — reasignabil din admin
+    params: {
+      cost: 250, // aur, din clădirea unității
+      tier: 2,   // tier-ul de bază necesar ca să-l poți cumpăra
+    },
+  },
+  batland: {
+    name: 'Aterizare (Liliac)',
+    desc: 'Liliacul-tanc: fără upgrade e doar zburător (lovește doar aerul, de aproape). Cu el, aterizează AUTOMAT când un inamic terestru (sau o clădire) intră în rază și devine un tanc melee la sol (statele de mai jos); decolează înapoi când solul e liber. Armura la sol se setează în ⚙ stats („landArmor"). Are nevoie de setul de sprite-uri „La sol" (mers + atac) pe unitate.',
+    descEn: 'The tank bat: without the upgrade it is air-only (hits only flyers, up close). With it, it lands AUTOMATICALLY when a ground enemy (or a building) enters its radius and becomes a ground melee tank (numbers below); it takes off again once the ground is clear. Ground armor is set in ⚙ stats ("landArmor"). Needs the "Grounded" sprite set (walk + attack) on the unit.',
+    kind: 'batland',
+    race: 'undead',
+    unit: 'wasp', // slotul liliacului (unitatea 7)
+    params: {
+      cost: 250,       // aur, din Bază
+      radius: 190,     // rază auto: un inamic terestru/clădire atât de aproape -> aterizează
+      groundDamage: 0, // forma la sol (0 = păstrează damage-ul din aer)
+      groundRange: 34, // rază melee la sol
+      groundPeriod: 0, // perioadă atac la sol (0 = ca în aer)
+      groundSpeed: 0,  // viteză mișcare la sol (0 = ca în aer)
+    },
+  },
+};
+
+export const UPGRADE_IDS = Object.keys(UPGRADES);
+
+// abilityId -> the upgrade id that unlocks it (kind 'unlock'). An ability listed
+// here can only be cast once its unlock upgrade is owned (see game.abilityUsable).
+export const ABILITY_UNLOCK_UPGRADE = {};
+for (const [id, up] of Object.entries(UPGRADES)) {
+  if (up.kind === 'unlock' && up.unlocks) ABILITY_UNLOCK_UPGRADE[up.unlocks] = id;
+}
+
+// Labels for the editable params (admin "Upgrades" page).
+export const UPGRADE_PARAM_LABELS = {
+  cost: 'Cost (aur, din Bază)',
+  tier: 'Tier necesar (deblocare)',
+  range: 'Rază atac',
+  damage: 'Damage (splash)',
+  projectileSpeed: 'Viteză proiectil',
+  radius: 'Rază declanșare',
+  dashSpeed: 'Viteză dash (charge)',
+  dmDamage: 'Damage pe jos',
+  dmRange: 'Rază atac pe jos',
+  dmPeriod: 'Perioadă atac pe jos (s)',
+  dmSpeed: 'Viteză mișcare pe jos',
+  dmSize: 'Mărime pe jos (Size %)',
+  splashRadius: 'Rază splash',
+  dotDamage: 'Damage over time (pe secundă)',
+  dotDuration: 'Durată acid (s)',
+  threshold: 'Prag activare (% HP)',
+  duration: 'Durată invulnerabilitate (s)',
+  cooldown: 'Cooldown (s)',
+  holdDuration: 'Durată oprire (s)',
+  holdCooldown: 'Cooldown după repornire (s)',
+  shieldSize: 'Mărime scut (%)',
+  poseTime: 'Durată poză activare (s)',
+  allies: 'Aliați scutați în plus',
+  allyRange: 'Rază aliați (0 = tot terenul)',
+  dmRanged: 'Călărețul rămâne ranged (1/0)',
+  dashDamage: 'Damage la impact (dash)',
+  splashPower: 'Putere splash (% din damage)',
+  buildingDamage: 'Damage vs clădiri',
+  zoneRadius: 'Rază zonă de foc',
+  zoneDps: 'Damage zonă (pe secundă)',
+  zoneDuration: 'Durată zonă de foc (s)',
+  beastHp: 'HP bestie',
+  beastDamage: 'Damage bestie',
+  beastRange: 'Rază atac bestie',
+  beastPeriod: 'Perioadă atac bestie (s)',
+  beastSpeed: 'Viteză bestie',
+  beastSize: 'Mărime bestie (Size %)',
+  // Liliac „Aterizare": forma la sol (override peste statele din aer)
+  groundDamage: 'Sol: damage (0 = ca în aer)',
+  groundRange: 'Sol: rază melee',
+  groundPeriod: 'Sol: perioadă atac (s, 0 = ca în aer)',
+  groundSpeed: 'Sol: viteză mișcare (0 = ca în aer)',
+};

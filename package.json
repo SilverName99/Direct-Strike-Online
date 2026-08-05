@@ -1,0 +1,11 @@
+{
+  "name": "direct-strike-online",
+  "version": "1.0.0",
+  "description": "Browser-based Direct Strike style auto-battler. No build step, no dependencies.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node test/sim-test.js"
+  }
+}

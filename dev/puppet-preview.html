@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Puppet Preview — Direct Strike Online</title>
+  <style>
+    body { background: #0d1117; color: #dbe4f0; font-family: system-ui, sans-serif; padding: 24px; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    p { color: #7c8ba1; font-size: 13px; margin-bottom: 20px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 14px; }
+    .cell { background: #161c26; border: 1px solid #2a3446; border-radius: 10px; padding: 10px; text-align: center; }
+    .cell canvas { background: #0e141d; border-radius: 6px; }
+    .cell .label { font-size: 12px; margin-top: 6px; color: #dbe4f0; }
+    .anim-row { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Character Preview</h1>
+  <p>Toate animațiile × frame-urile, ambele echipe, + celulă animată live. Sprite-urile încărcate din
+  <code>/admin</code> au prioritate; unde lipsesc se văd păpușile vectoriale (<code>src/render/puppets.js</code>).</p>
+  <div class="grid" id="grid"></div>
+
+  <script type="module">
+    import { UNIT_IDS } from '../src/units.js';
+    import { hasCharacter, drawCharacter, setTeamRaces } from '../src/render/characters.js';
+    import { loadSprites } from '../src/render/sprites.js';
+
+    const race = new URLSearchParams(location.search).get('race') || 'humans';
+    setTeamRaces([race, race]);
+    document.querySelector('h1').textContent = `Character Preview — ${race}`;
+    const nav = document.createElement('p');
+    nav.innerHTML = 'Rasa: <a href="?race=humans">humans</a> · <a href="?race=orcs">orcs</a>';
+    document.querySelector('p').after(nav);
+
+    loadSprites('../assets/units/', () => {}); // async; cells re-render below
+
+    const grid = document.getElementById('grid');
+    const SCALE = 4;
+    const SIZE = 140;
+    const ANIMS = ['idle', 'walk', 'attack', 'die'];
+    const painters = [];
+
+    function makeCell(label, paint) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      cell.appendChild(canvas);
+      const div = document.createElement('div');
+      div.className = 'label';
+      div.textContent = label;
+      cell.appendChild(div);
+      grid.appendChild(cell);
+      painters.push({ ctx: canvas.getContext('2d'), paint });
+    }
+
+    function build() {
+      grid.innerHTML = '';
+      painters.length = 0;
+      for (const type of UNIT_IDS) {
+        if (!hasCharacter(type)) continue;
+        for (const anim of ANIMS) {
+          for (let frame = 0; frame < 2; frame++) {
+            for (const team of [0, 1]) {
+              makeCell(`${type} · ${anim} ${frame + 1} · ${team === 0 ? 'blue' : 'red'}`, (ctx) => {
+                ctx.translate(SIZE / 2, SIZE / 2 + 6);
+                if (team === 1) ctx.scale(-1, 1);
+                drawCharacter(ctx, type, anim, frame, team, SCALE);
+              });
+            }
+          }
+        }
+        for (const anim of ANIMS) {
+          const speed = anim === 'walk' ? 5 : anim === 'attack' ? 3 : 2;
+          makeCell(`${type} · ${anim} · LIVE`, (ctx) => {
+            ctx.translate(SIZE / 2, SIZE / 2 + 6);
+            const frame = Math.floor(performance.now() / 1000 * speed) % 2;
+            drawCharacter(ctx, type, anim, frame, 0, SCALE);
+          });
+        }
+      }
+    }
+
+    build();
+    setTimeout(build, 1200); // rebuild once sprites have had time to load
+    setInterval(() => {
+      for (const p of painters) {
+        p.ctx.save();
+        p.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        p.ctx.clearRect(0, 0, SIZE, SIZE);
+        p.paint(p.ctx);
+        p.ctx.restore();
+      }
+    }, 120);
+  </script>
+</body>
+</html>

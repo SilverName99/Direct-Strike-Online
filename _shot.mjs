@@ -1,0 +1,20 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const p = await b.newPage({ viewport: { width: 1200, height: 700 } });
+await p.goto('http://127.0.0.1:8123/index.html');
+await p.waitForFunction(() => !document.getElementById('boot'), null, { timeout: 15000 });
+await p.evaluate(() => { const m = window.__menu; m.sel.player='undead'; m.showLocalLobby(); m.applyLocal({action:'start'}); });
+await p.waitForFunction(() => !!window.__game, null, { timeout: 15000 });
+await p.waitForTimeout(400);
+await p.evaluate(() => {
+  const g = window.__game, v = window.__renderer.view;
+  const cx = (v.x0 + v.x1) / 2, cy = (v.y0 + v.y1) / 2;
+  for (let i = 0; i < 4; i++) g.templates[0].push({ type: 'grunt', x: cx - 120 + i * 70, y: cy - 60, spawned: false });
+  for (let i = 0; i < 4; i++) g.templates[0].push({ type: 'slinger', x: cx - 120 + i * 70, y: cy + 40, spawned: false });
+});
+await p.waitForTimeout(300);
+await p.locator('#canvas-wrap').screenshot({ path: process.env.A });
+await p.evaluate(async () => { (await import('/src/sim/waves.js')).spawnWave(window.__game); });
+await p.waitForTimeout(120);
+await p.locator('#canvas-wrap').screenshot({ path: process.env.B });
+await b.close();

@@ -1,0 +1,117 @@
+// Admin upgrades UI (loaded only by admin/upgrades.php). Lists the whole
+// upgrade catalog: a target-unit selector + every parameter editable. Values
+// are global (shared by both races) and ship inside assets/balance.json.
+
+import { UPGRADES, UPGRADE_PARAM_LABELS } from '../upgrades.js';
+import { UNITS } from '../units.js';
+import { RACES } from '../config.js';
+import { resolvedUpgrade, resetUpgrade, statsUnit, loadBalance, saveBalance, ensureBalanceLoadedUI } from './balance.js';
+
+const app = document.getElementById('up-app');
+const status = document.getElementById('status');
+
+// One option per (race, unit) — the same type is a different unit per race
+// (e.g. Humans "Giant Eagle" vs Orcs "Boar Rider" for `crab`), so the upgrade
+// targets a specific race's unit. Value = "race:unit"; shows the custom name.
+function unitOpts() {
+  const opts = [['', '— niciuna —']];
+  for (const r of RACES) {
+    for (const id of Object.keys(UNITS)) {
+      const name = (statsUnit(r, id) || {}).name || id;
+      opts.push([`${r}:${id}`, `${name} — ${r} (${id})`]);
+    }
+  }
+  return opts;
+}
+
+// Grid-cell options for the upgrades page (cells 8/9 reserved for Vinde +
+// butonul de comutare). Value = slot index; -1 = auto.
+const SLOT_LABELS = [
+  [-1, 'Auto'], [0, 'Rând 1 · Col 1'], [1, 'Rând 1 · Col 2'], [2, 'Rând 1 · Col 3'],
+  [3, 'Rând 2 · Col 1'], [4, 'Rând 2 · Col 2'], [5, 'Rând 2 · Col 3'],
+  [6, 'Rând 3 · Col 1'], [7, 'Rând 3 · Col 2'], [8, 'Rând 3 · Col 3'],
+];
+function slotOpts(cur) {
+  const c = Number.isInteger(cur) ? cur : -1;
+  return SLOT_LABELS.map(([v, label]) =>
+    `<option value="${v}" ${v === c ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function render() {
+  let html = '';
+  const UNIT_OPTS = unitOpts();
+  for (const [id, base] of Object.entries(UPGRADES)) {
+    const up = resolvedUpgrade(id);
+    const cur = up.unit ? `${up.race || RACES[0]}:${up.unit}` : '';
+    const opts = UNIT_OPTS.map(([v, label]) =>
+      `<option value="${v}" ${v === cur ? 'selected' : ''}>${label}</option>`).join('');
+    html += `<div class="group">
+      <h3>${base.name}</h3>
+      <textarea class="desc-edit" data-updesc="${id}" rows="2" title="Descrierea afișată la hover în joc (gol = textul din cod)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#b9c4d4;border:1px solid #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(up.desc || base.desc || '').replace(/</g, '')}</textarea>
+      <textarea class="desc-edit" data-updescen="${id}" rows="2" title="English description (empty = the Romanian one)" placeholder="🇬🇧 English (gol = textul românesc)" style="width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;background:#0a0e14;color:#8fa3be;border:1px dashed #2a3446;border-radius:6px;font-size:12px;resize:vertical">${(up.descEn || '').replace(/</g, '')}</textarea>
+      <div class="unit-row"><span>Se aplică unității:</span>
+        <select data-up="${id}" data-unit="1">${opts}</select></div>
+      <div class="unit-row"><span>Poziție grilă clădire:</span>
+        <select data-up="${id}" data-slot="1">${slotOpts(up.slot)}</select></div>
+      <div class="fields">`;
+    for (const [k, v] of Object.entries(up.params)) {
+      const label = UPGRADE_PARAM_LABELS[k] || k;
+      html += `<label class="fld"><span>${label}</span>
+        <input type="number" step="any" data-up="${id}" data-k="${k}" value="${v}"></label>`;
+    }
+    html += '</div></div>';
+  }
+  app.innerHTML = html;
+}
+
+function collect() {
+  // hover descriptions (free text, saved with the balance)
+  for (const el of app.querySelectorAll('textarea[data-updesc]')) {
+    const up = resolvedUpgrade(el.dataset.updesc);
+    if (up) up.desc = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
+  }
+  for (const el of app.querySelectorAll('textarea[data-updescen]')) {
+    const up = resolvedUpgrade(el.dataset.updescen);
+    if (up) up.descEn = el.value.replace(/[<>]/g, '').trim().slice(0, 300);
+  }
+  for (const sel of app.querySelectorAll('select[data-unit]')) {
+    const up = resolvedUpgrade(sel.dataset.up);
+    if (!up) continue;
+    const [race, unit] = sel.value ? sel.value.split(':') : ['', ''];
+    up.race = race;
+    up.unit = unit;
+  }
+  for (const sel of app.querySelectorAll('select[data-slot]')) {
+    const up = resolvedUpgrade(sel.dataset.up);
+    const n = parseInt(sel.value, 10);
+    if (up && isFinite(n)) up.slot = Math.max(-1, Math.min(8, n));
+  }
+  for (const el of app.querySelectorAll('input[data-up]')) {
+    const up = resolvedUpgrade(el.dataset.up);
+    const n = Number(el.value);
+    if (up && isFinite(n)) up.params[el.dataset.k] = Math.max(0, n);
+  }
+}
+
+function setStatus(msg, cls = '') {
+  status.textContent = msg;
+  status.className = cls;
+}
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+  collect();
+  setStatus('Se salvează…');
+  const res = await saveBalance('save-balance.php');
+  if (res === 'ok') setStatus('Salvat ✓ (activ la următoarea pornire a jocului)', 'ok');
+  else if (res === 'auth') setStatus('Sesiune expirată — reloghează-te în /admin', 'bad');
+  else setStatus('Salvare eșuată — verifică serverul', 'bad');
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  for (const id of Object.keys(UPGRADES)) resetUpgrade(id);
+  render();
+  setStatus('Resetat la valorile din cod (apasă Salvează ca să publici).');
+});
+
+// apply any previously saved overrides, then render current values
+loadBalance('../assets/').then(() => { if (ensureBalanceLoadedUI()) render(); });

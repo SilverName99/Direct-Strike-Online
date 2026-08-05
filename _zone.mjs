@@ -1,0 +1,13 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const p = await b.newPage({ viewport: { width: 1400, height: 800 } });
+const errors = []; p.on('pageerror', e => errors.push(String(e)));
+await p.goto('http://127.0.0.1:8123/index.html');
+await p.waitForFunction(() => !document.getElementById('boot'), null, { timeout: 15000 });
+await p.evaluate(() => { const m = window.__menu; m.sel.player='undead'; m.showLocalLobby(); m.applyLocal({action:'start'}); });
+await p.waitForFunction(() => !!window.__game, null, { timeout: 15000 });
+await p.evaluate(() => { const c = window.__camera; c.zoom = c.minZoom(); });
+await p.waitForTimeout(600);
+await p.locator('#canvas-wrap').screenshot({ path: process.env.OUT });
+console.log('errors:', errors);
+await b.close();

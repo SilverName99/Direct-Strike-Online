@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+
+# server-side state: admin password, uploaded sprites and the published
+# balance survive git pull
+admin/config.php
+assets/units/*
+!assets/units/.htaccess
+assets/balance.json

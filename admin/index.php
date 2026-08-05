@@ -1,0 +1,2942 @@
+<?php
+// Direct Strike Online — sprite admin.
+// First visit: set a password (stored as a hash in admin/config.php,
+// which is gitignored so deploys never touch it).
+//
+// Art is organized per RACE. Each unit has: a shop thumbnail, plus
+// idle×2, walk×2, attack×2 and die×1 frames. Buildings (main base,
+// turret, tower, generator, wall) have: thumbnail + idle×2.
+// The game picks uploads up automatically and falls back to the built-in
+// vector art wherever an image is missing.
+
+declare(strict_types=1);
+session_start();
+
+define('DS_ADMIN', 1);
+
+const RACES = ['humans', 'orcs', 'undead'];
+const UNIT_LIST = ['grunt', 'slinger', 'bruiser', 'lancer', 'crab', 'mender', 'dasher', 'wasp', 'archon'];
+// Heroes are units too (sprites/portrait), but live on their own admin tab and
+// are NOT part of the shop order.
+const HERO_LIST = ['hero', 'hero2', 'hero3'];
+const BUILDING_LIST = ['main', 'turret', 'tower', 'generator', 'wall', 'bldg1', 'bldg2', 'bldg3', 'farm', 'herohall'];
+// ranged units (projectile:true in units.js) can upload a projectile image
+const PROJECTILE_UNITS = ['slinger', 'lancer', 'crab', 'wasp', 'archon'];
+// armed buildings fire, so they get attack frames + a projectile image
+const ARMED_BUILDINGS = ['turret', 'tower'];
+// upgrades of kind 'mount' (see src/upgrades.js) transform a unit into an
+// on-foot form, so ONLY these grant the extra "foot-" sprite set. Other
+// upgrade kinds (e.g. 'ground' = Attack ground units) need no new sprites.
+const DISMOUNT_UPGRADES = ['dashmount'];
+// upgrades of kind 'acid' (Acid Spit) — grant two extra "acid" attack frames
+const ACID_UPGRADES = ['acidspit'];
+// upgrades of kind 'fire' (Fireball) — grant a "fire-" walk + attack set and a
+// dedicated fireball projectile
+const FIRE_UPGRADES = ['fireball'];
+// upgrades of kind 'shield' (Scut de lumină) — grant one "shield" activation frame
+const SHIELD_UPGRADES = ['lightshield'];
+// upgrades of kind 'split' (Landing Split) — the unit splits into rider +
+// beast, so it gets BOTH the "foot-" (rider on foot) and "beast-" sprite sets
+const SPLIT_UPGRADES = ['splitmount'];
+// upgrades of kind 'batland' (Aterizare) — the bat gains a grounded melee form,
+// so it gets a "ground-" walk + attack sprite set
+const BATLAND_UPGRADES = ['batland'];
+// ability catalog (mirrors src/abilities.js): id => [name, hasCastAnim, hasProjectile]
+// — every aura is now cast (a "Cast X" frame, then the zone persists for its
+// duration); projectile abilities also get a per-caster projectile image slot
+const ABILITY_INFO = [
+  'heal' => ['Heal', true, false],
+  'dispell' => ['Dispel', true, false],
+  'slowaura' => ['Slow Aura', true, false],
+  'hasteaura' => ['Haste Aura', true, false],
+  'regenaura' => ['Regeneration Aura', true, false],
+  'frostbolt' => ['Frost Bolt', true, true],
+  'summonwolf' => ['Invocă Lup', true, false],
+  'summoneagle' => ['Invocă Vultur', true, false],
+  'summonbear' => ['Invocă Urs', true, false],
+  'beastform' => ['Elemental Form', true, false, 2], // 2 cast frames: Prepare + Transform (then morph- sprite set)
+  'empower' => ['Empower', true, false, 2],       // "attack" that buffs an ally (2 cast frames)
+  'slowingtotem' => ['Slowing Totem', true, false, 2], // plants the totem (2 cast frames: prepare + throw)
+  // Chieftain (Orc hero) kit. 4th field = nr. de cadre de cast (implicit 1);
+  // War Stomp are o animație de 2 cadre, Bloodlust un singur cadru (ținut mai mult).
+  'warstomp' => ['War Stomp', true, false, 2],
+  'bloodlust' => ['Bloodlust', true, false, 1],
+  'cleave' => ['Cleave', false, false], // passive: no cast frame
+  'charge' => ['Charge', false, false], // passive gap-closer: uses the Dash frame
+  // Paladin (Human hero) kit
+  'holylight' => ['Holy Light', true, false],
+  'divineshield' => ['Divine Shield', true, false],
+  'devotionaura' => ['Devotion Aura', false, false], // passive aura: no cast frame
+  'holynova' => ['Holy Nova', true, false, 1, true], // 5th: are imagine de efect AoE (cupolă)
+  // Sword Saint (Human hero 2) kit
+  'backlineteleport' => ['Backline Teleport', true, false, 2], // 2 cast frames: Prepare + Land
+  'divinebuff' => ['Divine Buff', false, false],  // passive: no cast frame
+  'divineregen' => ['Divine Regeneration', true, false, 1], // 1 stance frame (held for the duration)
+  'vortexoflight' => ['Vortex of Light', true, false, 1],    // 1 spin frame (held while channeling)
+  // Battle Mage (Human hero 3) kit
+  'bigfrostbolt' => ['Bigger Frost Bolt', true, true],  // cast frame + a big frost projectile
+  'waterelemental' => ['Ice Chad Elemental', true, false], // summon (cast frame; elemental sprites below)
+  'manaaura' => ['Mana Regen Aura', false, false],      // passive aura — no cast frame
+  'blizzard' => ['Blizzard', true, false, 1, true],     // ultimate: cast frame + a storm-zone effect image
+  // Spirit Huntress (Orc hero 3) kit
+  'poisonarrow' => ['Poison Arrow', false, true],  // passive: no cast frame, just the poison projectile sprite
+  'lifedrain' => ['Life Drain', true, false],      // cast frame; the drain beam is drawn automatically
+  'risedead' => ['Rise Dead', true, false],        // summon (cast frame; skeleton sprites below)
+  'soulharvest' => ['Soul Harvest', true, false, 1, true], // ultimate: cast frame + a harvest-zone effect image
+  // Necromancer (Undead unit 2) kit: three corpse-summons sharing a team cap.
+  'skeletonmelee' => ['Melee Skeleton', true, false],   // summon (cast frame; melee skeleton sprites below)
+  'skeletonranged' => ['Ranged Skeleton', true, true], // summon (cast frame + its own projectile art; ranged skeleton sprites, SEPARATE)
+  'skeletonbrothers' => ['Brothers Skeleton', true, false], // raises 1 melee + 1 ranged (reuses both sprite sets)
+  // Acid Paste: a cast frame + its own green-spit projectile (the puddle itself
+  // is drawn procedurally by the game).
+  'acidpaste' => ['Acid Paste', true, true],
+  // Molie (Undead unit 8): stă pe loc și depune coconul (1 cadru de cast), apoi
+  // coconul scoate larve — coconul + larva au setul lor de sprite-uri mai jos.
+  'cocoon' => ['Cocon', true, false, 2],
+  // Death Knight (Undead hero) kit: Execute + Soul Link get a cast frame; Reap
+  // Cleave and Vampiric Aura are passives (no cast frame). No projectiles.
+  'execute' => ['Execute', true, false],
+  'reapcleave' => ['Reap Cleave', false, false],
+  'vampiricaura' => ['Vampiric Aura', false, false],
+  'soullink' => ['Soul Link', true, false],
+  // Shadow Assassin (Undead hero 2) kit: Shadow Rush / Vanish are 2-frame casts
+  // (wind-up + arrive/strike); Umbre Gemene has one cast frame; Lama Legăturilor
+  // (ultimate) channels then throws — 2 cast frames (channel + throw) + a thrown
+  // dagger projectile sprite. Clones/tethers/stealth are drawn procedurally.
+  'shadowrush' => ['Shadow Rush', true, false, 1],
+  'vanish' => ['Vanish', true, false, 1],
+  'twinshadows' => ['Shadow clones', true, false, 1],
+  // Loves dagger: 2 cast frames (channel + throw) + the thrown-dagger projectile
+  // sprite, which sweeps through the linked enemies and boomerangs back.
+  'daggerthrow' => ['Loves dagger', true, true, 2],
+  // Undead support hero (souls). Soul Collector is a PASSIVE — no cast frame.
+  'soulcollector' => ['Soul Collector', false, false],
+  'undeadflag' => ['Undead Flag', true, false, 1],   // plants the banner
+  'bonefield' => ['Bone Field', true, false, 1, true], // cast frame + a ground image
+  'bonegiant' => ['Bone Giant', true, false, 2],     // ultimate: raise the giant
+];
+// summon abilities -> the animal sprite prefix hosted on the caster unit
+const SUMMON_ANIMALS = ['summonwolf' => 'wolf', 'summoneagle' => 'eagle', 'summonbear' => 'bear', 'slowingtotem' => 'totem', 'waterelemental' => 'waterelemental', 'risedead' => 'skeleton', 'skeletonmelee' => 'skeleton', 'skeletonranged' => 'skeletonranged', 'cocoon' => 'cocoon', 'undeadflag' => 'flag', 'bonegiant' => 'bonegiant'];
+const SUMMON_LABELS = ['wolf' => 'Lup', 'eagle' => 'Vultur', 'bear' => 'Urs', 'totem' => 'Totem', 'waterelemental' => 'Ice Chad Elemental', 'skeleton' => 'Schelet', 'skeletonranged' => 'Schelet ranged', 'cocoon' => 'Cocon', 'larva' => 'Larvă', 'flag' => 'Steag', 'bonegiant' => 'Gigant de oase'];
+// summon abilities whose spawned entity is a stationary totem (idle-only sprite,
+// no walk/attack/die, no portrait animation)
+const TOTEM_ABILITIES = ['slowingtotem', 'undeadflag'];
+// summon abilities that lay a COCOON: the pouch itself has a single standing
+// frame, and the larvae that crawl out of it get their own walk/attack/die set
+// (both hosted on the caster — the moth)
+const COCOON_ABILITIES = ['cocoon'];
+// abilities that replace the unit's basic attack (the "attack" IS the cast), so
+// the unit needs no attack/projectile sprite slots
+const ATTACK_REPLACING_ABILITIES = ['empower'];
+// per-race hero default kit (kept in sync with src/ui/balance.js) — used until
+// the hero's abilities are saved from admin, so the Eroi tab shows cast slots.
+const HERO_DEFAULT_KITS = ['orcs' => ['warstomp', 'cleave', 'charge', 'bloodlust'], 'humans' => ['holylight', 'divineshield', 'devotionaura', 'holynova'], 'undead' => ['execute', 'reapcleave', 'vampiricaura', 'soullink']];
+// upgrade catalog (mirrors src/upgrades.js): id => name
+const UPGRADE_INFO = [
+  'dashmount' => 'Dashing & Fleeing mount',
+  'groundattack' => 'Attack ground units',
+  'acidspit' => 'Acid Spit',
+  'fireball' => 'Bile de foc',
+  'lightshield' => 'Scut de lumină',
+  'aoedamage' => 'AoE Damage',
+  'splitmount' => 'Landing Split: beast & rider',
+  'focusbuilding' => 'Focus building',
+  'totemtraining' => 'Slowing Totem (deblocare)',
+  'frosttraining' => 'Frost Bolt (deblocare)',
+  'skeletonmeleeunlock' => 'Melee Skeleton (deblocare)',
+  'skeletonrangedunlock' => 'Ranged Skeleton (deblocare)',
+  'skeletonbrothersunlock' => 'Brothers Skeleton (deblocare)',
+  'acidpasteunlock' => 'Acid Paste (deblocare)',
+  'gravedigflee' => 'Fugă (Groapar)',
+  'holdground' => 'Stai pe loc (asediu)',
+  'skelcap' => 'Undead: plafon schelete (buton bază) — fallback 💀',
+  'batland' => 'Undead: Aterizare (liliac)',
+  'cocoonunlock' => 'Undead: Cocon (deblocare Molie)',
+];
+// GLOBAL command-card icon keys (assets/units/icons/<key>.png)
+function iconKeys(): array {
+  $keys = [];
+  foreach (ABILITY_INFO as $id => $_) $keys["ability-$id"] = ABILITY_INFO[$id][0];
+  foreach (UPGRADE_INFO as $id => $name) $keys["upgrade-$id"] = $name;
+  // building command-card page toggle buttons (units <-> upgrades) + sell
+  $keys['bldg-upgrades'] = 'Buton „Upgrade-uri" (clădire)';
+  $keys['bldg-units'] = 'Buton „Unități" (clădire)';
+  $keys['sell'] = 'Buton „Vinde"';
+  return $keys;
+}
+// per-race shop tab buttons (UNITS / CLĂDIRI) — tab-<slot>.png in the race dir
+const TAB_SLOTS = ['units' => 'Buton UNITS', 'buildings' => 'Buton CLĂDIRI'];
+
+// Saved balance (cached per request) — lets the sprite page know a unit's
+// caster config so it can show the matching cast / projectile slots.
+function dsBalance(): array {
+  static $bal = null;
+  if ($bal === null) {
+    $f = dirname(__DIR__) . '/assets/balance.json';
+    $bal = is_file($f) ? (json_decode(file_get_contents($f), true) ?: []) : [];
+  }
+  return $bal;
+}
+// Units in this race's admin-defined shop order (falls back to roster order);
+// unknown/missing ids are dropped/appended so it stays valid.
+function orderedUnits(string $race): array {
+  $ord = dsBalance()['unitOrder'] ?? null;
+  // per-race object, or a legacy flat array applied to both races
+  $saved = is_array($ord) ? ($ord[$race] ?? (isset($ord[0]) ? $ord : null)) : null;
+  if (!is_array($saved)) return UNIT_LIST;
+  $out = [];
+  foreach ($saved as $id) if (in_array($id, UNIT_LIST, true) && !in_array($id, $out, true)) $out[] = $id;
+  foreach (UNIT_LIST as $id) if (!in_array($id, $out, true)) $out[] = $id;
+  return $out;
+}
+function unitCfg(string $race, string $ent): ?array {
+  return dsBalance()['races'][$race]['units'][$ent] ?? null;
+}
+function unitAbilities(string $race, string $ent): array {
+  $u = unitCfg($race, $ent);
+  // the hero's kit = its 3 skills + ultimate (its own admin fields); falls back
+  // to the code default until saved, so its cast slots show on the Eroi tab
+  if (in_array($ent, HERO_LIST, true)) {
+    $list = [];
+    if ($u) {
+      if (isset($u['heroAbilities']) && is_array($u['heroAbilities'])) $list = $u['heroAbilities'];
+      if (!empty($u['heroUltimate'])) $list[] = $u['heroUltimate'];
+    }
+    $list = array_values(array_filter($list, fn($a) => is_string($a) && $a !== '' && isset(ABILITY_INFO[$a])));
+    // Only fall back to the code default kit when NOTHING is assigned yet, so
+    // the cast/summon frame slots follow exactly the abilities you picked. (It
+    // used to always append the defaults, which left stale slots for the old
+    // abilities after you swapped a hero's kit.)
+    if (empty($list)) {
+      foreach (HERO_DEFAULT_KITS[$race] ?? [] as $a) {
+        if (isset(ABILITY_INFO[$a])) $list[] = $a;
+      }
+    }
+    return $list;
+  }
+  if (!$u || empty($u['caster']) || empty($u['abilities']) || !is_array($u['abilities'])) return [];
+  return array_values(array_filter($u['abilities'], fn($a) => isset(ABILITY_INFO[$a])));
+}
+// Ranged = explicit admin flag if set, else the unit's built-in default.
+function unitIsRanged(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  if ($u && array_key_exists('ranged', $u)) return !empty($u['ranged']);
+  return in_array($ent, PROJECTILE_UNITS, true);
+}
+function unitIsCaster(string $race, string $ent): bool {
+  if (in_array($ent, HERO_LIST, true)) return true; // heroes always cast their kit
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['caster']);
+}
+function unitIsGravedig(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['gravedig']);
+}
+function unitIsBomber(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['bomber']);
+}
+function unitHasDash(string $race, string $ent): bool {
+  $u = unitCfg($race, $ent);
+  return $u && !empty($u['dash']);
+}
+// True when some upgrade transforms THIS race's unit into an on-foot
+// (dismounted) form — it then gets a second "foot-" sprite set.
+function unitHasDismount(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, DISMOUNT_UPGRADES);
+}
+// True when this race's unit is targeted by an "Acid Spit" upgrade.
+function unitHasAcid(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, ACID_UPGRADES);
+}
+// True when this race's unit is targeted by a "Bile de foc" (Fireball) upgrade.
+function unitHasFire(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, FIRE_UPGRADES);
+}
+// True when this race's unit is targeted by a "Scut de lumină" upgrade.
+function unitHasShield(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, SHIELD_UPGRADES);
+}
+// True when this race's unit is targeted by a "Landing Split" upgrade.
+function unitHasSplit(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, SPLIT_UPGRADES);
+}
+// True when this race's unit is targeted by an "Aterizare" (batland) upgrade.
+function unitHasBatland(string $race, string $ent): bool {
+  return unitHasUpgradeKind($race, $ent, BATLAND_UPGRADES);
+}
+// Shared: is $ent (this race) the target of any upgrade whose id is in $ids?
+function unitHasUpgradeKind(string $race, string $ent, array $ids): bool {
+  $ups = dsBalance()['upgrades'] ?? [];
+  if (!is_array($ups)) return false;
+  foreach ($ups as $id => $up) {
+    if (!in_array($id, $ids, true)) continue;
+    if (!is_array($up) || ($up['unit'] ?? '') !== $ent) continue;
+    $upRace = $up['race'] ?? '';
+    if ($upRace === '' || $upRace === $race) return true;
+  }
+  return false;
+}
+const MAX_BYTES = 1572864; // 1.5 MB
+const BG_MAX_BYTES = 5242880; // 5 MB (backgrounds may be large)
+const MUSIC_MAX_BYTES = 12582912; // 12 MB (background music tracks)
+const MUSIC_EXTS = ['mp3', 'ogg', 'm4a', 'mp4'];
+const PORTRAIT_VID_MAX_BYTES = 12582912; // 12 MB (per-unit idle portrait clip)
+const PORTRAIT_VID_EXTS = ['mp4', 'webm']; // looping video shown in the portrait box
+const CURSOR_MAX_BYTES = 1048576; // 1 MB (a mouse cursor image is small)
+const CURSOR_EXTS = ['png', 'gif', 'cur', 'webp'];
+const BARSKIN_EXTS = ['png', 'webp', 'jpg', 'jpeg']; // bottom-bar background design
+
+// The uploaded background-music file for a race (music.<ext>), or null.
+function musicFileFor(string $assetsDir, string $race): ?string {
+  foreach (MUSIC_EXTS as $e) if (is_file("$assetsDir/$race/music.$e")) return "music.$e";
+  return null;
+}
+
+// The GLOBAL battle-ambience loop (assets/units/battle.<ext>), or null. One file
+// for the whole game — the client fades it in and out with what the camera sees.
+function battleSfxFileFor(string $assetsDir): ?string {
+  foreach (MUSIC_EXTS as $e) if (is_file("$assetsDir/battle.$e")) return "battle.$e";
+  return null;
+}
+
+// A gold-mine idle CLIP (mp4/webm) played on the map: which ∈ {mineidle,
+// workeridle} → <race>/generator/<which>.<ext>, or null.
+const MINE_VID_WHICH = ['mineidle', 'workeridle'];
+function mineVidFileFor(string $assetsDir, string $race, string $which): ?string {
+  foreach (PORTRAIT_VID_EXTS as $e) if (is_file("$assetsDir/$race/generator/$which.$e")) return "$which.$e";
+  return null;
+}
+
+// A per-tier tower CLIP (mp4/webm) shown in the portrait box when the tower is
+// selected: which ∈ {tier1,tier2,tier3} → <race>/tower/<which>.<ext>, or null.
+const TOWER_VID_WHICH = ['tier1', 'tier2', 'tier3'];
+function towerVidFileFor(string $assetsDir, string $race, string $which): ?string {
+  foreach (PORTRAIT_VID_EXTS as $e) if (is_file("$assetsDir/$race/tower/$which.$e")) return "$which.$e";
+  return null;
+}
+
+// A unit's uploaded idle portrait clip (<ent>/portrait<suffix>.<ext>), or
+// null. Suffix '' = the whole unit, '-foot' = the rider on foot (after a
+// dismount / split), '-beast' = the split-off mount.
+function portraitVidFileFor(string $assetsDir, string $race, string $ent, string $suffix = ''): ?string {
+  foreach (PORTRAIT_VID_EXTS as $e) if (is_file("$assetsDir/$race/$ent/portrait$suffix.$e")) return "portrait$suffix.$e";
+  return null;
+}
+
+// The portrait-clip slots this unit can have: suffix => label. The on-foot and
+// beast forms exist only when an upgrade actually creates those forms.
+function portraitVidVariants(string $race, string $ent): array {
+  $v = ['' => 'Animație portret (mp4/webm) — apare lângă statusuri'];
+  if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) $v['-foot'] = 'Animație portret — călărețul PE JOS';
+  if (unitHasSplit($race, $ent)) $v['-beast'] = 'Animație portret — BESTIA';
+  if (in_array('beastform', unitAbilities($race, $ent), true)) $v['-morph'] = 'Animație portret — Elemental Form';
+  // a summoned animal (Shaman) can have its own portrait clip, hosted here
+  $ua = unitAbilities($race, $ent);
+  foreach (SUMMON_ANIMALS as $aid => $animal) {
+    // a stationary totem has only its standing frame, no portrait clip
+    if (in_array($aid, TOTEM_ABILITIES, true)) continue;
+    if (in_array($aid, COCOON_ABILITIES, true)) {
+      // the pouch just sits there, but the LARVA that crawls out of it is a
+      // creature like any other summon — it gets its own portrait clip
+      if (in_array($aid, $ua, true)) $v['-larva'] = 'Animație portret — ' . SUMMON_LABELS['larva'];
+      continue;
+    }
+    if (in_array($aid, $ua, true)) $v["-$animal"] = 'Animație portret — ' . SUMMON_LABELS[$animal];
+  }
+  return $v;
+}
+
+// Zone corner icons for a race: assets/units/<race>/zone-army.png and
+// zone-build.png — drawn in the top-left corner of the army / construction zone.
+const ZONE_ICONS = ['army' => 'Iconiță zonă ARMATĂ', 'build' => 'Iconiță zonă CONSTRUCȚIE'];
+function zoneIconFileFor(string $assetsDir, string $race, string $which): ?string {
+  return is_file("$assetsDir/$race/zone-$which.png") ? "zone-$which.png" : null;
+}
+
+// The uploaded custom-cursor file for a race (cursor.<ext>), or null.
+function cursorFileFor(string $assetsDir, string $race): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/cursor.$e")) return "cursor.$e";
+  return null;
+}
+
+// A GLOBAL command-card icon file (assets/units/icons/<key>.<ext>), or null.
+function iconFileFor(string $assetsDir, string $key): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/icons/$key.$e")) return "$key.$e";
+  return null;
+}
+
+// A GLOBAL middle-of-map strip variant (assets/units/middle-<n>.png, n=1..3) —
+// shared, not per race; drawn over the seam so the center blends. One is picked
+// at random each match. Slot 1 falls back to the legacy middle.png. Null if none.
+const MIDDLE_SLOTS = [1, 2, 3];
+function middleFileFor(string $assetsDir, int $n): ?string {
+  if (is_file("$assetsDir/middle-$n.png")) return "middle-$n.png";
+  if ($n === 1 && is_file("$assetsDir/middle.png")) return 'middle.png'; // legacy single upload
+  return null;
+}
+// Per-race loading screens (assets/units/<race>/loading-<n>.png, n=1..5). When a
+// race is chosen, one of its loading screens is shown at random during the load.
+const LOADING_SLOTS = [1, 2, 3, 4, 5];
+function loadingFileFor(string $assetsDir, string $race, int $n): ?string {
+  return is_file("$assetsDir/$race/loading-$n.png") ? "loading-$n.png" : null;
+}
+
+// A race's shop tab-button file (tab-<slot>.<ext>), or null.
+function tabFileFor(string $assetsDir, string $race, string $slot): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/tab-$slot.$e")) return "tab-$slot.$e";
+  return null;
+}
+
+// A race's base tier-upgrade icon (baseupgrade.<ext>), or null.
+function baseUpgFileFor(string $assetsDir, string $race): ?string {
+  foreach (CURSOR_EXTS as $e) if (is_file("$assetsDir/$race/baseupgrade.$e")) return "baseupgrade.$e";
+  return null;
+}
+
+// A race's uploaded bottom-bar background design (barskin.<ext>), or null.
+function barskinFileFor(string $assetsDir, string $race): ?string {
+  foreach (BARSKIN_EXTS as $e) if (is_file("$assetsDir/$race/barskin.$e")) return "barskin.$e";
+  return null;
+}
+
+// A race's uploaded bottom-bar OVERLAY (barover.<ext>) — drawn over the UI.
+function baroverFileFor(string $assetsDir, string $race): ?string {
+  foreach (BARSKIN_EXTS as $e) if (is_file("$assetsDir/$race/barover.$e")) return "barover.$e";
+  return null;
+}
+
+// slot id => label; slot files are "<slot>.png". $race matters only for
+// units: casters gain 2 cast frames per selected ACTIVE ability.
+function slotsFor(string $ent, string $race = 'humans'): array {
+  if (in_array($ent, BUILDING_LIST, true)) {
+    // the main base shows a distinct image per upgrade tier (1/2/3)
+    if ($ent === 'main') {
+      // the base can be given an attack (⚙ stats) — allow a projectile image too
+      return ['thumb' => 'Thumb', 'tier_0' => 'Tier 1', 'tier_1' => 'Tier 2', 'tier_2' => 'Tier 3', 'projectile' => 'Proiectil'];
+    }
+    // the tower shows a distinct look per base tier (1/2/3): each tier has its
+    // own idle (2) + attack (2) + die (1) + "tower at rest" (1) + campfire
+    // soldiers (2) frames. The soldiers are a SEPARATE sprite drawn beside the
+    // tower's base while it's idling for a long time.
+    if ($ent === 'tower') {
+      $slots = ['thumb' => 'Thumb'];
+      foreach ([1, 2, 3] as $t) {
+        $slots["tier{$t}-idle_0"]      = "T$t Idle 1";
+        $slots["tier{$t}-idle_1"]      = "T$t Idle 2";
+        $slots["tier{$t}-attack_0"]    = "T$t Attack 1";
+        $slots["tier{$t}-attack_1"]    = "T$t Attack 2";
+        $slots["tier{$t}-die_0"]       = "T$t Die";
+        $slots["tier{$t}-camptower_0"] = "T$t Turn gol (la foc)";
+        $slots["tier{$t}-camp_0"]      = "T$t Soldați foc 1";
+        $slots["tier{$t}-camp_1"]      = "T$t Soldați foc 2";
+      }
+      $slots['construct_0'] = 'Construcție 30%';
+      $slots['construct_1'] = 'Construcție 60%';
+      $slots['projectile'] = 'Proiectil';
+      return $slots;
+    }
+    // the wall shows a distinct idle look per base tier (1/2/3), 2 frames each
+    if ($ent === 'wall') {
+      $slots = ['thumb' => 'Thumb'];
+      foreach ([1, 2, 3] as $t) {
+        $slots["tier{$t}-idle_0"] = "T$t Idle 1";
+        $slots["tier{$t}-idle_1"] = "T$t Idle 2";
+      }
+      $slots['construct_0'] = 'Construcție 30%';
+      $slots['construct_1'] = 'Construcție 60%';
+      return $slots;
+    }
+    $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2'];
+    // no construction frames for the mid turret only (pre-placed, standing from
+    // the first second). Mines DO rise over time now — and their 30% frame also
+    // marks the free plots on the map.
+    if ($ent !== 'turret') {
+      $slots['construct_0'] = 'Construcție 30%';
+      $slots['construct_1'] = 'Construcție 60%';
+    }
+    if (in_array($ent, ARMED_BUILDINGS, true)) {
+      $slots['attack_0'] = 'Attack 1';
+      $slots['attack_1'] = 'Attack 2';
+      $slots['projectile'] = 'Proiectil';
+    }
+    // the gold generator can show little workers shuttling gold to the base:
+    // 2 frames walking TO the mine (empty sack) + 2 walking back (full sack)
+    if ($ent === 'generator') {
+      $slots['worker-empty_0'] = 'Muncitor gol 1';
+      $slots['worker-empty_1'] = 'Muncitor gol 2';
+      $slots['worker-full_0'] = 'Muncitor plin 1';
+      $slots['worker-full_1'] = 'Muncitor plin 2';
+    }
+    return $slots;
+  }
+  $caster = unitIsCaster($race, $ent);
+  $isHero = in_array($ent, HERO_LIST, true);
+  // a unit whose "attack" is really an ability (e.g. Empower) has no basic
+  // attack — skip its attack/prepare and projectile sprite slots entirely
+  $noBasicAttack = (bool) array_intersect(ATTACK_REPLACING_ABILITIES, unitAbilities($race, $ent));
+  $slots = ['thumb' => 'Thumb', 'idle_0' => 'Idle 1', 'idle_1' => 'Idle 2', 'walk_0' => 'Walk 1', 'walk_1' => 'Walk 2'];
+  if ($noBasicAttack) {
+    // no basic-attack frames: the ability's own "Cast …" slots cover its swing
+  } else if ($caster && !$isHero) {
+    // regular caster: one shared wind-up pose + one release frame per action
+    $slots['prepare_0'] = 'Prepare spell';
+    $slots['attack_0'] = 'Attack';
+    // optional: upload a second attack frame and the caster swings with the full
+    // two-frame cycle (like a fighter) instead of the single release frame
+    $slots['attack_1'] = 'Attack 2 (opțional)';
+  } else {
+    // fighters — and heroes, who fight melee-first — use a full 2-frame attack
+    // cycle (Attack 1 while winding up, Attack 2 after the hit).
+    $slots['attack_0'] = 'Attack 1';
+    $slots['attack_1'] = 'Attack 2';
+    // A hero can ALSO use a shared "Prepare spell" wind-up frame: any ability
+    // with a Prepare/wind-up time > 0 (e.g. the Battle Mage's spells) plays it
+    // before the "Cast …" frame. Optional — leave it empty for instant casters.
+    if ($isHero) $slots['prepare_0'] = 'Prepare spell';
+  }
+  $slots['die_0'] = 'Die';
+  // a Grave Digger doesn't attack — its "attack" frames ARE the digging animation
+  if (unitIsGravedig($race, $ent)) {
+    if (isset($slots['attack_0'])) $slots['attack_0'] = 'Săpat 1';
+    if (isset($slots['attack_1'])) $slots['attack_1'] = 'Săpat 2';
+  }
+  // a Kamikaze bomber never attacks: drop the attack/prepare frames and give it
+  // a "Fugă" (run/charge) set + a single "Explozie" detonation frame instead
+  if (unitIsBomber($race, $ent)) {
+    unset($slots['attack_0'], $slots['attack_1'], $slots['prepare_0']);
+    $slots['run_0'] = 'Fugă 1';
+    $slots['run_1'] = 'Fugă 2';
+    $slots['explosion_0'] = 'Explozie';
+  }
+  // a unit dashes if its own Dash toggle is on OR a mount/split upgrade makes
+  // it charge/dive
+  // the hero's "Charge" ability uses the same single "Dash" (charge) frame
+  $hasCharge = $isHero && in_array('charge', unitAbilities($race, $ent), true);
+  if (unitHasDash($race, $ent) || unitHasDismount($race, $ent) || unitHasSplit($race, $ent) || $hasCharge) $slots['dash_0'] = 'Dash';
+  // on-foot (dismounted) sprite set: a mount upgrade puts the rider on foot,
+  // and the Landing Split's rider fights on foot too
+  if (unitHasDismount($race, $ent) || unitHasSplit($race, $ent)) {
+    $slots['foot-thumb'] = 'Pe jos: Thumb';
+    $slots['foot-idle_0'] = 'Pe jos: Idle 1';
+    $slots['foot-idle_1'] = 'Pe jos: Idle 2';
+    $slots['foot-walk_0'] = 'Pe jos: Walk 1';
+    $slots['foot-walk_1'] = 'Pe jos: Walk 2';
+    $slots['foot-attack_0'] = 'Pe jos: Attack 1';
+    $slots['foot-attack_1'] = 'Pe jos: Attack 2';
+    $slots['foot-die_0'] = 'Pe jos: Die';
+  }
+  // "Landing Split": the mount becomes its own unit — a full beast sprite set
+  if (unitHasSplit($race, $ent)) {
+    $slots['beast-thumb'] = 'Bestie: Thumb';
+    $slots['beast-idle_0'] = 'Bestie: Idle 1';
+    $slots['beast-idle_1'] = 'Bestie: Idle 2';
+    $slots['beast-walk_0'] = 'Bestie: Walk 1';
+    $slots['beast-walk_1'] = 'Bestie: Walk 2';
+    $slots['beast-attack_0'] = 'Bestie: Attack 1';
+    $slots['beast-attack_1'] = 'Bestie: Attack 2';
+    $slots['beast-die_0'] = 'Bestie: Die';
+  }
+  // "Acid Spit" upgrade: two extra frames for the acid attack animation, plus
+  // a dedicated acid projectile image
+  if (unitHasAcid($race, $ent)) {
+    $slots['acid_0'] = 'Acid 1';
+    $slots['acid_1'] = 'Acid 2';
+    $slots['acidproj'] = 'Proiectil acid';
+  }
+  // "Bile de foc" (Fireball) upgrade: a separate walk + attack sprite set for
+  // the fire-loaded form, plus a dedicated fireball projectile image
+  if (unitHasFire($race, $ent)) {
+    $slots['fire-walk_0'] = 'Foc: Mers 1';
+    $slots['fire-walk_1'] = 'Foc: Mers 2';
+    $slots['fire-attack_0'] = 'Foc: Atac 1';
+    $slots['fire-attack_1'] = 'Foc: Atac 2';
+    $slots['fireproj'] = 'Proiectil foc';
+  }
+  // "Scut de lumină" upgrade: one activation frame (the light shield itself is
+  // drawn procedurally by the game)
+  if (unitHasShield($race, $ent)) {
+    $slots['shield_0'] = 'Scut de lumină (activare)';
+  }
+  if (unitIsRanged($race, $ent) && !$noBasicAttack) $slots['projectile'] = 'Proiectil';
+  // summoned animals (Shaman): a walk + attack + die set per assigned summon
+  // ability, hosted on this unit under an "<animal>-" prefix
+  $ua = unitAbilities($race, $ent);
+  foreach (SUMMON_ANIMALS as $aid => $animal) {
+    if (!in_array($aid, $ua, true)) continue;
+    $lbl = SUMMON_LABELS[$animal];
+    // a stationary totem only stands (idle 1/2) — it never moves, attacks or
+    // "dies" with an animation; moving summons get the full walk/attack/die set.
+    if (in_array($aid, TOTEM_ABILITIES, true)) {
+      $slots["{$animal}-thumb"] = "$lbl: Thumb";
+      $slots["{$animal}-idle_0"] = "$lbl: Idle 1";
+      $slots["{$animal}-idle_1"] = "$lbl: Idle 2";
+      continue;
+    }
+    // the cocoon just sits there (one frame); the larvae that hatch from it are
+    // small melee crawlers with their own mers/atac/die set
+    if (in_array($aid, COCOON_ABILITIES, true)) {
+      $slots["{$animal}-idle_0"] = "$lbl: Cocon (închis)";
+      $slots["{$animal}-idle_1"] = "$lbl: Cocon (se deschide — iese larva)";
+      $slots['larva-walk_0'] = 'Larvă: Mers 1';
+      $slots['larva-walk_1'] = 'Larvă: Mers 2';
+      $slots['larva-attack_0'] = 'Larvă: Atac 1';
+      $slots['larva-attack_1'] = 'Larvă: Atac 2';
+      $slots['larva-die_0'] = 'Larvă: Die';
+      continue;
+    }
+    // a summoned animal spawns straight into the fight — it never stands idle,
+    // so it needs only walk/attack/die (no idle frames).
+    $slots["{$animal}-walk_0"] = "$lbl: Mers 1";
+    $slots["{$animal}-walk_1"] = "$lbl: Mers 2";
+    $slots["{$animal}-attack_0"] = "$lbl: Atac 1";
+    $slots["{$animal}-attack_1"] = "$lbl: Atac 2";
+    $slots["{$animal}-die_0"] = "$lbl: Die";
+  }
+  // Elemental Form (hero ultimate): a full sprite set for the transformed beast,
+  // hosted on the hero under a "morph-" prefix (like the on-foot/beast forms)
+  if (in_array('beastform', unitAbilities($race, $ent), true)) {
+    $slots['morph-thumb'] = 'Elemental Form: Thumb';
+    $slots['morph-idle_0'] = 'Elemental Form: Idle 1';
+    $slots['morph-idle_1'] = 'Elemental Form: Idle 2';
+    $slots['morph-walk_0'] = 'Elemental Form: Mers 1';
+    $slots['morph-walk_1'] = 'Elemental Form: Mers 2';
+    $slots['morph-attack_0'] = 'Elemental Form: Atac 1';
+    $slots['morph-attack_1'] = 'Elemental Form: Atac 2';
+    $slots['morph-die_0'] = 'Elemental Form: Die';
+  }
+  // Bat-tank "Aterizare" upgrade: the LANDED ground form gets its own walk +
+  // attack set (hosted under a "ground-" prefix). In air it uses normal frames.
+  if (unitHasBatland($race, $ent)) {
+    $slots['ground-walk_0'] = 'La sol: Mers 1';
+    $slots['ground-walk_1'] = 'La sol: Mers 2';
+    $slots['ground-attack_0'] = 'La sol: Atac 1';
+    $slots['ground-attack_1'] = 'La sol: Atac 2';
+  }
+  // cast frames (per-ability: 1 or 2) + per-ability projectile for each ability
+  foreach (unitAbilities($race, $ent) as $aid) {
+    [$name, $hasCast, $hasProj] = ABILITY_INFO[$aid];
+    $castFrames = ABILITY_INFO[$aid][3] ?? 1;
+    if ($hasCast) {
+      if ($aid === 'beastform') {
+        // the two Elemental Form cast frames are the transform sequence, not a swing
+        $slots["cast-{$aid}_0"] = 'Elemental Form: Prepare';
+        $slots["cast-{$aid}_1"] = 'Elemental Form: Transform';
+      } else if ($aid === 'backlineteleport') {
+        // the two Backline Teleport frames are the blink sequence (prepare + land)
+        $slots["cast-{$aid}_0"] = 'Backline Teleport: Prepare';
+        $slots["cast-{$aid}_1"] = 'Backline Teleport: Land';
+      } else if ($aid === 'cocoon') {
+        // molia stă și depune coconul: două cadre (se pregătește + depune)
+        $slots["cast-{$aid}_0"] = 'Cocon: Molia se pregătește';
+        $slots["cast-{$aid}_1"] = 'Cocon: Molia depune coconul';
+      } else if ($castFrames >= 2) {
+        $slots["cast-{$aid}_0"] = "Cast {$name} 1";
+        $slots["cast-{$aid}_1"] = "Cast {$name} 2";
+      } else {
+        $slots["cast-{$aid}_0"] = "Cast {$name}";
+      }
+    }
+    if ($hasProj) $slots["abilityproj-{$aid}"] = "Proiectil {$name}";
+    if (ABILITY_INFO[$aid][4] ?? false) $slots["abilityfx-{$aid}"] = "Efect {$name} (cupolă, scalat cu raza)";
+  }
+  return $slots;
+}
+
+$configFile = __DIR__ . '/config.php';
+$assetsDir = dirname(__DIR__) . '/assets/units';
+$assetsUrl = '../assets/units';
+
+$_SESSION['csrf'] = $_SESSION['csrf'] ?? bin2hex(random_bytes(16));
+$csrf = $_SESSION['csrf'];
+$msg = '';
+$err = '';
+
+$race = $_GET['race'] ?? $_POST['race'] ?? 'humans';
+if (!in_array($race, RACES, true)) $race = 'humans';
+// which top-level view of the sprites admin: per-race sprites, or the global
+// ability/upgrade icon library
+$view = ($_GET['view'] ?? '') === 'icons' ? 'icons' : 'sprites';
+
+function checkCsrf(): bool {
+  return hash_equals($_SESSION['csrf'], $_POST['csrf'] ?? '');
+}
+
+// ---- multi-frame animations ------------------------------------------------
+// An animation used to be exactly two images (`walk_0`, `walk_1`). It can now
+// carry as many as MAX_ANIM_FRAMES, uploaded in one go from the "cadre
+// suplimentare" block. Frames 0 and 1 stay in their original slots, so nothing
+// about the existing screens or the existing art changes.
+const MAX_ANIM_FRAMES = 32;
+
+// …but PHP refuses to hand over more than `max_file_uploads` files from one
+// POST (20 by default) and drops the rest SILENTLY — a 25-frame pick arrives as
+// 20 without a word of warning. So the form is capped at what the server really
+// accepts, and the hint states that number instead of the storage maximum.
+function maxUploadFrames(): int {
+  $ini = (int)ini_get('max_file_uploads');
+  if ($ini <= 0) return MAX_ANIM_FRAMES;
+  return max(1, min(MAX_ANIM_FRAMES, $ini));
+}
+
+// "8M" -> 8388608, for saying out loud how big one batch may be
+function iniBytes(string $key): int {
+  $v = trim((string)ini_get($key));
+  if ($v === '') return 0;
+  $n = (int)$v;
+  switch (strtolower(substr($v, -1))) {
+    case 'g': $n *= 1024; // fallthrough
+    case 'm': $n *= 1024; // fallthrough
+    case 'k': $n *= 1024;
+  }
+  return $n;
+}
+
+// 'walk_0' -> 'walk', 'tier2-idle_1' -> 'tier2-idle', 'cast-heal_0' -> 'cast-heal'
+function animBaseOf(string $slot): string {
+  $parts = explode('_', $slot);
+  array_pop($parts);
+  return implode('_', $parts);
+}
+
+// The frame list of one animation, read off the disk: [true, true, false, true…]
+// with trailing gaps trimmed, so a 2-image animation stays exactly [true, true].
+function scanFrames(string $assetsDir, string $race, string $ent, string $anim): array {
+  $frames = [];
+  for ($i = 0; $i < MAX_ANIM_FRAMES; $i++) {
+    $frames[] = is_file("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+  }
+  while (count($frames) > 1 && $frames[count($frames) - 1] === false) array_pop($frames);
+  return $frames;
+}
+
+// The slot a batch of APPENDED frames starts at: right after the last frame on
+// disk, 0 when the animation is still empty. (scanFrames never returns fewer
+// than one element, so its length can't be used for this.)
+function nextFrameIndex(string $assetsDir, string $race, string $ent, string $anim): int {
+  $next = 0;
+  foreach (scanFrames($assetsDir, $race, $ent, $anim) as $i => $present) if ($present) $next = $i + 1;
+  return $next;
+}
+
+// ---- per-animation options ------------------------------------------------
+// Two knobs that only mean anything for uploaded art, so they belong next to
+// the frames rather than in the balance — one owner, no chance of the balance
+// editor and the sprite page overwriting each other:
+//   fps  = playback rate in FRAMES PER SECOND (0 = automatic)
+//   size = size of THIS animation as a % of the unit's own size (100 = same)
+// Shape: { "<race>/<ent>": { "<anim>": { "fps": 6, "size": 120 } } }
+const ANIM_OPT_DEFAULTS = ['fps' => 0.0, 'size' => 100.0];
+
+function animOptFile(string $assetsDir): string { return "$assetsDir/anim-opts.json"; }
+
+function animOptAll(string $assetsDir, bool $reload = false): array {
+  static $cache = null;
+  if ($cache === null || $reload) {
+    $f = animOptFile($assetsDir);
+    // an older build stored only the rate, as a bare number per animation
+    if (!is_file($f) && is_file("$assetsDir/anim-fps.json")) $f = "$assetsDir/anim-fps.json";
+    $j = is_file($f) ? json_decode((string)file_get_contents($f), true) : [];
+    $out = [];
+    foreach (is_array($j) ? $j : [] as $key => $anims) {
+      if (!is_array($anims)) continue;
+      foreach ($anims as $anim => $v) {
+        if (is_array($v)) $out[$key][$anim] = $v;
+        elseif (is_numeric($v)) $out[$key][$anim] = ['fps' => (float)$v]; // legacy
+      }
+    }
+    $cache = $out;
+  }
+  return $cache;
+}
+
+function animOptFor(string $assetsDir, string $race, string $ent): array {
+  $v = animOptAll($assetsDir)["$race/$ent"] ?? [];
+  return is_array($v) ? $v : [];
+}
+
+// One knob of one animation, or its default.
+function animOpt(array $opts, string $anim, string $key): float {
+  $v = $opts[$anim][$key] ?? null;
+  return is_numeric($v) ? (float)$v : ANIM_OPT_DEFAULTS[$key];
+}
+
+// Every animation this entity has slots for, in slot order (no duplicates).
+function animBasesFor(string $ent, string $race): array {
+  $out = [];
+  foreach (slotsFor($ent, $race) as $slot => $label) {
+    if (!str_contains($slot, '_')) continue;               // single-image slot
+    $base = animBaseOf($slot);
+    $tail = substr($slot, strlen($base) + 1);
+    if ($base === '' || !ctype_digit($tail)) continue;      // not <anim>_<n>
+    if (!in_array($base, $out, true)) $out[] = $base;
+  }
+  return $out;
+}
+
+function regenManifest(string $assetsDir): void {
+  $races = [];
+  foreach (RACES as $r) {
+    foreach (array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST) as $ent) {
+      $slots = slotsFor($ent, $r);
+      $entData = [];
+      foreach ($slots as $slot => $label) {
+        $exists = is_file("$assetsDir/$r/$ent/$slot.png");
+        if ($slot === 'thumb' || $slot === 'foot-thumb' || $slot === 'beast-thumb' || $slot === 'morph-thumb' || $slot === 'projectile' || $slot === 'acidproj' || $slot === 'fireproj' || str_starts_with($slot, 'abilityproj-') || str_starts_with($slot, 'abilityfx-')) {
+          if ($exists) $entData[$slot] = true; // single-image slots
+        } else {
+          // <anim>_<frame>. The classic slots above cover frames 0-1; the
+          // "cadre suplimentare" block can add as many as MAX_ANIM_FRAMES, so
+          // the folder itself decides how long the frame list is.
+          $anim = animBaseOf($slot);
+          if (isset($entData[$anim])) continue; // this animation was already scanned
+          $entData[$anim] = scanFrames($assetsDir, $r, $ent, $anim);
+        }
+      }
+      // keep only anims that have at least one frame
+      foreach ($entData as $k => $v) {
+        if (is_array($v) && !in_array(true, $v, true)) unset($entData[$k]);
+      }
+      // per-animation knobs ride along in the manifest the client already
+      // fetches (added AFTER the filter above, which would drop them)
+      $opts = animOptFor($assetsDir, $r, $ent);
+      $fps = []; $asz = [];
+      foreach ($opts as $anim => $o) {
+        $f = animOpt($opts, $anim, 'fps');
+        $z = animOpt($opts, $anim, 'size');
+        if ($f > 0) $fps[$anim] = $f;
+        if (abs($z - 100) >= 0.001) $asz[$anim] = $z;
+      }
+      if ($fps) $entData['fps'] = $fps;
+      if ($asz) $entData['animSize'] = $asz;
+      if ($entData) $races[$r][$ent] = $entData;
+    }
+  }
+  $backgrounds = [];
+  $backgrounds2 = [];
+  $loadings = [];
+  $music = [];
+  $cursors = [];
+  $tabs = [];
+  $barskins = [];
+  $barovers = [];
+  $baseupg = [];
+  $portraitvids = [];
+  $zoneicons = [];
+  $minevids = [];
+  $towervids = [];
+  foreach (RACES as $r) {
+    if (is_file("$assetsDir/$r/background.png")) $backgrounds[$r] = true;
+    if (is_file("$assetsDir/$r/background2.png")) $backgrounds2[$r] = true;
+    $lo = [];
+    foreach (LOADING_SLOTS as $n) { $lf = loadingFileFor($assetsDir, $r, $n); if ($lf) $lo[] = $lf; }
+    if ($lo) $loadings[$r] = $lo;
+    $mf = musicFileFor($assetsDir, $r);
+    if ($mf) $music[$r] = $mf;
+    $mv = [];
+    foreach (MINE_VID_WHICH as $which) {
+      $vf = mineVidFileFor($assetsDir, $r, $which);
+      if ($vf) $mv[$which] = $vf;
+    }
+    if ($mv) $minevids[$r] = (object)$mv;
+    $tv = [];
+    foreach (TOWER_VID_WHICH as $which) {
+      $vf = towerVidFileFor($assetsDir, $r, $which);
+      if ($vf) $tv[$which] = $vf;
+    }
+    if ($tv) $towervids[$r] = (object)$tv;
+    $pv = [];
+    foreach (array_merge(UNIT_LIST, HERO_LIST) as $ent) {
+      $forms = [];
+      // every portrait-clip form this unit can have: base, foot, beast, and any
+      // summoned-animal forms (wolf/eagle/bear) — keyed by the form name
+      foreach (portraitVidVariants($r, $ent) as $suffix => $_label) {
+        $key = $suffix === '' ? 'base' : ltrim($suffix, '-');
+        $vf = portraitVidFileFor($assetsDir, $r, $ent, $suffix);
+        if ($vf) $forms[$key] = $vf;
+      }
+      if ($forms) $pv[$ent] = (object)$forms;
+    }
+    if ($pv) $portraitvids[$r] = $pv;
+    $cf = cursorFileFor($assetsDir, $r);
+    if ($cf) $cursors[$r] = $cf;
+    $zi = [];
+    foreach (array_keys(ZONE_ICONS) as $which) {
+      if (zoneIconFileFor($assetsDir, $r, $which)) $zi[$which] = "zone-$which.png";
+    }
+    if ($zi) $zoneicons[$r] = (object)$zi;
+    $t = [];
+    foreach (array_keys(TAB_SLOTS) as $slot) {
+      $tf = tabFileFor($assetsDir, $r, $slot);
+      if ($tf) $t[$slot] = $tf;
+    }
+    if ($t) $tabs[$r] = $t;
+    $bsf = barskinFileFor($assetsDir, $r);
+    if ($bsf) $barskins[$r] = $bsf;
+    $bof = baroverFileFor($assetsDir, $r);
+    if ($bof) $barovers[$r] = $bof;
+    $buf = baseUpgFileFor($assetsDir, $r);
+    if ($buf) $baseupg[$r] = $buf;
+  }
+  // GLOBAL ability/upgrade command-card icons
+  $icons = [];
+  foreach (array_keys(iconKeys()) as $key) {
+    $if = iconFileFor($assetsDir, $key);
+    if ($if) $icons[$key] = $if;
+  }
+  $middle = []; // GLOBAL middle-of-map strip variants (random one per match)
+  foreach (MIDDLE_SLOTS as $n) {
+    $mf = middleFileFor($assetsDir, $n);
+    if ($mf) $middle[] = $mf;
+  }
+  $battle = battleSfxFileFor($assetsDir); // GLOBAL battle-ambience loop (one file)
+  $corpse = is_file("$assetsDir/corpse.png"); // GLOBAL raisable-corpse decal (Rise Dead)
+  $corpseBig = is_file("$assetsDir/corpse-big.png"); // corpse decal for units bigger than 1×1
+  $favicon = is_file("$assetsDir/favicon.png"); // browser-tab icon
+  @mkdir($assetsDir, 0755, true);
+  file_put_contents(
+    "$assetsDir/manifest.json",
+    json_encode(['v' => time(), 'races' => (object)$races, 'backgrounds' => (object)$backgrounds, 'backgrounds2' => (object)$backgrounds2, 'loadings' => (object)$loadings, 'music' => (object)$music, 'cursors' => (object)$cursors, 'zoneicons' => (object)$zoneicons, 'icons' => (object)$icons, 'tabs' => (object)$tabs, 'barskins' => (object)$barskins, 'barovers' => (object)$barovers, 'baseupg' => (object)$baseupg, 'portraitvids' => (object)$portraitvids, 'minevids' => (object)$minevids, 'towervids' => (object)$towervids, 'middle' => $middle, 'battle' => $battle, 'corpse' => $corpse, 'corpseBig' => $corpseBig, 'favicon' => $favicon], JSON_UNESCAPED_SLASHES)
+  );
+}
+
+// ---------------------------------------------------------------- actions
+$action = $_POST['action'] ?? '';
+
+// A POST bigger than `post_max_size` reaches PHP with $_POST AND $_FILES both
+// empty: no action, no error, the page just reloads and the upload seems to
+// have evaporated. Say what actually happened.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$_POST && !$_FILES && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+  $err = 'Fișierele trimise (' . round(((int)$_SERVER['CONTENT_LENGTH']) / 1048576, 1)
+       . ' MB) depășesc limita serverului (post_max_size = ' . ini_get('post_max_size')
+       . '). Încarcă mai puține cadre odată sau randează-le mai mici.';
+}
+
+if ($action === 'setup' && !file_exists($configFile)) {
+  $p1 = $_POST['password'] ?? '';
+  $p2 = $_POST['password2'] ?? '';
+  if (strlen($p1) < 8) {
+    $err = 'Parola trebuie să aibă minim 8 caractere.';
+  } elseif ($p1 !== $p2) {
+    $err = 'Parolele nu coincid.';
+  } else {
+    $hash = password_hash($p1, PASSWORD_DEFAULT);
+    $ok = file_put_contents(
+      $configFile,
+      "<?php\nif (!defined('DS_ADMIN')) exit;\nconst ADMIN_PASSWORD_HASH = " . var_export($hash, true) . ";\n"
+    );
+    if ($ok === false) {
+      $err = 'Nu pot scrie admin/config.php — verifică permisiunile.';
+    } else {
+      $_SESSION['auth'] = true;
+      $msg = 'Parola a fost setată. Bine ai venit!';
+    }
+  }
+}
+
+if (file_exists($configFile)) require $configFile;
+
+if ($action === 'login' && defined('ADMIN_PASSWORD_HASH')) {
+  if (password_verify($_POST['password'] ?? '', ADMIN_PASSWORD_HASH)) {
+    session_regenerate_id(true);
+    $_SESSION['auth'] = true;
+    $_SESSION['csrf'] = bin2hex(random_bytes(16));
+    $csrf = $_SESSION['csrf'];
+  } else {
+    sleep(1);
+    $err = 'Parolă greșită.';
+  }
+}
+
+if ($action === 'logout') {
+  session_destroy();
+  header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+  exit;
+}
+
+$authed = !empty($_SESSION['auth']);
+
+function validTarget(string $race, string $ent, string $slot): bool {
+  return in_array($race, RACES, true)
+    && in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+    && array_key_exists($slot, slotsFor($ent, $race));
+}
+
+if ($authed && $action === 'upload') {
+  $ent = $_POST['entity'] ?? '';
+  $slot = $_POST['slot'] ?? '';
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!validTarget($race, $ent, $slot)) {
+    $err = 'Țintă invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1.5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG (cu transparență).';
+    } else {
+      @mkdir("$assetsDir/$race/$ent", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/$ent/$slot.png")) {
+        regenManifest($assetsDir);
+        $msg = "Încărcat: $race · $ent · $slot";
+      } else {
+        $err = 'Nu pot salva fișierul — verifică permisiunile assets/units.';
+      }
+    }
+  }
+}
+
+// Upload a WHOLE animation at once: pick every rendered frame and they are
+// written in filename order as <anim>_0.png … <anim>_N.png. Anything left over
+// from a previous, longer upload is removed, so the animation is exactly what
+// was just picked. Frames 0-1 are the same files the classic slots above use.
+//
+// `appendframes` is the same thing that WRITES AFTER the frames already there
+// instead of replacing them (the "+" at the end of the strip). That is how an
+// animation gets past `max_file_uploads`: send it in batches of 20 or fewer.
+if ($authed && ($action === 'uploadframes' || $action === 'appendframes')) {
+  $append = $action === 'appendframes';
+  $ent = $_POST['entity'] ?? '';
+  $anim = $_POST['anim'] ?? '';
+  $files = $_FILES['frames'] ?? null;
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!in_array($race, RACES, true)
+      || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+      || !in_array($anim, animBasesFor($ent, $race), true)) {
+    $err = 'Țintă invalidă.';
+  } elseif (!$files || !is_array($files['name']) || count($files['name']) === 0) {
+    $err = 'Nu ai ales niciun fișier.';
+  } else {
+    // where this batch starts: 0 when replacing, right after the last frame on
+    // disk when appending
+    $base = $append ? nextFrameIndex($assetsDir, $race, $ent, $anim) : 0;
+    $room = MAX_ANIM_FRAMES - $base;
+    // sort by file name so walk_0001.png … walk_0008.png land in order
+    $picked = [];
+    foreach ($files['name'] as $i => $name) {
+      if (($files['error'][$i] ?? 1) !== UPLOAD_ERR_OK) continue;
+      $picked[] = ['name' => (string)$name, 'tmp' => $files['tmp_name'][$i], 'size' => $files['size'][$i]];
+    }
+    usort($picked, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
+    $dropped = max(0, count($picked) - max(0, $room));
+    if (count($picked) > $room) $picked = array_slice($picked, 0, max(0, $room));
+    $bad = '';
+    foreach ($picked as $f) {
+      if ($f['size'] > MAX_BYTES) { $bad = "„{$f['name']}" . '" e prea mare (max 1.5 MB).'; break; }
+      $magic = (string)file_get_contents($f['tmp'], false, null, 0, 8);
+      if (!is_uploaded_file($f['tmp']) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+        $bad = "„{$f['name']}" . '" nu e PNG.'; break;
+      }
+    }
+    if ($bad !== '') {
+      $err = $bad;
+    } elseif ($room <= 0) {
+      $err = 'Animația are deja ' . MAX_ANIM_FRAMES . ' cadre — nu mai încape niciunul.';
+    } elseif (!$picked) {
+      $err = 'Upload eșuat — fișiere lipsă sau prea mari.';
+    } else {
+      @mkdir("$assetsDir/$race/$ent", 0755, true);
+      $ok = true;
+      foreach ($picked as $i => $f) {
+        if (!move_uploaded_file($f['tmp'], "$assetsDir/$race/$ent/{$anim}_" . ($base + $i) . '.png')) { $ok = false; break; }
+      }
+      // replacing means the animation is EXACTLY what was just picked, so a
+      // longer previous upload leaves nothing behind; appending keeps the rest
+      if (!$append) {
+        for ($i = count($picked); $i < MAX_ANIM_FRAMES; $i++) @unlink("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+      }
+      regenManifest($assetsDir);
+      $total = $base + count($picked);
+      $msg = $append
+        ? "Adăugate " . count($picked) . " cadre la $race · $ent · $anim (acum $total)"
+        : "Animație încărcată: $race · $ent · $anim ($total cadre)";
+      if (!$ok) { $err = 'Nu pot salva toate fișierele — verifică permisiunile assets/units.'; $msg = ''; }
+      elseif ($dropped > 0) { $err = "$dropped cadre nu au încăput — maximul e " . MAX_ANIM_FRAMES . ' pe animație.'; }
+    }
+  }
+}
+
+// One per-animation knob (rate or size). Setting it back to its default value
+// removes the entry, so an animation with nothing set carries no baggage.
+if ($authed && $action === 'animopt') {
+  $ent = $_POST['entity'] ?? '';
+  $anim = $_POST['anim'] ?? '';
+  $key = $_POST['key'] ?? '';
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!in_array($race, RACES, true)
+      || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+      || !in_array($anim, animBasesFor($ent, $race), true)
+      || !array_key_exists($key, ANIM_OPT_DEFAULTS)) {
+    $err = 'Țintă invalidă.';
+  } else {
+    $lim = $key === 'fps' ? [0.0, 60.0] : [10.0, 400.0];
+    $val = max($lim[0], min($lim[1], (float)($_POST['val'] ?? 0)));
+    $all = animOptAll($assetsDir, true);
+    $ekey = "$race/$ent";
+    if (!isset($all[$ekey]) || !is_array($all[$ekey])) $all[$ekey] = [];
+    if (!isset($all[$ekey][$anim]) || !is_array($all[$ekey][$anim])) $all[$ekey][$anim] = [];
+    if (abs($val - ANIM_OPT_DEFAULTS[$key]) < 0.001) unset($all[$ekey][$anim][$key]);
+    else $all[$ekey][$anim][$key] = $val;
+    if (!$all[$ekey][$anim]) unset($all[$ekey][$anim]);
+    if (!$all[$ekey]) unset($all[$ekey]);
+    if (file_put_contents(animOptFile($assetsDir), json_encode($all, JSON_PRETTY_PRINT)) === false) {
+      $err = 'Nu pot scrie assets/units/anim-opts.json — verifică permisiunile.';
+    } else {
+      animOptAll($assetsDir, true); // refresh the cache before the manifest
+      regenManifest($assetsDir);
+      $pretty = rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.');
+      $what = $key === 'fps' ? ($val > 0 ? "$pretty cadre/s" : 'viteză automată') : "mărime $pretty%";
+      $msg = "Animație: $race · $ent · $anim → $what";
+    }
+  }
+}
+
+// Back to a plain two-frame animation: frames 2 and up are deleted, the
+// original pair is left untouched.
+if ($authed && $action === 'trimframes') {
+  $ent = $_POST['entity'] ?? '';
+  $anim = $_POST['anim'] ?? '';
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (!in_array($race, RACES, true)
+      || !in_array($ent, array_merge(UNIT_LIST, HERO_LIST, BUILDING_LIST), true)
+      || !in_array($anim, animBasesFor($ent, $race), true)) {
+    $err = 'Țintă invalidă.';
+  } else {
+    for ($i = 2; $i < MAX_ANIM_FRAMES; $i++) @unlink("$assetsDir/$race/$ent/{$anim}_{$i}.png");
+    regenManifest($assetsDir);
+    $msg = "Cadre suplimentare șterse: $race · $ent · $anim";
+  }
+}
+
+if ($authed && $action === 'delete') {
+  $ent = $_POST['entity'] ?? '';
+  $slot = $_POST['slot'] ?? '';
+  if (!checkCsrf()) {
+    $err = 'Sesiune expirată — reîncearcă.';
+  } elseif (validTarget($race, $ent, $slot)) {
+    @unlink("$assetsDir/$race/$ent/$slot.png");
+    regenManifest($assetsDir);
+    $msg = "Șters: $race · $ent · $slot";
+  }
+}
+
+// per-race background (shown on that side's half of the field)
+// per-race ZONE CORNER ICONS (army / construction), zone-<which>.png
+if ($authed && $action === 'uploadzoneicon') {
+  $which = $_POST['which'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !array_key_exists($which, ZONE_ICONS)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/zone-$which.png")) {
+        regenManifest($assetsDir);
+        $msg = "Iconiță zonă încărcată: $race / $which";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletezoneicon') {
+  $which = $_POST['which'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && array_key_exists($which, ZONE_ICONS)) {
+    @unlink("$assetsDir/$race/zone-$which.png");
+    regenManifest($assetsDir);
+    $msg = "Iconiță zonă ștearsă: $race / $which";
+  }
+}
+if ($authed && $action === 'uploadbg') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/background.png")) {
+        regenManifest($assetsDir);
+        $msg = "Background încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebg') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    @unlink("$assetsDir/$race/background.png");
+    regenManifest($assetsDir);
+    $msg = "Background șters: $race";
+  }
+}
+// CORRUPT ("blight") background — the terrain shown inside the corruption blobs
+if ($authed && $action === 'uploadbg2') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/background2.png")) {
+        regenManifest($assetsDir);
+        $msg = "Background corupt încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebg2') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    @unlink("$assetsDir/$race/background2.png");
+    regenManifest($assetsDir);
+    $msg = "Background corupt șters: $race";
+  }
+}
+// GLOBAL raisable-corpse decal (Rise Dead) — corpse.png
+if ($authed && $action === 'uploadcorpse') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir($assetsDir, 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/corpse.png")) {
+        regenManifest($assetsDir);
+        $msg = 'Cadavru (decal) încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletecorpse') {
+  if (checkCsrf()) {
+    @unlink("$assetsDir/corpse.png");
+    regenManifest($assetsDir);
+    $msg = 'Cadavru (decal) șters.';
+  }
+}
+// GLOBAL corpse decal for units bigger than 1×1 — corpse-big.png
+if ($authed && $action === 'uploadcorpsebig') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir($assetsDir, 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/corpse-big.png")) {
+        regenManifest($assetsDir);
+        $msg = 'Cadavru mare (decal) încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletecorpsebig') {
+  if (checkCsrf()) {
+    @unlink("$assetsDir/corpse-big.png");
+    regenManifest($assetsDir);
+    $msg = 'Cadavru mare (decal) șters.';
+  }
+}
+// GLOBAL browser-tab icon — favicon.png
+if ($authed && $action === 'uploadfavicon') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir($assetsDir, 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/favicon.png")) {
+        regenManifest($assetsDir);
+        $msg = 'Favicon încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletefavicon') {
+  if (checkCsrf()) {
+    @unlink("$assetsDir/favicon.png");
+    regenManifest($assetsDir);
+    $msg = 'Favicon șters.';
+  }
+}
+// Per-race loading screens (5 slots): loading-<n>.png
+if ($authed && $action === 'uploadloading') {
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($slot, LOADING_SLOTS, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      if (move_uploaded_file($tmp, "$assetsDir/$race/loading-$slot.png")) {
+        regenManifest($assetsDir);
+        $msg = "Loading screen $slot încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteloading') {
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($slot, LOADING_SLOTS, true)) {
+    @unlink("$assetsDir/$race/loading-$slot.png");
+    regenManifest($assetsDir);
+    $msg = "Loading screen $slot șters: $race";
+  }
+}
+
+// per-race background music (loops in-game; volume set below and saved to balance)
+if ($authed && $action === 'uploadmusic') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['audio']) || $_FILES['audio']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['audio']['size'] > MUSIC_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['audio']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['audio']['tmp_name'];
+    if (!in_array($ext, MUSIC_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere audio: ' . implode(', ', MUSIC_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/$race/music.$e"); // one track per race
+      if (move_uploaded_file($tmp, "$assetsDir/$race/music.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Muzică încărcată: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletemusic') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/$race/music.$e");
+    regenManifest($assetsDir);
+    $msg = "Muzică ștearsă: $race";
+  }
+}
+
+// per-unit idle portrait clip (mp4/webm) — loops in the portrait box in-game.
+// `variant` = '' (whole unit) | '-foot' (rider on foot) | '-beast' (split mount)
+if ($authed && $action === 'uploadportraitvid') {
+  $ent = $_POST['entity'] ?? '';
+  $suffix = $_POST['variant'] ?? '';
+  $okTarget = in_array($race, RACES, true) && in_array($ent, array_merge(UNIT_LIST, HERO_LIST), true)
+    && array_key_exists($suffix, portraitVidVariants($race, $ent));
+  if (!checkCsrf() || !$okTarget) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['video']) || $_FILES['video']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['video']['size'] > PORTRAIT_VID_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['video']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['video']['tmp_name'];
+    if (!in_array($ext, PORTRAIT_VID_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere video: ' . implode(', ', PORTRAIT_VID_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race/$ent", 0755, true);
+      foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/$ent/portrait$suffix.$e"); // one clip per form
+      if (move_uploaded_file($tmp, "$assetsDir/$race/$ent/portrait$suffix.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Animație portret încărcată: $race · $ent" . ($suffix ? " ($suffix)" : '');
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteportraitvid') {
+  $ent = $_POST['entity'] ?? '';
+  $suffix = $_POST['variant'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($ent, array_merge(UNIT_LIST, HERO_LIST), true)
+      && array_key_exists($suffix, portraitVidVariants($race, $ent))) {
+    foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/$ent/portrait$suffix.$e");
+    regenManifest($assetsDir);
+    $msg = "Animație portret ștearsă: $race · $ent" . ($suffix ? " ($suffix)" : '');
+  }
+}
+
+// gold-mine idle clip (mp4/webm) played on the map: mineidle | workeridle
+if ($authed && $action === 'uploadminevid') {
+  $which = $_POST['which'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($which, MINE_VID_WHICH, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['video']) || $_FILES['video']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['video']['size'] > PORTRAIT_VID_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['video']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['video']['tmp_name'];
+    if (!in_array($ext, PORTRAIT_VID_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere video: ' . implode(', ', PORTRAIT_VID_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race/generator", 0755, true);
+      foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/generator/$which.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/generator/$which.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Animație minieră încărcată: $race · $which";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteminevid') {
+  $which = $_POST['which'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($which, MINE_VID_WHICH, true)) {
+    foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/generator/$which.$e");
+    regenManifest($assetsDir);
+    $msg = "Animație minieră ștearsă: $race · $which";
+  }
+}
+// per-tier tower clip (mp4/webm) shown in the portrait box: tier1|tier2|tier3
+if ($authed && $action === 'uploadtowervid') {
+  $which = $_POST['which'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !in_array($which, TOWER_VID_WHICH, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['video']) || $_FILES['video']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['video']['size'] > PORTRAIT_VID_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['video']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['video']['tmp_name'];
+    if (!in_array($ext, PORTRAIT_VID_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere video: ' . implode(', ', PORTRAIT_VID_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race/tower", 0755, true);
+      foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/tower/$which.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/tower/$which.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Animație turn încărcată: $race · $which";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletetowervid') {
+  $which = $_POST['which'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && in_array($which, TOWER_VID_WHICH, true)) {
+    foreach (PORTRAIT_VID_EXTS as $e) @unlink("$assetsDir/$race/tower/$which.$e");
+    regenManifest($assetsDir);
+    $msg = "Animație turn ștearsă: $race · $which";
+  }
+}
+
+// per-race custom mouse cursor (shown in-game, hotspot at the top-left)
+if ($authed && $action === 'uploadcursor') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['cursor']) || $_FILES['cursor']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['cursor']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['cursor']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['cursor']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/cursor.$e"); // one cursor per race
+      if (move_uploaded_file($tmp, "$assetsDir/$race/cursor.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Cursor încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletecursor') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/cursor.$e");
+    regenManifest($assetsDir);
+    $msg = "Cursor șters: $race";
+  }
+}
+
+// GLOBAL command-card icons (abilities + upgrades) — assets/units/icons/
+if ($authed && $action === 'uploadicon') {
+  $key = $_POST['key'] ?? '';
+  if (!checkCsrf() || !array_key_exists($key, iconKeys())) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['icon']) || $_FILES['icon']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['icon']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['icon']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['icon']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/icons", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/icons/$key.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/icons/$key.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Iconiță încărcată: $key";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deleteicon') {
+  $key = $_POST['key'] ?? '';
+  if (checkCsrf() && array_key_exists($key, iconKeys())) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/icons/$key.$e");
+    regenManifest($assetsDir);
+    $msg = "Iconiță ștearsă: $key";
+  }
+}
+
+// GLOBAL battle-ambience loop (shared, not per race) — battle.<ext>
+if ($authed && $action === 'uploadbattle') {
+  if (!checkCsrf()) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['audio']) || $_FILES['audio']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['audio']['size'] > MUSIC_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 12 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['audio']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['audio']['tmp_name'];
+    if (!in_array($ext, MUSIC_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere audio: ' . implode(', ', MUSIC_EXTS) . '.';
+    } else {
+      foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/battle.$e"); // one loop, whatever the format
+      if (move_uploaded_file($tmp, "$assetsDir/battle.$ext")) {
+        regenManifest($assetsDir);
+        $msg = 'Sunet de luptă încărcat.';
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebattle') {
+  if (checkCsrf()) {
+    foreach (MUSIC_EXTS as $e) @unlink("$assetsDir/battle.$e");
+    regenManifest($assetsDir);
+    $msg = 'Sunet de luptă șters.';
+  }
+}
+
+// GLOBAL middle-of-map strip variants (shared, not per race) — middle-<n>.png
+if ($authed && $action === 'uploadmiddle') {
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (!checkCsrf() || !in_array($slot, MIDDLE_SLOTS, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['image']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $tmp = $_FILES['image']['tmp_name'];
+    $magic = (string)file_get_contents($tmp, false, null, 0, 8);
+    if (!is_uploaded_file($tmp) || substr($magic, 0, 8) !== "\x89PNG\r\n\x1a\n") {
+      $err = 'Doar fișiere PNG.';
+    } elseif (move_uploaded_file($tmp, "$assetsDir/middle-$slot.png")) {
+      if ($slot === 1) @unlink("$assetsDir/middle.png"); // drop legacy single upload
+      regenManifest($assetsDir);
+      $msg = "Mijloc hartă $slot încărcat.";
+    } else {
+      $err = 'Nu pot salva fișierul.';
+    }
+  }
+}
+if ($authed && $action === 'deletemiddle') {
+  $slot = (int)($_POST['slot'] ?? 0);
+  if (checkCsrf() && in_array($slot, MIDDLE_SLOTS, true)) {
+    @unlink("$assetsDir/middle-$slot.png");
+    if ($slot === 1) @unlink("$assetsDir/middle.png");
+    regenManifest($assetsDir);
+    $msg = "Mijloc hartă $slot șters.";
+  }
+}
+
+// per-race UNITS / CLĂDIRI shop tab buttons (tab-<slot>.<ext>)
+if ($authed && $action === 'uploadtab') {
+  $slot = $_POST['slot'] ?? '';
+  if (!checkCsrf() || !in_array($race, RACES, true) || !array_key_exists($slot, TAB_SLOTS)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['tab']) || $_FILES['tab']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['tab']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['tab']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['tab']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/tab-$slot.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/tab-$slot.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Buton încărcat: $slot ($race)";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletetab') {
+  $slot = $_POST['slot'] ?? '';
+  if (checkCsrf() && in_array($race, RACES, true) && array_key_exists($slot, TAB_SLOTS)) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/tab-$slot.$e");
+    regenManifest($assetsDir);
+    $msg = "Buton șters: $slot ($race)";
+  }
+}
+
+// per-race base tier-upgrade icon
+if ($authed && $action === 'uploadbaseupg') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['baseupg']) || $_FILES['baseupg']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['baseupg']['size'] > CURSOR_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 1 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['baseupg']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['baseupg']['tmp_name'];
+    if (!in_array($ext, CURSOR_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', CURSOR_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/baseupgrade.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/baseupgrade.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Iconiță Upgrade Bază încărcată: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebaseupg') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (CURSOR_EXTS as $e) @unlink("$assetsDir/$race/baseupgrade.$e");
+    regenManifest($assetsDir);
+    $msg = "Iconiță Upgrade Bază ștearsă: $race";
+  }
+}
+
+// per-race bottom-bar background design (the "skin" painted over the template)
+if ($authed && $action === 'uploadbarskin') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['barskin']) || $_FILES['barskin']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['barskin']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['barskin']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['barskin']['tmp_name'];
+    if (!in_array($ext, BARSKIN_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', BARSKIN_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barskin.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/barskin.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Fundal meniu încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebarskin') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barskin.$e");
+    regenManifest($assetsDir);
+    $msg = "Fundal meniu șters: $race";
+  }
+}
+
+// per-race bottom-bar OVERLAY (decorations painted OVER the UI elements)
+if ($authed && $action === 'uploadbarover') {
+  if (!checkCsrf() || !in_array($race, RACES, true)) {
+    $err = 'Cerere invalidă.';
+  } elseif (empty($_FILES['barover']) || $_FILES['barover']['error'] !== UPLOAD_ERR_OK) {
+    $err = 'Upload eșuat — fișier lipsă sau prea mare.';
+  } elseif ($_FILES['barover']['size'] > BG_MAX_BYTES) {
+    $err = 'Fișier prea mare (max 5 MB).';
+  } else {
+    $ext = strtolower(pathinfo($_FILES['barover']['name'], PATHINFO_EXTENSION));
+    $tmp = $_FILES['barover']['tmp_name'];
+    if (!in_array($ext, BARSKIN_EXTS, true) || !is_uploaded_file($tmp)) {
+      $err = 'Doar fișiere: ' . implode(', ', BARSKIN_EXTS) . '.';
+    } else {
+      @mkdir("$assetsDir/$race", 0755, true);
+      foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barover.$e");
+      if (move_uploaded_file($tmp, "$assetsDir/$race/barover.$ext")) {
+        regenManifest($assetsDir);
+        $msg = "Overlay meniu încărcat: $race";
+      } else {
+        $err = 'Nu pot salva fișierul.';
+      }
+    }
+  }
+}
+if ($authed && $action === 'deletebarover') {
+  if (checkCsrf() && in_array($race, RACES, true)) {
+    foreach (BARSKIN_EXTS as $e) @unlink("$assetsDir/$race/barover.$e");
+    regenManifest($assetsDir);
+    $msg = "Overlay meniu șters: $race";
+  }
+}
+?>
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Direct Strike Online</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; color: #dbe4f0; font-family: "Segoe UI", system-ui, sans-serif; padding: 24px; }
+    h1 { font-size: 20px; letter-spacing: 1px; margin-bottom: 4px; }
+    h1 .accent { color: #4da6ff; }
+    h2 { font-size: 13px; letter-spacing: 2px; color: #7c8ba1; text-transform: uppercase; margin: 26px 0 10px; }
+    .sub { color: #7c8ba1; font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+    /* the only thing that still says "something happened", now that actions no
+       longer reload the page — the flash banner is at the top and you are
+       usually scrolled far below it */
+    #toast {
+      position: fixed; right: 18px; bottom: 18px; z-index: 60; max-width: 460px;
+      padding: 9px 14px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    #toast.work { background: #16202e; border: 1px solid #2a3446; color: #9fb0c8; }
+    #toast.ok { background: #12331f; border: 1px solid #2a6b42; color: #58d68d; }
+    #toast.bad { background: #3a1519; border: 1px solid #7a2a33; color: #ff8090; }
+    .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
+    .flash.ok { background: #12331f; border: 1px solid #2a6b42; color: #58d68d; }
+    .flash.bad { background: #3a1519; border: 1px solid #7a2a33; color: #ff8090; }
+    .panel { background: #161c26; border: 1px solid #2a3446; border-radius: 12px; padding: 22px; max-width: 420px; }
+    label { display: block; font-size: 12px; color: #7c8ba1; margin: 10px 0 4px; }
+    input[type=password] {
+      width: 100%; padding: 9px 12px; background: #0a0e14; color: #dbe4f0;
+      border: 1px solid #2a3446; border-radius: 7px; font-size: 14px;
+    }
+    button {
+      margin-top: 14px; padding: 9px 20px; background: #1d4e89; color: #dbe4f0;
+      border: 1px solid #4da6ff; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: #2563a8; }
+    button.mini { margin: 0; padding: 2px 7px; font-size: 10px; }
+    button.danger { background: #5a1e26; border-color: #ff5566; }
+    .topline { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+
+    /* race tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 6px; }
+    .tabs a {
+      padding: 8px 22px; border-radius: 8px 8px 0 0; text-decoration: none;
+      color: #7c8ba1; background: #10151d; border: 1px solid #2a3446; border-bottom: none;
+      font-weight: 700; letter-spacing: 1px; font-size: 13px; text-transform: uppercase;
+    }
+    .tabs a.active { color: #ffd35c; background: #161c26; }
+
+    /* quick nav */
+    .quicknav { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+    .quicknav a {
+      font-size: 11px; color: #4da6ff; text-decoration: none;
+      border: 1px solid #2a3446; border-radius: 20px; padding: 3px 10px; background: #10151d;
+    }
+    .quicknav a:hover { border-color: #4da6ff; }
+
+    /* entity rows */
+    .ent {
+      background: #161c26; border: 1px solid #2a3446; border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 12px;
+      display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;
+    }
+    .unit-tabs { display: flex; gap: 8px; margin: 18px 0 10px; }
+    .unit-tabs .utab {
+      padding: 8px 20px; font-size: 14px; font-weight: 700; cursor: pointer;
+      background: #10151d; color: #9fb0c8; border: 1px solid #2a3446; border-radius: 20px;
+    }
+    .unit-tabs .utab.active { background: #1c2740; color: #ffd35c; border-color: #5a4a1e; }
+    /* multi-frame animations — deliberately its own block, folded away by
+       default so the classic slot grid above stays exactly as busy as it was */
+    .frames { flex-basis: 100%; border-top: 1px dashed #2a3446; margin-top: 10px; padding-top: 8px; }
+    .frames > summary { cursor: pointer; color: #7ee0a8; font-size: 12px; letter-spacing: 0.4px; list-style: none; }
+    .frames > summary::-webkit-details-marker { display: none; }
+    .frames > summary::before { content: '▸ '; }
+    .frames[open] > summary::before { content: '▾ '; }
+    .frames > summary span { color: #6b7a90; letter-spacing: 0; }
+    .frames-hint { color: #7d8ca3; font-size: 11px; line-height: 1.6; margin: 8px 0 10px; max-width: 760px; }
+    .frames-hint code { color: #9fb0c8; background: #10151d; padding: 1px 4px; border-radius: 3px; }
+    .frames-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-top: 1px solid #1b2331; min-width: 0; }
+    .frames { min-width: 0; max-width: 100%; overflow: hidden; }
+    .frames-row .fr-name { min-width: 132px; color: #cfd8e6; font-size: 12px; }
+    .frames-row .fr-count { min-width: 62px; color: #6b7a90; font-size: 11px; }
+    .frames-row .fr-count.many { color: #7ee0a8; }
+    .frames-row .fr-fps { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+    .frames-row .fr-fps input { width: 54px; padding: 3px 6px; font-size: 12px;
+      background: #0a0e14; color: #9fb0c8; border: 1px solid #2a3446; border-radius: 6px; }
+    .frames-row .fr-fps input.set { color: #7ee0a8; border-color: #2f6a4a; }
+    .frames-row .fr-fps span { color: #6b7a90; font-size: 11px; }
+    /* min-width:0 is what makes the internal scroll actually work: a flex item
+       refuses to shrink below its content by default, so 32 thumbnails pushed
+       the whole row (and the page) sideways instead of scrolling in place. */
+    .frames-row .fr-strip {
+      display: flex; gap: 3px; flex: 1 1 0; min-width: 0; overflow-x: auto;
+      padding-bottom: 4px; scrollbar-width: thin;
+    }
+    .frames-row .fr-strip::-webkit-scrollbar { height: 7px; }
+    .frames-row .fr-strip::-webkit-scrollbar-thumb { background: #2a3446; border-radius: 4px; }
+    .frames-row .fr-strip::-webkit-scrollbar-track { background: #0d131c; border-radius: 4px; }
+    .frames-row .fr-strip img { height: 42px; width: auto; background: #0a0e14; border: 1px solid #2a3446; border-radius: 4px; }
+    /* "+" at the end of the strip: another batch of frames, written after these */
+    .frames-row .fr-strip .fr-add { flex: 0 0 auto; }
+    .frames-row .fr-strip .fr-add .plus {
+      display: flex; align-items: center; justify-content: center;
+      height: 42px; width: 34px; box-sizing: border-box;
+      border: 1px dashed #3d4c66; border-radius: 4px; background: #0d131c;
+      color: #6b7a90; font-size: 20px; line-height: 1; cursor: pointer;
+    }
+    .frames-row .fr-strip .fr-add .plus:hover { border-color: #4da6ff; color: #4da6ff; }
+    .frames-row .mini.play { flex: 0 0 auto; color: #7ee0a8; border-color: #2f6a4a; }
+    /* Plays an animation at its real rate. The point is to tell "the game isn't
+       animating" apart from "all my frames are the same picture" — from the
+       42px strip you cannot see the difference. */
+    #playbox {
+      position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: rgba(4, 7, 12, 0.82); cursor: pointer;
+    }
+    #playbox img {
+      height: 320px; width: auto; image-rendering: pixelated;
+      background: #0a0e14; border: 1px solid #2a3446; border-radius: 8px;
+    }
+    #playbox .cap { color: #9fb0c8; font-size: 12px; text-align: center; line-height: 1.7; }
+    #playbox .cap b { color: #7ee0a8; }
+    #playbox .cap .hint { color: #6b7a90; }
+    .portraitvid { flex-basis: 100%; border-top: 1px dashed #2a3446; padding-top: 10px; margin-left: 126px; }
+    .portraitvid .lbl { font-size: 10px; color: #b58fff; text-transform: uppercase; letter-spacing: 1px; }
+    .portraitvid .pv-row { display: flex; align-items: center; gap: 14px; margin: 6px 0 12px; }
+    .portraitvid video { border: 1px solid #2a3446; border-radius: 6px; background: #0a0e14; }
+    .portraitvid .pv-empty {
+      width: 96px; height: 96px; border: 1px dashed #3d4c66; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center; color: #3d4c66; font-size: 11px;
+    }
+    .portraitvid input[type=file] { display: none; }
+    .portraitvid .pick { color: #b58fff; font-size: 12px; cursor: pointer; text-decoration: underline; }
+    .ent .title { width: 110px; padding-top: 22px; }
+    .ent .title b { font-size: 14px; color: #4da6ff; text-transform: capitalize; display: block; }
+    .ent .title span { font-size: 11px; color: #7c8ba1; }
+    .slots { display: flex; flex-wrap: wrap; gap: 10px; }
+    .slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .slot .lbl { font-size: 10px; color: #7c8ba1; text-transform: uppercase; letter-spacing: 1px; }
+    .slot.thumbslot .lbl { color: #ffd35c; }
+    .thumb {
+      width: 64px; height: 64px; background:
+        repeating-conic-gradient(#141a24 0 25%, #0e141d 0 50%) 0 0 / 16px 16px;
+      border: 1px solid #2a3446; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .slot.thumbslot .thumb { border-color: #5a4a1e; }
+    .thumb img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+    .thumb .empty { color: #3d4c66; font-size: 20px; }
+    .slot input[type=file] { display: none; }
+    .slot .pick { color: #4da6ff; font-size: 10px; cursor: pointer; text-decoration: underline; }
+    .hint { color: #7c8ba1; font-size: 12px; margin-top: 16px; line-height: 1.6; }
+    a { color: #4da6ff; }
+  </style>
+</head>
+<body>
+  <div class="topline">
+    <div>
+      <h1>DIRECT STRIKE <span class="accent">ADMIN</span></h1>
+      <div class="sub">PNG cu transparență, personajul cu fața spre <b>dreapta</b>, centrat (recomandat 256×256).
+      <b>Thumb</b> = iconița din shop. Varianta echipei roșii și oglindirea se generează automat.</div>
+    </div>
+    <?php if ($authed): ?>
+    <form method="post" data-full><input type="hidden" name="action" value="logout"><button class="mini">Logout</button></form>
+    <?php endif; ?>
+  </div>
+
+  <?php if ($msg): ?><div class="flash ok"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+  <?php if ($err): ?><div class="flash bad"><?= htmlspecialchars($err) ?></div><?php endif; ?>
+
+<?php if (!file_exists($configFile)): ?>
+  <div class="panel">
+    <h1 style="font-size:16px">Prima configurare</h1>
+    <div class="sub" style="margin-top:6px">Setează parola de admin (minim 8 caractere).</div>
+    <form method="post" data-full>
+      <input type="hidden" name="action" value="setup">
+      <label>Parolă</label><input type="password" name="password" required minlength="8">
+      <label>Confirmă parola</label><input type="password" name="password2" required minlength="8">
+      <button>Setează parola</button>
+    </form>
+  </div>
+<?php elseif (!$authed): ?>
+  <div class="panel">
+    <form method="post" data-full>
+      <input type="hidden" name="action" value="login">
+      <label>Parolă</label><input type="password" name="password" autofocus required>
+      <button>Intră</button>
+    </form>
+  </div>
+<?php else: ?>
+
+  <?php $navActive = $view === 'icons' ? 'icons' : $race; include __DIR__ . '/nav.php'; ?>
+
+  <?php if ($view === 'icons'): ?>
+  <?php // GLOBAL command-card icons: one per ability + upgrade (shared by both races) ?>
+  <div class="ent" id="ui-icons">
+    <div class="title"><b>Iconițe abilități &amp; upgrade-uri</b><span>globale — comune ambelor rase (grila de comenzi din joc)</span></div>
+    <div class="slots">
+      <?php foreach (iconKeys() as $key => $label): $if = iconFileFor($assetsDir, $key); $hasIcon = $if !== null; ?>
+      <div class="slot">
+        <span class="lbl"><?= $label ?></span>
+        <div class="thumb" style="background:#0a0e14">
+          <?php if ($hasIcon): ?>
+            <img src="<?= $assetsUrl ?>/icons/<?= $if ?>?t=<?= filemtime("$assetsDir/icons/$if") ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="key" value="<?= $key ?>">
+          <label class="pick"><?= $hasIcon ? 'înlocuiește' : 'încarcă' ?><input type="file" name="icon" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasIcon): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deleteicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="key" value="<?= $key ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <div class="ent" id="map-middle">
+    <div class="title"><b>Mijloc hartă</b><span>global — 3 variante; una aleasă la întâmplare la începutul fiecărui meci</span></div>
+    <div class="slots">
+      <?php foreach (MIDDLE_SLOTS as $n): $midFile = middleFileFor($assetsDir, $n); $hasMid = $midFile !== null; ?>
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Varianta <?= $n ?></span>
+        <div class="thumb" style="width:60px;height:180px;background:#0a0e14">
+          <?php if ($hasMid): ?>
+            <img src="<?= $assetsUrl ?>/<?= $midFile ?>?t=<?= filemtime("$assetsDir/$midFile") ?>" alt="" style="width:100%;height:100%;object-fit:cover">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadmiddle">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <label class="pick"><?= $hasMid ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasMid): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletemiddle">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi varianta <?= $n ?>?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+      <div class="slot" style="max-width:280px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          PNG vertical, înalt (ex. <b>400×1920</b>). Se desenează centrat pe linia de mijloc, peste ambele
+          jumătăți — lățimea benzii în joc = <b>lățimea PNG-ului ÷ 2</b> (400 → ~200 unități). Ține-o
+          neutră, cu <b>marginile stânga/dreapta transparente (fade)</b> ca să se topească în cele două
+          hărți. Încarcă 1–3 variante; jocul alege una random la fiecare meci.
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php $battleFile = battleSfxFileFor($assetsDir); $hasBattle = $battleFile !== null; ?>
+  <div class="ent" id="battle-sfx">
+    <div class="title"><b>Sunet de luptă</b><span>global — o buclă care se aude cât timp CAMERA vede unități care se bat</span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Buclă luptă</span>
+        <?php if ($hasBattle): ?>
+          <audio src="<?= $assetsUrl ?>/<?= $battleFile ?>?t=<?= filemtime("$assetsDir/$battleFile") ?>" controls loop style="width:220px"></audio>
+        <?php else: ?>
+          <div class="thumb" style="width:220px;height:44px;background:#0a0e14"><span class="empty">+</span></div>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbattle">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasBattle ? 'înlocuiește' : 'încarcă' ?><input type="file" name="audio" accept=".mp3,.ogg,.m4a,.mp4,audio/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBattle): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebattle">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi sunetul de luptă?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:420px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          Un fișier care se repetă la nesfârșit (max 12 MB). Volumul urmează <b>ce vede camera</b>:
+          cu cât se bat mai multe unități în ecran și cu cât ești mai aproape (zoom), cu atât se aude
+          mai tare; la zoom-out complet rămâne un vuiet îndepărtat. O bătălie <b>în afara ecranului</b>
+          se aude foarte slab, dinspre partea în care se dă — ca să te uiți într-acolo.<br><br>
+          Fă-l <b>continuu și neutru</b> (rumoare de luptă, fără melodie și fără lovituri clare — altfel
+          se aude repetiția). <b>.ogg</b> sau <b>.wav</b> se buclează perfect; un <b>.mp3</b> are o mică
+          pauză la capete — pentru el lasă „tăiere capete buclă" pe 40 ms în ⚙ Balance.<br><br>
+          Tot din <b>⚙ Balance</b> reglezi volumul de bază, câți luptători înseamnă intensitate maximă,
+          cât rămâne la zoom-out și vitezele de creștere/scădere.
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php
+    $corpseFile = "$assetsDir/corpse.png"; $hasCorpse = is_file($corpseFile);
+    $corpseBigFile = "$assetsDir/corpse-big.png"; $hasCorpseBig = is_file($corpseBigFile);
+  ?>
+  <div class="ent" id="corpse-decal">
+    <div class="title"><b>Cadavru (Rise Dead)</b><span>global — rămășițele lăsate pe jos când moare o unitate (le poate ridica Spirit Huntress)</span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Decal cadavru (1×1)</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasCorpse): ?>
+            <img src="<?= $assetsUrl ?>/corpse.png?t=<?= filemtime($corpseFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadcorpse">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasCorpse ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasCorpse): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletecorpse">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi decalul de cadavru?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Decal cadavru (unități mari)</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasCorpseBig): ?>
+            <img src="<?= $assetsUrl ?>/corpse-big.png?t=<?= filemtime($corpseBigFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadcorpsebig">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasCorpseBig ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasCorpseBig): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletecorpsebig">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi decalul de cadavru mare?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:520px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6;margin-bottom:10px">
+          PNG mic (ex. <b>48×48</b>), văzut de sus, cu fundal transparent. Apare centrat pe locul morții.
+          Cel de <b>„unități mari"</b> se folosește pentru unitățile mai mari de 1×1 (dacă lipsește, se
+          folosește cel normal). Fiecare are setările lui de mai jos.
+        </div>
+        <?php
+          $corpseNum = function (string $id, string $lbl, float $min = 0) {
+            echo '<label class="fld" style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#b9c4d4">'
+              . '<span>' . $lbl . '</span><input id="' . $id . '" type="number" step="any" min="' . $min . '" '
+              . 'style="width:88px;padding:5px 8px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px;text-align:right"></label>';
+          };
+        ?>
+        <div style="display:flex;gap:22px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:210px">
+            <div style="color:#ffd35c;font-size:11px;text-transform:uppercase;letter-spacing:1px">Cadavru 1×1</div>
+            <?php $corpseNum('corpse-life', 'Cât rămâne (s)'); $corpseNum('corpse-size', 'Mărime (%)', 10); $corpseNum('corpse-opacity', 'Transparență (%)'); ?>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:210px">
+            <div style="color:#ffd35c;font-size:11px;text-transform:uppercase;letter-spacing:1px">Cadavru unități mari</div>
+            <?php $corpseNum('corpse-big-life', 'Cât rămâne (s)'); $corpseNum('corpse-big-size', 'Mărime (%)', 10); $corpseNum('corpse-big-opacity', 'Transparență (%)'); ?>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+          <button type="button" id="corpse-save" class="mini" style="background:#1d4e89;border:1px solid #4da6ff;color:#dbe4f0;border-radius:6px;padding:6px 16px;cursor:pointer">Salvează</button>
+          <span id="corpse-status" style="font-size:12px;color:#7c8ba1"></span>
+        </div>
+      </div>
+    </div>
+    <script type="module">
+      import { loadBalance, resolvedAbility, saveBalance, ensureBalanceLoadedUI } from '../src/ui/balance.js?v=<?= time() ?>';
+      const $ = (id) => document.getElementById(id);
+      const F = [
+        ['corpse-life', 'corpseLife', 8], ['corpse-size', 'corpseSize', 100], ['corpse-opacity', 'corpseOpacity', 100],
+        ['corpse-big-life', 'corpseBigLife', 8], ['corpse-big-size', 'corpseBigSize', 130], ['corpse-big-opacity', 'corpseBigOpacity', 100],
+      ];
+      loadBalance('../assets/').then(() => {
+        if (!ensureBalanceLoadedUI()) return;
+        const ab = resolvedAbility('risedead');
+        if (!ab) return;
+        for (const [id, key, def] of F) { const el = $(id); if (el) el.value = ab.params[key] != null ? ab.params[key] : def; }
+        const btn = $('corpse-save'), st = $('corpse-status');
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+          const a = resolvedAbility('risedead'); if (!a) return;
+          for (const [id, key] of F) { const el = $(id); if (!el) continue; const n = Number(el.value); if (isFinite(n)) a.params[key] = Math.max(0, n); }
+          if (st) { st.textContent = 'Se salvează…'; st.style.color = '#7c8ba1'; }
+          const res = await saveBalance('save-balance.php');
+          if (st) { st.textContent = res === 'ok' ? 'Salvat ✓ (activ la următorul meci)' : 'Salvare eșuată (' + res + ')'; st.style.color = res === 'ok' ? '#58d68d' : '#ff8090'; }
+        });
+      });
+    </script>
+  </div>
+  <?php $favFile = "$assetsDir/favicon.png"; $hasFav = is_file($favFile); ?>
+  <div class="ent" id="favicon-asset">
+    <div class="title"><b>Favicon (iconița din tab)</b><span>global — iconița site-ului în tab-ul browserului</span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Favicon</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasFav): ?>
+            <img src="<?= $assetsUrl ?>/favicon.png?t=<?= filemtime($favFile) ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadfavicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <label class="pick"><?= $hasFav ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasFav): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletefavicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi favicon-ul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="max-width:300px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          PNG pătrat, mic (ex. <b>32×32</b> sau <b>64×64</b>), cu fundal transparent. Apare în tab-ul
+          browserului și la favorite. După încărcare, dă <b>Ctrl+Shift+R</b> în joc ca să-l vezi.
+        </div>
+      </div>
+    </div>
+  </div>
+  <?php else: ?>
+
+  <?php
+    $bgFile = "$assetsDir/$race/background.png"; $hasBg = is_file($bgFile);
+    $bg2File = "$assetsDir/$race/background2.png"; $hasBg2 = is_file($bg2File);
+    $musicFile = musicFileFor($assetsDir, $race); $hasMusic = $musicFile !== null;
+    $cursorFile = cursorFileFor($assetsDir, $race); $hasCursor = $cursorFile !== null;
+  ?>
+  <div class="ent" id="background">
+    <div class="title"><b>Background</b><span><?= $hasBg ? 'setat' : 'niciunul' ?> · muzică: <?= $hasMusic ? 'setată' : 'niciuna' ?> · cursor: <?= $hasCursor ? 'setat' : 'niciunul' ?></span></div>
+    <div class="slots">
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Jumătatea <?= $race ?></span>
+        <div class="thumb" style="width:160px;height:90px">
+          <?php if ($hasBg): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/background.png?t=<?= filemtime($bgFile) ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBg ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBg): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi background-ul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <button type="button" id="dl-map-template" class="pick" style="cursor:pointer;margin-top:8px">⬇ Șablon zone (PNG)</button>
+        <div style="color:#7c8ba1;font-size:11px;max-width:170px;margin-top:6px;line-height:1.5">
+          Arată unde cad baza, zona de unități și turela — pictează decorul aliniat. Exportă la <b>dimensiunea șablonului</b> (a crescut odată cu marginea decorativă de jos).
+        </div>
+      </div>
+      <?php foreach (ZONE_ICONS as $which => $lbl): $zf = zoneIconFileFor($assetsDir, $race, $which); ?>
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c"><?= $lbl ?></span>
+        <div class="thumb" style="width:90px;height:90px;background:#0a0e14">
+          <?php if ($zf): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $zf ?>?t=<?= filemtime("$assetsDir/$race/$zf") ?>" alt="" style="width:100%;height:100%;object-fit:contain">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadzoneicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="which" value="<?= $which ?>">
+          <label class="pick"><?= $zf ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($zf): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletezoneicon">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="which" value="<?= $which ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <div style="color:#7c8ba1;font-size:11px;max-width:150px;margin-top:6px;line-height:1.5">
+          PNG pătrat, fundal transparent. Apare în <b>colțul stânga-sus</b> al zonei, pe hartă.
+        </div>
+      </div>
+      <?php endforeach; ?>
+      <div class="slot">
+        <span class="lbl" style="color:#c58cff">Jumătatea <?= $race ?> 2 (corupt)</span>
+        <div class="thumb" style="width:160px;height:90px">
+          <?php if ($hasBg2): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/background2.png?t=<?= filemtime($bg2File) ?>" alt="">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbg2">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBg2 ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBg2): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebg2">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi background-ul corupt?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <div style="color:#7c8ba1;font-size:11px;max-width:170px;margin-top:6px;line-height:1.5">
+          OPȚIONAL. Coruperea e desenată automat ca o baltă mov opacă (rază la fiecare clădire în ⚙ stats). Dacă încarci o textură aici, se afișează OPAC peste balta mov (aceeași dimensiune ca background-ul normal). Lasă gol pentru balta mov standard.
+        </div>
+      </div>
+      <div class="slot" style="min-width:240px">
+        <span class="lbl" style="color:#ffd35c">Muzică <?= $race ?> (mp3, loop)</span>
+        <?php if ($hasMusic): ?>
+          <audio controls preload="none" style="width:220px;height:32px;margin:6px 0"
+            src="<?= $assetsUrl ?>/<?= $race ?>/<?= $musicFile ?>?t=<?= filemtime("$assetsDir/$race/$musicFile") ?>"></audio>
+        <?php else: ?>
+          <div class="thumb" style="width:220px;height:32px"><span class="empty">♪</span></div>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadmusic">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasMusic ? 'înlocuiește' : 'încarcă' ?><input type="file" name="audio" accept=".mp3,.ogg,.m4a,.mp4,audio/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasMusic): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletemusic">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi muzica?')">șterge</button>
+        </form>
+        <?php endif; ?>
+        <div style="margin-top:8px;font-size:12px;color:#b9c4d4">
+          Volum: <input type="number" id="music-vol" min="0" max="100" step="1" style="width:64px;padding:4px 6px;background:#0a0e14;color:#dbe4f0;border:1px solid #2a3446;border-radius:6px">%
+          <span id="music-vol-status" style="color:#7c8ba1;margin-left:6px"></span>
+        </div>
+      </div>
+      <div class="slot" style="min-width:200px">
+        <span class="lbl" style="color:#ffd35c">Cursor mouse <?= $race ?></span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasCursor): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $cursorFile ?>?t=<?= filemtime("$assetsDir/$race/$cursorFile") ?>" alt="" style="max-width:40px;max-height:40px">
+          <?php else: ?><span class="empty">↖</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadcursor">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasCursor ? 'înlocuiește' : 'încarcă' ?><input type="file" name="cursor" accept=".png,.gif,.cur,.webp,image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasCursor): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletecursor">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi cursor-ul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php foreach (TAB_SLOTS as $slot => $slotLabel): $tf = tabFileFor($assetsDir, $race, $slot); $hasTab = $tf !== null; ?>
+      <div class="slot" style="min-width:130px">
+        <span class="lbl" style="color:#ffd35c"><?= $slotLabel ?> (<?= $race ?>)</span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasTab): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $tf ?>?t=<?= filemtime("$assetsDir/$race/$tf") ?>" alt="" style="max-width:56px;max-height:56px">
+          <?php else: ?><span class="empty"><?= $slot === 'units' ? '⚔' : '🏰' ?></span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadtab">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $slot ?>">
+          <label class="pick"><?= $hasTab ? 'înlocuiește' : 'încarcă' ?><input type="file" name="tab" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasTab): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletetab">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $slot ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi butonul?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+      <?php $baseUpgFile = baseUpgFileFor($assetsDir, $race); $hasBaseUpg = $baseUpgFile !== null; ?>
+      <div class="slot" style="min-width:150px">
+        <span class="lbl" style="color:#ffd35c">Iconiță Upgrade Bază <?= $race ?></span>
+        <div class="thumb" style="width:64px;height:64px;background:#0a0e14">
+          <?php if ($hasBaseUpg): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $baseUpgFile ?>?t=<?= filemtime("$assetsDir/$race/$baseUpgFile") ?>" alt="" style="max-width:56px;max-height:56px">
+          <?php else: ?><span class="empty">▲</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbaseupg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBaseUpg ? 'înlocuiește' : 'încarcă' ?><input type="file" name="baseupg" accept="image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBaseUpg): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebaseupg">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi iconița?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php $barskinFile = barskinFileFor($assetsDir, $race); $hasBarskin = $barskinFile !== null; ?>
+      <div class="slot" style="min-width:200px">
+        <span class="lbl" style="color:#ffd35c">Fundal meniu jos <?= $race ?></span>
+        <div class="thumb" style="width:160px;height:32px;background:#0a0e14">
+          <?php if ($hasBarskin): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $barskinFile ?>?t=<?= filemtime("$assetsDir/$race/$barskinFile") ?>" alt="" style="max-width:158px;max-height:30px">
+          <?php else: ?><span class="empty">▭</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbarskin">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBarskin ? 'înlocuiește' : 'încarcă' ?><input type="file" name="barskin" accept=".png,.webp,.jpg,.jpeg,image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBarskin): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebarskin">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi fundalul meniului?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php $baroverFile = baroverFileFor($assetsDir, $race); $hasBarover = $baroverFile !== null; ?>
+      <div class="slot" style="min-width:200px">
+        <span class="lbl" style="color:#ffd35c">Overlay meniu jos <?= $race ?> (peste elemente)</span>
+        <div class="thumb" style="width:160px;height:32px;background:#0a0e14">
+          <?php if ($hasBarover): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $baroverFile ?>?t=<?= filemtime("$assetsDir/$race/$baroverFile") ?>" alt="" style="max-width:158px;max-height:30px">
+          <?php else: ?><span class="empty">✦</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadbarover">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <label class="pick"><?= $hasBarover ? 'înlocuiește' : 'încarcă' ?><input type="file" name="barover" accept=".png,.webp,.jpg,.jpeg,image/*" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasBarover): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deletebarover">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi overlay-ul meniului?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <div class="slot" style="min-width:220px;padding-top:12px">
+        <span class="lbl" style="color:#ffd35c">Șablon meniu jos</span>
+        <button type="button" id="dl-bar-template" class="pick" style="cursor:pointer">⬇ Descarcă șablonul (PNG)</button>
+        <div style="color:#7c8ba1;font-size:11px;max-width:230px;margin-top:8px;line-height:1.5">
+          Pictează designul peste el, exportă la <b>aceeași mărime</b>, apoi încarcă mai sus:
+          <b>Fundal</b> = ÎN SPATELE elementelor; <b>Overlay</b> = PESTE elemente (lasă restul transparent).
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ent" id="loadingscreens">
+    <div class="title"><b>Loading screens <?= $race ?></b><span>până la 5 — când alegi rasa <?= $race ?>, una e aleasă la întâmplare pe ecranul de loading</span></div>
+    <div class="slots">
+      <?php foreach (LOADING_SLOTS as $n): $loFile = loadingFileFor($assetsDir, $race, $n); $hasLo = $loFile !== null; ?>
+      <div class="slot">
+        <span class="lbl" style="color:#ffd35c">Loading <?= $n ?></span>
+        <div class="thumb" style="width:160px;height:90px">
+          <?php if ($hasLo): ?>
+            <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $loFile ?>?t=<?= filemtime("$assetsDir/$race/$loFile") ?>" alt="" style="width:100%;height:100%;object-fit:cover">
+          <?php else: ?><span class="empty">+</span><?php endif; ?>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="uploadloading">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <label class="pick"><?= $hasLo ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+        </form>
+        <?php if ($hasLo): ?>
+        <form method="post">
+          <input type="hidden" name="action" value="deleteloading">
+          <input type="hidden" name="csrf" value="<?= $csrf ?>">
+          <input type="hidden" name="race" value="<?= $race ?>">
+          <input type="hidden" name="slot" value="<?= $n ?>">
+          <button class="mini danger" onclick="return confirm('Ștergi loading <?= $n ?>?')">șterge</button>
+        </form>
+        <?php endif; ?>
+      </div>
+      <?php endforeach; ?>
+      <div class="slot" style="max-width:260px">
+        <div style="color:#7c8ba1;font-size:12px;line-height:1.6">
+          PNG lat (ex. <b>1600×900</b>). Încarcă până la 5; când pornești un meci cu rasa <b><?= $race ?></b>,
+          jocul afișează una la întâmplare pe ecranul de loading. Dacă nu pui niciunul, se folosesc
+          loading-urile globale din <b>⚙ Balance → Meniu &amp; Loading</b>.
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module">
+    import { downloadBarTemplate } from '../src/ui/bartemplate.js?v=<?= time() ?>';
+    import { downloadMapTemplate } from '../src/ui/maptemplate.js?v=<?= time() ?>';
+    document.getElementById('dl-bar-template')?.addEventListener('click', () => downloadBarTemplate());
+    document.getElementById('dl-map-template')?.addEventListener('click', () => downloadMapTemplate());
+  </script>
+
+  <div class="quicknav">
+    <?php foreach (array_merge(orderedUnits($race), BUILDING_LIST) as $e): ?>
+      <a href="#<?= $e ?>"><?= $e ?></a>
+    <?php endforeach; ?>
+  </div>
+
+  <?php
+  function renderEnt(string $race, string $ent, string $assetsDir, string $assetsUrl, string $csrf, string $kind): void {
+    $slots = slotsFor($ent, $race);
+    $done = 0;
+    foreach ($slots as $slot => $label) if (is_file("$assetsDir/$race/$ent/$slot.png")) $done++;
+    ?>
+    <div class="ent" id="<?= $ent ?>" data-kind="<?= $kind ?>">
+      <div class="title"><b><?= $ent ?></b><span><?= $done ?> / <?= count($slots) ?> imagini</span>
+        <button type="button" class="stat-gear" data-ent="<?= $ent ?>" data-kind="<?= $kind ?>" title="Editează statistici">⚙ stats</button>
+      </div>
+      <div class="slots">
+        <?php foreach ($slots as $slot => $label):
+          $file = "$assetsDir/$race/$ent/$slot.png";
+          $has = is_file($file);
+        ?>
+        <div class="slot <?= in_array($slot, ['thumb', 'foot-thumb', 'beast-thumb', 'morph-thumb'], true) ? 'thumbslot' : '' ?>">
+          <span class="lbl"><?= $label ?></span>
+          <div class="thumb">
+            <?php if ($has): ?>
+              <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $slot ?>.png?t=<?= filemtime($file) ?>" alt="">
+            <?php else: ?>
+              <span class="empty">+</span>
+            <?php endif; ?>
+          </div>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="upload">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="slot" value="<?= $slot ?>">
+            <label class="pick"><?= $has ? 'înlocuiește' : 'încarcă' ?><input type="file" name="image" accept="image/png" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($has): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="slot" value="<?= $slot ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi această imagine?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+
+      <?php // ---- multi-frame animations: its own block, the slots above stay as they are ?>
+      <?php $animBases = animBasesFor($ent, $race); if ($animBases): ?>
+      <details class="frames">
+        <summary>🎞 Cadre suplimentare de animație <span>(opțional — pentru animații fluide, randate din 3D)</span></summary>
+        <?php $upMax = maxUploadFrames(); $postMax = iniBytes('post_max_size'); ?>
+        <p class="frames-hint">Alege deodată TOATE cadrele unei animații. Se numerotează singure în ordinea numelui
+          (<code>walk_0001.png</code>, <code>walk_0002.png</code>…), deci exportă-le din Blender cu nume în ordine.
+          Primele două cadre sunt aceleași fișiere cu sloturile de mai sus.<br>
+          Serverul primește <b>maxim <?= $upMax ?> fișiere odată</b>
+          <?php if ($upMax < MAX_ANIM_FRAMES): ?>(<code>max_file_uploads=<?= (int)ini_get('max_file_uploads') ?></code> în <code>php.ini</code>)<?php endif; ?>
+          și <?= $postMax > 0 ? round($postMax / 1048576, 1) . ' MB' : 'un POST' ?> pe transfer. Pentru animații mai lungi,
+          încarcă prima tranșă aici și adaugă restul cu <b>„+"</b> de la capătul șirului de cadre — se scriu DUPĂ cele
+          existente. Total <b>maxim <?= MAX_ANIM_FRAMES ?> cadre</b> pe animație.<br>
+          Recomandat <b>8–12 cadre</b> la 128×128: arată fluid și rămâne ușor la memorie (fiecare cadru în plus
+          se încarcă pentru fiecare unitate a fiecărei rase).</p>
+        <?php
+        $optMap = animOptFor($assetsDir, $race, $ent);
+        $num = fn(float $v) => rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
+        ?>
+        <?php foreach ($animBases as $anim):
+          $frames = scanFrames($assetsDir, $race, $ent, $anim);
+          $have = count(array_filter($frames));
+          $next = 0; foreach ($frames as $i => $p) if ($p) $next = $i + 1; // where "+" writes
+          $room = MAX_ANIM_FRAMES - $next;
+          $isAtk = str_ends_with($anim, 'attack') || $anim === 'acid';
+          $knobs = [
+            ['fps', animOpt($optMap, $anim, 'fps'), 0.0, 'cadre/s', 0, 60, 0.5, $isAtk
+              ? 'Cadre pe secundă. 0 = legat de ritmul real de atac (impactul cade pe cadrul din mijloc) — recomandat.'
+              : 'Cadre pe secundă. 0 = automat (păstrează durata ciclului dată de „Viteză animație mers/idle").'],
+            ['size', animOpt($optMap, $anim, 'size'), 100.0, '%', 10, 400, 5,
+              'Mărimea ACESTEI animații, ca procent din mărimea unității. 100 = neschimbată. Se înmulțește cu „Size (%)" din ⚙ stats — util când o animație a fost randată la alt zoom decât restul.'],
+          ];
+        ?>
+        <div class="frames-row">
+          <span class="fr-name"><?= htmlspecialchars($anim) ?></span>
+          <span class="fr-count <?= $have > 2 ? 'many' : '' ?>"><?= $have ?> cadre</span>
+          <?php foreach ($knobs as [$k, $val, $def, $unit, $min, $max, $step, $tip]): ?>
+          <form method="post" class="fr-fps" title="<?= htmlspecialchars($tip) ?>">
+            <input type="hidden" name="action" value="animopt">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+            <input type="hidden" name="key" value="<?= $k ?>">
+            <input type="number" name="val" min="<?= $min ?>" max="<?= $max ?>" step="<?= $step ?>"
+              value="<?= $num($val) ?>" class="<?= abs($val - $def) >= 0.001 ? 'set' : '' ?>"
+              onchange="this.form.submit()">
+            <span><?= $unit ?></span>
+          </form>
+          <?php endforeach; ?>
+          <div class="fr-strip">
+            <?php foreach ($frames as $i => $present): if (!$present) continue; ?>
+              <img src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $anim ?>_<?= $i ?>.png?t=<?= filemtime("$assetsDir/$race/$ent/{$anim}_{$i}.png") ?>" alt="<?= $i ?>">
+            <?php endforeach; ?>
+            <?php // one more batch, written after the frames above — the way past max_file_uploads
+              if ($next > 0 && $room > 0): ?>
+            <form method="post" enctype="multipart/form-data" class="fr-add">
+              <input type="hidden" name="action" value="appendframes">
+              <input type="hidden" name="csrf" value="<?= $csrf ?>">
+              <input type="hidden" name="race" value="<?= $race ?>">
+              <input type="hidden" name="entity" value="<?= $ent ?>">
+              <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+              <label class="pick plus" title="Adaugă cadre după cele de aici (mai încap <?= $room ?>). Alege următoarea tranșă, maxim <?= min($upMax, $room) ?> odată.">+<input
+                type="file" name="frames[]" accept="image/png" multiple hidden
+                data-max="<?= min($upMax, $room) ?>" <?= $room < $upMax ? 'data-room="1"' : '' ?>
+                data-bytes="<?= $postMax ?>" onchange="pickFrames(this)"></label>
+            </form>
+            <?php endif; ?>
+          </div>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadframes">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+            <label class="pick">încarcă cadrele<input type="file" name="frames[]" accept="image/png" multiple
+              data-max="<?= $upMax ?>" data-bytes="<?= $postMax ?>" onchange="pickFrames(this)"></label>
+          </form>
+          <?php if ($have > 1): ?>
+          <button type="button" class="mini play" data-fps="<?= $num(animOpt($optMap, $anim, 'fps')) ?>"
+            data-anim="<?= htmlspecialchars($anim) ?>" onclick="playFrames(this)"
+            title="Redă cadrele mari, la ritmul setat — așa vezi dacă arta chiar se mișcă">▶ redă</button>
+          <?php endif; ?>
+          <?php if ($have > 2): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="trimframes">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="anim" value="<?= htmlspecialchars($anim) ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi cadrele de la 3 în sus?')">înapoi la 2</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </details>
+      <?php endif; ?>
+
+      <?php if ($kind === 'unit'): ?>
+      <div class="portraitvid">
+        <?php foreach (portraitVidVariants($race, $ent) as $suffix => $label):
+          $vidFile = portraitVidFileFor($assetsDir, $race, $ent, $suffix);
+          $hasVid = $vidFile !== null;
+        ?>
+        <span class="lbl"><?= $label ?></span>
+        <div class="pv-row">
+          <?php if ($hasVid): ?>
+            <video src="<?= $assetsUrl ?>/<?= $race ?>/<?= $ent ?>/<?= $vidFile ?>?t=<?= filemtime("$assetsDir/$race/$ent/$vidFile") ?>" width="96" height="96" autoplay loop muted playsinline></video>
+          <?php else: ?>
+            <div class="pv-empty">fără animație</div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadportraitvid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="variant" value="<?= $suffix ?>">
+            <label class="pick"><?= $hasVid ? 'înlocuiește' : 'încarcă' ?><input type="file" name="video" accept="video/mp4,video/webm" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($hasVid): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="deleteportraitvid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="entity" value="<?= $ent ?>">
+            <input type="hidden" name="variant" value="<?= $suffix ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi animația portret?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+      <?php if ($ent === 'generator'): ?>
+      <div class="portraitvid">
+        <?php foreach (['mineidle' => 'Animație mină (mp4/webm)', 'workeridle' => 'Animație muncitor idle (mp4/webm)'] as $which => $label):
+          $mvf = mineVidFileFor($assetsDir, $race, $which);
+          $hasMv = $mvf !== null;
+        ?>
+        <span class="lbl"><?= $label ?></span>
+        <div class="pv-row">
+          <?php if ($hasMv): ?>
+            <video src="<?= $assetsUrl ?>/<?= $race ?>/generator/<?= $mvf ?>?t=<?= filemtime("$assetsDir/$race/generator/$mvf") ?>" width="96" height="96" autoplay loop muted playsinline></video>
+          <?php else: ?>
+            <div class="pv-empty">fără animație</div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadminevid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <label class="pick"><?= $hasMv ? 'înlocuiește' : 'încarcă' ?><input type="file" name="video" accept="video/mp4,video/webm" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($hasMv): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="deleteminevid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi animația?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+      <?php if ($ent === 'tower'): ?>
+      <div class="portraitvid">
+        <?php foreach (['tier1' => 'Animație turn Tier 1 (mp4/webm)', 'tier2' => 'Animație turn Tier 2 (mp4/webm)', 'tier3' => 'Animație turn Tier 3 (mp4/webm)'] as $which => $label):
+          $tvf = towerVidFileFor($assetsDir, $race, $which);
+          $hasTv = $tvf !== null;
+        ?>
+        <span class="lbl"><?= $label ?></span>
+        <div class="pv-row">
+          <?php if ($hasTv): ?>
+            <video src="<?= $assetsUrl ?>/<?= $race ?>/tower/<?= $tvf ?>?t=<?= filemtime("$assetsDir/$race/tower/$tvf") ?>" width="96" height="96" autoplay loop muted playsinline></video>
+          <?php else: ?>
+            <div class="pv-empty">fără animație</div>
+          <?php endif; ?>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="uploadtowervid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <label class="pick"><?= $hasTv ? 'înlocuiește' : 'încarcă' ?><input type="file" name="video" accept="video/mp4,video/webm" onchange="this.form.submit()"></label>
+          </form>
+          <?php if ($hasTv): ?>
+          <form method="post">
+            <input type="hidden" name="action" value="deletetowervid">
+            <input type="hidden" name="csrf" value="<?= $csrf ?>">
+            <input type="hidden" name="race" value="<?= $race ?>">
+            <input type="hidden" name="which" value="<?= $which ?>">
+            <button class="mini danger" onclick="return confirm('Ștergi animația?')">șterge</button>
+          </form>
+          <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+  <?php } ?>
+
+  <div class="unit-tabs">
+    <button type="button" class="utab active" data-tab="units">Unități</button>
+    <button type="button" class="utab" data-tab="heroes">Eroi</button>
+  </div>
+
+  <div id="utab-units" class="utab-panel">
+    <h2>Unități — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(▲▼ reordonează — ordinea apare la fel în shop-ul din joc)</span></h2>
+    <?php foreach (orderedUnits($race) as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  </div>
+
+  <div id="utab-heroes" class="utab-panel" style="display:none">
+    <h2>Eroi — <?= $race ?> <span style="text-transform:none;font-size:12px;color:#7c8ba1">(Thumb, idle, walk, attack, die + animație portret · „Prepare spell" + un cadru „Cast …" per abilitate · sprite-uri pentru invocări. Abilitățile le alegi din ⚙ stats.)</span></h2>
+    <?php foreach (HERO_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'unit'); ?>
+  </div>
+
+  <script>
+    // PHP drops everything past `max_file_uploads` without saying a word, and a
+    // batch over `post_max_size` arrives as an empty request. Both look like the
+    // upload simply worked with fewer frames, so stop them here where we still
+    // know exactly how many files were picked.
+    function pickFrames(input) {
+      var max = +input.dataset.max || 32, bytes = +input.dataset.bytes || 0;
+      var n = input.files.length;
+      if (n > max) {
+        alert(input.dataset.room
+          ? 'Ai ales ' + n + ' cadre, dar în animație mai încap doar ' + max + '.'
+          : 'Ai ales ' + n + ' cadre, dar serverul acceptă maxim ' + max + ' odată.\n'
+            + 'Trimite-le în tranșe: astea ' + max + ' acum, restul cu butonul "+" de la capătul șirului de cadre.');
+        input.value = '';
+        return;
+      }
+      var total = 0;
+      for (var i = 0; i < n; i++) total += input.files[i].size;
+      if (bytes > 0 && total > bytes * 0.95) {
+        alert('Cele ' + n + ' cadre au ' + (total / 1048576).toFixed(1) + ' MB, peste limita de '
+          + (bytes / 1048576).toFixed(1) + ' MB a serverului.\nRandează-le mai mici (128x128) sau alege mai puține.');
+        input.value = '';
+        return;
+      }
+      input.form.submit();
+    }
+    // Play one animation big, at the rate the game will use. A 42px strip of
+    // thumbnails cannot tell you whether the character actually moves — so when
+    // a walk "doesn't animate in game", this says in two seconds whether the
+    // frames differ at all or whether every render came out the same pose.
+    function playFrames(btn) {
+      var row = btn.closest('.frames-row');
+      var srcs = [].map.call(row.querySelectorAll('.fr-strip img'), function (i) { return i.src; });
+      if (!srcs.length) return;
+      var fps = +btn.dataset.fps;
+      var rate = fps > 0 ? fps : 12;
+      var box = document.createElement('div');
+      box.id = 'playbox';
+      var img = document.createElement('img');
+      img.src = srcs[0];
+      var cap = document.createElement('div');
+      cap.className = 'cap';
+      box.appendChild(img); box.appendChild(cap);
+      document.body.appendChild(box);
+      var i = 0;
+      var timer = setInterval(function () {
+        i = (i + 1) % srcs.length;
+        img.src = srcs[i];
+        cap.innerHTML = '<b>' + btn.dataset.anim + '</b> · cadrul ' + (i + 1) + '/' + srcs.length
+          + ' · ' + rate + ' cadre/s' + (fps > 0 ? '' : ' (ritm automat, aproximat)')
+          + '<br><span class="hint">Dacă poza nu se schimbă, cadrele randate sunt identice — nu jocul e de vină.'
+          + ' Click oriunde pentru a închide.</span>';
+      }, 1000 / rate);
+      box.onclick = function () { clearInterval(timer); box.remove(); };
+    }
+    (function () {
+      var btns = document.querySelectorAll('.utab');
+      btns.forEach(function (b) {
+        b.addEventListener('click', function () {
+          btns.forEach(function (x) { x.classList.remove('active'); });
+          b.classList.add('active');
+          document.getElementById('utab-units').style.display = b.dataset.tab === 'units' ? '' : 'none';
+          document.getElementById('utab-heroes').style.display = b.dataset.tab === 'heroes' ? '' : 'none';
+        });
+      });
+    })();
+  </script>
+
+  <h2>Clădiri — <?= $race ?></h2>
+  <?php foreach (BUILDING_LIST as $e) renderEnt($race, $e, $assetsDir, $assetsUrl, $csrf, 'building'); ?>
+
+  <div class="hint">
+    • <b>⚙ stats</b> pe fiecare unitate/clădire editează caracteristicile ei (cost, HP, damage…).
+    Regulile generale (bani, venit, interval wave, costuri tier) sunt la <a href="balance.php">⚙ Balance</a>;
+    catalogul de abilități se balansează la <a href="abilities.php">✨ Abilități</a>.<br>
+    • Bifezi <b>Caster</b> în ⚙ stats la o unitate și îi alegi până la 5 abilități; după <b>Salvează</b> +
+    refresh, unitatea primește aici sloturi de <b>Cast</b> (2 frame-uri) pentru fiecare abilitate activă.<br>
+    • Jocul folosește automat imaginile; unde lipsesc, rămâne arta vectorială integrată.<br>
+    • <b>Die</b> are un singur frame. Clădirile au doar Idle (2 frame-uri, alternate lent) + Thumb.<br>
+    • Verifică rezultatul în <a href="../dev/puppet-preview.html?race=<?= $race ?>" target="_blank">pagina de preview</a> sau direct în joc (refresh).<br>
+    • Fișierele stau în <code>assets/units/<?= $race ?>/…</code> pe server și nu sunt atinse de <code>git pull</code>.
+  </div>
+  <script type="module" src="../src/ui/admin-stats.js?v=<?= time() ?>"></script>
+  <?php endif; // view ?>
+<?php endif; // authed ?>
+
+  <script id="no-reload">
+    // Every action here is a POST, and a POST used to reload the whole page:
+    // the browser jumped back to the top, folded the frame blocks away and you
+    // lost your place after every single upload or number typed. Forms now go
+    // out through fetch and the response replaces the body in place, keeping
+    // the scroll position, the open blocks and the active tab.
+    //
+    // Nothing on the server changed — the same POST, the same rendered page.
+    // With JS off (or if fetch fails) the forms submit the classic way.
+    (function () {
+      if (!window.fetch || !window.DOMParser || !window.FormData) return;
+      const nativeSubmit = HTMLFormElement.prototype.submit;
+
+      const snapshot = () => ({
+        scroll: window.scrollY,
+        open: [...document.querySelectorAll('details')].map((d) => d.open),
+        tab: [...document.querySelectorAll('.unit-tabs .utab')].findIndex((b) => b.classList.contains('active')),
+      });
+
+      const restore = (s) => {
+        const ds = document.querySelectorAll('details');
+        s.open.forEach((open, i) => { if (ds[i]) ds[i].open = open; });
+        const tabs = document.querySelectorAll('.unit-tabs .utab');
+        if (s.tab >= 0 && tabs[s.tab] && !tabs[s.tab].classList.contains('active')) tabs[s.tab].click();
+        window.scrollTo(0, s.scroll);
+        // images in the swapped page have no intrinsic size yet; land again once
+        // the layout has settled
+        requestAnimationFrame(() => window.scrollTo(0, s.scroll));
+      };
+
+      // Scripts parsed out of a fetched document are inert — re-create them so
+      // the page behaves exactly as it would after a real load. This one is
+      // dropped instead: its listener sits on `document` and survives the swap,
+      // so re-running it would double every submit.
+      const runScripts = (root) => {
+        for (const old of root.querySelectorAll('script')) {
+          if (old.id === 'no-reload') { old.remove(); continue; }
+          const s = document.createElement('script');
+          for (const a of old.attributes) s.setAttribute(a.name, a.value);
+          s.textContent = old.textContent;
+          old.replaceWith(s);
+        }
+      };
+
+      const toast = document.createElement('div');
+      toast.id = 'toast';
+      let toastTimer = 0;
+      const say = (text, cls) => {
+        toast.textContent = text;
+        toast.className = cls;
+        document.body.appendChild(toast);
+        clearTimeout(toastTimer);
+        if (cls !== 'work') toastTimer = setTimeout(() => toast.remove(), 4000);
+      };
+
+      const post = async (data, form) => {
+        const state = snapshot();
+        say('se salvează…', 'work');
+        let html = null;
+        try {
+          const res = await fetch(location.href, { method: 'POST', body: data });
+          html = await res.text();
+        } catch (e) { /* handled below */ }
+        if (html == null) { toast.remove(); nativeSubmit.call(form); return; }
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        if (!doc.body) { location.reload(); return; }
+        document.body.replaceWith(document.adoptNode(doc.body));
+        runScripts(document.body);
+        restore(state);
+        const flash = document.querySelector('.flash');
+        if (flash) say(flash.textContent, flash.classList.contains('bad') ? 'bad' : 'ok');
+        else toast.remove();
+      };
+
+      // One at a time, in the order they were made: the fields are read the
+      // moment the action happens, so a second change while the first is still
+      // in flight can't be lost or sent against a stale page.
+      let chain = Promise.resolve();
+      const send = (form) => {
+        const data = new FormData(form);
+        chain = chain.then(() => post(data, form)).catch(() => {});
+      };
+
+      // A form.submit() call from JS does NOT fire a submit event, and nearly
+      // every control on this page saves with onchange="this.form.submit()" —
+      // so both doors need watching.
+      HTMLFormElement.prototype.submit = function () {
+        if (this.hasAttribute('data-full')) return nativeSubmit.call(this);
+        send(this);
+      };
+      document.addEventListener('submit', (e) => {
+        const f = e.target;
+        if (!(f instanceof HTMLFormElement) || f.hasAttribute('data-full')) return;
+        e.preventDefault();
+        send(f);
+      });
+    })();
+  </script>
+</body>
+</html>

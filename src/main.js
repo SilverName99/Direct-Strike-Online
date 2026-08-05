@@ -1,0 +1,723 @@
+import { CONFIG, VERSION, RACES } from './config.js';
+import { Game } from './sim/game.js';
+import { AIController } from './sim/ai.js';
+import { Renderer } from './render/renderer.js';
+import { Effects } from './render/effects.js';
+import { BattleSfx } from './render/battlesfx.js';
+import { Camera } from './ui/camera.js';
+import { Minimap } from './ui/minimap.js';
+import { Hud } from './ui/hud.js';
+import { BottomBar } from './ui/bottombar.js';
+import { Input } from './ui/input.js';
+import { Menu, TIPS } from './ui/menu.js';
+import { PointerManager, toast } from './ui/pointer.js';
+import { loadSprites, spriteProgress, setTeamRaces, setViewerTeam, getMusicUrl, getBattleSfxUrl, getCursorUrl } from './render/sprites.js';
+import { NetClient } from './net/netclient.js';
+import { NetMatch } from './net/netmatch.js';
+import { loadBalance, musicVolumeOf, middleConfig, resolvedAIGenome } from './ui/balance.js';
+import { teamLayout, applyModeLayout } from './sim/layout.js';
+import { t, translateDom } from './i18n.js';
+import { setExtraBuildZones, setLocalZones } from './ui/grid.js';
+import { actionForKey } from './ui/hotkeys.js';
+
+const canvas = document.getElementById('game');
+const renderer = new Renderer(canvas);
+const camera = new Camera(canvas);
+renderer.camera = camera;
+const minimap = new Minimap(document.getElementById('minimap'), camera);
+const effects = new Effects();
+const battleSfx = new BattleSfx(); // looping battle ambience, driven by what the camera sees
+const uiState = {
+  myTeam: 0, // the team this player commands (0 in single player; assigned online)
+  selected: null,
+  drag: null,
+  movingBuilding: null, // {id} while relocating a placed building (next click = new spot)
+  pendingMove: null, // just-dropped template move held at target until it lands online
+  inspect: null, // selection-panel target: {kind:'template'|'entity'|'structure', ...}
+  gridOn: true,
+  showRanges: false, // 🎯 debug overlay: attack reach + physical boxes for everything
+  mouseX: null,
+  mouseY: null,
+  screenX: null,
+  screenY: null,
+  winX: null,
+  winY: null,
+};
+const hud = new Hud(uiState);
+
+let game = null;
+let ai = null;   // debug-overlay handle: the first ENEMY bot
+let ais = [];    // every bot commander this match (allies + enemies)
+let state = 'menu'; // 'menu' | 'playing' | 'over'
+let net = null;      // NetClient — one connection, reused across lobby visits
+let netmatch = null; // NetMatch while an online game is live
+
+const input = new Input(canvas, renderer, camera, uiState, () =>
+  state === 'playing' ? game : null
+);
+// WC3-style selection panel (click units/templates/structures to inspect;
+// your own Main Base shows its upgrades right in the command grid)
+const bottombar = new BottomBar(
+  uiState,
+  () => (state === 'playing' ? game : null),
+  (id) => input.select(id) // shop slot clicks share the hotkey gating
+);
+input.bar = bottombar; // hotkeys press the command-card cells through the bar
+const pointer = new PointerManager(canvas);
+
+console.log(`Fangs & Honor ${VERSION}`);
+document.getElementById('version').textContent = VERSION;
+translateDom(document.body); // index.html titles/labels through the dictionary
+
+// user-uploaded unit sprites (via /admin) override the built-in art. Once the
+// manifest is in, the custom cursors exist too, so roll the random menu cursor.
+loadSprites('assets/units/', () => { bottombar.refresh(); applyRandomMenuCursor(); menu.refreshGallery(); });
+
+// Boot loader: hold the golden splash (index.html #boot) until the menu is
+// fully ready, then fade it out — so the logo/background/buttons don't pop in
+// one at a time. A minimum on-screen time keeps it from flashing.
+const bootEl = document.getElementById('boot');
+const bootStart = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+function preload(urls, timeoutMs) {
+  const list = (urls || []).filter(Boolean);
+  if (!list.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    let left = list.length;
+    const done = () => { if (--left <= 0) resolve(); };
+    for (const u of list) { const img = new Image(); img.onload = done; img.onerror = done; img.src = u; }
+    setTimeout(resolve, timeoutMs); // never hang on a slow/broken image
+  });
+}
+function hideBoot() {
+  if (!bootEl) return;
+  bootPhase = '';
+  const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const wait = Math.max(0, 700 - (now - bootStart)); // show for at least ~0.7s
+  setTimeout(() => { bootEl.classList.add('done'); setTimeout(() => bootEl.remove(), 650); }, wait);
+}
+
+// A spinner alone can't tell "working" from "stuck" — on a thin connection you
+// end up staring at it with no idea whether anything is happening. Say what is
+// being waited on, count the art as it lands, and give something to read.
+let bootPhase = t('pornesc jocul…');
+{
+  const note = bootEl && bootEl.querySelector('.boot-note');
+  const tipEl = bootEl && bootEl.querySelector('.boot-tip');
+  if (tipEl && TIPS.length) {
+    tipEl.textContent = '💡 ' + t(TIPS[Math.floor(Math.random() * TIPS.length) % TIPS.length]);
+    setTimeout(() => tipEl.classList.add('on'), 400); // fade in, so a fast boot never flashes it
+  }
+  if (note) {
+    let lastCount = -1;
+    let lastMove = bootStart;
+    const tick = () => {
+      if (!bootEl || !bootEl.isConnected || !bootPhase) return;
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const p = spriteProgress();
+      if (p.total > 0 && p.loaded !== lastCount) { lastCount = p.loaded; lastMove = now; }
+      // the art is the big download, so it's the number worth showing
+      const art = p.total > 0 && p.loaded < p.total ? ` · <b>${p.loaded}/${p.total}</b> ${t('imagini')}` : '';
+      const slow = now - lastMove > 6000 && now - bootStart > 6000;
+      note.classList.toggle('slow', slow);
+      note.innerHTML = bootPhase + art + (slow ? ` · ${t('durează mai mult ca de obicei…')}` : '');
+      setTimeout(tick, 180);
+    };
+    tick();
+  }
+}
+
+// apply the balance published from /admin (edit it there, not in-game)
+bootPhase = t('setările de joc…');
+loadBalance().then((loaded) => {
+  if (loaded) {
+    bottombar.refresh();
+    console.log('balance overrides loaded');
+  }
+}).catch((e) => console.warn('balance load failed', e)).finally(() => {
+  menu.applyTheme(); // logo + menu/loading backgrounds live in balance.json
+  bootPhase = t('pregătesc meniul…');
+  // warm the decode cache for the menu art AND buffer the menu music, then
+  // reveal the finished menu (both capped so a slow asset never hangs boot)
+  Promise.all([
+    preload([CONFIG.MENU_BG, CONFIG.MENU_LOGO, CONFIG.MENU_BTN], 2500),
+    menu.preloadMusic(3500),
+  ]).then(() => {
+    hideBoot();
+    menu.armMusic(); // start the music now (if allowed) or on the first gesture
+  });
+});
+
+// 🎯 debug overlay: attack reach + physical body boxes around every unit
+const rangeBtn = document.getElementById('range-btn');
+if (rangeBtn) rangeBtn.addEventListener('click', () => {
+  uiState.showRanges = !uiState.showRanges;
+  rangeBtn.classList.toggle('active', uiState.showRanges);
+});
+document.getElementById('fs-btn').addEventListener('click', () => {
+  console.log('fullscreen toggle requested');
+  pointer.toggle();
+});
+// Bottom-bar zoom: cycle the whole bottom interface through 1× / 2× / 3×.
+const uiScaleBtn = document.getElementById('uiscale-btn');
+const UI_SCALES = [1, 1.2, 1.4, 1.6];
+let uiScaleIdx = 0;
+try { const s = parseFloat(localStorage.getItem('ds-bb-scale')); const i = UI_SCALES.indexOf(s); if (i >= 0) uiScaleIdx = i; } catch { /* private mode */ }
+function applyUiScale() {
+  const s = UI_SCALES[uiScaleIdx];
+  document.getElementById('bottombar').style.setProperty('--bb-scale', s);
+  uiScaleBtn.textContent = `${s}×`;
+  uiScaleBtn.classList.toggle('off', s === 1);
+  requestAnimationFrame(() => bottombar.buildTrayBg());
+}
+uiScaleBtn.addEventListener('click', () => {
+  uiScaleIdx = (uiScaleIdx + 1) % UI_SCALES.length;
+  const s = UI_SCALES[uiScaleIdx];
+  try { localStorage.setItem('ds-bb-scale', String(s)); } catch { /* private mode */ }
+  applyUiScale();
+  toast(t('Bară de jos: {s}×', { s }));
+});
+applyUiScale();
+// Mouse capture (pointer lock) keeps the OS cursor inside the window so a
+// fullscreen edge-scroll can't slide onto a second monitor. It defaults ON
+// (see PointerManager) and is toggleable from the menu's OPTIONS screen.
+document.addEventListener('keydown', (e) => {
+  if (e.target && e.target.closest && e.target.closest('input, select, textarea')) return;
+  if (actionForKey(e.key) === 'fullscreen') pointer.toggle();
+  if (e.key === 'g' || e.key === 'G') { // toggle the AI debug overlay
+    aiDebugOn = !aiDebugOn;
+    aiDebugEl.style.display = aiDebugOn ? 'block' : 'none';
+  }
+});
+
+// Dev overlay (press G): the AI's gold, income and what it's currently planning.
+let aiDebugOn = false;
+const aiDebugEl = document.createElement('div');
+aiDebugEl.id = 'ai-debug';
+aiDebugEl.style.cssText =
+  'position:fixed;top:120px;left:8px;z-index:9999;display:none;pointer-events:none;' +
+  'font:12px/1.5 ui-monospace,monospace;color:#ffe9a8;background:rgba(10,14,20,0.82);' +
+  'border:1px solid #3a4658;border-radius:8px;padding:8px 11px;max-width:280px;white-space:pre-wrap;';
+document.body.appendChild(aiDebugEl);
+
+function updateAiDebug() {
+  if (!aiDebugOn || !ai || !game || state !== 'playing') return;
+  const t = ai.team;
+  const gold = Math.floor(game.money[t]);
+  const inc = game.incomePerSecond(t).toFixed(1).replace(/\.0$/, '');
+  const army = game.templates[t].length;
+  const tier = 'I'.repeat(game.tier[t]);
+  const mid = game.midOwner === t ? ' · DEȚINE MIJLOCUL' : '';
+  aiDebugEl.textContent =
+    `🤖 AI (${game.races[t]})  [G ascunde]\n` +
+    `💰 gold: ${gold}   (+${inc}/s)\n` +
+    `🏰 tier ${tier} · armată ${army}${mid}\n` +
+    `postură: ${ai.aggro ? 'OFENSIV (împinge mijlocul)' : 'așezat'}\n` +
+    `plan: ${ai.intent}`;
+}
+
+// Per-race background music: uploaded from /admin (next to the background),
+// loops for the whole match at the admin-set volume. Started from the match
+// button click, so autoplay policies are satisfied.
+let music = null;
+let musicRace = null;                 // race of the current track (to re-scale volume live)
+let musicMuted = false;
+let musicVol = 1;                     // player master volume 0-1 (scales the per-race admin volume)
+try { musicMuted = localStorage.getItem('fh-music-muted') === '1'; } catch { /* private mode */ }
+try { const v = parseFloat(localStorage.getItem('fh-music-vol')); if (isFinite(v)) musicVol = Math.max(0, Math.min(1, v)); } catch { /* private mode */ }
+// Actual playback volume = player master × the race's admin-set music volume.
+function effVol(race) { return musicVol * Math.min(1, Math.max(0, musicVolumeOf(race) / 100)); }
+function startMusic(race) {
+  stopMusic();
+  const url = getMusicUrl(race);
+  if (!url) return;
+  musicRace = race;
+  music = new Audio(url);
+  music.loop = true;
+  music.volume = effVol(race);
+  music.muted = musicMuted;
+  music.play().catch(() => { /* autoplay blocked — stay silent */ });
+}
+function stopMusic() {
+  if (music) { music.pause(); music = null; }
+}
+
+// Top-bar sound pod: a mute toggle + a live volume slider (both remembered).
+const muteBtn = document.getElementById('mute-btn');
+const gameVol = document.getElementById('game-vol');
+function paintVolFill() {
+  if (gameVol) gameVol.style.setProperty('--fill', `${Math.round(musicVol * 100)}%`);
+}
+function applyMuteBtn() {
+  if (muteBtn) { muteBtn.textContent = (musicMuted || musicVol === 0) ? '🔇' : '🔊'; muteBtn.classList.toggle('off', musicMuted); }
+}
+function setGameVol(v, persist = true) {
+  musicVol = Math.max(0, Math.min(1, v));
+  if (music && musicRace != null) music.volume = effVol(musicRace);
+  if (gameVol && Math.round(Number(gameVol.value)) !== Math.round(musicVol * 100)) gameVol.value = String(Math.round(musicVol * 100));
+  if (persist) { try { localStorage.setItem('fh-music-vol', String(musicVol)); } catch { /* private mode */ } }
+  paintVolFill();
+  applyMuteBtn();
+}
+if (gameVol) {
+  gameVol.value = String(Math.round(musicVol * 100));
+  gameVol.addEventListener('input', () => setGameVol(Number(gameVol.value) / 100));
+}
+if (muteBtn) muteBtn.addEventListener('click', () => {
+  musicMuted = !musicMuted;
+  if (music) music.muted = musicMuted;
+  try { localStorage.setItem('fh-music-muted', musicMuted ? '1' : '0'); } catch { /* private mode */ }
+  applyMuteBtn();
+});
+paintVolFill();
+applyMuteBtn();
+
+// Battle-ambience pod: its OWN slider + mute, so turning the music down doesn't
+// take the fighting with it. Both remembered, like the music ones.
+let sfxVol = 1, sfxMuted = false;
+try { sfxMuted = localStorage.getItem('fh-sfx-muted') === '1'; } catch { /* private mode */ }
+try { const v = parseFloat(localStorage.getItem('fh-sfx-vol')); if (isFinite(v)) sfxVol = Math.max(0, Math.min(1, v)); } catch { /* private mode */ }
+const sfxBtn = document.getElementById('sfx-btn');
+const sfxSlider = document.getElementById('sfx-vol');
+function applySfxBtn() {
+  if (sfxBtn) { sfxBtn.textContent = (sfxMuted || sfxVol === 0) ? '🔇' : '💥'; sfxBtn.classList.toggle('off', sfxMuted); }
+}
+function setSfxVol(v, persist = true) {
+  sfxVol = Math.max(0, Math.min(1, v));
+  battleSfx.setVolume(sfxVol);
+  if (sfxSlider) {
+    if (Math.round(Number(sfxSlider.value)) !== Math.round(sfxVol * 100)) sfxSlider.value = String(Math.round(sfxVol * 100));
+    sfxSlider.style.setProperty('--fill', `${Math.round(sfxVol * 100)}%`);
+  }
+  if (persist) { try { localStorage.setItem('fh-sfx-vol', String(sfxVol)); } catch { /* private mode */ } }
+  applySfxBtn();
+}
+if (sfxSlider) sfxSlider.addEventListener('input', () => setSfxVol(Number(sfxSlider.value) / 100));
+if (sfxBtn) sfxBtn.addEventListener('click', () => {
+  sfxMuted = !sfxMuted;
+  battleSfx.setMuted(sfxMuted);
+  try { localStorage.setItem('fh-sfx-muted', sfxMuted ? '1' : '0'); } catch { /* private mode */ }
+  applySfxBtn();
+});
+battleSfx.setMuted(sfxMuted);
+setSfxVol(sfxVol, false);
+
+// Web Audio stays blocked until the page has seen a real gesture — arm it on
+// the first click/key, then never again.
+function armBattleSfx() {
+  battleSfx.unlock();
+  window.removeEventListener('pointerdown', armBattleSfx);
+  window.removeEventListener('keydown', armBattleSfx);
+}
+window.addEventListener('pointerdown', armBattleSfx);
+window.addEventListener('keydown', armBattleSfx);
+
+// The uploaded loop lives in the sprite manifest; point the mixer at it and let
+// it fade in with the fighting.
+function startBattleSfx() {
+  battleSfx.setUrl(getBattleSfxUrl());
+  battleSfx.start();
+}
+
+// Apply the player race's uploaded custom mouse cursor (falls back to the
+// default arrow when none is uploaded for that race).
+function applyCursor(race) {
+  pointer.setCursorImage(getCursorUrl(race));
+}
+
+// First menu entry: pick a RANDOM race cursor (human/orc) — more fun than the
+// plain arrow. Rolls only among races that actually have a cursor uploaded,
+// and only once. Must run AFTER the sprite manifest loads (that's when the
+// cursor URLs exist), so it's driven from the loadSprites callback below.
+function applyRandomMenuCursor() {
+  if (state !== 'menu') return;
+  const withCursor = RACES.filter((r) => getCursorUrl(r));
+  if (!withCursor.length) return; // no cursors uploaded — keep the default arrow
+  applyCursor(withCursor[Math.floor(Math.random() * withCursor.length)]);
+}
+
+// Middle-of-map terrain options handed to the sim. It MUST NOT depend on which
+// art happens to be decoded yet: online, both clients build the Game from the
+// same seed, and if one of them saw a different-length list the seeded pick
+// would differ — different terrain effect on each screen, i.e. a desync. So the
+// list is always the 3 configured slots (+ the N "empty" entries); the renderer
+// simply draws nothing when the picked slot has no image loaded.
+function middleOptions() {
+  const list = [0, 1, 2].map((slot) => ({ slot, ...(middleConfig(slot) || {}) }));
+  for (let i = 0; i < (CONFIG.MIDDLE_EMPTY || 0); i++) list.push({ slot: -1, kind: 'none' });
+  return list;
+}
+
+// A corner badge while the match runs on the "Testing" numbers, so a fast match
+// can never be mistaken for a real one. Created on first use.
+function showTestingBadge(on) {
+  let el = document.getElementById('testing-badge');
+  if (!on) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'testing-badge';
+    el.textContent = 'TESTING';
+    document.body.appendChild(el);
+  }
+}
+
+// Single player from a ROSTER — one entry per commander in layout order (side 0
+// back → front, then side 1): `{side, race, bot, difficulty}`. Exactly the
+// shape the lobby produces, so "Create room" against the bots lands here. The
+// human is whichever entry isn't a bot — anywhere in the depth, on either side.
+function newGameFromRoster(roster) {
+  if (netmatch) { netmatch.dispose(); netmatch = null; } // single player: no net loop
+  const me = Math.max(0, roster.findIndex((r) => !r.bot));
+  const mySide = roster[me] ? roster[me].side : 0;
+  const playerRace = roster[me] ? roster[me].race : 'humans';
+  uiState.myTeam = me;
+  setViewerTeam(me);
+  renderer.resetFog(); // fresh fog of war for the new match
+  const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+  const middles = middleOptions();
+
+  const sides = roster.map((r) => (r.side ? 1 : 0));
+  const races = roster.map((r) => r.race || 'humans');
+  const nA = sides.filter((s) => s === 0).length;
+  const nB = sides.filter((s) => s === 1).length;
+  applyModeLayout(nA, nB);       // battlefield geometry for the mode (1v1 = classic)
+  minimap.resize();              // the minimap keeps the new field's aspect
+  const teamMode = nA > 1 || nB > 1;
+  const lay = teamMode ? teamLayout(nA, nB) : null;
+  // only the ENEMY bots get their difficulty's income edge; allied bots play
+  // on the same economy you do
+  const incomeMult = roster.map((r, i) => {
+    if (sides[i] === mySide) return 1;
+    const d = CONFIG.DIFFICULTY[r.difficulty] || CONFIG.DIFFICULTY.normal;
+    return d.incomeMult;
+  });
+  // art identity is per COMMANDER: races indexed by player + each player's side
+  setTeamRaces(races, sides);
+  bottombar.refresh(); // shop reflects the player race at match start
+  // "Testing" (Options switch): only ever an OFFLINE match — an online sim has
+  // to run the same numbers on every client, so newNetGame never passes it.
+  const testing = !!(menu && menu.testing);
+  game = new Game(seed, { races, incomeMult, middles, testing, ...(lay ? { layout: lay } : {}) });
+  showTestingBadge(testing);
+  window.__game = game; // debug/test handle (render side only; sim never reads it)
+  window.__ui = uiState; // debug/test handle (drive selection/inspect in tests)
+  window.__bb = bottombar; // debug/test handle (inspect the command grid state)
+  // bots: every player except the human. The first one keeps the historical
+  // seed so classic 1v1 behaves exactly as before.
+  ais = [];
+  for (let p = 0; p < game.players.length; p++) {
+    if (p === me) continue;
+    const r = roster[p] || {};
+    const n = ais.length;
+    ais.push(new AIController(p, r.difficulty || 'normal', (seed ^ (0x9e3779b9 + n * 0x85ebca6b)) >>> 0, resolvedAIGenome()));
+  }
+  ai = ais.find((b) => game.sideOf(b.team) !== mySide) || ais[0] || null; // debug overlay: first enemy bot
+  // ally-zone snapping: the human may invest inside allied zones (X% allowance)
+  // and — once baseless — park army in the allied strips (the sim validates)
+  const allies = teamMode ? game.playersOnSide(mySide).filter((p) => p !== me) : [];
+  setLocalZones(game.zones[me].build, game.zones[me].army, mySide); // MY strips, whatever my depth
+  setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
+  effects.reset();
+  uiState.selected = null;
+  uiState.drag = null;
+  uiState.inspect = null;
+  const myMain = game.mainOfPlayer(me);
+  camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[mySide], CONFIG.MAIN.y);
+  state = 'playing';
+  startMusic(playerRace);
+  startBattleSfx();
+  applyCursor(playerRace);
+}
+
+// ---------------- online 1v1 (lockstep through the VPS relay) ----------------
+function netUrl() {
+  if (window.__NET_URL) return window.__NET_URL;          // tests override this
+  if (CONFIG.NET_URL) return CONFIG.NET_URL;              // optional admin override
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1') return `ws://${h}:8080/ws`; // local dev
+  return 'wss://play.fangs-and-honor.com/ws';
+}
+const NET_ERRORS = {
+  'no-room': 'Camera nu există (cod greșit sau expirat).',
+  'own-room': 'Acela e codul TĂU — dă-i-l prietenului.',
+  'in-match': 'Ești deja într-un meci.',
+  'room-full': 'Camera e plină.',
+  'not-ready': 'Nu toți jucătorii sunt gata.',
+  version: t('Versiuni diferite de joc. Tu ai {v} — reîmprospătați pagina (Ctrl+Shift+R) ca să aveți toți aceeași versiune.', { v: VERSION }),
+};
+async function ensureNet() {
+  if (net && net.ws && net.ws.readyState === 1) return net;
+  net = new NetClient(netUrl(), VERSION);
+  net.on('queued', () => menu.netWaiting(t('Se caută adversar…'), t('Ține pagina deschisă')));
+  net.on('room', (m) => menu.netWaiting(t('Se deschide camera…'), t('Cod:'), m.code));
+  net.on('error', (m) => menu.netError(NET_ERRORS[m.reason] ? t(NET_ERRORS[m.reason]) : `${t('Eroare')}: ${m.reason}`));
+  net.on('start', (m) => startNetMatch(m));
+  // ---- the lobby ("cameră") ----
+  net.on('lobby', (m) => menu.showLobby(m.room, net.id));
+  net.on('roomlist', (m) => menu.showRooms(m.rooms));
+  // the server's checksum watchdog caught the sims drifting apart: say it out
+  // loud (once) instead of letting the players discover it by comparing screens
+  net.on('desync', () => {
+    if (!netmatch || netmatch._warnedDesync) return;
+    netmatch._warnedDesync = true;
+    toast(t('⚠ Meciul s-a desincronizat — ce vedeți nu mai e identic'));
+  });
+  net.on('swap_req', (m) => menu.showSwapAsk(m.from, m.name));
+  net.on('swap_declined', (m) => toast(t('{name} nu vrea să schimbe poziția', { name: m.name })));
+  net.on('kicked', () => { menu.hideSwapAsk(); menu.netError(t('Ai fost dat afară din cameră.')); });
+  net.on('player_left', (m) => toast(t('{name} a părăsit meciul — echipa lui primește bonusul asimetric', { name: m.name || t('Jucătorul {n}', { n: m.index + 1 }) })));
+  await net.connect(menu.playerName);
+  return net;
+}
+// Every lobby button is a one-liner on the wire; the server answers with a
+// fresh room state that repaints the screen (menu.showLobby).
+function lobbyAction(a) {
+  if (!net) return;
+  switch (a.action) {
+    case 'race': net.lobbyRace(a.race); break;
+    case 'ready': net.lobbyReady(a.ready); break;
+    case 'say': net.lobbyChat(a.text); break;
+    case 'slot': net.lobbySlot(a.side, a.depth, a.kind, { difficulty: a.difficulty, race: a.race }); break;
+    case 'move': net.lobbyMove(a.fromSide, a.fromDepth, a.toSide, a.toDepth); break;
+    case 'seat': net.lobbySeat(a.side, a.depth); break;
+    case 'kick': net.lobbyKick(a.id); break;
+    case 'swapReq': net.lobbySwapReq(a.id); break;
+    case 'swapReply': net.lobbySwapReply(a.id, a.accept); break;
+    case 'start': net.lobbyStart(); break;
+    default: break;
+  }
+}
+async function netAction({ action, race, code, private: isPrivate }) {
+  // the room browser refreshes in place — no "connecting…" screen for it
+  if (action !== 'rooms') menu.netWaiting(t('Mă conectez…'));
+  try {
+    const n = await ensureNet();
+    if (action === 'quick') n.quickmatch(race);
+    else if (action === 'create') n.createRoom(race, isPrivate);
+    else if (action === 'join') n.joinRoom(code, race);
+    else if (action === 'rooms') n.listRooms();
+  } catch {
+    if (action === 'rooms') menu.showRooms([]);
+    else menu.netError(t('Nu mă pot conecta la serverul de joc. Încearcă din nou.'));
+  }
+}
+// Opponent found: build the SAME deterministic Game on both clients and start
+// the lockstep loop immediately (it runs behind the countdown/loading screens,
+// so a player whose loading ends earlier can't get ahead).
+function startNetMatch(m) {
+  // The roster is the source of truth: one entry per COMMANDER (humans and
+  // bots alike), ordered side 0 back->front then side 1 — exactly the order
+  // teamLayout() lays the depth zones out in. Empty lobby slots simply aren't
+  // in it, so a 3-vs-2 room starts as an asymmetric 2v3.
+  const roster = m.roster || m.races.map((race, index) => ({ index, race, side: m.sides ? m.sides[index] : index, bot: false }));
+  const sides = roster.map((r) => r.side);
+  const races = roster.map((r) => r.race);
+  const nA = sides.filter((s) => s === 0).length;
+  const nB = sides.filter((s) => s === 1).length;
+  const mySide = sides[m.youAre] || 0;
+  applyModeLayout(nA, nB);       // both clients derive the SAME geometry
+  minimap.resize();
+  const teamMode = nA > 1 || nB > 1;
+  const lay = teamMode ? teamLayout(nA, nB) : null;
+  setTeamRaces(races, sides);
+  uiState.myTeam = m.youAre;
+  setViewerTeam(m.youAre);
+  renderer.resetFog(); // fresh fog of war for the new match
+  bottombar.refresh();
+  applyCursor(races[m.youAre]);
+  const middles = middleOptions();
+  game = new Game(m.seed, { races, incomeMult: races.map(() => 1), middles, ...(lay ? { layout: lay } : {}) });
+  showTestingBadge(false); // online matches always run the normal numbers
+  window.__game = game;
+  window.__ui = uiState;
+  window.__bb = bottombar;
+  // Bot slots are simulated LOCALLY by every client: same seed derivation +
+  // the deterministic AIController = identical decisions on all machines, so
+  // no bot command ever touches the wire.
+  ais = [];
+  for (const r of roster) {
+    if (!r.bot) continue;
+    ais.push(new AIController(r.index, r.difficulty || 'normal', (m.seed ^ (0x9e3779b9 + r.index * 0x85ebca6b)) >>> 0, resolvedAIGenome()));
+  }
+  ai = null;
+  // ally zones: the human may invest inside allied strips (the % allowance)
+  const allies = teamMode ? game.playersOnSide(mySide).filter((p) => p !== m.youAre) : [];
+  setLocalZones(game.zones[m.youAre].build, game.zones[m.youAre].army, mySide);
+  setExtraBuildZones(allies.map((p) => game.zones[p].build), allies.map((p) => game.zones[p].army));
+  netmatch = new NetMatch(net, m, game);
+  netmatch.bots = ais; // stepped inside the lockstep loop, not the render loop
+  window.__netmatch = netmatch; // debug/test handle
+  netmatch.onEnd = (kind) => {
+    if (kind === 'opp_left' && game && game.winner === null && state !== 'over') {
+      state = 'over';
+      stopMusic();
+      battleSfx.stop();
+      toast(t('Adversarul a părăsit meciul'));
+      endNetMatch();
+      setTimeout(() => menu.showGameOver(game, true, uiState.myTeam, true), 600);
+    } else if (kind === 'closed' && state !== 'over') {
+      // dropped mid-match OR mid-countdown — back to the menu either way
+      stopMusic();
+      battleSfx.stop();
+      toast(t('Conexiune pierdută cu serverul'));
+      endNetMatch();
+      state = 'menu';
+      menu.show();
+    }
+  };
+  effects.reset();
+  uiState.selected = null;
+  uiState.drag = null;
+  uiState.inspect = null;
+  const myMain = game.mainOfPlayer(m.youAre);
+  camera.reset(myMain ? myMain.x : CONFIG.MAIN.x[mySide], CONFIG.MAIN.y);
+  menu.startNetCountdown(); // 5s countdown + loading, then onNetReveal below
+}
+function endNetMatch() {
+  if (netmatch) { netmatch.dispose(); netmatch = null; }
+  if (net) net.leave();
+}
+
+// The entry menu owns #overlay: main → format → setup → 5s countdown → loading.
+const menu = new Menu(document.getElementById('overlay'), {
+  // live shop / cursor preview follows the race picked in match setup
+  onRaceChange: ({ player, enemy }) => {
+    setTeamRaces([player, enemy]);
+    bottombar.refresh();
+    applyCursor(player);
+  },
+  onStartRoster: (roster) => newGameFromRoster(roster), // offline room (you + bots)
+  onNet: (a) => netAction(a),             // quick / create / join from the menu
+  onLobby: (a) => lobbyAction(a),         // every button inside the "cameră"
+  onNameChange: (name) => { if (net) net.setName(name); }, // carries into the room
+  onNetCancel: () => { if (net) net.leave(); },
+  onNetReveal: () => {                    // loading done — show the live net match
+    state = 'playing';
+    const race = game ? game.races[uiState.myTeam] : 'humans';
+    startMusic(race);
+    startBattleSfx();
+    applyCursor(race);
+  },
+  enterFullscreen: () => pointer.enter(), // from the Play click (a user gesture)
+  // mouse capture toggle (OPTIONS): keeps the cursor inside the window on
+  // fullscreen so it can't slip onto a second monitor
+  onCaptureMouse: (on) => pointer.setCaptureMouse(on),
+  getCaptureMouse: () => pointer.captureMouse,
+  onMenuMain: () => applyRandomMenuCursor(), // re-roll the menu cursor each visit
+});
+window.__menu = menu; // debug/test handle (drive the entry menu in tests)
+window.__renderer = renderer; // debug/test handle (fog + layer state)
+window.__effects = effects;   // debug/test handle (corpses + particles)
+window.__sfx = battleSfx;     // debug/test handle (battle ambience mixer)
+window.__camera = camera;     // debug/test handle (zoom range)
+// seed the behind-the-menu preview with the default matchup
+setTeamRaces(['humans', 'orcs']);
+bottombar.refresh();
+// try the random menu cursor now in case the sprite manifest already resolved
+// (cached); otherwise the loadSprites callback above rolls it when ready.
+applyRandomMenuCursor();
+
+window.addEventListener('resize', () => renderer.resize());
+// entering/leaving fullscreen resizes the wrapper over a couple of frames —
+// re-fit the canvas immediately AND after layout settles so the backing store
+// always matches the display (no stale/black strips)
+document.addEventListener('fullscreenchange', () => {
+  renderer.resize();
+  requestAnimationFrame(() => renderer.resize());
+});
+renderer.resize();
+camera.reset(CONFIG.MAIN.x[0], CONFIG.MAIN.y);
+
+let last = performance.now();
+let accumulator = 0;
+
+function frame(now) {
+  // A thrown error anywhere in a frame must NEVER stop the loop — otherwise the
+  // whole game freezes (rAF never re-scheduled). Guard the body; always re-arm.
+  try {
+    frameBody(now);
+  } catch (err) {
+    console.error('frame error (kept the loop alive):', err);
+  }
+  requestAnimationFrame(frame);
+}
+
+// Run one frame phase, isolated: if it throws, the OTHER phases (crucially the
+// RENDER) still run, so a bug in the sim or the selection panel can never freeze
+// the whole picture. The error is logged (with its phase) so it's diagnosable.
+function safe(phase, fn) {
+  try { fn(); } catch (err) { console.error(`frame phase "${phase}" error (isolated):`, err); }
+}
+
+function frameBody(now) {
+  const delta = Math.min((now - last) / 1000, 0.25);
+  last = now;
+
+  // Camera pans every frame (menu included — harmless).
+  camera.update(delta, input.cameraControl());
+
+  // The world point under the cursor shifts when the camera moves even if
+  // the mouse doesn't — re-derive sim coords and keep any drag pinned.
+  if (uiState.screenX != null) {
+    const w = camera.screenToWorld(uiState.screenX, uiState.screenY);
+    uiState.mouseX = w.x;
+    uiState.mouseY = w.y;
+    if (state === 'playing' && uiState.drag) input.dragTo(w.x, w.y);
+  }
+
+  // --- SIM phase (isolated) ---------------------------------------------------
+  safe('sim', () => {
+    // the online sim advances even while the countdown/loading screens still
+    // cover it, so neither player's sim can fall behind the server clock
+    if (netmatch && !netmatch.done && game) {
+      netmatch.update();
+      if (state !== 'playing') game.drainEvents(); // discard pre-reveal events
+    }
+
+    if (state === 'playing' && game) {
+      if (!netmatch) {
+        accumulator += delta;
+        while (accumulator >= CONFIG.FIXED_DT) {
+          accumulator -= CONFIG.FIXED_DT;
+          for (const b of ais) b.update(game, CONFIG.FIXED_DT);
+          game.update(CONFIG.FIXED_DT);
+        }
+      }
+      const events = game.drainEvents();
+      effects.spawnFromEvents(events);
+      effects.update(delta);
+      effects.updateSouls(delta, game); // soul orbs home in on the living hero
+      battleSfx.update(game, renderer, camera, delta);
+      hud.update(game, delta);
+      updateAiDebug();
+
+      if (game.winner !== null) {
+        state = 'over';
+        stopMusic();
+        battleSfx.stop();
+        const won = game.winner === uiState.myTeam;
+        const wasNet = !!netmatch;
+        if (wasNet) endNetMatch();
+        setTimeout(() => menu.showGameOver(game, won, uiState.myTeam, wasNet), 900);
+      }
+    } else if (state === 'over' && game) {
+      // keep drawing the frozen battlefield behind the overlay
+      effects.update(delta);
+    }
+  });
+
+  // --- SELECTION PANEL phase (isolated) --------------------------------------
+  safe('panel', () => {
+    bottombar.update(state === 'playing' ? game : null); // grid + panel follow the selection
+  });
+
+  // --- RENDER phase (isolated) — must run even if sim/panel threw ------------
+  safe('render', () => {
+    if (game) {
+      const alpha = state === 'playing' ? (netmatch ? netmatch.alpha() : accumulator / CONFIG.FIXED_DT) : 1;
+      renderer.draw(game, alpha, uiState, effects);
+    }
+    minimap.draw(game, CONFIG.FOG_OF_WAR ? renderer.fog : null);
+  });
+}
+
+requestAnimationFrame(frame);

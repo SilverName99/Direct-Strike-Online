@@ -1,0 +1,14 @@
+{
+  "name": "fangs-and-honor-server",
+  "version": "0.1.0",
+  "description": "Multiplayer relay/lockstep server for Fangs & Honor. Reuses the game's deterministic command sim: only small command objects cross the wire.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test-local.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

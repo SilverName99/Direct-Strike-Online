@@ -1,0 +1,30 @@
+# Direct Strike Online — an actively developed game. We want EVERY visit to
+# https://fangs-and-honor.com/ to load the freshest code/data, never a stale
+# cached copy (stale JS is what breaks the animations after a deploy).
+#
+# `no-store` is stronger than `no-cache`: the browser (and any shared/edge
+# cache) must NOT keep a copy at all, so each load re-fetches from the server.
+# We scope it to the code + balance files (html/js/css/json) — the tiny game
+# source and the balance JSON (which also carries freshly uploaded sprites, so
+# new art shows up immediately). Static binary assets keep their own caching.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|mjs|css|json)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+    # drop validators so an intermediary can't answer a revalidation with 304
+    Header unset ETag
+    Header unset Last-Modified
+  </FilesMatch>
+</IfModule>
+FileETag None
+
+# Hostinger runs LiteSpeed, which has its own edge cache that can serve a stale
+# page even when the browser would revalidate. Explicitly tell LiteSpeed not to
+# cache these responses.
+<IfModule LiteSpeed>
+  CacheLookup off
+  <FilesMatch "\.(html|js|mjs|css|json)$">
+    Header set X-LiteSpeed-Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

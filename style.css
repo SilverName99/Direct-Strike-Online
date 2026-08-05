@@ -1,0 +1,1291 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0d1117;
+  --panel: #161c26;
+  --panel-2: #1c2431;
+  --border: #2a3446;
+  --text: #dbe4f0;
+  --dim: #7c8ba1;
+  --blue: #4da6ff;
+  --red: #ff5566;
+  --gold: #ffd35c;
+  --green: #58d68d;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ---------- Top bar (HUD) ---------- */
+#topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, #10151d 0%, #0b0f16 100%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  min-height: 46px;
+}
+.dim { color: var(--dim); }
+
+.hud-side { display: flex; align-items: center; gap: 10px; flex: 1; }
+.hud-right { justify-content: flex-end; }
+.hud-center { display: flex; align-items: center; justify-content: center; }
+
+/* stat chips: rounded dark pills with an icon and a two-line body */
+.hud-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 10px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 34px;
+}
+.chip-ico { font-size: 17px; line-height: 1; }
+.money-icon .gold-img { width: 19px; height: 19px; object-fit: contain; display: block; }
+#chip-gold .chip-ico { color: var(--gold); }
+.chip-body { display: flex; flex-direction: column; line-height: 1.05; }
+.chip-main { font-size: 17px; font-weight: 800; color: var(--text); }
+#chip-gold .chip-main { color: var(--gold); }
+.chip-sub { font-size: 10.5px; font-weight: 600; color: var(--dim); margin-top: 1px; }
+#chip-food.food-full .chip-main,
+#food.food-full { color: #ff8090; }
+
+/* wave chip in the center — the countdown reads at a glance */
+.wave-chip {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 4px 22px;
+  border-color: #3a4b66;
+  background: rgba(45, 125, 210, 0.10);
+}
+.wave-main { font-size: 15px; font-weight: 800; letter-spacing: 1.5px; color: var(--text); }
+.wave-main b { color: var(--gold); }
+.wave-sub { font-size: 11px; font-weight: 600; color: var(--dim); margin-top: 1px; }
+.wave-sub b { color: #cfe0f5; }
+
+/* ---------- Canvas ---------- */
+#canvas-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: #080b10;
+}
+#game {
+  display: block;
+  cursor: crosshair;
+  /* Force the game canvas onto its own double-buffered GPU compositor layer.
+     On some GPU / multi-monitor (mixed refresh) setups this stops the browser
+     from presenting the canvas mid-scanout — the "black line tearing" glitch. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.tier-badge {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffd35c;
+  background: rgba(255, 211, 92, 0.08);
+  border: 1px solid #5a4a1e;
+  border-radius: 8px;
+  padding: 6px 11px;
+}
+
+#uiscale-btn,
+#range-btn,
+#fs-btn {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 40px;
+  height: 34px;
+  padding: 0 11px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+#uiscale-btn:hover,
+#range-btn:hover,
+#fs-btn:hover { border-color: var(--blue); background: #1d2c42; }
+#range-btn.active { border-color: var(--gold); background: rgba(255, 211, 92, 0.12); }
+
+/* HUD sound control: a rounded pod with an icon button + a golden volume slider */
+.hud-snd {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 6px;
+  border-radius: 10px; background: rgba(255, 255, 255, 0.035); border: 1px solid var(--border);
+  transition: border-color 0.12s;
+}
+.hud-snd:hover { border-color: rgba(233, 197, 101, 0.5); }
+.hud-snd #mute-btn {
+  min-width: 26px; height: 30px; padding: 0; font-size: 16px; line-height: 1; cursor: pointer;
+  background: none; border: none; color: var(--text); transition: color 0.12s, transform 0.1s;
+}
+.hud-snd #mute-btn:hover { color: var(--gold, #ffd35c); transform: scale(1.08); }
+.hud-snd #mute-btn.off { color: #7c8ba1; }
+.hud-vol {
+  -webkit-appearance: none; appearance: none; width: 92px; height: 5px; border-radius: 4px; cursor: pointer; outline: none;
+  background: linear-gradient(90deg, #ffe39a 0%, var(--gold, #ffd35c) var(--fill, 100%), rgba(255, 255, 255, 0.16) var(--fill, 100%));
+}
+.hud-vol::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); border: 1px solid #e9c565; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+.hud-vol::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%; border: 1px solid #e9c565;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+/* version tag pinned to the bottom-right corner of the play field */
+#version {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(207, 224, 245, 0.5);
+  text-shadow: 0 1px 2px #000, 0 0 2px #000;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* transient status message (e.g. fullscreen refused) */
+#toast {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 20, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--text);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+#toast.visible { opacity: 1; }
+
+/* virtual cursor shown while the pointer is locked */
+#vcursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: none;
+  pointer-events: none;
+  z-index: 1000;
+  /* own compositor layer so the cursor transform never repaints on the main
+     thread — keeps it glued to the pointer even while the game renders */
+  will-change: transform;
+  backface-visibility: hidden;
+}
+#vcursor.visible { display: block; }
+
+/* ---------- Bottom bar (WC3-style): map | portrait | details | grid | tabs -- */
+#bottombar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 0 24px 8px;
+  /* the background is ONE curved SVG silhouette (#bb-bg): a low tray hugging
+     the portrait/details, flowing up with concave fillets around the taller
+     pods (map, command grid, tabs) instead of being cut behind them */
+  background: none;
+  height: 190px;
+  /* an overlay ON TOP of the map, centered, exactly as wide as its content */
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  /* --bb-scale enlarges the whole bottom bar (map/portrait/details/9 slots/
+     tabs) as one unit, anchored to the bottom-center so it stays put */
+  transform: translateX(-50%) scale(var(--bb-scale, 1));
+  transform-origin: bottom center;
+  width: fit-content;
+  z-index: 6;
+}
+/* while placing a unit/building over the bar: fade out + let clicks through */
+#bottombar { transition: opacity 0.12s; background-repeat: no-repeat; }
+#bottombar.placing { opacity: 0.1; pointer-events: none; }
+/* a per-race uploaded bar design replaces the default curved silhouette */
+#bottombar.skinned #bb-bg { display: none; }
+
+#bb-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+#bb-bg path { fill: rgba(16, 21, 30, 0.93); stroke: var(--border); stroke-width: 1; }
+#bottombar > *:not(#bb-bg):not(#bb-over):not(#bb-sell-col) { position: relative; z-index: 1; }
+
+/* per-race decorative overlay drawn ON TOP of the UI elements (frames,
+   ornaments, rivets…). Click-through so it never blocks the controls. */
+#bb-over {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  display: none;
+}
+#bottombar.overlaid #bb-over { display: block; }
+
+/* with a custom bar design present, drop the default dark-blue fills so the
+   uploaded art shows through the command slots and the UNITS/CLĂDIRI buttons.
+   Borders + state highlights (selected / active / on / locked) stay intact. */
+#bottombar.skinned .slot, #bottombar.overlaid .slot,
+#bottombar.skinned .slot.empty, #bottombar.overlaid .slot.empty,
+#bottombar.skinned .bb-tab, #bottombar.overlaid .bb-tab { background: transparent; }
+/* nudge the command grid + tab buttons 5px right so they line up with a custom
+   design's painted frames (transform keeps layout/silhouette in sync) */
+#bottombar.skinned #bb-grid-wrap, #bottombar.overlaid #bb-grid-wrap,
+#bottombar.skinned #bb-tabs, #bottombar.overlaid #bb-tabs { transform: translateX(5px); }
+/* the Orcs bar design has a thicker top rail — push the details/status content
+   down a touch so the name/bars clear the frame (Orcs only) */
+#bottombar.race-orcs #bb-details,
+#bottombar.race-undead #bb-details { padding-top: 26px; }
+
+#bb-map {
+  /* sits IN the tray, level with the portrait — no raised pod on the left */
+  height: 124px;
+  width: 380px;
+  flex: 0 0 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0e14;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+#minimap { cursor: pointer; display: block; }
+
+#bb-portrait {
+  width: 124px;
+  flex: 0 0 124px;
+  height: 124px;
+  background: #0a0e14;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#bb-portrait { position: relative; }
+#bb-portrait canvas { width: 112px; height: 112px; }
+/* per-unit idle clip, laid over the portrait canvas; shown only when present */
+#bb-portrait-vid {
+  display: none;
+  position: absolute;
+  width: 112px; height: 112px;
+  object-fit: contain;
+  pointer-events: none;
+}
+#bb-portrait.has-vid canvas { visibility: hidden; }
+#bb-portrait.has-vid #bb-portrait-vid { display: block; }
+
+#bb-details {
+  width: 280px;
+  flex: 0 0 280px;
+  height: 124px;
+  background: #10151d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  overflow: hidden;
+}
+#bb-details .bb-empty { color: var(--dim); font-size: 12px; padding-top: 44px; text-align: center; }
+#bb-details .d-title { display: flex; align-items: baseline; gap: 8px; }
+#bb-details .d-name { font-weight: 700; font-size: 14px; color: #eaf1fb; }
+#bb-details .d-name.enemy { color: var(--red); }
+#bb-details .d-sub { color: var(--dim); font-size: 11px; }
+#bb-details .d-bar { height: 8px; border-radius: 4px; background: rgba(0,0,0,0.55);
+  margin-top: 4px; position: relative; overflow: hidden; }
+#bb-details .d-bar > div { height: 100%; border-radius: 4px; }
+#bb-details .d-bar .hp { background: var(--green); }
+#bb-details .d-bar .hp.enemy { background: var(--red); }
+#bb-details .d-bar .mana { background: var(--blue); }
+#bb-details .d-bar span { position: absolute; inset: 0; text-align: center; font-size: 8.5px;
+  line-height: 9px; color: #eaf1fb; text-shadow: 0 1px 2px #000; }
+#bb-details .d-stats { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 5px; color: #b9c4d4; }
+#bb-details .d-stats b { color: #eaf1fb; font-weight: 600; }
+#bb-details .d-status { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+#bb-details .d-chip { border: 1px solid var(--border); border-radius: 20px; padding: 0 8px;
+  font-size: 10px; background: #0a0e14; }
+
+/* 3x3 command grid (big slots), a tall pod rising above the tray */
+#bb-grid-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  height: 182px;
+  display: flex;
+  align-items: center;
+  padding: 0 7px;
+}
+#bb-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 54px);
+  grid-template-rows: repeat(3, 54px);
+  gap: 3px;
+}
+.slot {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  background: var(--panel-2);
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.slot.empty { background: #10151d; border-color: #1d2431; cursor: default; }
+.slot canvas { width: 46px; height: 46px; pointer-events: none; }
+.slot:hover:not(.empty), .slot.hover:not(.empty) { border-color: #3d4c66; }
+.slot.selected { border-color: var(--blue); box-shadow: 0 0 8px rgba(77, 166, 255, 0.4); }
+.slot.disabled { opacity: 0.38; cursor: not-allowed; }
+.slot.locked { opacity: 0.35; filter: grayscale(0.7); cursor: not-allowed; }
+.slot.on { border-color: var(--green); box-shadow: 0 0 7px rgba(88, 214, 141, 0.35); }
+.slot.off { opacity: 0.55; }
+/* toggleable abilities/upgrades: explicit ✔/✖ badge instead of colored borders */
+.slot.tog-off { opacity: 0.6; }
+.slot .s-tog { position: absolute; top: 0; right: 3px; font-size: 12px; font-weight: 900;
+  pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 2px #000; }
+.slot .s-tog.ok { color: var(--green); }
+.slot .s-tog.no { color: #ff5f6e; }
+/* hero ability cast-mode badge (top-left pill): A auto / M manual / ✖ off */
+.slot .s-mode { position: absolute; top: 1px; left: 1px; min-width: 13px; height: 13px; padding: 0 2px;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;
+  border-radius: 4px; pointer-events: none; line-height: 1;
+  background: rgba(6,9,14,0.82); border: 1px solid rgba(255,255,255,0.22);
+  text-shadow: 0 1px 1px #000; }
+.slot .s-mode.auto { color: #7fb6ff; }
+.slot .s-mode.manual { color: var(--gold); border-color: rgba(255,211,92,0.6); }
+.slot .s-mode.no { color: #ff5f6e; border-color: rgba(255,95,110,0.55); }
+/* "ready to use" highlight: a golden dashed ring whose dashes march around the
+   slot (marching ants) so a ready ability stands out. */
+.slot.ready::after {
+  content: ''; position: absolute; inset: -1px; border-radius: 7px; pointer-events: none; z-index: 1;
+  background-image:
+    linear-gradient(90deg, var(--gold) 55%, transparent 0),
+    linear-gradient(90deg, var(--gold) 55%, transparent 0),
+    linear-gradient(0deg, var(--gold) 55%, transparent 0),
+    linear-gradient(0deg, var(--gold) 55%, transparent 0);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-size: 9px 2px, 9px 2px, 2px 9px, 2px 9px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  animation: slot-ants 0.6s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(255, 211, 92, 0.55));
+}
+@keyframes slot-ants {
+  to { background-position: 9px 0, -9px 100%, 0 -9px, 100% 9px; }
+}
+/* manual ability that can't be cast yet (on cooldown / not enough mana): the
+   icon dims; it snaps back to full colour the instant it becomes castable. */
+.slot.manual-dim { opacity: 0.42; filter: saturate(0.55); }
+.slot.sell { border-color: #7a2a33; }
+.slot .s-cost { position: absolute; bottom: 1px; right: 3px; font-size: 13px; color: var(--gold);
+  font-weight: 800; pointer-events: none;
+  /* bolder + black outline so the price reads clearly over any thumbnail */
+  -webkit-text-stroke: 0.6px #000;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000, 1px 0 1px #000, -1px 0 1px #000; }
+.slot .s-key { position: absolute; top: 1px; left: 4px; font-size: 10px; color: var(--dim);
+  text-shadow: 0 1px 2px #000; pointer-events: none; }
+.slot .s-lock { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold);
+  font-weight: 700; text-shadow: 0 1px 2px #000; pointer-events: none; }
+/* top-right "how many left to build" counter */
+.slot .s-rem { position: absolute; top: 1px; right: 2px; min-width: 14px; height: 14px; padding: 0 3px;
+  display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
+  color: #eaf1fb; background: rgba(6,9,14,0.8); border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 7px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+/* cooldown: a WC3-style radial sweep (set as a conic-gradient from JS with the
+   remaining fraction) + the seconds left in the middle */
+.slot .s-cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); font-size: 14px; color: var(--gold); font-weight: 700; pointer-events: none; }
+
+/* hover popup: right above the grid (wider than it so the text breathes) */
+#bb-popup {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  width: 300px;
+  min-height: 82px;
+  background: #0a0e14;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  z-index: 20;
+  pointer-events: none;
+  color: var(--text);
+}
+#bb-popup.on { display: block; }
+#bb-popup .p-title { color: var(--gold); font-weight: 700; font-size: 12px; }
+#bb-popup .p-dim { color: var(--dim); }
+#bb-popup .p-req { color: #ff9a6a; font-weight: 600; font-size: 11px; }
+
+/* UNITS / CLĂDIRI tab buttons — a tall pod like the grid */
+#bb-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 182px;
+  padding: 6px;
+}
+.bb-tab {
+  width: 84px;
+  flex: 1;
+  background: transparent;
+  border: none;             /* no blue frame — the art is the button */
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  opacity: 0.5;             /* dimmed until selected */
+  transition: opacity 0.12s;
+}
+.bb-tab canvas { width: 56px; height: 56px; } /* a touch bigger without the label */
+.bb-tab span { display: none; }               /* labels removed — icons are clear */
+.bb-tab:hover, .bb-tab.hover { opacity: 0.8; }
+.bb-tab.active { opacity: 1; }                 /* full colour when selected */
+
+/* ---------- Overlay ---------- */
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 8, 12, 0.82);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+}
+#overlay.visible { display: flex; }
+
+.overlay-panel {
+  text-align: center;
+  padding: 40px 56px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  max-width: 520px;
+}
+.overlay-panel h1 { font-size: 30px; letter-spacing: 3px; margin-bottom: 14px; }
+.overlay-panel h1 .accent { color: var(--blue); }
+.overlay-panel h1.victory { color: var(--green); }
+.overlay-panel h1.defeat { color: var(--red); }
+#overlay-msg { color: var(--dim); font-size: 14px; line-height: 1.6; margin-bottom: 18px; }
+.overlay-sub { color: var(--text); font-size: 13px; margin-bottom: 10px; }
+
+#overlay-stats { font-size: 13px; color: var(--text); margin-bottom: 18px; line-height: 1.8; }
+#overlay-stats.hidden { display: none; }
+#overlay-stats b { color: var(--gold); }
+
+.difficulty-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 14px; }
+.btn.race.selected { border-color: var(--gold); background: #2b2413; }
+.btn {
+  padding: 10px 26px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.btn:hover { border-color: var(--blue); background: #1d2c42; }
+.btn.primary { background: #1d4e89; border-color: var(--blue); }
+.btn.primary:hover { background: #2563a8; }
+
+/* ================= Boot loader (first paint → menu ready) ================= */
+#boot {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  background: radial-gradient(72% 72% at 50% 44%, #17130a, #070707 86%);
+  transition: opacity 0.55s ease;
+}
+#boot.done { opacity: 0; pointer-events: none; }
+#boot .boot-ring {
+  width: 68px; height: 68px; border-radius: 50%;
+  border: 4px solid rgba(233, 197, 101, 0.16);
+  border-top-color: #ffe09a; border-right-color: #e9c565;
+  box-shadow: 0 0 28px rgba(233, 197, 101, 0.3), inset 0 0 14px rgba(233, 197, 101, 0.12);
+  animation: boot-spin 0.9s linear infinite;
+}
+@keyframes boot-spin { to { transform: rotate(360deg); } }
+#boot .boot-label {
+  font: 700 13px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 5px; text-transform: uppercase;
+  background: linear-gradient(180deg, #fff2c9, #e9c565 60%, #b0812c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: boot-pulse 1.5s ease-in-out infinite;
+}
+@keyframes boot-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+/* What boot is actually waiting for, and something to read while it does.
+   A spinner alone can't tell "working" from "stuck". */
+#boot .boot-note {
+  margin-top: -8px; font: 500 12.5px/1.5 "Segoe UI", system-ui, sans-serif;
+  color: #8a7a58; letter-spacing: 0.6px; text-align: center; min-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+#boot .boot-note b { color: #e9c565; font-weight: 600; }
+#boot .boot-note.slow { color: #e0b060; }
+#boot .boot-tip {
+  margin-top: 10px; font: 400 13px/1.6 "Segoe UI", system-ui, sans-serif;
+  color: #6d6552; max-width: 42ch; text-align: center; padding: 0 20px;
+  opacity: 0; transition: opacity 0.6s ease;
+}
+#boot .boot-tip.on { opacity: 1; }
+
+/* ================= Entry menu ================= */
+#menu-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+#menu-bg.on::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(72% 72% at 50% 44%, rgba(6, 9, 14, 0.32), rgba(6, 9, 14, 0.74));
+}
+#overlay > #menu-root { position: relative; z-index: 1; }
+/* menu image gallery: left/right arrows cycle the menu bg through the loading
+   screens (menu bg first, then Human's, then Orcs') */
+.menu-gallery-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+  width: 54px; height: 92px; display: flex; align-items: center; justify-content: center;
+  font-size: 46px; line-height: 1; color: #e9c565; font-weight: 700;
+  background: rgba(6, 9, 14, 0.34); border: 1px solid rgba(233, 197, 101, 0.28);
+  border-radius: 12px; cursor: pointer; user-select: none;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+.menu-gallery-arrow:hover { background: rgba(233, 197, 101, 0.22); }
+.menu-gallery-arrow:active { transform: translateY(-50%) scale(0.93); }
+.menu-gallery-arrow.left { left: 18px; }
+.menu-gallery-arrow.right { right: 18px; }
+.menu-gallery-arrow.hidden { display: none; }
+#menu-cd, #menu-load { background-size: cover; background-position: center; background-repeat: no-repeat; }
+/* NO panel/box — the logo floats near the TOP, the controls are centered in
+   the viewport, and the uploaded artwork breathes behind everything. */
+#menu-root {
+  width: 100%; height: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24vh 24px 7vh; text-align: center; /* top padding keeps content clear of the logo */
+}
+.menu-brand { position: absolute; top: 5vh; left: 0; right: 0; margin: 0; }
+#menu-root .m-screen { max-width: min(620px, 92vw); }
+/* main-menu buttons sit a bit lower than the centered position */
+#menu-root .m-screen[data-screen="main"] { transform: translateY(10vh); }
+/* titles and helper text carry a drop shadow so they read over any image */
+#menu-root .m-title,
+#menu-root .m-hint,
+#menu-root .m-help,
+#menu-root .m-label { text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85), 0 0 2px rgba(0, 0, 0, 0.7); }
+
+/* ---- ornate uploaded button skin (admin "Design buton") ----
+   every main-menu button becomes the banner PNG with gold label text; sizes
+   unify so the banners stack evenly, matching the mockup layout. */
+.has-btn-skin .m-btns { width: min(391px, 75vw); gap: 12px; }
+.has-btn-skin .m-btns .m-btn,
+.has-btn-skin .m-btns .m-btn.primary,
+.has-btn-skin .m-btns .m-btn.ghost {
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 5.6 / 1; min-height: 0; padding: 0 36px;
+  background: var(--menu-btn) center / 100% 100% no-repeat;
+  border: none; border-radius: 0; box-shadow: none;
+  color: #f4dca0; font-size: clamp(12px, 2.9vw, 15px); letter-spacing: 2px;
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.92);
+}
+.has-btn-skin .m-btns .m-btn:hover { filter: brightness(1.13); transform: translateY(-1px); }
+
+/* ---- How-to-play tutorial slider ---- */
+#tut-slider { display: flex; flex-direction: column; align-items: center; gap: 14px; width: min(680px, 92vw); }
+#tut-slider .tut-stage { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; min-height: 40px; }
+#tut-slider .tut-frame { display: inline-flex; align-items: center; justify-content: center; max-width: 100%; }
+#tut-slider .tut-img {
+  max-width: 100%; max-height: 46vh; border-radius: 12px;
+  border: 1px solid rgba(233, 197, 101, 0.28); box-shadow: 0 24px 60px -26px rgba(0, 0, 0, 0.8);
+}
+/* framed slide box (admin "Design cutie slide"): the frame PNG stretches to a
+   box and the slide image is contained inside its transparent window */
+.has-slide-skin #tut-slider .tut-frame {
+  background: var(--menu-slide) center / 100% 100% no-repeat;
+  width: min(680px, 92vw); aspect-ratio: 16 / 10; padding: 6.5%;
+}
+.has-slide-skin #tut-slider .tut-img { max-width: 100%; max-height: 100%; object-fit: contain; border: none; box-shadow: none; border-radius: 4px; }
+#tut-slider .tut-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 46px; height: 46px; border-radius: 50%; z-index: 2;
+  background: rgba(12, 18, 28, 0.72); color: var(--gold, #ffd35c);
+  border: 1px solid rgba(233, 197, 101, 0.4); font-size: 26px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+#tut-slider .tut-nav:hover { background: rgba(233, 197, 101, 0.18); }
+#tut-slider .tut-nav.prev { left: -8px; }
+#tut-slider .tut-nav.next { right: -8px; }
+#tut-slider .tut-stage.single .tut-nav { display: none; }
+#tut-slider .tut-text { color: #dfe8f4; font-size: 15px; line-height: 1.6; max-width: 60ch; margin: 0; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85); }
+#tut-slider .tut-dots { display: flex; gap: 8px; }
+#tut-slider .tut-dot {
+  width: 10px; height: 10px; border-radius: 50%; padding: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.28); border: 1px solid rgba(233, 197, 101, 0.4);
+}
+#tut-slider .tut-dot.on { background: var(--gold, #ffd35c); }
+.menu-logo-img { max-width: min(460px, 80%); max-height: 240px; height: auto; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55)); }
+.menu-logo-txt {
+  margin: 0; font-family: "Impact", "Haettenschweiler", "Arial Narrow", sans-serif;
+  font-weight: 900; letter-spacing: 2px; font-size: clamp(34px, 8vw, 58px); line-height: 1; text-transform: uppercase;
+  background: linear-gradient(180deg, #fff2c9, #ffe39a 24%, var(--gold) 54%, #b0812c 90%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-text-stroke: 1px rgba(20, 14, 4, 0.5); filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+}
+.menu-logo-txt .amp { color: var(--blue); -webkit-text-stroke: 0; }
+.hidden { display: none !important; }
+
+.m-screen { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.m-title { font-size: 21px; letter-spacing: 2px; margin: 0; text-transform: uppercase; color: var(--text); }
+.m-title.victory { color: var(--green); }
+.m-title.defeat { color: var(--red); }
+.m-hint { color: var(--dim); font-size: 13px; margin: -6px 0 2px; }
+.m-help { color: var(--dim); font-size: 13.5px; line-height: 1.65; max-width: 46ch; margin: 2px 0 4px; }
+.m-help b { color: #cfe0f5; }
+
+.m-btns { display: flex; flex-direction: column; gap: 12px; width: min(320px, 80vw); }
+.m-btns.row { flex-direction: row; justify-content: center; }
+.m-btn {
+  font: 700 15px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase;
+  padding: 14px 22px; border-radius: 11px; cursor: pointer; color: var(--text);
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); transition: all 0.12s;
+}
+.m-btn:hover { border-color: var(--blue); background: #1b2942; transform: translateY(-1px); }
+.m-btn.primary {
+  color: #2a1e05; border-color: #e9c565;
+  background: linear-gradient(180deg, #f4d67e, #c99a34);
+  box-shadow: 0 8px 20px -8px rgba(233, 197, 101, 0.55);
+}
+.m-btn.primary:hover { background: linear-gradient(180deg, #ffe39a, #d8ad46); }
+.m-btn.ghost { background: transparent; color: var(--dim); font-size: 13px; padding: 10px; }
+.m-btn.ghost:hover { color: var(--text); background: rgba(255, 255, 255, 0.03); }
+.m-btn.big { width: min(260px, 70vw); font-size: 17px; padding: 15px; margin-top: 6px; }
+.m-back { background: none; border: none; color: var(--dim); font-size: 13px; cursor: pointer; padding: 6px; margin-top: 4px; }
+.m-back:hover { color: var(--text); }
+
+.m-cards { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.m-card {
+  width: 128px; min-height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 16px 12px; border-radius: 13px; cursor: pointer; color: var(--text);
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); transition: all 0.12s;
+}
+.m-card.wide { width: 272px; flex-direction: row; gap: 10px; }
+.m-card:not(.locked):hover { border-color: var(--gold); background: rgba(233, 197, 101, 0.08); transform: translateY(-2px); }
+.m-card-t { font-size: 22px; font-weight: 800; letter-spacing: 1px; }
+.m-card.wide .m-card-t { font-size: 16px; }
+.m-card-s { font-size: 11px; color: var(--dim); letter-spacing: 0.5px; }
+.m-card.locked { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.5); }
+.soon { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #e0a24a; border: 1px solid #6a4a1e; border-radius: 20px; padding: 2px 8px; }
+
+.m-setup { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 420px; }
+.m-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.m-label { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+/* setup / options row labels: bigger, bolder, golden */
+#menu-root .m-label {
+  color: #ffd769; font-size: 17px; font-weight: 800; letter-spacing: 1.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+}
+.m-opts { display: flex; gap: 8px; }
+/* small subtitle under an options label (e.g. the mouse-lock hint) */
+#menu-root .m-sub {
+  display: block; margin-top: 3px; color: var(--dim); font-size: 11px;
+  font-weight: 600; letter-spacing: 0.5px; text-transform: none;
+}
+/* golden on/off switch (OPTIONS) */
+.m-switch { position: relative; display: inline-block; width: 52px; height: 28px; cursor: pointer; flex: none; }
+.m-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.m-switch .m-slider {
+  position: absolute; inset: 0; border-radius: 999px; background: #1b2230;
+  border: 1px solid rgba(233, 197, 101, 0.35); transition: background 0.15s, border-color 0.15s;
+}
+.m-switch .m-slider::before {
+  content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #cbd5e4; transition: transform 0.15s, background 0.15s;
+}
+.m-switch input:checked + .m-slider {
+  background: linear-gradient(180deg, #ffdd80, #e9a53d); border-color: #ffe08a;
+}
+.m-switch input:checked + .m-slider::before { transform: translateX(24px); background: #2a1c05; }
+.m-pill {
+  font: 600 13px/1 "Segoe UI", system-ui, sans-serif; padding: 9px 15px; border-radius: 9px; cursor: pointer;
+  color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); transition: all 0.1s;
+}
+.m-pill:hover { border-color: var(--blue); }
+.m-pill.on { border-color: var(--gold); background: rgba(233, 197, 101, 0.13); color: var(--gold-lite, #ffe39a); }
+
+/* Options: golden range slider */
+.m-range { -webkit-appearance: none; appearance: none; width: 200px; height: 6px; border-radius: 6px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(233, 197, 101, 0.28); }
+.m-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); border: 1px solid #e9c565; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+.m-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #e9c565;
+  background: linear-gradient(180deg, #ffe39a, #c99a34); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5); }
+
+/* ---- format cards skin (admin "Design card 1v1/2v2/3v3") ---- */
+.has-card-skin .m-card:not(.pwf-card) {
+  width: var(--menu-card-w, 128px); height: var(--menu-card-h, 92px); min-height: 0; padding: 0;
+  background: var(--menu-card) center / 100% 100% no-repeat;
+  border: none; box-shadow: none; color: #f4dca0; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.has-card-skin .m-card:not(.pwf-card):not(.locked):hover { background: var(--menu-card) center / 100% 100% no-repeat; filter: brightness(1.12); }
+.has-card-skin .m-card-s { color: #e6d3a0; }
+
+/* ---- "Play with friends" card skin (art already carries the text) ---- */
+.has-pwf-skin .pwf-card {
+  position: relative; width: 280px; aspect-ratio: 3 / 2; padding: 0; align-self: center;
+  background: var(--menu-pwf) center / 100% 100% no-repeat;
+  border: none; box-shadow: none; opacity: 1; filter: none;
+  justify-content: center; align-items: flex-end;
+}
+/* keep the uploaded art on hover (the generic .m-card hover would replace the
+   background with a translucent gold and make the card look like it vanished) */
+.has-pwf-skin .pwf-card:not(.locked):hover {
+  background: var(--menu-pwf) center / 100% 100% no-repeat;
+  filter: brightness(1.08); transform: translateY(-2px);
+}
+.has-pwf-skin .pwf-card .m-card-t { display: none; }
+.has-pwf-skin .pwf-card .soon { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); }
+
+/* ---- "Înapoi" back button skin: icon-only (no text), just the uploaded art ---- */
+.has-back-skin .m-back {
+  width: 87px; height: 87px; padding: 0; border: none; align-self: center;
+  background: var(--menu-back) center / 100% 100% no-repeat;
+}
+.has-back-skin .m-back:hover { filter: brightness(1.13); }
+.has-back-skin .m-back-txt { display: none; }
+
+/* ---- corner buttons (fullscreen top-right, sound bottom-right) ---- */
+.corner-btn {
+  width: 69px; height: 69px; border-radius: 12px; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 30px; line-height: 1;
+  color: var(--gold, #ffd35c); background: rgba(12, 18, 28, 0.72); border: 1px solid rgba(233, 197, 101, 0.4);
+}
+.corner-btn:hover { background: rgba(233, 197, 101, 0.18); }
+.has-fs-skin .fs-btn { background: var(--menu-fs) center / 100% 100% no-repeat; border: none; }
+.has-fs-skin .fs-btn:hover { filter: brightness(1.13); background: var(--menu-fs) center / 100% 100% no-repeat; }
+.has-sound-skin .snd-btn { background: var(--menu-sound) center / 100% 100% no-repeat; border: none; }
+.has-sound-skin .snd-btn:hover { filter: brightness(1.13); background: var(--menu-sound) center / 100% 100% no-repeat; }
+/* menu-music prev/next arrows: a bit smaller than the sound button; skinnable */
+.music-arrow { width: 48px; height: 48px; font-size: 26px; }
+.music-arrow.hidden { display: none; }
+.has-musicprev-skin #music-prev { background: var(--menu-musicprev) center / 100% 100% no-repeat; border: none; }
+.has-musicprev-skin #music-prev:hover { filter: brightness(1.13); background: var(--menu-musicprev) center / 100% 100% no-repeat; }
+.has-musicnext-skin #music-next { background: var(--menu-musicnext) center / 100% 100% no-repeat; border: none; }
+.has-musicnext-skin #music-next:hover { filter: brightness(1.13); background: var(--menu-musicnext) center / 100% 100% no-repeat; }
+
+#menu-fs-corner { position: absolute; top: 18px; right: 18px; z-index: 3; }
+/* language switch: shows the language you would switch TO */
+#menu-lang {
+  position: absolute; top: 18px; right: 104px; z-index: 3;
+  font: 700 13px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
+}
+/* admin-uploaded language icons: the one for the language you are READING */
+.has-langro-skin.lang-is-ro #menu-lang,
+.has-langro-skin.lang-is-ro #menu-lang:hover { background: var(--menu-langro) center / 100% 100% no-repeat; border: none; }
+.has-langen-skin.lang-is-en #menu-lang,
+.has-langen-skin.lang-is-en #menu-lang:hover { background: var(--menu-langen) center / 100% 100% no-repeat; border: none; }
+.has-langro-skin.lang-is-ro #menu-lang:hover, .has-langen-skin.lang-is-en #menu-lang:hover { filter: brightness(1.13); }
+/* player name box (top-left of the menu) — reads as a plaque, edits in place */
+#menu-name {
+  position: absolute; top: 18px; left: 18px; z-index: 3;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 10px;
+  background: rgba(12, 18, 28, 0.72); border: 1px solid rgba(233, 197, 101, 0.4);
+}
+#menu-name .name-ico { font-size: 17px; color: var(--gold, #ffd35c); }
+#menu-name input {
+  width: 150px; padding: 2px 4px; background: transparent; border: none;
+  border-bottom: 1px dashed rgba(233, 197, 101, 0.35);
+  color: var(--gold, #ffd35c); font: 700 15px/1.2 inherit; letter-spacing: 0.5px;
+}
+#menu-name input:focus { outline: none; border-bottom-color: #ffd35c; background: rgba(255, 211, 92, 0.07); }
+/* the track title sits on its own line ABOVE the music controls */
+#menu-sound { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#menu-sound-row { display: flex; align-items: center; gap: 10px; }
+/* the title floats ABOVE the pod, centred on the volume slider (its left offset
+   is measured in refreshTrackTitle, so it follows whatever skin sizes are up) */
+#music-title {
+  position: absolute; bottom: 100%; margin-bottom: 8px; transform: translateX(-50%);
+  max-width: 340px; text-align: center;
+  color: #ffd769; font: 700 12px/1.4 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#menu-sound .snd-range { width: 120px; }
+
+/* ---- setup PLAY button skin (shown at the natural size of the art) ---- */
+.has-play-skin .play-btn {
+  width: var(--menu-play-w, 260px); height: var(--menu-play-h, 56px); padding: 0;
+  border: none; box-shadow: none; background: var(--menu-play) center / 100% 100% no-repeat;
+}
+.has-play-skin .play-btn:hover { filter: brightness(1.1); background: var(--menu-play) center / 100% 100% no-repeat; }
+.has-play-skin .m-play-txt { display: none; }
+
+/* ---- frame around the race/difficulty picker (admin "Chenar rase / dificultate") ---- */
+.has-setup-skin .m-screen[data-screen="setup"] .m-setup {
+  background: var(--menu-setup) center / 100% 100% no-repeat;
+  padding: 60px 74px; border-radius: 14px; max-width: 720px; gap: 16px;
+}
+/* the framed setup panel wants to be wider than the default screen cap, so the
+   whole "Chenar rase / dificultate" has more room for the pills + labels */
+.has-setup-skin #menu-root .m-screen[data-screen="setup"],
+#menu-root .m-screen[data-screen="setup"] { max-width: min(760px, 94vw); }
+
+/* ---- race pill frame skins (separate per race: "Chenar Humans" / "Chenar Orcs" / "Chenar Undead") ---- */
+.has-racehum-skin .m-pill[data-race="humans"],
+.has-raceorc-skin .m-pill[data-race="orcs"],
+.has-raceund-skin .m-pill[data-race="undead"] {
+  border: none; color: #f4dca0; padding: 13px 24px; min-width: 132px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.has-racehum-skin .m-pill[data-race="humans"] { background: var(--menu-racehum) center / 100% 100% no-repeat; }
+.has-raceorc-skin .m-pill[data-race="orcs"] { background: var(--menu-raceorc) center / 100% 100% no-repeat; }
+.has-raceund-skin .m-pill[data-race="undead"] { background: var(--menu-raceund) center / 100% 100% no-repeat; }
+/* the Undead frame art has a thicker inner border, so its text needs more
+   horizontal breathing room (else "💀 Undead" touches / pokes out of the frame) */
+.has-raceund-skin .m-pill[data-race="undead"] { padding-left: 40px; padding-right: 40px; }
+.has-racehum-skin .m-pill[data-race="humans"]:hover,
+.has-raceorc-skin .m-pill[data-race="orcs"]:hover,
+.has-raceund-skin .m-pill[data-race="undead"]:hover { border: none; filter: brightness(1.12); }
+.has-racehum-skin .m-pill[data-race="humans"].on {
+  border: none; color: #fff2c9; background: var(--menu-racehum) center / 100% 100% no-repeat;
+  filter: brightness(1.22) drop-shadow(0 0 6px rgba(255, 215, 105, 0.6));
+}
+.has-raceorc-skin .m-pill[data-race="orcs"].on {
+  border: none; color: #fff2c9; background: var(--menu-raceorc) center / 100% 100% no-repeat;
+  filter: brightness(1.22) drop-shadow(0 0 6px rgba(255, 215, 105, 0.6));
+}
+.has-raceund-skin .m-pill[data-race="undead"].on {
+  border: none; color: #fff2c9; background: var(--menu-raceund) center / 100% 100% no-repeat;
+  filter: brightness(1.22) drop-shadow(0 0 6px rgba(255, 215, 105, 0.6));
+}
+/* ---- frame around the Options controls (admin "Chenar Options") ---- */
+.has-optframe-skin .m-setup-opts {
+  background: var(--menu-optframe) center / 100% 100% no-repeat;
+  padding: 42px 48px; border-radius: 14px;
+}
+
+/* ---- setup header: the clicked format card (art + format label) ---- */
+.setup-head { display: flex; flex-direction: column; align-items: center; }
+.setup-head .setup-card { display: none; position: relative; }
+.setup-head.as-card .setup-card { display: inline-flex; align-items: center; justify-content: center; }
+.setup-head.as-card .setup-title { display: none; }
+.setup-card-img { max-height: 72px; max-width: 52vw; display: block; }
+.setup-card-t {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: clamp(15px, 3.2vw, 22px); font-weight: 800; letter-spacing: 1px; color: #f4dca0;
+  text-transform: uppercase; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); pointer-events: none;
+}
+
+/* ---- multiplayer lobby ---- */
+#mp-wait-code {
+  font-family: "Impact", "Arial Narrow", sans-serif; font-weight: 900; font-size: clamp(44px, 9vw, 72px);
+  letter-spacing: 14px; padding-left: 14px; /* re-center the letter tracking */
+  background: linear-gradient(180deg, #fff2c9, var(--gold) 55%, #b0812c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
+}
+.mp-join-row { justify-content: center; gap: 10px; margin-top: 6px; }
+.mp-code-input {
+  width: 130px; text-transform: uppercase; text-align: center;
+  font: 700 20px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 8px;
+  color: #ffe39a; background: rgba(10, 14, 20, 0.8);
+  border: 1px solid rgba(233, 197, 101, 0.4); border-radius: 10px; padding: 12px 6px 12px 14px;
+}
+.mp-code-input:focus { outline: none; border-color: var(--gold); }
+.mp-code-input::placeholder { color: #7c8ba1; letter-spacing: 4px; }
+
+/* versiunea buildului, discret în colț — trebuie să fie aceeași la toți */
+#menu-version {
+  position: absolute; right: 14px; bottom: 10px; z-index: 3; pointer-events: none;
+  font: 700 11px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px;
+  color: rgba(210, 222, 238, 0.45); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+.lb-tag.bad { background: rgba(255, 85, 102, 0.22); color: #ffb3bd; }
+
+/* ---- lista de camere ("Join a room") ---- */
+.mp-rooms {
+  width: min(560px, 92vw); display: flex; flex-direction: column; gap: 6px;
+  max-height: 240px; overflow-y: auto;
+}
+.mp-rooms-empty { margin: 6px 0; color: #8d9bb0; font: 400 13px/1.5 "Segoe UI", system-ui, sans-serif; }
+.mp-room {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px;
+  background: rgba(10, 14, 20, 0.6); border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.mp-room:hover { border-color: rgba(233, 197, 101, 0.45); background: rgba(20, 28, 42, 0.7); }
+.mp-room-host { flex: 1 1 auto; text-align: left; font: 700 14px/1.2 "Segoe UI", system-ui, sans-serif; color: var(--text); }
+.mp-room-fill { font: 600 12px/1 "Segoe UI", system-ui, sans-serif; color: #9fb0c6; }
+.mp-room-fill small { color: #7c8ba1; }
+.mp-refresh { padding: 8px 14px; }
+
+/* ---- camera (lobby): sloturi pe două tabere + chat ---- */
+/* the lobby is the tallest screen in the menu: no giant logo above it, and it
+   sits near the top instead of being vertically centered */
+#menu-root.in-lobby { justify-content: flex-start; padding: 8vh 24px 4vh; }
+#menu-root.in-lobby .menu-brand { display: none; }
+#menu-root.in-lobby .m-screen { max-width: none; }
+.lobby-screen { width: min(1040px, 96vw); gap: 10px; }
+.lb-head { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.lb-head-t {
+  font: 800 11px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 3px;
+  text-transform: uppercase; color: #a8b6c9;
+}
+.lb-head-s { font: 400 12px/1 "Segoe UI", system-ui, sans-serif; color: #8d9bb0; }
+.lb-code {
+  font-family: "Impact", "Arial Narrow", sans-serif; font-size: clamp(34px, 6vw, 52px); line-height: 1.1;
+  letter-spacing: 12px; padding: 2px 6px 2px 18px; cursor: pointer;
+  background: none; border: 0; border-radius: 10px;
+  color: #ffe39a; text-shadow: 0 3px 14px rgba(0, 0, 0, 0.75), 0 0 22px rgba(233, 197, 101, 0.35);
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+.lb-code:hover { transform: translateY(-1px); color: #fff2c9; }
+.lb-code.copied { font-size: 24px; letter-spacing: 3px; color: #7fd98a; }
+.lb-hint { margin: 6px 0 0; font-size: 12.5px; color: #9fb0c6; }
+/* offline room (Play vs AI → Create room): no code, no chat, no ready */
+.lobby-screen.solo .lb-chat,
+.lobby-screen.solo .lb-ready-btn,
+.lobby-screen.solo .lb-head-s { display: none; }
+.lobby-screen.solo .lb-code { display: none; }
+.lobby-screen.solo .lb-head-t { font-size: 15px; letter-spacing: 2px; color: #f0d492; }
+.lb-wrap { display: flex; flex-direction: column; gap: 10px; }
+.lb-sides { display: flex; align-items: stretch; justify-content: center; gap: 10px; }
+.lb-col {
+  flex: 1 1 0; display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  padding: 8px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 14, 20, 0.55);
+}
+.lb-col.ours { border-color: rgba(77, 166, 255, 0.45); box-shadow: inset 0 0 22px rgba(77, 166, 255, 0.09); }
+.lb-col.theirs { border-color: rgba(255, 85, 102, 0.35); box-shadow: inset 0 0 22px rgba(255, 85, 102, 0.07); }
+.lb-col-h {
+  font: 800 12px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 2px; text-transform: uppercase;
+  color: #cbd6e6; padding: 2px 4px 6px; display: flex; justify-content: space-between;
+}
+.lb-count { color: var(--gold); }
+.lb-vs { align-self: center; font: 900 16px/1 "Impact", sans-serif; color: #8d9bb0; letter-spacing: 2px; }
+.lb-slot {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 7px 8px; min-height: 46px;
+  border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.07); background: rgba(255, 255, 255, 0.03);
+}
+.lb-slot.me { border-color: rgba(233, 197, 101, 0.55); background: rgba(233, 197, 101, 0.07); }
+.lb-slot.open, .lb-slot.closed { opacity: 0.72; }
+.lb-pos {
+  flex: 0 0 52px; font: 700 10px/1 "Segoe UI", system-ui, sans-serif; text-transform: uppercase;
+  letter-spacing: 1px; color: #8d9bb0;
+}
+.lb-body { flex: 1 1 150px; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lb-name { font: 700 14px/1.2 "Segoe UI", system-ui, sans-serif; color: var(--text); }
+.lb-name.empty { color: #7c8ba1; font-weight: 600; }
+.lb-name.bot { color: #b9c6da; }
+.lb-tag {
+  font: 800 9px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 1px; padding: 3px 5px; border-radius: 5px;
+}
+.lb-tag.host { background: rgba(233, 197, 101, 0.18); color: #f0d492; }
+.lb-tag.me { background: rgba(77, 166, 255, 0.18); color: #9ecbff; }
+.lb-ready { font: 600 11px/1 "Segoe UI", system-ui, sans-serif; color: #7c8ba1; }
+.lb-ready.on { color: #7fd98a; }
+.lb-races { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex-basis: 100%; }
+/* the race choices inside a slot ARE the menu race pills (so the admin
+   "Chenar Humans / Orcs / Undead" frames apply), just scaled to the row */
+.lb-slot .m-pill.lb-pill {
+  font: 700 11px/1 "Segoe UI", system-ui, sans-serif; letter-spacing: 0.5px;
+  padding: 7px 10px; min-width: 72px; border-radius: 8px;
+}
+.has-racehum-skin .lb-slot .m-pill[data-race="humans"],
+.has-raceorc-skin .lb-slot .m-pill[data-race="orcs"],
+.has-raceund-skin .lb-slot .m-pill[data-race="undead"] { padding: 10px 18px; min-width: 96px; }
+.has-raceund-skin .lb-slot .m-pill[data-race="undead"] { padding-left: 26px; padding-right: 26px; }
+.lb-slot .m-pill.lb-pill:not(.on) { opacity: 0.62; }
+.lb-slot .m-pill.lb-pill:hover { opacity: 1; }
+.lb-slot span.m-pill.lb-pill { cursor: default; }
+.lb-diff {
+  font: 700 10px/1 "Segoe UI", system-ui, sans-serif; padding: 4px 7px; border-radius: 6px; cursor: pointer;
+  color: #9fb0c6; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.lb-diff:not(button) { cursor: default; }
+.lb-diff:hover { color: var(--text); border-color: rgba(233, 197, 101, 0.4); }
+.lb-diff.sel { color: #1a1206; background: linear-gradient(180deg, #f4dca0, var(--gold)); border-color: var(--gold); }
+.lb-ctl { display: flex; gap: 4px; flex: 0 0 auto; }
+.lb-mini {
+  width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 12px;
+  color: #cbd6e6; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.lb-mini:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.lb-mini.bad:hover { background: rgba(255, 85, 102, 0.25); border-color: #ff5566; }
+/* "move myself here": the one control on an empty seat that everyone gets */
+.lb-mini.go { color: var(--gold); border-color: rgba(233, 197, 101, 0.35); }
+.lb-mini.go:hover { background: rgba(233, 197, 101, 0.22); border-color: var(--gold); color: #fff; }
+.lb-chat { display: flex; flex-direction: column; gap: 6px; }
+.lb-log {
+  height: 118px; overflow-y: auto; text-align: left; padding: 8px 10px; border-radius: 10px;
+  background: rgba(6, 9, 14, 0.66); border: 1px solid rgba(255, 255, 255, 0.07);
+  font: 400 12.5px/1.5 "Segoe UI", system-ui, sans-serif; color: #d5dfec;
+}
+.lb-line.sys { color: #8d9bb0; font-style: italic; }
+.lb-line b { color: var(--gold); }
+.lb-say { display: flex; gap: 8px; }
+.lb-say input {
+  flex: 1 1 auto; padding: 10px 12px; border-radius: 10px; color: var(--text);
+  background: rgba(10, 14, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.12);
+  font: 400 13px/1 "Segoe UI", system-ui, sans-serif;
+}
+.lb-say input:focus { outline: none; border-color: var(--gold); }
+.lb-send { padding: 10px 16px; }
+.lb-actions { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+.lb-ready-btn.on { border-color: #4caf50; background: rgba(76, 175, 80, 0.18); color: #b6f0bd; }
+.lb-start-btn:disabled { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.6); }
+.lb-swap {
+  display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px;
+  padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(233, 197, 101, 0.5);
+  background: rgba(233, 197, 101, 0.1); font: 400 13px/1.3 "Segoe UI", system-ui, sans-serif; color: #f2e3bd;
+}
+.m-btn.small { padding: 6px 12px; font-size: 12px; }
+@media (max-width: 720px) {
+  .lb-sides { flex-direction: column; }
+  .lb-pos { flex-basis: 44px; }
+}
+
+/* ---- countdown ---- */
+#menu-cd {
+  position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  /* background-IMAGE (not the shorthand) so it doesn't reset the shared
+     background-size/repeat above — the shorthand made the loading bg tile */
+  background-image: radial-gradient(60% 60% at 50% 45%, rgba(20, 30, 52, 0.6), rgba(5, 8, 12, 0.92));
+  backdrop-filter: blur(3px);
+}
+#menu-cd .cd-num {
+  font-family: "Impact", "Arial Narrow", sans-serif; font-size: clamp(120px, 26vw, 240px); line-height: 1; font-weight: 900;
+  background: linear-gradient(180deg, #fff2c9, var(--gold) 55%, #b0812c);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 8px 26px rgba(0, 0, 0, 0.6)); animation: cdpop 1s ease-out;
+}
+#menu-cd .cd-sub { font-size: 15px; letter-spacing: 4px; text-transform: uppercase; color: #b9c6dc; }
+@keyframes cdpop { 0% { transform: scale(1.5); opacity: 0; } 22% { opacity: 1; } 100% { transform: scale(1); opacity: 0.92; } }
+
+/* ---- loading ---- */
+#menu-load {
+  position: fixed; inset: 0; z-index: 120; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  background-image: radial-gradient(90% 70% at 50% 40%, #101a2e, #070a12 90%);
+}
+#menu-load .load-brand { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+#menu-load .menu-logo-img { max-width: min(420px, 74vw); max-height: 200px; }
+#menu-load .menu-logo-txt {
+  font-family: "Impact", "Arial Narrow", sans-serif; font-weight: 900; letter-spacing: 3px; font-size: clamp(30px, 7vw, 52px); text-transform: uppercase;
+  background: linear-gradient(180deg, #fff2c9, var(--gold) 55%, #b0812c); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.load-bar { width: min(420px, 80vw); height: 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(233, 197, 101, 0.22); overflow: hidden; }
+.load-fill { height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, #c99a34, #ffe39a); }
+/* what is actually downloading, under the bar — so a long wait reads as
+   "still working" instead of "frozen" */
+.load-note {
+  margin-top: -14px; font-size: 12px; color: #7c8ba1; text-align: center;
+  max-width: 60ch; padding: 0 16px; min-height: 16px;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.load-note b { color: #c9a961; font-weight: 600; }
+.load-note.slow { color: #e0b060; }
+.load-tip { font-size: 13.5px; color: #9fb0c8; max-width: 44ch; text-align: center; padding: 0 16px; }
+
+/* ---- Hero badge (left edge, ~10% from the top of the battlefield view) ---- */
+/* left-edge hero badges: a vertical stack (up to 3 recruited heroes) */
+#hero-badges {
+  position: absolute;
+  left: 0;
+  top: 10%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hero-badge {
+  width: 72px;
+  padding: 5px 4px 6px;
+  background: rgba(13, 17, 23, 0.88);
+  border: 1px solid #2a3446;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+.hero-badge:hover { border-color: #4da6ff; }
+.hero-badge-thumb { width: 64px; height: 64px; display: block; margin: 0 auto; border-radius: 6px; background: #0a0e14; }
+.hero-badge-lvl { font-size: 11px; font-weight: 700; color: var(--gold, #ffd35c); margin-top: 3px; letter-spacing: 0.5px; }
+.hero-badge-bar { height: 5px; margin-top: 3px; background: #0a0e14; border: 1px solid #2a3446; border-radius: 3px; overflow: hidden; }
+.hero-badge-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #58d68d, #9be7b8); }
+
+/* Custom race cursor covers the WHOLE page (bottom bar and buttons included),
+   overriding per-element cursor styles while a custom cursor is uploaded. */
+body.custom-cursor, body.custom-cursor * { cursor: var(--game-cursor, auto) !important; }
+
+/* Orc + Undead bar skins: their details window is smaller, so the stats text
+   runs compact (smaller fonts, tighter spacing) to fit inside the carved frame. */
+#bottombar.race-orcs #bb-details,
+#bottombar.race-undead #bb-details { font-size: 10.5px; padding: 26px 24px 6px; }
+#bottombar.race-orcs #bb-details .d-name,
+#bottombar.race-undead #bb-details .d-name { font-size: 12px; }
+#bottombar.race-orcs #bb-details .d-sub,
+#bottombar.race-undead #bb-details .d-sub { font-size: 9.5px; }
+#bottombar.race-orcs #bb-details .d-bar,
+#bottombar.race-undead #bb-details .d-bar { height: 6px; margin-top: 3px; }
+#bottombar.race-orcs #bb-details .d-bar span,
+#bottombar.race-undead #bb-details .d-bar span { font-size: 7.5px; line-height: 7px; }
+#bottombar.race-orcs #bb-details .d-stats,
+#bottombar.race-undead #bb-details .d-stats { gap: 1px 9px; margin-top: 3px; }
+#bottombar.race-orcs #bb-details .d-chip,
+#bottombar.race-undead #bb-details .d-chip { font-size: 9px; padding: 0 6px; }
+
+/* Vinde: its own column to the RIGHT of the UNITS/CLĂDIRI tabs (it used to be a
+   cell in the 3x3 command grid). Only visible while the selection is sellable
+   (own template / own building). The column sits at the bottom, aligned with
+   the tab buttons. */
+#bb-sell-col {
+  /* ABSOLUTE so it is OUT of the flex flow: it must not widen the (centered)
+     bar or it would shove the command grid + UNITS/CLĂDIRI tabs off the skin's
+     painted frames. It floats just past the bar's right edge, bottom-aligned. */
+  position: absolute;
+  left: 100%;
+  bottom: 8px;
+  margin-left: 8px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 0;
+}
+/* Mută: sits ABOVE the Vinde button (same column), neutral blue so it reads
+   distinct from the red sell action. */
+#bb-move {
+  width: 96px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: rgba(31, 74, 122, 0.42);
+  border: 1px solid #3a5a7a;
+  border-radius: 8px;
+  color: #d0e6ff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+}
+#bb-move #bb-move-ico { font-size: 16px; }
+#bb-move:hover { background: rgba(40, 110, 170, 0.55); border-color: #55a0c0; }
+#bb-move.hidden { display: none; }
+#bb-move.armed { background: rgba(60, 150, 90, 0.6); border-color: #6ada9a; color: #eaffea; }
+#bb-sell {
+  width: 96px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: rgba(122, 31, 31, 0.4);
+  border: 1px solid #7a3a3a;
+  border-radius: 8px;
+  color: #ffd0d0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+}
+#bb-sell #bb-sell-ico { font-size: 16px; }
+#bb-sell:hover { background: rgba(160, 40, 40, 0.55); border-color: #c05555; }
+#bb-sell.hidden { display: none; }
+
+/* „Testing": badge de colț cât timp meciul rulează pe numerele accelerate
+   (comutatorul din Options; doar meciuri offline). */
+#testing-badge {
+  position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 40;
+  pointer-events: none; padding: 3px 12px; border-radius: 999px;
+  background: rgba(255, 176, 32, 0.16); border: 1px solid rgba(255, 176, 32, 0.5);
+  color: #ffc960; font: 700 11px/1.6 "Segoe UI", system-ui, sans-serif; letter-spacing: 2px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* OPTIONS -> Taste: one row per rebindable action, grouped. */
+/* the Taste row stacks: label on top, the scrollable list under it, so the
+   options panel keeps its 420px column instead of spilling off-screen */
+.m-keys-row { flex-direction: column; align-items: stretch; gap: 8px; }
+.m-keys-row .m-label { white-space: normal; }
+.m-keys { display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow-y: auto; width: 100%; }
+.m-keys-g {
+  margin: 6px 0 2px; color: #ffd35c; font: 700 10px/1 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 2px; text-transform: uppercase;
+}
+.m-key-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  color: #cbd6e6; font: 400 13px/1.5 "Segoe UI", system-ui, sans-serif;
+}
+.m-key {
+  min-width: 62px; padding: 3px 10px; border-radius: 6px; cursor: pointer;
+  background: rgba(10, 14, 20, 0.7); border: 1px solid #3a4658; color: #ffe9a8;
+  font: 700 12px/1.4 ui-monospace, monospace; letter-spacing: 1px;
+}
+.m-key:hover { border-color: #ffd35c; color: #fff; }
+.m-key.live { border-color: #ffd35c; background: rgba(255, 211, 92, 0.18); color: #fff; }
+.m-mini {
+  padding: 5px 14px; border-radius: 7px; cursor: pointer;
+  background: rgba(10, 14, 20, 0.7); border: 1px solid #3a4658; color: #cbd6e6;
+  font: 700 12px/1.4 "Segoe UI", system-ui, sans-serif;
+}
+.m-mini:hover { border-color: #ffd35c; color: #fff; }
+
+/* Options rows with a long explanation under the title: let them WRAP inside
+   the 420px column instead of stretching the row off-screen (the labels are
+   nowrap by default, which was pushing the Testing switch out of the view). */
+.m-setup-opts .m-label { white-space: normal; }
+.m-setup-opts .m-sub { display: block; margin-top: 3px; line-height: 1.5; text-transform: none; letter-spacing: 0; }
+
+/* Undead soul hero: his mana bar is a SOUL bar — a spectral toxic green, told
+   apart at a glance from both the mana blue and the HP green right above it.
+   Needs the #bb-details prefix to outweigh the generic `.d-bar .mana` rule. */
+#bb-details .d-bar.souls .mana { background: linear-gradient(180deg, #e2ff8f, #93dd2e); }
