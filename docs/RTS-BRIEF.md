@@ -30,7 +30,7 @@ la fps real, redate din fișierul Blender. Vreau să arate frumos și elegant.
 
 ## 2. Decizia tehnică (deja luată — nu o redeschide)
 
-**Godot 4.x, renderer Forward+, GDScript.**
+**Godot 4.7.1 (build-ul standard, NU cel .NET), renderer Forward+, GDScript.**
 
 Motivele, ca să nu le re-derivezi:
 - 3D nativ → `.glb` din Blender cu toate acțiunile, redate cu `AnimationPlayer`,
@@ -41,6 +41,8 @@ Motivele, ca să nu le re-derivezi:
 - Poate exporta și pe web mai târziu, dacă vreau.
 
 C# se poate adăuga ulterior dacă un sistem chiar cere, dar **default e GDScript**.
+Formatul de proiect e identic între cele două build-uri, deci trecerea la .NET mai
+târziu nu cere nicio migrare — doar deschizi același proiect cu celălalt executabil.
 
 ## 3. Ce experiență am deja (folosește-o, nu mă învăța de la zero)
 
