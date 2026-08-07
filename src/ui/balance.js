@@ -224,6 +224,7 @@ const HERO_DEFAULT_KITS = {
   orcs: { skills: ['warstomp', 'cleave', 'charge'], ult: 'bloodlust' },
   humans: { skills: ['holylight', 'divineshield', 'devotionaura'], ult: 'holynova' },
   undead: { skills: ['execute', 'reapcleave', 'vampiricaura'], ult: 'soullink' },
+  woodelves: { skills: ['poisonarrow', 'summonbear', 'regenaura'], ult: 'beastform' },
 };
 
 function baseUnits(race) {
@@ -497,6 +498,7 @@ function snapshot() {
     menuRaceHumans: CONFIG.MENU_RACE_HUMANS || '',
     menuRaceOrcs: CONFIG.MENU_RACE_ORCS || '',
     menuRaceUndead: CONFIG.MENU_RACE_UNDEAD || '',
+    menuRaceWoodelves: CONFIG.MENU_RACE_WOODELVES || '',
     menuBg: CONFIG.MENU_BG || '',
     tutorials: (Array.isArray(CONFIG.TUTORIALS) ? CONFIG.TUTORIALS : []).map((t) => ({ img: t.img || '', text: t.text || '' })),
     loadingBgs: (Array.isArray(CONFIG.LOADING_BGS) ? CONFIG.LOADING_BGS : []).slice(0, 3).map((s) => s || ''),
@@ -575,6 +577,7 @@ export function applyBalance(data) {
     CONFIG.MENU_RACE_HUMANS = typeof data.menuRaceHumans === 'string' && data.menuRaceHumans ? data.menuRaceHumans : legacy;
     CONFIG.MENU_RACE_ORCS = typeof data.menuRaceOrcs === 'string' && data.menuRaceOrcs ? data.menuRaceOrcs : legacy;
     CONFIG.MENU_RACE_UNDEAD = typeof data.menuRaceUndead === 'string' && data.menuRaceUndead ? data.menuRaceUndead : legacy;
+    CONFIG.MENU_RACE_WOODELVES = typeof data.menuRaceWoodelves === 'string' && data.menuRaceWoodelves ? data.menuRaceWoodelves : legacy;
   }
   CONFIG.TUTORIALS = Array.isArray(data.tutorials)
     ? data.tutorials
@@ -864,7 +867,7 @@ export function importBalance(data) {
   const keepMenuCard = CONFIG.MENU_CARD, keepMenuBack = CONFIG.MENU_BACK;
   const keepMenuSlideFrame = CONFIG.MENU_SLIDE_FRAME, keepMenuFsBtn = CONFIG.MENU_FS_BTN, keepMenuSoundBtn = CONFIG.MENU_SOUND_BTN, keepMenuPwf = CONFIG.MENU_PWF;
   const keepMenuLangRo = CONFIG.MENU_LANG_RO, keepMenuLangEn = CONFIG.MENU_LANG_EN;
-  const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRaceHumans = CONFIG.MENU_RACE_HUMANS, keepMenuRaceOrcs = CONFIG.MENU_RACE_ORCS, keepMenuRaceUndead = CONFIG.MENU_RACE_UNDEAD;
+  const keepMenuPlay = CONFIG.MENU_PLAY, keepMenuSetupFrame = CONFIG.MENU_SETUP_FRAME, keepMenuOptionsFrame = CONFIG.MENU_OPTIONS_FRAME, keepMenuRaceHumans = CONFIG.MENU_RACE_HUMANS, keepMenuRaceOrcs = CONFIG.MENU_RACE_ORCS, keepMenuRaceUndead = CONFIG.MENU_RACE_UNDEAD, keepMenuRaceWoodelves = CONFIG.MENU_RACE_WOODELVES;
   const keepMenuBg = CONFIG.MENU_BG, keepLoadingBgs = CONFIG.LOADING_BGS;
   const keepMenuMusic = CONFIG.MENU_MUSIC, keepMenuMusicVol = CONFIG.MENU_MUSIC_VOL, keepTips = CONFIG.LOADING_TIPS;
   const keepMenuMusics = CONFIG.MENU_MUSICS, keepMenuMusicPrev = CONFIG.MENU_MUSIC_PREV, keepMenuMusicNext = CONFIG.MENU_MUSIC_NEXT;
@@ -888,6 +891,7 @@ export function importBalance(data) {
   if (typeof data.menuRaceHumans !== 'string' || !data.menuRaceHumans) CONFIG.MENU_RACE_HUMANS = keepMenuRaceHumans;
   if (typeof data.menuRaceOrcs !== 'string' || !data.menuRaceOrcs) CONFIG.MENU_RACE_ORCS = keepMenuRaceOrcs;
   if (typeof data.menuRaceUndead !== 'string' || !data.menuRaceUndead) CONFIG.MENU_RACE_UNDEAD = keepMenuRaceUndead;
+  if (typeof data.menuRaceWoodelves !== 'string' || !data.menuRaceWoodelves) CONFIG.MENU_RACE_WOODELVES = keepMenuRaceWoodelves;
   if (typeof data.menuBg !== 'string' || !data.menuBg) CONFIG.MENU_BG = keepMenuBg;
   if ((!Array.isArray(data.loadingBgs) || !data.loadingBgs.some(Boolean)) && !data.loadingBg) CONFIG.LOADING_BGS = keepLoadingBgs;
   if (typeof data.menuMusic !== 'string' || !data.menuMusic) { CONFIG.MENU_MUSIC = keepMenuMusic; CONFIG.MENU_MUSIC_VOL = keepMenuMusicVol; }

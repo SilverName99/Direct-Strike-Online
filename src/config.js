@@ -2,11 +2,13 @@
 
 // Bumped on every release; shown in the HUD and logged at boot so a stale
 // cached deploy is instantly recognizable.
-export const VERSION = 'v24.4';
+export const VERSION = 'v25.0';
 
-// Playable races. Cosmetic for now (art sets uploaded via /admin, same
-// unit stats); stat divergence can come later. The AI plays the other one.
-export const RACES = ['humans', 'orcs', 'undead'];
+// Playable races. Each ships its own roster in race-units.js; /admin layers
+// art and tuning on top. EVERYTHING race-keyed derives from this list — the
+// admin tabs, the lobby pills, balance snapshots — so adding a race here is
+// most of the work. The AI plays whichever race its slot is set to.
+export const RACES = ['humans', 'orcs', 'undead', 'woodelves'];
 
 export const CONFIG = {
   // Simulation
@@ -95,6 +97,7 @@ export const CONFIG = {
   MENU_RACE_HUMANS: '', // frame skin for the Humans race pill; '' = plain pill
   MENU_RACE_ORCS: '',   // frame skin for the Orcs race pill; '' = plain pill
   MENU_RACE_UNDEAD: '', // frame skin for the Undead race pill; '' = plain pill
+  MENU_RACE_WOODELVES: '', // frame skin for the Wood Elves race pill; '' = plain pill
   MENU_BG: '',          // main-menu background image (data URL); '' = plain dark
   TUTORIALS: [],        // "How to play" slider: array of { img, text } slides (set in admin)
   LOADING_BGS: ['', '', ''], // up to 3 loading-screen backgrounds; one is picked at random each load

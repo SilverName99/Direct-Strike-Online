@@ -274,6 +274,7 @@ export class BottomBar {
     this.bar.classList.toggle('race-orcs', raceOf(this.team) === 'orcs');
     this.bar.classList.toggle('race-humans', raceOf(this.team) === 'humans');
     this.bar.classList.toggle('race-undead', raceOf(this.team) === 'undead');
+    this.bar.classList.toggle('race-woodelves', raceOf(this.team) === 'woodelves');
   }
 
 

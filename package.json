@@ -7,5 +7,8 @@
   "scripts": {
     "start": "python3 -m http.server 8000",
     "test": "node test/sim-test.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.1"
   }
 }

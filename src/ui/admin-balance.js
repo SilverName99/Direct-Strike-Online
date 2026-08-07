@@ -121,6 +121,7 @@ function render() {
     ${uploaderRow('menuracehum', 'Chenar Humans', 'ramă PNG pentru pastila Humans (setup)')}
     ${uploaderRow('menuraceorc', 'Chenar Orcs', 'ramă PNG pentru pastila Orcs (setup)')}
     ${uploaderRow('menuraceund', 'Chenar Undead', 'ramă PNG pentru pastila Undead (setup)')}
+    ${uploaderRow('menuracewe', 'Chenar Wood Elves', 'ramă PNG pentru pastila Wood Elves (setup)')}
     ${uploaderRow('loadingbg0', 'Fundal loading 1', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg1', 'Fundal loading 2', 'variantă aleasă la întâmplare')}
     ${uploaderRow('loadingbg2', 'Fundal loading 3', 'variantă aleasă la întâmplare')}
@@ -163,6 +164,7 @@ function render() {
   wireAsset('MENU_RACE_HUMANS', 'menuracehum', 'image', 2 * 1024 * 1024);
   wireAsset('MENU_RACE_ORCS', 'menuraceorc', 'image', 2 * 1024 * 1024);
   wireAsset('MENU_RACE_UNDEAD', 'menuraceund', 'image', 2 * 1024 * 1024);
+  wireAsset('MENU_RACE_WOODELVES', 'menuracewe', 'image', 2 * 1024 * 1024);
   wireAsset('LOADING_BGS', 'loadingbg0', 'image', 3 * 1024 * 1024, 0);
   wireAsset('LOADING_BGS', 'loadingbg1', 'image', 3 * 1024 * 1024, 1);
   wireAsset('LOADING_BGS', 'loadingbg2', 'image', 3 * 1024 * 1024, 2);

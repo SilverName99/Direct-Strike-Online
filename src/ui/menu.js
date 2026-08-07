@@ -39,7 +39,7 @@ export function saveTesting(on) {
 
 // Lobby helpers: chat + names come from other players, so everything that
 // lands in innerHTML goes through esc() first.
-const RACE_RO = { humans: 'Oameni', orcs: 'Orci', undead: 'Undead' };
+const RACE_RO = { humans: 'Oameni', orcs: 'Orci', undead: 'Undead', woodelves: 'Elfi Silvani' };
 const raceLabel = (race) => t(RACE_RO[race] || race);
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -711,6 +711,7 @@ export class Menu {
       ['MENU_RACE_HUMANS', 'has-racehum-skin', '--menu-racehum'],
       ['MENU_RACE_ORCS', 'has-raceorc-skin', '--menu-raceorc'],
       ['MENU_RACE_UNDEAD', 'has-raceund-skin', '--menu-raceund'],
+      ['MENU_RACE_WOODELVES', 'has-racewe-skin', '--menu-racewe'],
       ['MENU_MUSIC_PREV', 'has-musicprev-skin', '--menu-musicprev'],
       ['MENU_MUSIC_NEXT', 'has-musicnext-skin', '--menu-musicnext'],
     ];

@@ -9,6 +9,7 @@ $navTabs = [
   ['humans',    'index.php?race=humans', '⚔ Humans'],
   ['orcs',      'index.php?race=orcs',   '🪓 Orcs'],
   ['undead',    'index.php?race=undead', '💀 Undead'],
+  ['woodelves', 'index.php?race=woodelves', '🏹 Wood Elves'],
   ['icons',     'index.php?view=icons',  '🎨 Iconițe'],
   ['balance',   'balance.php',           '⚙ Balance'],
   ['abilities', 'abilities.php',         '✨ Abilități'],

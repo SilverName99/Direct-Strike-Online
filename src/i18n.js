@@ -208,6 +208,7 @@ const EN = {
   'Mută în cealaltă tabără': 'Move to the other side',
   'Oameni': 'Humans',
   'Orci': 'Orcs',
+  'Elfi Silvani': 'Wood Elves',
 
   // ---- options: hotkey rows
   'Grila de comenzi': 'Command grid',
